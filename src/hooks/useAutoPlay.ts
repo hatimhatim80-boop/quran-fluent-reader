@@ -16,6 +16,7 @@ export function useAutoPlay({
 }: UseAutoPlayProps) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [speed, setSpeed] = useState(4); // seconds per word
+  const thinkingGap = 800; // 0.8s gap before showing meaning
   
   // Use refs to avoid stale closures in setTimeout
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -46,6 +47,18 @@ export function useAutoPlay({
     if (timeoutRef.current) {
       clearTimeout(timeoutRef.current);
       timeoutRef.current = null;
+    }
+  }, []);
+
+  // Scroll active word into view
+  const scrollToActiveWord = useCallback((index: number) => {
+    const wordEl = document.querySelector(`[data-ghareeb-index="${index}"]`);
+    if (wordEl) {
+      wordEl.scrollIntoView({
+        behavior: 'smooth',
+        block: 'center',
+        inline: 'center',
+      });
     }
   }, []);
 
@@ -87,6 +100,8 @@ export function useAutoPlay({
         // Advance to next word
         setCurrentWordIndex(nextIdx);
         currentIndexRef.current = nextIdx;
+        // Scroll to new word
+        scrollToActiveWord(nextIdx);
         // Schedule the next step
         scheduleNext();
       } else {
@@ -97,9 +112,18 @@ export function useAutoPlay({
         onPageEnd?.();
       }
     }, delayMs);
-  }, [setCurrentWordIndex, onPageEnd]);
+  }, [setCurrentWordIndex, onPageEnd, scrollToActiveWord]);
 
   const play = useCallback(() => {
+    // Prevent double timers - if already playing, pause instead
+    if (isPlayingRef.current) {
+      console.log('[autoplay] Already playing, pausing instead');
+      setIsPlaying(false);
+      isPlayingRef.current = false;
+      clearTimer();
+      return;
+    }
+
     if (wordsRef.current.length === 0) {
       console.log('[autoplay] No words to play');
       return;
@@ -123,9 +147,12 @@ export function useAutoPlay({
       meaning: firstWord?.meaning ? 'found' : 'NOT FOUND',
     });
 
+    // Scroll to first word
+    scrollToActiveWord(0);
+
     // Schedule first advance after delay
     scheduleNext();
-  }, [clearTimer, setCurrentWordIndex, scheduleNext]);
+  }, [clearTimer, setCurrentWordIndex, scheduleNext, scrollToActiveWord]);
 
   const pause = useCallback(() => {
     console.log('[autoplay] Paused at index:', currentIndexRef.current);
