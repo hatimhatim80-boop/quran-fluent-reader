@@ -1,5 +1,4 @@
 import { QuranPage, GhareebWord } from '@/types/quran';
-import { getGhareebWordPage } from './quranPageIndex';
 
 // Convert Arabic numerals to Western numerals
 function arabicToNumber(arabicNum: string): number {
@@ -14,21 +13,22 @@ function arabicToNumber(arabicNum: string): number {
   return parseInt(result, 10) || 0;
 }
 
-// Remove decorative brackets from word text
+// Remove decorative brackets and parentheses from word text
 function cleanWordText(text: string): string {
-  return text.replace(/[﴿﴾]/g, '').trim();
+  return text
+    .replace(/[﴿﴾()（）]/g, '')
+    .trim();
 }
 
 // Normalize Arabic text for comparison - remove ALL diacritics and special marks
-function normalizeArabic(text: string): string {
-  // First, convert to a consistent form by removing all diacritics and special marks
+export function normalizeArabic(text: string): string {
   let normalized = text;
   
   // Remove all Unicode ranges that contain diacritical marks and special symbols
   normalized = normalized.replace(/[\u0610-\u061A\u064B-\u065F\u0670\u06D6-\u06ED\u08D3-\u08FF]/g, '');
   
   // Remove Quranic special characters
-  normalized = normalized.replace(/[ۣۖۗۘۙۚۛۜ۟۠ۡۢۤۥۦۧۨ۩۪ۭ۫۬ۮۯ]/g, '');
+  normalized = normalized.replace(/[ۣۖۗۘۙۚۛۜ۟۠ۡۢۤۥۦۧۨ۩۪ۭ۫۬ۮۯ]/g, '');
   
   // Normalize alef forms
   normalized = normalized.replace(/[ٱإأآٲٳٵ]/g, 'ا');
@@ -96,15 +96,11 @@ export function parseMushafText(text: string): QuranPage[] {
   return pages;
 }
 
-export function parseGhareebText(text: string, _pages: QuranPage[]): GhareebWord[] {
+// Parse ghareeb words without page mapping - we'll match by text
+export function parseGhareebText(text: string): GhareebWord[] {
   const lines = text.split('\n');
   const words: GhareebWord[] = [];
-  
-  // Track words per page for ordering
-  const pageWordCounts: Record<number, number> = {};
-
-  let foundCount = 0;
-  let notFoundCount = 0;
+  const seenWords = new Set<string>();
 
   for (const line of lines) {
     const trimmedLine = line.trim();
@@ -121,43 +117,56 @@ export function parseGhareebText(text: string, _pages: QuranPage[]): GhareebWord
     const verseNumber = arabicToNumber(parts[2]);
     const meaning = parts[3].trim();
 
-    if (!wordText || !surahName || !verseNumber) continue;
+    if (!wordText || !meaning) continue;
 
-    // Use the page index to find the correct page
-    const pageNumber = getGhareebWordPage(surahName, verseNumber);
-    
-    if (pageNumber === -1) {
-      notFoundCount++;
-      continue;
-    }
+    // Create unique key for deduplication (word + meaning)
+    const uniqueKey = `${wordText}|${meaning}`;
+    if (seenWords.has(uniqueKey)) continue;
+    seenWords.add(uniqueKey);
 
-    foundCount++;
-    
-    // Track order within page
-    pageWordCounts[pageNumber] = (pageWordCounts[pageNumber] || 0) + 1;
-    
     words.push({
-      pageNumber,
+      pageNumber: 0, // Not used anymore
       wordText,
       meaning,
       surahName,
       verseNumber,
-      order: pageWordCounts[pageNumber],
+      order: words.length,
     });
   }
 
-  console.log(`Ghareeb words: ${foundCount} found, ${notFoundCount} not found (using page index)`);
-  
-  return words.sort((a, b) => {
-    if (a.pageNumber !== b.pageNumber) return a.pageNumber - b.pageNumber;
-    // Sort by verse number within same page
-    if (a.verseNumber !== b.verseNumber) return a.verseNumber - b.verseNumber;
-    return a.order - b.order;
-  });
+  console.log(`Parsed ${words.length} unique ghareeb words`);
+  return words;
 }
 
-// Export for use in PageView
-export { normalizeArabic };
+// Find ghareeb words that appear in a given page text
+export function findWordsInPage(pageText: string, allWords: GhareebWord[]): GhareebWord[] {
+  const normalizedPageText = normalizeArabic(pageText);
+  const foundWords: { word: GhareebWord; firstIndex: number }[] = [];
+  const usedKeys = new Set<string>();
+
+  for (const word of allWords) {
+    const normalizedWord = normalizeArabic(word.wordText);
+    if (normalizedWord.length < 2) continue;
+
+    // Check if this word appears in the page text
+    const index = normalizedPageText.indexOf(normalizedWord);
+    if (index !== -1) {
+      const key = `${word.wordText}|${word.meaning}`;
+      if (!usedKeys.has(key)) {
+        usedKeys.add(key);
+        foundWords.push({ word, firstIndex: index });
+      }
+    }
+  }
+
+  // Sort by first occurrence in text
+  foundWords.sort((a, b) => a.firstIndex - b.firstIndex);
+  
+  return foundWords.map((fw, idx) => ({
+    ...fw.word,
+    order: idx,
+  }));
+}
 
 export async function loadQuranData(): Promise<{ pages: QuranPage[]; ghareebWords: GhareebWord[] }> {
   try {
@@ -170,7 +179,7 @@ export async function loadQuranData(): Promise<{ pages: QuranPage[]; ghareebWord
     const ghareebText = await ghareebResponse.text();
 
     const pages = parseMushafText(mushafText);
-    const ghareebWords = parseGhareebText(ghareebText, pages);
+    const ghareebWords = parseGhareebText(ghareebText);
 
     console.log(`Loaded ${pages.length} pages and ${ghareebWords.length} ghareeb words`);
 

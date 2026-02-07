@@ -147,19 +147,21 @@
   }
 
   .word-ghareeb {
-    color: hsl(var(--primary));
-    cursor: pointer;
-    padding: 2px 4px;
+    background: #ffe58f;
+    padding: 0 2px;
     border-radius: 4px;
+    cursor: pointer;
     transition: all 0.2s ease;
-    text-decoration-line: underline;
-    text-decoration-style: dotted;
-    text-decoration-color: hsl(var(--primary) / 0.5);
-    text-underline-offset: 6px;
   }
 
   .word-ghareeb:hover {
-    background: hsl(var(--highlight) / 0.2);
+    background: hsl(var(--highlight) / 0.6);
+  }
+
+  .ghareeb {
+    background: #ffe58f;
+    padding: 0 2px;
+    border-radius: 4px;
   }
 
   .meaning-box {

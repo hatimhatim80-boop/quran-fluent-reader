@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect, useMemo } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { useQuranData } from '@/hooks/useQuranData';
 import { useAutoPlay } from '@/hooks/useAutoPlay';
 import { GhareebWord } from '@/types/quran';
@@ -27,7 +27,8 @@ export function QuranReader() {
   const [selectedWord, setSelectedWord] = useState<GhareebWord | null>(null);
 
   const pageData = getCurrentPageData();
-  const pageWords = useMemo(() => getPageGhareebWords(), [getPageGhareebWords]);
+  // getPageGhareebWords is already memoized in the hook
+  const pageWords = getPageGhareebWords;
 
   const {
     isPlaying,
