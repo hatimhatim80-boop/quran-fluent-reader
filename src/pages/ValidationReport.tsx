@@ -1,6 +1,27 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowRight, Download, Loader2, AlertTriangle, CheckCircle, XCircle, Edit3, Search, Filter, RotateCcw, Upload, Plus, RefreshCw, Eye, EyeOff } from 'lucide-react';
+import { 
+  ArrowRight, 
+  Download, 
+  Loader2, 
+  AlertTriangle, 
+  CheckCircle, 
+  XCircle, 
+  Edit3, 
+  Search, 
+  Filter, 
+  RotateCcw, 
+  Upload, 
+  Plus, 
+  RefreshCw, 
+  Eye, 
+  EyeOff,
+  ArrowUpDown,
+  FileText,
+  Trash2,
+  Check,
+  X,
+} from 'lucide-react';
 import { loadGhareebData } from '@/utils/ghareebLoader';
 import { parseMushafText } from '@/utils/quranParser';
 import { validateMatching, exportReportAsJSON, exportReportAsCSV, MatchingReport, MismatchEntry, MismatchReason } from '@/utils/matchingValidator';
@@ -8,24 +29,47 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
 import { CorrectionDialog } from '@/components/CorrectionDialog';
 import { useCorrectionsStore } from '@/stores/correctionsStore';
 import { useDataStore } from '@/stores/dataStore';
 import { toast } from 'sonner';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 const REASON_LABELS: Record<MismatchReason, string> = {
-  not_found_in_page: 'غير موجودة',
-  diacritic_mismatch: 'اختلاف تشكيل',
+  not_found_in_page: 'غير موجودة في الصفحة',
+  diacritic_mismatch: 'اختلاف التشكيل',
   page_number_off: 'صفحة مختلفة',
-  duplicate_match: 'مكررة',
+  duplicate_match: 'تكرار',
   partial_match: 'تطابق جزئي',
   unknown: 'غير معروف',
 };
 
+const REASON_ICONS: Record<MismatchReason, string> = {
+  not_found_in_page: '❌',
+  diacritic_mismatch: '🔤',
+  page_number_off: '📄',
+  duplicate_match: '🔁',
+  partial_match: '⚡',
+  unknown: '❓',
+};
+
+// Fix mode types
+type FixMode = 'page' | 'mapping' | 'meaning' | 'order';
+
+interface QuickFixForm {
+  pageNumber: number;
+  surahNumber: number;
+  verseNumber: number;
+  wordIndex: number;
+  meaning: string;
+  orderOffset: number;
+}
+
 export default function ValidationReport() {
   const navigate = useNavigate();
   const { corrections, getIgnoredKeys, exportCorrections, importCorrections, undo, canUndo, resetAll, addCorrection } = useCorrectionsStore();
-  const { addWordOverride } = useDataStore();
+  const { addWordOverride, userOverrides } = useDataStore();
   
   const [loading, setLoading] = useState(true);
   const [report, setReport] = useState<MatchingReport | null>(null);
@@ -33,6 +77,7 @@ export default function ValidationReport() {
   const [filterReason, setFilterReason] = useState<MismatchReason | 'all'>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [showIgnored, setShowIgnored] = useState(false);
+  const [sortBy, setSortBy] = useState<'page' | 'reason' | 'surah'>('page');
   
   // Add word dialog state
   const [showAddDialog, setShowAddDialog] = useState(false);
@@ -43,10 +88,23 @@ export default function ValidationReport() {
     surahNumber: 1,
     verseNumber: 1,
     wordIndex: 0,
+    surahName: '',
+  });
+  
+  // Quick fix dialog state
+  const [showQuickFix, setShowQuickFix] = useState(false);
+  const [fixMode, setFixMode] = useState<FixMode>('page');
+  const [selectedMismatch, setSelectedMismatch] = useState<MismatchEntry | null>(null);
+  const [quickFixForm, setQuickFixForm] = useState<QuickFixForm>({
+    pageNumber: 1,
+    surahNumber: 1,
+    verseNumber: 1,
+    wordIndex: 0,
+    meaning: '',
+    orderOffset: 0,
   });
   
   // Correction dialog state
-  const [selectedMismatch, setSelectedMismatch] = useState<MismatchEntry | null>(null);
   const [correctionDialogOpen, setCorrectionDialogOpen] = useState(false);
   
   // All words for duplicate matching
@@ -120,10 +178,25 @@ export default function ValidationReport() {
       );
     }
     
+    // Sort
+    if (sortBy === 'page') {
+      filtered = [...filtered].sort((a, b) => a.word.pageNumber - b.word.pageNumber);
+    } else if (sortBy === 'surah') {
+      filtered = [...filtered].sort((a, b) => a.word.surahNumber - b.word.surahNumber || a.word.verseNumber - b.word.verseNumber);
+    } else if (sortBy === 'reason') {
+      filtered = [...filtered].sort((a, b) => a.reason.localeCompare(b.reason));
+    }
+    
     return filtered;
-  }, [report, filterReason, searchQuery, ignoredKeys, showIgnored]);
+  }, [report, filterReason, searchQuery, ignoredKeys, showIgnored, sortBy]);
 
+  // Handle add missing word
   const handleAddMissingWord = () => {
+    if (!newWordForm.wordText.trim()) {
+      toast.error('يرجى إدخال الكلمة');
+      return;
+    }
+    
     const key = `${newWordForm.surahNumber}_${newWordForm.verseNumber}_${newWordForm.wordIndex}`;
     addWordOverride({
       key,
@@ -134,7 +207,7 @@ export default function ValidationReport() {
       surahNumber: newWordForm.surahNumber,
       verseNumber: newWordForm.verseNumber,
       wordIndex: newWordForm.wordIndex,
-      surahName: '',
+      surahName: newWordForm.surahName,
     });
     setShowAddDialog(false);
     setNewWordForm({
@@ -144,8 +217,92 @@ export default function ValidationReport() {
       surahNumber: 1,
       verseNumber: 1,
       wordIndex: 0,
+      surahName: '',
     });
-    toast.success('تمت إضافة الكلمة المفقودة');
+    toast.success('✅ تمت إضافة الكلمة المفقودة');
+  };
+
+  // Handle quick fix
+  const openQuickFix = (mismatch: MismatchEntry) => {
+    setSelectedMismatch(mismatch);
+    setQuickFixForm({
+      pageNumber: mismatch.word.pageNumber,
+      surahNumber: mismatch.word.surahNumber,
+      verseNumber: mismatch.word.verseNumber,
+      wordIndex: mismatch.word.wordIndex,
+      meaning: mismatch.word.meaning,
+      orderOffset: 0,
+    });
+    setFixMode('page');
+    setShowQuickFix(true);
+  };
+
+  const applyQuickFix = () => {
+    if (!selectedMismatch) return;
+    
+    const word = selectedMismatch.word;
+    
+    if (fixMode === 'page') {
+      // Fix page only
+      addWordOverride({
+        key: word.uniqueKey,
+        operation: 'edit',
+        pageNumber: quickFixForm.pageNumber,
+        wordText: word.wordText,
+        meaning: word.meaning,
+        surahNumber: word.surahNumber,
+        verseNumber: word.verseNumber,
+        wordIndex: word.wordIndex,
+        surahName: word.surahName,
+      });
+      toast.success(`تم تصحيح الصفحة إلى ${quickFixForm.pageNumber}`);
+    } else if (fixMode === 'mapping') {
+      // Fix full mapping
+      addWordOverride({
+        key: word.uniqueKey,
+        operation: 'edit',
+        pageNumber: quickFixForm.pageNumber,
+        wordText: word.wordText,
+        meaning: word.meaning,
+        surahNumber: quickFixForm.surahNumber,
+        verseNumber: quickFixForm.verseNumber,
+        wordIndex: quickFixForm.wordIndex,
+        surahName: word.surahName,
+      });
+      toast.success('تم تصحيح الربط الكامل');
+    } else if (fixMode === 'meaning') {
+      // Fix meaning
+      addWordOverride({
+        key: word.uniqueKey,
+        operation: 'edit',
+        pageNumber: word.pageNumber,
+        wordText: word.wordText,
+        meaning: quickFixForm.meaning,
+        surahNumber: word.surahNumber,
+        verseNumber: word.verseNumber,
+        wordIndex: word.wordIndex,
+        surahName: word.surahName,
+      });
+      toast.success('تم تصحيح المعنى');
+    } else if (fixMode === 'order') {
+      // Fix order (shift word index)
+      const newWordIndex = word.wordIndex + quickFixForm.orderOffset;
+      addWordOverride({
+        key: word.uniqueKey,
+        operation: 'edit',
+        pageNumber: word.pageNumber,
+        wordText: word.wordText,
+        meaning: word.meaning,
+        surahNumber: word.surahNumber,
+        verseNumber: word.verseNumber,
+        wordIndex: newWordIndex,
+        surahName: word.surahName,
+      });
+      toast.success(`تم إزاحة الترتيب بمقدار ${quickFixForm.orderOffset > 0 ? '+' : ''}${quickFixForm.orderOffset}`);
+    }
+    
+    setShowQuickFix(false);
+    setSelectedMismatch(null);
   };
 
   const handleIgnoreWord = (mismatch: MismatchEntry) => {
@@ -284,7 +441,7 @@ export default function ValidationReport() {
             <div className="text-sm font-arabic text-muted-foreground">إجمالي الكلمات</div>
           </div>
           <div className="page-frame p-4 text-center">
-            <div className="text-2xl font-bold text-accent">{report.matchedCount.toLocaleString('ar-EG')}</div>
+            <div className="text-2xl font-bold text-green-600">{report.matchedCount.toLocaleString('ar-EG')}</div>
             <div className="text-sm font-arabic text-muted-foreground">مطابقة</div>
           </div>
           <div className="page-frame p-4 text-center">
@@ -296,8 +453,8 @@ export default function ValidationReport() {
             <div className="text-sm font-arabic text-muted-foreground">نسبة التغطية</div>
           </div>
           <div className="page-frame p-4 text-center">
-            <div className="text-2xl font-bold text-accent">{corrections.length}</div>
-            <div className="text-sm font-arabic text-muted-foreground">التصحيحات</div>
+            <div className="text-2xl font-bold text-amber-600">{userOverrides.length}</div>
+            <div className="text-sm font-arabic text-muted-foreground">التعديلات</div>
           </div>
         </div>
 
@@ -307,49 +464,59 @@ export default function ValidationReport() {
             <h2 className="font-arabic font-bold mb-3">أسباب عدم المطابقة</h2>
             <div className="flex flex-wrap gap-2">
               {Object.entries(reasonCounts).map(([reason, count]) => (
-                <span
+                <button
                   key={reason}
-                  className="px-3 py-1 rounded-full bg-muted text-sm font-arabic cursor-pointer hover:bg-muted/80"
-                  onClick={() => setFilterReason(reason as MismatchReason)}
+                  className={`px-3 py-2 rounded-lg text-sm font-arabic cursor-pointer transition-colors flex items-center gap-2
+                    ${filterReason === reason ? 'bg-primary text-primary-foreground' : 'bg-muted hover:bg-muted/80'}`}
+                  onClick={() => setFilterReason(filterReason === reason ? 'all' : reason as MismatchReason)}
                 >
-                  {REASON_LABELS[reason as MismatchReason]}: {count}
-                </span>
+                  <span>{REASON_ICONS[reason as MismatchReason]}</span>
+                  <span>{REASON_LABELS[reason as MismatchReason]}</span>
+                  <span className="font-bold">{count}</span>
+                </button>
               ))}
             </div>
           </div>
         )}
 
-        {/* Actions Row */}
-        <div className="flex flex-wrap gap-3">
-          {/* Add Missing Word Button */}
-          <Button onClick={() => setShowAddDialog(true)} variant="default" size="sm" className="gap-2">
-            <Plus className="w-4 h-4" />
-            <span className="font-arabic">إضافة كلمة مفقودة</span>
-          </Button>
-          <div className="h-8 w-px bg-border mx-1" />
-          <Button onClick={handleExportJSON} variant="outline" size="sm" className="gap-2">
-            <Download className="w-4 h-4" />
-            <span className="font-arabic">تصدير JSON</span>
-          </Button>
-          <Button onClick={handleExportCSV} variant="outline" size="sm" className="gap-2">
-            <Download className="w-4 h-4" />
-            <span className="font-arabic">تصدير CSV</span>
-          </Button>
-          <div className="h-8 w-px bg-border mx-1" />
-          <Button onClick={handleExportCorrections} variant="outline" size="sm" className="gap-2">
-            <Download className="w-4 h-4" />
-            <span className="font-arabic">تصدير التصحيحات</span>
-          </Button>
-          <Button onClick={handleImportCorrections} variant="outline" size="sm" className="gap-2">
-            <Upload className="w-4 h-4" />
-            <span className="font-arabic">استيراد</span>
-          </Button>
-          {canUndo() && (
-            <Button onClick={undo} variant="ghost" size="sm" className="gap-2">
-              <RotateCcw className="w-4 h-4" />
-              <span className="font-arabic">تراجع</span>
+        {/* Primary Actions Row */}
+        <div className="page-frame p-4">
+          <h2 className="font-arabic font-bold mb-3">أدوات التصحيح</h2>
+          <div className="flex flex-wrap gap-3">
+            {/* Add Missing Word Button */}
+            <Button onClick={() => setShowAddDialog(true)} variant="default" className="gap-2 font-arabic">
+              <Plus className="w-4 h-4" />
+              إضافة كلمة مفقودة
             </Button>
-          )}
+            
+            <div className="h-9 w-px bg-border" />
+            
+            <Button onClick={handleExportJSON} variant="outline" size="sm" className="gap-2 font-arabic">
+              <Download className="w-4 h-4" />
+              JSON
+            </Button>
+            <Button onClick={handleExportCSV} variant="outline" size="sm" className="gap-2 font-arabic">
+              <Download className="w-4 h-4" />
+              CSV
+            </Button>
+            
+            <div className="h-9 w-px bg-border" />
+            
+            <Button onClick={handleExportCorrections} variant="outline" size="sm" className="gap-2 font-arabic">
+              <Download className="w-4 h-4" />
+              تصدير التصحيحات
+            </Button>
+            <Button onClick={handleImportCorrections} variant="outline" size="sm" className="gap-2 font-arabic">
+              <Upload className="w-4 h-4" />
+              استيراد
+            </Button>
+            {canUndo() && (
+              <Button onClick={undo} variant="ghost" size="sm" className="gap-2 font-arabic">
+                <RotateCcw className="w-4 h-4" />
+                تراجع
+              </Button>
+            )}
+          </div>
         </div>
 
         {/* Search & Filter */}
@@ -363,126 +530,158 @@ export default function ValidationReport() {
               className="pr-10 font-arabic"
             />
           </div>
-          <Select value={filterReason} onValueChange={(v) => setFilterReason(v as MismatchReason | 'all')}>
-            <SelectTrigger className="w-48">
-              <Filter className="w-4 h-4 ml-2" />
+          <Select value={sortBy} onValueChange={(v) => setSortBy(v as typeof sortBy)}>
+            <SelectTrigger className="w-36">
+              <ArrowUpDown className="w-4 h-4 ml-2" />
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">الكل ({activeUnmatchedCount})</SelectItem>
-              {Object.entries(reasonCounts).map(([reason, count]) => (
-                <SelectItem key={reason} value={reason}>
-                  {REASON_LABELS[reason as MismatchReason]} ({count})
-                </SelectItem>
-              ))}
+              <SelectItem value="page">ترتيب بالصفحة</SelectItem>
+              <SelectItem value="surah">ترتيب بالسورة</SelectItem>
+              <SelectItem value="reason">ترتيب بالسبب</SelectItem>
             </SelectContent>
           </Select>
           <Button
             variant={showIgnored ? "secondary" : "ghost"}
             size="sm"
             onClick={() => setShowIgnored(!showIgnored)}
-            className="gap-2"
+            className="gap-2 font-arabic"
           >
             {showIgnored ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
-            <span className="font-arabic">{showIgnored ? 'إظهار المتجاهل' : 'إخفاء المتجاهل'}</span>
+            {showIgnored ? 'يشمل المتجاهل' : 'بدون المتجاهل'}
           </Button>
         </div>
 
         {/* Mismatches List */}
         {filteredMismatches.length === 0 ? (
           <div className="page-frame p-8 text-center">
-            <CheckCircle className="w-12 h-12 text-accent mx-auto mb-4" />
+            <CheckCircle className="w-12 h-12 text-green-600 mx-auto mb-4" />
             <p className="font-arabic text-lg">
-              {searchQuery ? 'لا توجد نتائج' : 'جميع الكلمات مطابقة!'}
+              {searchQuery ? 'لا توجد نتائج للبحث' : 'جميع الكلمات مطابقة! 🎉'}
             </p>
           </div>
         ) : (
           <div className="space-y-3">
-            <h2 className="font-arabic font-bold">
+            <h2 className="font-arabic font-bold flex items-center gap-2">
+              <FileText className="w-5 h-5" />
               قائمة غير المطابق ({filteredMismatches.length})
             </h2>
-            <div className="max-h-[500px] overflow-y-auto space-y-2">
-              {filteredMismatches.slice(0, 200).map((m, idx) => (
-                <div
-                  key={`${m.word.uniqueKey}-${idx}`}
-                  className="page-frame p-3 flex items-start justify-between gap-4"
-                >
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="font-arabic text-lg font-bold">{m.word.wordText}</span>
-                      <span className="text-xs px-2 py-0.5 rounded bg-muted">
-                        {REASON_LABELS[m.reason]}
-                      </span>
-                    </div>
-                    <div className="text-sm text-muted-foreground font-arabic mt-1">
-                      {m.word.surahName} - آية {m.word.verseNumber} - ص{m.word.pageNumber}
-                    </div>
-                    <div className="text-xs text-muted-foreground/80 font-arabic mt-1">
-                      {m.detail}
-                    </div>
-                  </div>
-                  <div className="flex gap-1 shrink-0 flex-wrap">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => openCorrectionDialog(m)}
-                      className="gap-1"
+            
+            <ScrollArea className="h-[500px] border rounded-lg">
+              <div className="p-2 space-y-2">
+                {filteredMismatches.slice(0, 200).map((m, idx) => {
+                  const isIgnored = ignoredKeys.has(m.word.uniqueKey);
+                  
+                  return (
+                    <div
+                      key={`${m.word.uniqueKey}-${idx}`}
+                      className={`p-3 rounded-lg border transition-colors ${
+                        isIgnored ? 'bg-muted/30 opacity-60' : 'bg-card hover:bg-muted/20'
+                      }`}
                     >
-                      <Edit3 className="w-3 h-3" />
-                      <span className="font-arabic">تعديل</span>
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => goToPage(m.word.pageNumber)}
-                    >
-                      <span className="font-arabic">انتقل</span>
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => handleIgnoreWord(m)}
-                      className="text-muted-foreground"
-                    >
-                      <EyeOff className="w-3 h-3" />
-                    </Button>
-                  </div>
-                </div>
-              ))}
-              {filteredMismatches.length > 200 && (
-                <p className="text-center text-sm text-muted-foreground font-arabic py-4">
-                  يُعرض أول 200 نتيجة. صدّر الملف للحصول على القائمة الكاملة.
-                </p>
-              )}
-            </div>
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="font-arabic text-lg font-bold">{m.word.wordText}</span>
+                            <span className="text-xs px-2 py-1 rounded-full bg-muted flex items-center gap-1">
+                              <span>{REASON_ICONS[m.reason]}</span>
+                              <span>{REASON_LABELS[m.reason]}</span>
+                            </span>
+                            {isIgnored && (
+                              <span className="text-xs px-2 py-1 rounded-full bg-amber-100 text-amber-700">متجاهل</span>
+                            )}
+                          </div>
+                          <div className="text-sm text-muted-foreground font-arabic mt-1">
+                            {m.word.surahName} - آية {m.word.verseNumber} - ص{m.word.pageNumber}
+                          </div>
+                          {m.word.meaning && (
+                            <div className="text-sm text-muted-foreground/70 font-arabic mt-1">
+                              المعنى: {m.word.meaning}
+                            </div>
+                          )}
+                          <div className="text-xs text-muted-foreground/60 font-arabic mt-1">
+                            {m.detail}
+                          </div>
+                        </div>
+                        
+                        {/* Action Buttons */}
+                        <div className="flex gap-1 shrink-0 flex-wrap">
+                          <Button
+                            size="sm"
+                            variant="default"
+                            onClick={() => openQuickFix(m)}
+                            className="gap-1"
+                            title="تصحيح سريع"
+                          >
+                            <Edit3 className="w-3 h-3" />
+                            <span className="font-arabic hidden sm:inline">تصحيح</span>
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => goToPage(m.word.pageNumber)}
+                            title="الانتقال للصفحة"
+                          >
+                            <Eye className="w-3 h-3" />
+                          </Button>
+                          {!isIgnored && (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => handleIgnoreWord(m)}
+                              title="تجاهل"
+                              className="text-muted-foreground"
+                            >
+                              <EyeOff className="w-3 h-3" />
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </ScrollArea>
+
+            {filteredMismatches.length > 200 && (
+              <p className="text-xs text-muted-foreground font-arabic text-center">
+                يتم عرض أول 200 نتيجة. استخدم البحث لتضييق النتائج.
+              </p>
+            )}
           </div>
         )}
-
-        {/* Footer */}
-        <div className="text-center text-xs text-muted-foreground/60 font-arabic">
-          تم التحقق في: {new Date(report.generatedAt).toLocaleString('ar-EG')}
-        </div>
       </div>
 
-      {/* Correction Dialog */}
-      <CorrectionDialog
-        mismatch={selectedMismatch}
-        isOpen={correctionDialogOpen}
-        onClose={() => setCorrectionDialogOpen(false)}
-        onNavigate={goToPage}
-        allWords={allWords}
-      />
-
-      {/* Add Missing Word Dialog */}
+      {/* Add Word Dialog */}
       {showAddDialog && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-background p-6 rounded-lg max-w-md w-full mx-4 space-y-4" dir="rtl">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-background p-6 rounded-lg max-w-md w-full space-y-4 shadow-xl" dir="rtl">
             <h3 className="font-arabic font-bold text-lg flex items-center gap-2">
-              <Plus className="w-5 h-5" />
+              <Plus className="w-5 h-5 text-green-600" />
               إضافة كلمة مفقودة
             </h3>
             
             <div className="space-y-3">
+              <div>
+                <Label className="font-arabic text-sm">الكلمة *</Label>
+                <Input
+                  value={newWordForm.wordText}
+                  onChange={(e) => setNewWordForm((f) => ({ ...f, wordText: e.target.value }))}
+                  className="font-arabic text-lg"
+                  placeholder="الكلمة الغريبة..."
+                  dir="rtl"
+                />
+              </div>
+              <div>
+                <Label className="font-arabic text-sm">المعنى *</Label>
+                <Textarea
+                  value={newWordForm.meaning}
+                  onChange={(e) => setNewWordForm((f) => ({ ...f, meaning: e.target.value }))}
+                  className="font-arabic"
+                  placeholder="معنى الكلمة..."
+                  dir="rtl"
+                />
+              </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <Label className="font-arabic text-xs">الصفحة</Label>
@@ -491,7 +690,7 @@ export default function ValidationReport() {
                     min={1}
                     max={604}
                     value={newWordForm.pageNumber}
-                    onChange={(e) => setNewWordForm(f => ({ ...f, pageNumber: parseInt(e.target.value) || 1 }))}
+                    onChange={(e) => setNewWordForm((f) => ({ ...f, pageNumber: parseInt(e.target.value) || 1 }))}
                   />
                 </div>
                 <div>
@@ -501,7 +700,7 @@ export default function ValidationReport() {
                     min={1}
                     max={114}
                     value={newWordForm.surahNumber}
-                    onChange={(e) => setNewWordForm(f => ({ ...f, surahNumber: parseInt(e.target.value) || 1 }))}
+                    onChange={(e) => setNewWordForm((f) => ({ ...f, surahNumber: parseInt(e.target.value) || 1 }))}
                   />
                 </div>
               </div>
@@ -512,7 +711,7 @@ export default function ValidationReport() {
                     type="number"
                     min={1}
                     value={newWordForm.verseNumber}
-                    onChange={(e) => setNewWordForm(f => ({ ...f, verseNumber: parseInt(e.target.value) || 1 }))}
+                    onChange={(e) => setNewWordForm((f) => ({ ...f, verseNumber: parseInt(e.target.value) || 1 }))}
                   />
                 </div>
                 <div>
@@ -521,43 +720,210 @@ export default function ValidationReport() {
                     type="number"
                     min={0}
                     value={newWordForm.wordIndex}
-                    onChange={(e) => setNewWordForm(f => ({ ...f, wordIndex: parseInt(e.target.value) || 0 }))}
+                    onChange={(e) => setNewWordForm((f) => ({ ...f, wordIndex: parseInt(e.target.value) || 0 }))}
                   />
                 </div>
               </div>
-              <div>
-                <Label className="font-arabic text-xs">الكلمة</Label>
-                <Input
-                  value={newWordForm.wordText}
-                  onChange={(e) => setNewWordForm(f => ({ ...f, wordText: e.target.value }))}
-                  className="font-arabic"
-                  placeholder="الكلمة القرآنية"
-                  dir="rtl"
-                />
-              </div>
-              <div>
-                <Label className="font-arabic text-xs">المعنى</Label>
-                <Input
-                  value={newWordForm.meaning}
-                  onChange={(e) => setNewWordForm(f => ({ ...f, meaning: e.target.value }))}
-                  className="font-arabic"
-                  placeholder="معنى الكلمة"
-                  dir="rtl"
-                />
-              </div>
             </div>
             
-            <div className="flex gap-2">
+            <div className="flex gap-2 pt-2">
               <Button onClick={handleAddMissingWord} className="flex-1 font-arabic">
-                <Plus className="w-4 h-4 ml-2" />
+                <Check className="w-4 h-4 ml-2" />
                 إضافة
               </Button>
               <Button onClick={() => setShowAddDialog(false)} variant="outline" className="flex-1 font-arabic">
+                <X className="w-4 h-4 ml-2" />
                 إلغاء
               </Button>
             </div>
           </div>
         </div>
+      )}
+
+      {/* Quick Fix Dialog */}
+      {showQuickFix && selectedMismatch && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-background p-6 rounded-lg max-w-lg w-full space-y-4 shadow-xl" dir="rtl">
+            <h3 className="font-arabic font-bold text-lg flex items-center gap-2">
+              <Edit3 className="w-5 h-5 text-primary" />
+              تصحيح: {selectedMismatch.word.wordText}
+            </h3>
+            
+            {/* Fix Mode Selector */}
+            <div className="space-y-2">
+              <Label className="font-arabic text-sm font-bold">نوع التصحيح:</Label>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  className={`p-3 rounded-lg border text-sm font-arabic transition-colors ${
+                    fixMode === 'page' ? 'bg-primary text-primary-foreground border-primary' : 'bg-muted/30 hover:bg-muted'
+                  }`}
+                  onClick={() => setFixMode('page')}
+                >
+                  📄 تصحيح الصفحة
+                </button>
+                <button
+                  className={`p-3 rounded-lg border text-sm font-arabic transition-colors ${
+                    fixMode === 'mapping' ? 'bg-primary text-primary-foreground border-primary' : 'bg-muted/30 hover:bg-muted'
+                  }`}
+                  onClick={() => setFixMode('mapping')}
+                >
+                  🔗 تصحيح الربط
+                </button>
+                <button
+                  className={`p-3 rounded-lg border text-sm font-arabic transition-colors ${
+                    fixMode === 'meaning' ? 'bg-primary text-primary-foreground border-primary' : 'bg-muted/30 hover:bg-muted'
+                  }`}
+                  onClick={() => setFixMode('meaning')}
+                >
+                  📝 تصحيح المعنى
+                </button>
+                <button
+                  className={`p-3 rounded-lg border text-sm font-arabic transition-colors ${
+                    fixMode === 'order' ? 'bg-primary text-primary-foreground border-primary' : 'bg-muted/30 hover:bg-muted'
+                  }`}
+                  onClick={() => setFixMode('order')}
+                >
+                  🔢 تصحيح الترتيب
+                </button>
+              </div>
+            </div>
+            
+            {/* Fix Form */}
+            <div className="space-y-3 pt-2">
+              {fixMode === 'page' && (
+                <div>
+                  <Label className="font-arabic text-sm">الصفحة الصحيحة</Label>
+                  <div className="flex gap-2 items-center">
+                    <Input
+                      type="number"
+                      min={1}
+                      max={604}
+                      value={quickFixForm.pageNumber}
+                      onChange={(e) => setQuickFixForm((f) => ({ ...f, pageNumber: parseInt(e.target.value) || 1 }))}
+                      className="w-24"
+                    />
+                    <span className="text-sm text-muted-foreground font-arabic">
+                      (الحالية: {selectedMismatch.word.pageNumber})
+                    </span>
+                  </div>
+                </div>
+              )}
+              
+              {fixMode === 'mapping' && (
+                <>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <Label className="font-arabic text-xs">الصفحة</Label>
+                      <Input
+                        type="number"
+                        min={1}
+                        max={604}
+                        value={quickFixForm.pageNumber}
+                        onChange={(e) => setQuickFixForm((f) => ({ ...f, pageNumber: parseInt(e.target.value) || 1 }))}
+                      />
+                    </div>
+                    <div>
+                      <Label className="font-arabic text-xs">السورة</Label>
+                      <Input
+                        type="number"
+                        min={1}
+                        max={114}
+                        value={quickFixForm.surahNumber}
+                        onChange={(e) => setQuickFixForm((f) => ({ ...f, surahNumber: parseInt(e.target.value) || 1 }))}
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <Label className="font-arabic text-xs">الآية</Label>
+                      <Input
+                        type="number"
+                        min={1}
+                        value={quickFixForm.verseNumber}
+                        onChange={(e) => setQuickFixForm((f) => ({ ...f, verseNumber: parseInt(e.target.value) || 1 }))}
+                      />
+                    </div>
+                    <div>
+                      <Label className="font-arabic text-xs">ترتيب الكلمة</Label>
+                      <Input
+                        type="number"
+                        min={0}
+                        value={quickFixForm.wordIndex}
+                        onChange={(e) => setQuickFixForm((f) => ({ ...f, wordIndex: parseInt(e.target.value) || 0 }))}
+                      />
+                    </div>
+                  </div>
+                </>
+              )}
+              
+              {fixMode === 'meaning' && (
+                <div>
+                  <Label className="font-arabic text-sm">المعنى الجديد</Label>
+                  <Textarea
+                    value={quickFixForm.meaning}
+                    onChange={(e) => setQuickFixForm((f) => ({ ...f, meaning: e.target.value }))}
+                    className="font-arabic"
+                    placeholder="معنى الكلمة..."
+                    dir="rtl"
+                  />
+                </div>
+              )}
+              
+              {fixMode === 'order' && (
+                <div>
+                  <Label className="font-arabic text-sm">مقدار الإزاحة</Label>
+                  <div className="flex gap-2 items-center">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setQuickFixForm((f) => ({ ...f, orderOffset: f.orderOffset - 1 }))}
+                    >
+                      -1
+                    </Button>
+                    <Input
+                      type="number"
+                      value={quickFixForm.orderOffset}
+                      onChange={(e) => setQuickFixForm((f) => ({ ...f, orderOffset: parseInt(e.target.value) || 0 }))}
+                      className="w-20 text-center"
+                    />
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setQuickFixForm((f) => ({ ...f, orderOffset: f.orderOffset + 1 }))}
+                    >
+                      +1
+                    </Button>
+                  </div>
+                  <p className="text-xs text-muted-foreground font-arabic mt-1">
+                    الترتيب الحالي: {selectedMismatch.word.wordIndex} → الجديد: {selectedMismatch.word.wordIndex + quickFixForm.orderOffset}
+                  </p>
+                </div>
+              )}
+            </div>
+            
+            <div className="flex gap-2 pt-2">
+              <Button onClick={applyQuickFix} className="flex-1 font-arabic">
+                <Check className="w-4 h-4 ml-2" />
+                تطبيق
+              </Button>
+              <Button onClick={() => setShowQuickFix(false)} variant="outline" className="flex-1 font-arabic">
+                <X className="w-4 h-4 ml-2" />
+                إلغاء
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Correction Dialog (for more complex edits) */}
+      {selectedMismatch && (
+        <CorrectionDialog
+          isOpen={correctionDialogOpen}
+          onClose={() => setCorrectionDialogOpen(false)}
+          mismatch={selectedMismatch}
+          allWords={allWords}
+          onNavigate={goToPage}
+        />
       )}
     </div>
   );
