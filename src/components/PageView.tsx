@@ -287,6 +287,7 @@ export function PageView({
     const usedOriginalIndices = new Set<number>();
 
     const allElements: React.ReactNode[] = [];
+    let assemblyIndex = -1;
     
     for (let lineIdx = 0; lineIdx < lines.length; lineIdx++) {
       const line = lines[lineIdx];
@@ -295,6 +296,7 @@ export function PageView({
 
       // Surah header
       if (isSurahHeader(line)) {
+        assemblyIndex = Math.max(assemblyIndex + 1, 0);
         allElements.push(
           <div key={`header-${lineIdx}`} className="surah-header">
             <span className="text-xl sm:text-2xl font-bold text-primary font-arabic">
@@ -314,6 +316,8 @@ export function PageView({
         );
         continue;
       }
+
+      const assemblyId = `asm-${Math.max(assemblyIndex, 0)}`;
 
       // Split line into tokens
       const tokens = line.split(/(\s+)/);
@@ -429,6 +433,9 @@ export function PageView({
                   forceOpen={isPlaying && isHighlighted}
                   onSelect={onWordClick}
                   containerRef={containerRef}
+                  dataAssemblyId={assemblyId}
+                  dataLineIndex={lineIdx}
+                  dataTokenIndex={i}
                 >
                   {phrase}
                 </GhareebWordPopover>
@@ -443,6 +450,9 @@ export function PageView({
                   data-surah-number={entry.original.surahNumber}
                   data-verse={entry.original.verseNumber}
                   data-word-index={entry.original.wordIndex}
+                  data-assembly-id={assemblyId}
+                  data-line-index={lineIdx}
+                  data-token-index={i}
                 >
                   {phrase}
                 </span>
@@ -462,6 +472,9 @@ export function PageView({
                   forceOpen={isPlaying && isHighlighted}
                   onSelect={onWordClick}
                   containerRef={containerRef}
+                  dataAssemblyId={assemblyId}
+                  dataLineIndex={lineIdx}
+                  dataTokenIndex={i}
                 >
                   {td.token}
                 </GhareebWordPopover>
@@ -476,6 +489,9 @@ export function PageView({
                   data-surah-number={entry.original.surahNumber}
                   data-verse={entry.original.verseNumber}
                   data-word-index={entry.original.wordIndex}
+                  data-assembly-id={assemblyId}
+                  data-line-index={lineIdx}
+                  data-token-index={i}
                 >
                   {td.token}
                 </span>

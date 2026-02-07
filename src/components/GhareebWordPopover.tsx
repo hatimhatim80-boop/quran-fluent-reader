@@ -13,6 +13,9 @@ interface GhareebWordPopoverProps {
   onSelect: (word: GhareebWord, index: number) => void;
   children: React.ReactNode;
   containerRef: React.RefObject<HTMLDivElement>;
+  dataAssemblyId?: string;
+  dataLineIndex?: number;
+  dataTokenIndex?: number;
 }
 
 interface PopoverPosition {
@@ -30,6 +33,9 @@ export function GhareebWordPopover({
   onSelect,
   children,
   containerRef,
+  dataAssemblyId,
+  dataLineIndex,
+  dataTokenIndex,
 }: GhareebWordPopoverProps) {
   const [isManualOpen, setIsManualOpen] = useState(false);
   const [position, setPosition] = useState<PopoverPosition | null>(null);
@@ -139,6 +145,10 @@ export function GhareebWordPopover({
         wordIndex: word.wordIndex,
         meaning: word.meaning || '',
         tokenIndex: index,
+        assemblyId: dataAssemblyId,
+        matchedMeaningId: word.uniqueKey,
+        meaningPreview: (word.meaning || '').slice(0, 60) + ((word.meaning || '').length > 60 ? '...' : ''),
+        selectionSource: 'popover-click',
       });
     }
     
@@ -243,6 +253,9 @@ export function GhareebWordPopover({
         data-surah-number={word.surahNumber}
         data-verse={word.verseNumber}
         data-word-index={word.wordIndex}
+        data-assembly-id={dataAssemblyId}
+        data-line-index={dataLineIndex}
+        data-token-index={dataTokenIndex}
         onClick={handleClick}
       >
         {children}

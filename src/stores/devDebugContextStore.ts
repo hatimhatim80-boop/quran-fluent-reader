@@ -1,0 +1,24 @@
+import { create } from 'zustand';
+import { QuranPage, GhareebWord } from '@/types/quran';
+
+export type DevDebugContextSource = 'reader' | 'full_page_editor' | 'validation' | 'other';
+
+export interface DevDebugContext {
+  source: DevDebugContextSource;
+  page: QuranPage;
+  pageNumber: number;
+  ghareebWords: GhareebWord[];
+  renderedWords: GhareebWord[];
+  /** Optional hook to force a refresh/re-render after rebuild-from-source */
+  invalidateCache?: () => void;
+}
+
+interface DevDebugContextState {
+  context: DevDebugContext | null;
+  setContext: (context: DevDebugContext) => void;
+}
+
+export const useDevDebugContextStore = create<DevDebugContextState>((set) => ({
+  context: null,
+  setContext: (context) => set({ context }),
+}));
