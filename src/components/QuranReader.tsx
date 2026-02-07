@@ -6,7 +6,7 @@ import { PageView } from './PageView';
 import { MeaningBox } from './MeaningBox';
 import { PageNavigation } from './PageNavigation';
 import { AutoPlayControls } from './AutoPlayControls';
-import { Loader2 } from 'lucide-react';
+import { Loader2, BookOpen } from 'lucide-react';
 
 export function QuranReader() {
   const {
@@ -27,7 +27,6 @@ export function QuranReader() {
   const [selectedWord, setSelectedWord] = useState<GhareebWord | null>(null);
 
   const pageData = getCurrentPageData();
-  // getPageGhareebWords is already memoized in the hook
   const pageWords = getPageGhareebWords;
 
   const {
@@ -45,7 +44,6 @@ export function QuranReader() {
     setCurrentWordIndex,
   });
 
-  // Update selected word when highlighted word changes
   useEffect(() => {
     if (currentWordIndex >= 0 && currentWordIndex < pageWords.length) {
       setSelectedWord(pageWords[currentWordIndex]);
@@ -69,7 +67,9 @@ export function QuranReader() {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center" dir="rtl">
         <div className="text-center space-y-4">
-          <Loader2 className="w-12 h-12 text-primary animate-spin mx-auto" />
+          <div className="w-16 h-16 mx-auto rounded-full bg-primary/10 flex items-center justify-center">
+            <Loader2 className="w-8 h-8 text-primary animate-spin" />
+          </div>
           <p className="font-arabic text-muted-foreground">جاري تحميل القرآن الكريم...</p>
         </div>
       </div>
@@ -79,9 +79,12 @@ export function QuranReader() {
   // Error state
   if (error || pages.length === 0) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center" dir="rtl">
+      <div className="min-h-screen bg-background flex items-center justify-center p-4" dir="rtl">
         <div className="page-frame p-8 max-w-md text-center">
-          <p className="font-arabic text-destructive text-lg mb-2">⚠️ {error || 'لم يتم تحميل البيانات'}</p>
+          <div className="w-12 h-12 mx-auto mb-4 rounded-full bg-destructive/10 flex items-center justify-center">
+            <span className="text-2xl">⚠️</span>
+          </div>
+          <p className="font-arabic text-destructive text-lg mb-2">{error || 'لم يتم تحميل البيانات'}</p>
           <p className="font-arabic text-muted-foreground text-sm">
             تأكد من وجود ملفات البيانات في مجلد public/data
           </p>
@@ -91,14 +94,19 @@ export function QuranReader() {
   }
 
   return (
-    <div className="min-h-screen bg-background py-4 sm:py-8 px-4" dir="rtl">
-      <div className="max-w-3xl mx-auto space-y-6">
-        {/* Header */}
-        <header className="text-center">
-          <h1 className="text-2xl sm:text-3xl font-bold font-arabic text-foreground">
-            القرآن الكريم
-          </h1>
-          <p className="text-muted-foreground font-arabic text-sm mt-1">
+    <div className="min-h-screen bg-background" dir="rtl">
+      <div className="max-w-2xl mx-auto px-4 py-6 sm:py-8 space-y-5">
+        {/* Minimal Header */}
+        <header className="text-center pb-2">
+          <div className="inline-flex items-center gap-2 mb-1">
+            <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+              <BookOpen className="w-4 h-4 text-primary" />
+            </div>
+            <h1 className="text-xl sm:text-2xl font-bold font-arabic text-foreground">
+              القرآن الكريم
+            </h1>
+          </div>
+          <p className="text-xs text-muted-foreground font-arabic">
             الميسر في غريب القرآن
           </p>
         </header>
@@ -113,24 +121,26 @@ export function QuranReader() {
           />
         )}
 
-        {/* Meaning Box */}
+        {/* Meaning Box - Bottom Panel */}
         <MeaningBox word={selectedWord} onClose={handleCloseMeaning} />
 
-        {/* Auto-Play Controls */}
-        <div className="page-frame p-4 sm:p-6">
-          <AutoPlayControls
-            isPlaying={isPlaying}
-            speed={speed}
-            wordsCount={pageWords.length}
-            currentWordIndex={currentWordIndex}
-            onPlay={play}
-            onPause={pause}
-            onStop={stop}
-            onNext={nextWord}
-            onPrev={prevWord}
-            onSpeedChange={setSpeed}
-          />
-        </div>
+        {/* Auto-Play Controls - Compact */}
+        {pageWords.length > 0 && (
+          <div className="page-frame p-4">
+            <AutoPlayControls
+              isPlaying={isPlaying}
+              speed={speed}
+              wordsCount={pageWords.length}
+              currentWordIndex={currentWordIndex}
+              onPlay={play}
+              onPause={pause}
+              onStop={stop}
+              onNext={nextWord}
+              onPrev={prevWord}
+              onSpeedChange={setSpeed}
+            />
+          </div>
+        )}
 
         {/* Navigation */}
         <PageNavigation
@@ -141,8 +151,8 @@ export function QuranReader() {
           onGoToPage={goToPage}
         />
 
-        {/* Footer */}
-        <footer className="text-center text-xs text-muted-foreground font-arabic pt-4">
+        {/* Footer - Minimal */}
+        <footer className="text-center text-[10px] text-muted-foreground/60 font-arabic pb-4">
           يُحفظ تقدمك تلقائياً
         </footer>
       </div>

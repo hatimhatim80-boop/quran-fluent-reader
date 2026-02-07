@@ -1,6 +1,7 @@
 import React from 'react';
-import { X } from 'lucide-react';
+import { X, BookOpen } from 'lucide-react';
 import { GhareebWord } from '@/types/quran';
+import { motion, AnimatePresence } from 'framer-motion';
 
 interface MeaningBoxProps {
   word: GhareebWord | null;
@@ -8,31 +9,56 @@ interface MeaningBoxProps {
 }
 
 export function MeaningBox({ word, onClose }: MeaningBoxProps) {
-  if (!word) return null;
-
   return (
-    <div className="meaning-box p-4 sm:p-6 animate-fade-in" dir="rtl">
-      <div className="flex items-start justify-between gap-4">
-        <div className="flex-1">
-          <div className="flex items-center gap-3 mb-3">
-            <span className="text-2xl font-bold font-arabic text-primary">
-              {word.wordText}
-            </span>
-            <span className="bg-primary/10 text-primary px-2 py-0.5 rounded text-sm font-arabic">
-              {word.surahName} ({word.verseNumber})
-            </span>
-          </div>
-          <p className="font-arabic text-lg text-foreground leading-relaxed">
-            {word.meaning}
-          </p>
-        </div>
-        <button
-          onClick={onClose}
-          className="p-1 hover:bg-secondary rounded-full transition-colors text-muted-foreground hover:text-foreground"
+    <AnimatePresence>
+      {word && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: 20 }}
+          transition={{ duration: 0.25, ease: 'easeOut' }}
+          className="meaning-panel p-5 sm:p-6"
+          dir="rtl"
         >
-          <X className="w-5 h-5" />
-        </button>
-      </div>
-    </div>
+          {/* Header */}
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+                <BookOpen className="w-4 h-4 text-primary" />
+              </div>
+              <span className="text-xs text-muted-foreground font-arabic">
+                معنى الكلمة
+              </span>
+            </div>
+            <button
+              onClick={onClose}
+              className="w-8 h-8 flex items-center justify-center rounded-full bg-secondary hover:bg-secondary/80 transition-colors"
+              aria-label="إغلاق"
+            >
+              <X className="w-4 h-4 text-muted-foreground" />
+            </button>
+          </div>
+
+          {/* Word and Location */}
+          <div className="mb-4">
+            <h3 className="text-2xl font-bold font-arabic text-foreground mb-2">
+              {word.wordText}
+            </h3>
+            <div className="inline-flex items-center gap-1.5 bg-primary/8 text-primary px-2.5 py-1 rounded-full text-xs font-arabic">
+              <span>{word.surahName}</span>
+              <span className="opacity-50">•</span>
+              <span>آية {word.verseNumber}</span>
+            </div>
+          </div>
+
+          {/* Meaning */}
+          <div className="bg-card rounded-xl p-4 border border-border/50">
+            <p className="font-arabic text-lg text-foreground leading-relaxed">
+              {word.meaning}
+            </p>
+          </div>
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
 }

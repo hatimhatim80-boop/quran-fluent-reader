@@ -9,7 +9,7 @@ interface PageViewProps {
   onWordClick: (word: GhareebWord, index: number) => void;
 }
 
-// Extract surah name from header line like "سُورَةُ البقرة"
+// Extract surah name from header line
 function extractSurahName(line: string): string {
   return line.replace(/^سُورَةُ\s*/, '').trim();
 }
@@ -33,7 +33,7 @@ export function PageView({
     el?.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
   }, [highlightedWordIndex]);
 
-  // Build surah context map: for each line index, what's the current surah
+  // Build surah context map
   const surahContextByLine = useMemo(() => {
     const lines = page.text.split('\n');
     const contextMap: string[] = [];
@@ -51,22 +51,20 @@ export function PageView({
   }, [page.text, page.surahName]);
 
   const renderedContent = useMemo(() => {
-    if (!page.text) {
-      return null;
-    }
+    if (!page.text) return null;
 
-    // If no ghareeb words, just render plain text
+    // If no ghareeb words, render plain text
     if (ghareebWords.length === 0) {
       return page.text.split('\n').map((line, idx) => (
-        <div key={idx} className="mb-2">
+        <div key={idx} className="mb-1">
           {line.startsWith('سُورَةُ') ? (
-            <div className="text-center text-xl sm:text-2xl font-bold text-primary my-4 py-2 border-y border-ornament/30">
-              {line}
+            <div className="surah-header">
+              <span className="text-lg sm:text-xl font-bold text-primary font-arabic">
+                {line}
+              </span>
             </div>
           ) : line.startsWith('بِسۡمِ ٱللَّهِ') ? (
-            <div className="text-center text-lg sm:text-xl text-primary/80 my-3">
-              {line}
-            </div>
+            <div className="bismillah font-arabic">{line}</div>
           ) : (
             <span>{line}</span>
           )}
@@ -74,7 +72,7 @@ export function PageView({
       ));
     }
 
-    // Prepare ghareeb entries with normalized words
+    // Prepare ghareeb entries
     const ghareebEntries = ghareebWords.map((gw, idx) => {
       const normalizedFull = normalizeArabic(gw.wordText);
       const words = normalizedFull.split(/\s+/).filter(w => w.length >= 2);
@@ -82,47 +80,45 @@ export function PageView({
         original: gw,
         index: idx,
         normalizedFull,
-        words, // Individual normalized words in the phrase
+        words,
         wordCount: words.length,
         normalizedSurah: normalizeSurahName(gw.surahName),
       };
     });
 
-    // Sort by word count descending (match longer phrases first)
+    // Sort by word count descending
     const sortedEntries = [...ghareebEntries].sort((a, b) => b.wordCount - a.wordCount);
-
-    // Track which ghareeb entries have been used
     const usedIndices = new Set<number>();
 
     return page.text.split('\n').map((line, lineIdx) => {
-      // Get the surah context for this line
       const localSurah = surahContextByLine[lineIdx] || '';
       const normalizedLocalSurah = normalizeSurahName(localSurah);
 
-      // Check for surah header
+      // Surah header
       if (line.startsWith('سُورَةُ')) {
         return (
-          <div key={lineIdx} className="text-center text-xl sm:text-2xl font-bold text-primary my-4 py-2 border-y border-ornament/30">
-            {line}
+          <div key={lineIdx} className="surah-header">
+            <span className="text-lg sm:text-xl font-bold text-primary font-arabic">
+              {line}
+            </span>
           </div>
         );
       }
 
-      // Check for bismillah
+      // Bismillah
       if (line.startsWith('بِسۡمِ ٱللَّهِ')) {
         return (
-          <div key={lineIdx} className="text-center text-lg sm:text-xl text-primary/80 my-3">
+          <div key={lineIdx} className="bismillah font-arabic">
             {line}
           </div>
         );
       }
 
-      // Split line into tokens (words and spaces)
+      // Split line into tokens
       const tokens = line.split(/(\s+)/);
       const tokenData = tokens.map((token, idx) => {
         const isSpace = /^\s+$/.test(token);
-        // Check if token is a verse number (Arabic numerals with optional decorative marks)
-        const cleanToken = token.replace(/[﴿﴾()[\]{}۝۞٭؟،۔ۣۖۗۘۙۚۛۜ۟۠ۡۢۤۥۦۧۨ۩۪ۭ۫۬]/g, '').trim();
+        const cleanToken = token.replace(/[﴿﴾()[\]{}۝۞٭؟،۔ۣۖۗۘۙۚۛۜ۟۠ۡۢۤۥۦۧۨ۩۪ۭ۫۬]/g, '').trim();
         const isVerseNumber = !isSpace && /^[٠-٩0-9۰-۹]+$/.test(cleanToken);
         
         return {
@@ -135,27 +131,24 @@ export function PageView({
           matchEntry: null as typeof ghareebEntries[0] | null,
           isPartOfPhrase: false,
           phraseStart: false,
-          phraseTokens: [] as number[], // indices of tokens in this phrase
+          phraseTokens: [] as number[],
         };
       });
 
-      // Try to match multi-word phrases first, then single words
+      // Match phrases
       for (const entry of sortedEntries) {
         if (usedIndices.has(entry.index)) continue;
         if (entry.words.length === 0) continue;
 
-        // Check surah context
         const surahMatch = normalizedLocalSurah === '' || 
           entry.normalizedSurah === normalizedLocalSurah || 
           entry.normalizedSurah.includes(normalizedLocalSurah) || 
           normalizedLocalSurah.includes(entry.normalizedSurah);
         if (!surahMatch) continue;
 
-        // Find consecutive tokens that match the phrase words
         for (let i = 0; i < tokenData.length; i++) {
           if (tokenData[i].isSpace || tokenData[i].isVerseNumber || tokenData[i].matched) continue;
           
-          // Check if this token starts a phrase match
           let phraseWordIdx = 0;
           let matchedTokens: number[] = [];
           let j = i;
@@ -165,7 +158,6 @@ export function PageView({
               j++;
               continue;
             }
-            // Skip verse numbers in phrase matching
             if (tokenData[j].isVerseNumber) {
               j++;
               continue;
@@ -175,7 +167,6 @@ export function PageView({
             const tokenNorm = tokenData[j].normalized;
             const phraseWord = entry.words[phraseWordIdx];
             
-            // Check if this token matches the current phrase word
             const isMatch = tokenNorm === phraseWord || 
               tokenNorm.includes(phraseWord) || 
               phraseWord.includes(tokenNorm);
@@ -189,9 +180,7 @@ export function PageView({
             }
           }
           
-          // If we matched all words in the phrase
           if (phraseWordIdx === entry.words.length && matchedTokens.length > 0) {
-            // Mark all matched tokens
             matchedTokens.forEach((tokenIdx, idx) => {
               tokenData[tokenIdx].matched = true;
               tokenData[tokenIdx].matchEntry = entry;
@@ -200,12 +189,12 @@ export function PageView({
               tokenData[tokenIdx].phraseTokens = matchedTokens;
             });
             usedIndices.add(entry.index);
-            break; // Move to next entry
+            break;
           }
         }
       }
 
-      // Build the rendered elements
+      // Build elements
       const elements: React.ReactNode[] = [];
       let i = 0;
       
@@ -223,11 +212,9 @@ export function PageView({
           const isHighlighted = highlightedWordIndex === entry.index;
           
           if (td.isPartOfPhrase && td.phraseStart) {
-            // Collect all tokens in this phrase (including spaces between)
             const phraseTokenIndices = td.phraseTokens;
             const lastPhraseTokenIdx = phraseTokenIndices[phraseTokenIndices.length - 1];
             
-            // Collect all tokens from first to last (including spaces)
             const phraseText: string[] = [];
             for (let k = i; k <= lastPhraseTokenIdx; k++) {
               phraseText.push(tokenData[k].token);
@@ -236,7 +223,7 @@ export function PageView({
             elements.push(
               <span
                 key={`${lineIdx}-phrase-${i}`}
-                className={`${isHighlighted ? 'word-highlight ' : ''}word-ghareeb cursor-pointer`}
+                className={`${isHighlighted ? 'word-highlight ' : ''}word-ghareeb`}
                 data-ghareeb-index={entry.index}
                 onClick={(e) => {
                   e.stopPropagation();
@@ -250,11 +237,10 @@ export function PageView({
             i = lastPhraseTokenIdx + 1;
             continue;
           } else if (!td.isPartOfPhrase) {
-            // Single word match
             elements.push(
               <span
                 key={`${lineIdx}-${i}`}
-                className={`${isHighlighted ? 'word-highlight ' : ''}word-ghareeb cursor-pointer`}
+                className={`${isHighlighted ? 'word-highlight ' : ''}word-ghareeb`}
                 data-ghareeb-index={entry.index}
                 onClick={(e) => {
                   e.stopPropagation();
@@ -269,13 +255,12 @@ export function PageView({
           }
         }
         
-        // Unmatched token
         elements.push(<span key={`${lineIdx}-${i}`}>{td.token}</span>);
         i++;
       }
 
       return (
-        <div key={lineIdx} className="mb-1">
+        <div key={lineIdx} className="mb-0.5">
           {elements}
         </div>
       );
@@ -283,29 +268,33 @@ export function PageView({
   }, [page.text, ghareebWords, highlightedWordIndex, onWordClick, surahContextByLine]);
 
   return (
-    <div className="page-frame p-6 sm:p-8 md:p-10">
-      {/* Page Number Header */}
-      <div className="flex justify-center mb-4">
-        <span className="bg-secondary text-secondary-foreground px-4 py-1 rounded-full text-sm font-arabic">
+    <div className="page-frame p-5 sm:p-8">
+      {/* Page Number */}
+      <div className="flex justify-center mb-5">
+        <span className="bg-secondary/80 text-secondary-foreground px-4 py-1.5 rounded-full text-sm font-arabic shadow-sm">
           صفحة {page.pageNumber}
         </span>
       </div>
 
       {/* Quran Text */}
-      <div className="quran-page min-h-[400px] sm:min-h-[500px]">
+      <div className="quran-page min-h-[350px] sm:min-h-[450px]">
         {renderedContent}
       </div>
 
-      {/* Word Count */}
+      {/* Word Count - subtle */}
       {ghareebWords.length > 0 && (
-        <div className="text-center text-xs text-muted-foreground mt-4 font-arabic">
-          {ghareebWords.length} كلمة غريبة في هذه الصفحة
+        <div className="text-center text-xs text-muted-foreground mt-5 font-arabic opacity-70">
+          {ghareebWords.length} كلمة غريبة
         </div>
       )}
 
-      {/* Decorative Footer */}
+      {/* Decorative divider */}
       <div className="flex justify-center mt-4">
-        <div className="w-32 h-1 bg-gradient-to-r from-transparent via-ornament/30 to-transparent rounded-full" />
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-px bg-gradient-to-r from-transparent to-ornament/30" />
+          <div className="w-1.5 h-1.5 rounded-full bg-ornament/30" />
+          <div className="w-8 h-px bg-gradient-to-l from-transparent to-ornament/30" />
+        </div>
       </div>
     </div>
   );
