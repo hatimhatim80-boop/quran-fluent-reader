@@ -1,12 +1,13 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { QuranPage, GhareebWord, SavedProgress } from '@/types/quran';
-import { loadQuranData, findWordsInPage } from '@/utils/quranParser';
+import { parseMushafText } from '@/utils/quranParser';
+import { loadGhareebData, getWordsForPage } from '@/utils/ghareebLoader';
 
 const STORAGE_KEY = 'quran-app-progress';
 
 export function useQuranData() {
   const [pages, setPages] = useState<QuranPage[]>([]);
-  const [allGhareebWords, setAllGhareebWords] = useState<GhareebWord[]>([]);
+  const [ghareebPageMap, setGhareebPageMap] = useState<Map<number, GhareebWord[]>>(new Map());
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   
@@ -20,13 +21,20 @@ export function useQuranData() {
       setError(null);
       
       try {
-        const { pages: loadedPages, ghareebWords: loadedWords } = await loadQuranData();
+        // Load mushaf text and ghareeb JSON in parallel
+        const [mushafResponse, ghareebMap] = await Promise.all([
+          fetch('/data/mushaf.txt'),
+          loadGhareebData(),
+        ]);
+        
+        const mushafText = await mushafResponse.text();
+        const loadedPages = parseMushafText(mushafText);
         
         if (loadedPages.length === 0) {
           setError('لم يتم العثور على بيانات القرآن');
         } else {
           setPages(loadedPages);
-          setAllGhareebWords(loadedWords);
+          setGhareebPageMap(ghareebMap);
           
           // Load saved progress
           const saved = localStorage.getItem(STORAGE_KEY);
@@ -69,13 +77,10 @@ export function useQuranData() {
     return pages.find(p => p.pageNumber === currentPage);
   }, [pages, currentPage]);
 
-  // Get ghareeb words found in current page text with page number verification
+  // Get ghareeb words for current page directly from the precise JSON data
   const getPageGhareebWords = useMemo((): GhareebWord[] => {
-    const pageData = pages.find(p => p.pageNumber === currentPage);
-    if (!pageData) return [];
-    // Pass pageNumber for better filtering based on surah/verse mapping
-    return findWordsInPage(pageData.text, allGhareebWords, currentPage);
-  }, [pages, currentPage, allGhareebWords]);
+    return getWordsForPage(ghareebPageMap, currentPage);
+  }, [ghareebPageMap, currentPage]);
 
   const goToPage = useCallback((page: number) => {
     const validPage = Math.max(1, Math.min(page, totalPages));
@@ -97,7 +102,6 @@ export function useQuranData() {
 
   return {
     pages,
-    ghareebWords: allGhareebWords,
     isLoading,
     error,
     currentPage,
