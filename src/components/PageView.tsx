@@ -119,17 +119,25 @@ export function PageView({
 
       // Split line into tokens (words and spaces)
       const tokens = line.split(/(\s+)/);
-      const tokenData = tokens.map((token, idx) => ({
-        token,
-        idx,
-        isSpace: /^\s+$/.test(token),
-        normalized: /^\s+$/.test(token) ? '' : normalizeArabic(token),
-        matched: false,
-        matchEntry: null as typeof ghareebEntries[0] | null,
-        isPartOfPhrase: false,
-        phraseStart: false,
-        phraseTokens: [] as number[], // indices of tokens in this phrase
-      }));
+      const tokenData = tokens.map((token, idx) => {
+        const isSpace = /^\s+$/.test(token);
+        // Check if token is a verse number (Arabic numerals with optional decorative marks)
+        const cleanToken = token.replace(/[﴿﴾()[\]{}۝۞٭؟،۔ۣۖۗۘۙۚۛۜ۟۠ۡۢۤۥۦۧۨ۩۪ۭ۫۬]/g, '').trim();
+        const isVerseNumber = !isSpace && /^[٠-٩0-9۰-۹]+$/.test(cleanToken);
+        
+        return {
+          token,
+          idx,
+          isSpace,
+          isVerseNumber,
+          normalized: (isSpace || isVerseNumber) ? '' : normalizeArabic(token),
+          matched: false,
+          matchEntry: null as typeof ghareebEntries[0] | null,
+          isPartOfPhrase: false,
+          phraseStart: false,
+          phraseTokens: [] as number[], // indices of tokens in this phrase
+        };
+      });
 
       // Try to match multi-word phrases first, then single words
       for (const entry of sortedEntries) {
@@ -145,7 +153,7 @@ export function PageView({
 
         // Find consecutive tokens that match the phrase words
         for (let i = 0; i < tokenData.length; i++) {
-          if (tokenData[i].isSpace || tokenData[i].matched) continue;
+          if (tokenData[i].isSpace || tokenData[i].isVerseNumber || tokenData[i].matched) continue;
           
           // Check if this token starts a phrase match
           let phraseWordIdx = 0;
@@ -154,6 +162,11 @@ export function PageView({
           
           while (j < tokenData.length && phraseWordIdx < entry.words.length) {
             if (tokenData[j].isSpace) {
+              j++;
+              continue;
+            }
+            // Skip verse numbers in phrase matching
+            if (tokenData[j].isVerseNumber) {
               j++;
               continue;
             }
