@@ -92,12 +92,31 @@ export function GhareebWordPopover({
     onSelect(word, index);
   }, [calculatePosition, index, onSelect, word]);
 
-  // Auto-position when forceOpen changes
+  // Auto-position when forceOpen changes (autoplay)
+  // During smooth scrolling, the word's bounding rect can change across frames,
+  // so we re-measure briefly to avoid "missing" popovers for some words.
   useEffect(() => {
-    if (forceOpen) {
+    if (!forceOpen) return;
+
+    let rafId: number | null = null;
+    const start = performance.now();
+    const maxDurationMs = 450;
+
+    const tick = () => {
       const pos = calculatePosition();
       if (pos) setPosition(pos);
-    }
+
+      if (performance.now() - start < maxDurationMs) {
+        rafId = requestAnimationFrame(tick);
+      }
+    };
+
+    // Measure immediately, then for a short time while scroll animation settles
+    tick();
+
+    return () => {
+      if (rafId != null) cancelAnimationFrame(rafId);
+    };
   }, [forceOpen, calculatePosition]);
 
   const handleClick = (e: React.MouseEvent) => {
@@ -126,9 +145,13 @@ export function GhareebWordPopover({
     };
 
     const handleScroll = () => {
-      // التمرير يُستخدم أيضاً داخلياً بواسطة التشغيل التلقائي (scrollIntoView).
-      // إذا أغلقنا هنا سنصفّر position بينما forceOpen ما يزال true، فيختفي الـPopover.
-      if (forceOpen) return;
+      // أثناء التشغيل التلقائي، التمرير يحدث غالباً بسبب scrollIntoView.
+      // بدلاً من الإغلاق، نعيد حساب الموضع كي لا تختفي النافذة خارج الشاشة.
+      if (forceOpen) {
+        const pos = calculatePosition();
+        if (pos) setPosition(pos);
+        return;
+      }
 
       closePopover();
     };
@@ -142,7 +165,7 @@ export function GhareebWordPopover({
       document.removeEventListener('touchstart', handleOutsideClick);
       window.removeEventListener('scroll', handleScroll, true);
     };
-  }, [isOpen, forceOpen, closePopover]);
+  }, [isOpen, forceOpen, calculatePosition, closePopover]);
 
   // Reposition on resize
   useEffect(() => {
