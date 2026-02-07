@@ -6,6 +6,7 @@ import { PageView } from './PageView';
 import { PageNavigation } from './PageNavigation';
 import { AutoPlayControls } from './AutoPlayControls';
 import { Toolbar } from './Toolbar';
+import { DiagnosticModeBadge } from './DiagnosticModeActivator';
 import { useSettingsApplier } from '@/hooks/useSettingsApplier';
 import { Loader2 } from 'lucide-react';
 
@@ -108,6 +109,9 @@ export function QuranReader() {
 
   return (
     <div className="min-h-screen bg-background" dir="rtl">
+      {/* Diagnostic Mode Badge - fixed position */}
+      <DiagnosticModeBadge />
+      
       <div className="max-w-2xl mx-auto px-4 py-6 sm:py-8 space-y-5">
         {/* Toolbar */}
         <Toolbar
@@ -124,6 +128,10 @@ export function QuranReader() {
           onHighlightWord={jumpTo}
           onRefreshData={() => {
             // Force re-render by triggering page reload
+            window.location.reload();
+          }}
+          onForceRebuild={() => {
+            // Force rebuild from Tanzil source
             window.location.reload();
           }}
         />
