@@ -9,6 +9,7 @@ import {
   FileText,
   Wrench,
   Database,
+  FolderOpen,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { SettingsDialog } from './SettingsDialog';
@@ -16,6 +17,7 @@ import { BuildCenterDialog } from './BuildCenterDialog';
 import { OrderFixerDialog } from './OrderFixerDialog';
 import { FullPageEditorDialog } from './FullPageEditorDialog';
 import { WorkingDataManager } from './WorkingDataManager';
+import { FullFilesViewer } from './FullFilesViewer';
 import { GhareebWord, QuranPage } from '@/types/quran';
 
 interface ToolbarProps {
@@ -111,11 +113,25 @@ export function Toolbar({
           <Wrench className="w-4 h-4" />
         </Link>
 
-        {/* Data Manager - Working version */}
+        {/* Full Files Viewer - Shows complete files */}
+        <FullFilesViewer 
+          pages={pages} 
+          allWords={allWords}
+          onRefresh={onRefreshData}
+        >
+          <button
+            className="nav-button w-9 h-9 rounded-lg flex items-center justify-center"
+            title="عرض الملفات الكاملة (القرآن + المعاني)"
+          >
+            <FolderOpen className="w-4 h-4" />
+          </button>
+        </FullFilesViewer>
+
+        {/* Data Manager - For editing overrides */}
         <WorkingDataManager allWords={allWords}>
           <button
             className="nav-button w-9 h-9 rounded-lg flex items-center justify-center"
-            title="مدير البيانات"
+            title="مدير التعديلات"
           >
             <Database className="w-4 h-4" />
           </button>
