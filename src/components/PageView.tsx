@@ -15,7 +15,11 @@ interface PageViewProps {
 
 // Extract surah name from header line
 function extractSurahName(line: string): string {
-  return line.replace(/^سُورَةُ\s*/, '').trim();
+  // Supports both "سُورَةُ ..." (with diacritics) and "سورة ..." (without)
+  return line
+    .replace(/^سُورَةُ\s*/, '')
+    .replace(/^سورة\s*/, '')
+    .trim();
 }
 
 // Normalize surah name for comparison
@@ -68,15 +72,18 @@ export function PageView({
     const lines = page.text.split('\n');
     const contextMap: string[] = [];
     let currentSurah = page.surahName || '';
-    
+
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
-      if (line.startsWith('سُورَةُ')) {
+
+      // Update context when we hit ANY surah header format
+      if (isSurahHeader(line)) {
         currentSurah = extractSurahName(line);
       }
+
       contextMap.push(currentSurah);
     }
-    
+
     return contextMap;
   }, [page.text, page.surahName]);
 
