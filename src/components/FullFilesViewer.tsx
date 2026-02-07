@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -11,7 +11,6 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { QuranPage, GhareebWord } from '@/types/quran';
 import { useDataStore } from '@/stores/dataStore';
 import { useCorrectionsStore } from '@/stores/correctionsStore';
@@ -27,6 +26,7 @@ import {
   Check,
   Save,
   RefreshCw,
+  Loader2,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -53,8 +53,29 @@ export function FullFilesViewer({ children, pages, allWords, onRefresh }: FullFi
   const [editingMeanings, setEditingMeanings] = useState(false);
   const [meaningsFullText, setMeaningsFullText] = useState('');
 
+  // Loading state for raw file
+  const [rawMeaningsFile, setRawMeaningsFile] = useState<string>('');
+  const [isLoadingRaw, setIsLoadingRaw] = useState(false);
+
   const { userOverrides, exportOverrides, importOverrides, resetAll } = useDataStore();
   const { corrections, exportCorrections } = useCorrectionsStore();
+
+  // Load raw ghareeb file directly when dialog opens
+  useEffect(() => {
+    if (open && !rawMeaningsFile) {
+      setIsLoadingRaw(true);
+      fetch('/data/ghareeb-words.txt')
+        .then(res => res.text())
+        .then(text => {
+          setRawMeaningsFile(text);
+          setIsLoadingRaw(false);
+        })
+        .catch(err => {
+          console.error('Failed to load ghareeb file:', err);
+          setIsLoadingRaw(false);
+        });
+    }
+  }, [open, rawMeaningsFile]);
 
   // Load mushaf overrides from localStorage
   const mushafOverrides = useMemo(() => {
@@ -86,8 +107,18 @@ export function FullFilesViewer({ children, pages, allWords, onRefresh }: FullFi
     return lines.join('\n');
   }, [pages, mushafOverrides]);
 
-  // Generate full meanings text
+  // Use raw file content if available, otherwise generate from parsed data
   const fullMeaningsText = useMemo(() => {
+    // Prefer raw file content (complete source)
+    if (rawMeaningsFile) {
+      return rawMeaningsFile;
+    }
+    
+    // Fallback to parsed data
+    if (allWords.length === 0) {
+      return 'جاري تحميل الملف...';
+    }
+    
     const lines: string[] = [];
     let currentPage = 0;
     
@@ -108,7 +139,7 @@ export function FullFilesViewer({ children, pages, allWords, onRefresh }: FullFi
     }
     
     return lines.join('\n');
-  }, [allWords]);
+  }, [allWords, rawMeaningsFile]);
 
   // Generate overrides text
   const overridesText = useMemo(() => {
@@ -297,10 +328,12 @@ export function FullFilesViewer({ children, pages, allWords, onRefresh }: FullFi
     input.click();
   };
 
-  // Stats
+  // Stats - count lines from raw file
+  const rawLinesCount = rawMeaningsFile ? rawMeaningsFile.split('\n').filter(l => l.trim() && !l.startsWith('#')).length : 0;
+  
   const stats = {
     totalPages: pages.length || 604,
-    totalWords: allWords.length,
+    totalWords: rawLinesCount || allWords.length,
     totalOverrides: userOverrides.length,
     totalCorrections: corrections.length,
     mushafOverrides: Object.keys(mushafOverrides).length,
@@ -448,7 +481,12 @@ export function FullFilesViewer({ children, pages, allWords, onRefresh }: FullFi
             </div>
             
             <ScrollArea className="flex-1 border rounded-lg min-h-[400px]">
-              {editingMeanings ? (
+              {isLoadingRaw ? (
+                <div className="flex items-center justify-center h-[400px]">
+                  <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                  <span className="mr-2 font-arabic">جاري تحميل الملف...</span>
+                </div>
+              ) : editingMeanings ? (
                 <Textarea
                   value={meaningsFullText}
                   onChange={(e) => setMeaningsFullText(e.target.value)}
@@ -464,8 +502,8 @@ export function FullFilesViewer({ children, pages, allWords, onRefresh }: FullFi
             
             <div className="text-xs text-muted-foreground font-arabic">
               {editingMeanings 
-                ? '💡 التنسيق: الكلمة | المعنى | السورة:الآية:الترتيب'
-                : `إجمالي: ${allWords.length.toLocaleString()} كلمة`
+                ? '💡 التنسيق: ﴿الكلمة﴾ TAB السورة TAB الآية TAB المعنى'
+                : `إجمالي: ${stats.totalWords.toLocaleString()} كلمة`
               }
             </div>
           </TabsContent>
