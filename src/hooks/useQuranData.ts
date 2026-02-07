@@ -1,12 +1,12 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { QuranPage, GhareebWord, SavedProgress } from '@/types/quran';
-import { loadQuranData } from '@/utils/quranParser';
+import { loadQuranData, findWordsInPage } from '@/utils/quranParser';
 
 const STORAGE_KEY = 'quran-app-progress';
 
 export function useQuranData() {
   const [pages, setPages] = useState<QuranPage[]>([]);
-  const [ghareebWords, setGhareebWords] = useState<GhareebWord[]>([]);
+  const [allGhareebWords, setAllGhareebWords] = useState<GhareebWord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   
@@ -26,7 +26,7 @@ export function useQuranData() {
           setError('لم يتم العثور على بيانات القرآن');
         } else {
           setPages(loadedPages);
-          setGhareebWords(loadedWords);
+          setAllGhareebWords(loadedWords);
           
           // Load saved progress
           const saved = localStorage.getItem(STORAGE_KEY);
@@ -69,12 +69,12 @@ export function useQuranData() {
     return pages.find(p => p.pageNumber === currentPage);
   }, [pages, currentPage]);
 
-  // Get ghareeb words for current page
-  const getPageGhareebWords = useCallback((): GhareebWord[] => {
-    return ghareebWords
-      .filter(w => w.pageNumber === currentPage)
-      .sort((a, b) => a.order - b.order);
-  }, [ghareebWords, currentPage]);
+  // Get ghareeb words found in current page text (not by page number)
+  const getPageGhareebWords = useMemo((): GhareebWord[] => {
+    const pageData = pages.find(p => p.pageNumber === currentPage);
+    if (!pageData) return [];
+    return findWordsInPage(pageData.text, allGhareebWords);
+  }, [pages, currentPage, allGhareebWords]);
 
   const goToPage = useCallback((page: number) => {
     const validPage = Math.max(1, Math.min(page, totalPages));
@@ -96,7 +96,7 @@ export function useQuranData() {
 
   return {
     pages,
-    ghareebWords,
+    ghareebWords: allGhareebWords,
     isLoading,
     error,
     currentPage,
