@@ -1,4 +1,5 @@
 import { QuranPage, GhareebWord } from '@/types/quran';
+import { getGhareebWordPage } from './quranPageIndex';
 
 // Convert Arabic numerals to Western numerals
 function arabicToNumber(arabicNum: string): number {
@@ -95,16 +96,12 @@ export function parseMushafText(text: string): QuranPage[] {
   return pages;
 }
 
-export function parseGhareebText(text: string, pages: QuranPage[]): GhareebWord[] {
+export function parseGhareebText(text: string, _pages: QuranPage[]): GhareebWord[] {
   const lines = text.split('\n');
   const words: GhareebWord[] = [];
   
-  // Pre-process pages: create normalized versions for searching
-  const processedPages = pages.map(p => ({
-    pageNumber: p.pageNumber,
-    normalizedText: normalizeArabic(p.text),
-    originalText: p.text,
-  }));
+  // Track words per page for ordering
+  const pageWordCounts: Record<number, number> = {};
 
   let foundCount = 0;
   let notFoundCount = 0;
@@ -126,72 +123,35 @@ export function parseGhareebText(text: string, pages: QuranPage[]): GhareebWord[
 
     if (!wordText || !surahName || !verseNumber) continue;
 
-    // Normalize the ghareeb word for searching
-    const normalizedWord = normalizeArabic(wordText);
+    // Use the page index to find the correct page
+    const pageNumber = getGhareebWordPage(surahName, verseNumber);
     
-    // Skip if normalization resulted in empty string
-    if (!normalizedWord || normalizedWord.length < 2) continue;
-    
-    // Find the page that contains this word
-    let foundPageNumber = -1;
-    
-    // First try: exact phrase match
-    for (const page of processedPages) {
-      if (page.normalizedText.includes(normalizedWord)) {
-        foundPageNumber = page.pageNumber;
-        break;
-      }
-    }
-    
-    // Second try: match individual significant words from the phrase
-    if (foundPageNumber === -1) {
-      const wordParts = normalizedWord.split(' ').filter(w => w.length >= 3);
-      if (wordParts.length > 0) {
-        // Try matching the longest word
-        const longestWord = wordParts.reduce((a, b) => a.length >= b.length ? a : b);
-        for (const page of processedPages) {
-          if (page.normalizedText.includes(longestWord)) {
-            foundPageNumber = page.pageNumber;
-            break;
-          }
-        }
-      }
-    }
-    
-    // Third try: more flexible matching
-    if (foundPageNumber === -1) {
-      const wordParts = normalizedWord.split(' ').filter(w => w.length >= 2);
-      for (const wordPart of wordParts) {
-        for (const page of processedPages) {
-          if (page.normalizedText.includes(wordPart)) {
-            foundPageNumber = page.pageNumber;
-            break;
-          }
-        }
-        if (foundPageNumber !== -1) break;
-      }
-    }
-    
-    if (foundPageNumber === -1) {
+    if (pageNumber === -1) {
       notFoundCount++;
-      continue; // Skip words we can't find
+      continue;
     }
 
     foundCount++;
+    
+    // Track order within page
+    pageWordCounts[pageNumber] = (pageWordCounts[pageNumber] || 0) + 1;
+    
     words.push({
-      pageNumber: foundPageNumber,
+      pageNumber,
       wordText,
       meaning,
       surahName,
       verseNumber,
-      order: words.filter(w => w.pageNumber === foundPageNumber).length + 1,
+      order: pageWordCounts[pageNumber],
     });
   }
 
-  console.log(`Ghareeb words: ${foundCount} found, ${notFoundCount} not found`);
+  console.log(`Ghareeb words: ${foundCount} found, ${notFoundCount} not found (using page index)`);
   
   return words.sort((a, b) => {
     if (a.pageNumber !== b.pageNumber) return a.pageNumber - b.pageNumber;
+    // Sort by verse number within same page
+    if (a.verseNumber !== b.verseNumber) return a.verseNumber - b.verseNumber;
     return a.order - b.order;
   });
 }
