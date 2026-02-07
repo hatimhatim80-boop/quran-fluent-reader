@@ -10,6 +10,16 @@ interface PageViewProps {
   onWordClick: (word: GhareebWord, index: number) => void;
 }
 
+// Extract surah name from header line like "سُورَةُ البقرة"
+function extractSurahName(line: string): string {
+  return line.replace(/^سُورَةُ\s*/, '').trim();
+}
+
+// Normalize surah name for comparison
+function normalizeSurahName(name: string): string {
+  return normalizeArabic(name).replace(/\s+/g, '');
+}
+
 export function PageView({
   page,
   ghareebWords,
@@ -23,6 +33,23 @@ export function PageView({
     );
     el?.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
   }, [highlightedWordIndex]);
+
+  // Build surah context map: for each line index, what's the current surah
+  const surahContextByLine = useMemo(() => {
+    const lines = page.text.split('\n');
+    const contextMap: string[] = [];
+    let currentSurah = page.surahName || '';
+    
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      if (line.startsWith('سُورَةُ')) {
+        currentSurah = extractSurahName(line);
+      }
+      contextMap.push(currentSurah);
+    }
+    
+    return contextMap;
+  }, [page.text, page.surahName]);
 
   const renderedContent = useMemo(() => {
     if (!page.text) {
@@ -48,22 +75,43 @@ export function PageView({
       ));
     }
 
-    // Process ghareeb words: normalize and track usage
-    const ghareebData = ghareebWords.map((gw, idx) => {
+    // Process ghareeb words: normalize and group by normalized text
+    const ghareebByNormalized = new Map<string, Array<{
+      original: GhareebWord;
+      index: number;
+      normalizedFull: string;
+      firstWord: string;
+      allWords: string[];
+      normalizedSurah: string;
+    }>>();
+
+    ghareebWords.forEach((gw, idx) => {
       const normalized = normalizeArabic(gw.wordText);
-      // Get individual words from multi-word phrases
       const words = normalized.split(' ').filter(w => w.length >= 2);
-      return {
+      const entry = {
         original: gw,
         index: idx,
         normalizedFull: normalized,
         firstWord: words[0] || normalized,
         allWords: words,
-        used: false,
+        normalizedSurah: normalizeSurahName(gw.surahName),
       };
+      
+      const key = normalized;
+      if (!ghareebByNormalized.has(key)) {
+        ghareebByNormalized.set(key, []);
+      }
+      ghareebByNormalized.get(key)!.push(entry);
     });
 
+    // Track which ghareeb entries have been used (by their index)
+    const usedIndices = new Set<number>();
+
     return page.text.split('\n').map((line, lineIdx) => {
+      // Get the surah context for this line
+      const localSurah = surahContextByLine[lineIdx] || '';
+      const normalizedLocalSurah = normalizeSurahName(localSurah);
+
       // Check for surah header
       if (line.startsWith('سُورَةُ')) {
         return (
@@ -92,64 +140,94 @@ export function PageView({
 
         const normalizedToken = normalizeArabic(token);
         
-        // Check if this token matches any ghareeb word (not yet used)
-        for (const gw of ghareebData) {
-          if (gw.used) continue;
+        // Find matching ghareeb entries
+        let matchedEntry: {
+          original: GhareebWord;
+          index: number;
+          normalizedFull: string;
+          firstWord: string;
+          allWords: string[];
+          normalizedSurah: string;
+        } | null = null;
+        for (const [key, entries] of ghareebByNormalized) {
+          // Check if token matches this normalized key
+          const firstWord = entries[0]?.firstWord || key;
+          const allWords = entries[0]?.allWords || [key];
           
-          // Match if:
-          // 1. Token equals the full normalized word/phrase
-          // 2. Token equals the first word of a phrase
-          // 3. Token contains the first word (for words with attached particles)
-          // 4. First word contains the token (for partial matches)
           const isMatch = 
-            normalizedToken === gw.normalizedFull ||
-            normalizedToken === gw.firstWord ||
-            normalizedToken.includes(gw.firstWord) ||
-            gw.firstWord.includes(normalizedToken) ||
-            gw.allWords.some(w => normalizedToken.includes(w) || w.includes(normalizedToken));
+            normalizedToken === key ||
+            normalizedToken === firstWord ||
+            normalizedToken.includes(firstWord) ||
+            firstWord.includes(normalizedToken) ||
+            allWords.some(w => normalizedToken.includes(w) || w.includes(normalizedToken));
           
-          if (isMatch) {
-            gw.used = true;
-            const isHighlighted = highlightedWordIndex === gw.index;
-            
-            return (
-              <Popover key={`${lineIdx}-${tokenIndex}`} open={isHighlighted}>
-                <PopoverTrigger asChild>
-                  <span
-                    className={`${isHighlighted ? 'word-highlight ' : ''}word-ghareeb`}
-                    data-ghareeb-index={gw.index}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onWordClick(gw.original, gw.index);
-                    }}
-                  >
-                    {token}
-                  </span>
-                </PopoverTrigger>
-
-                <PopoverContent
-                  side="top"
-                  align="center"
-                  sideOffset={10}
-                  className="meaning-box w-[min(22rem,calc(100vw-2rem))] p-3"
-                >
-                  <div className="space-y-2" dir="rtl">
-                    <div className="flex items-center justify-between gap-3">
-                      <span className="font-arabic font-bold text-primary text-lg">
-                        {gw.original.wordText}
-                      </span>
-                      <span className="text-xs font-arabic text-muted-foreground">
-                        {gw.original.surahName} ({gw.original.verseNumber})
-                      </span>
-                    </div>
-                    <div className="font-arabic text-sm leading-relaxed text-foreground">
-                      {gw.original.meaning}
-                    </div>
-                  </div>
-                </PopoverContent>
-              </Popover>
-            );
+          if (!isMatch) continue;
+          
+          // Filter by surah context and unused
+          const validEntries = entries.filter(e => 
+            !usedIndices.has(e.index) && 
+            (normalizedLocalSurah === '' || e.normalizedSurah === normalizedLocalSurah || e.normalizedSurah.includes(normalizedLocalSurah) || normalizedLocalSurah.includes(e.normalizedSurah))
+          );
+          
+          if (validEntries.length > 0) {
+            // Pick the first unused one (they're already in order)
+            matchedEntry = validEntries[0];
+            break;
           }
+          
+          // Fallback: if no surah match, pick any unused entry
+          const anyUnused = entries.find(e => !usedIndices.has(e.index));
+          if (anyUnused) {
+            matchedEntry = anyUnused;
+            break;
+          }
+        }
+        
+        if (matchedEntry) {
+          usedIndices.add(matchedEntry.index);
+          const isHighlighted = highlightedWordIndex === matchedEntry.index;
+          const gw = matchedEntry;
+          
+          // Use local surah from page context for display
+          const displaySurah = localSurah || gw.original.surahName;
+          
+          return (
+            <Popover key={`${lineIdx}-${tokenIndex}`} open={isHighlighted}>
+              <PopoverTrigger asChild>
+                <span
+                  className={`${isHighlighted ? 'word-highlight ' : ''}word-ghareeb`}
+                  data-ghareeb-index={gw.index}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onWordClick(gw.original, gw.index);
+                  }}
+                >
+                  {token}
+                </span>
+              </PopoverTrigger>
+
+              <PopoverContent
+                side="top"
+                align="center"
+                sideOffset={10}
+                className="meaning-box w-[min(22rem,calc(100vw-2rem))] p-3"
+              >
+                <div className="space-y-2" dir="rtl">
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="font-arabic font-bold text-primary text-lg">
+                      {gw.original.wordText}
+                    </span>
+                    <span className="text-xs font-arabic text-muted-foreground">
+                      {displaySurah} ({gw.original.verseNumber})
+                    </span>
+                  </div>
+                  <div className="font-arabic text-sm leading-relaxed text-foreground">
+                    {gw.original.meaning}
+                  </div>
+                </div>
+              </PopoverContent>
+            </Popover>
+          );
         }
 
         return <span key={`${lineIdx}-${tokenIndex}`}>{token}</span>;
@@ -161,7 +239,7 @@ export function PageView({
         </div>
       );
     });
-  }, [page.text, ghareebWords, highlightedWordIndex, onWordClick]);
+  }, [page.text, ghareebWords, highlightedWordIndex, onWordClick, surahContextByLine]);
 
   return (
     <div className="page-frame p-6 sm:p-8 md:p-10">
