@@ -1,4 +1,32 @@
 import { QuranPage } from '@/types/quran';
+import { loadTanzilPageIndex, getPageForAyah } from './tanzilPageIndex';
+
+// Surah names in Arabic indexed by surah number
+const SURAH_NAMES: Record<number, string> = {
+  1: 'الفاتحة', 2: 'البقرة', 3: 'آل عمران', 4: 'النساء', 5: 'المائدة',
+  6: 'الأنعام', 7: 'الأعراف', 8: 'الأنفال', 9: 'التوبة', 10: 'يونس',
+  11: 'هود', 12: 'يوسف', 13: 'الرعد', 14: 'إبراهيم', 15: 'الحجر',
+  16: 'النحل', 17: 'الإسراء', 18: 'الكهف', 19: 'مريم', 20: 'طه',
+  21: 'الأنبياء', 22: 'الحج', 23: 'المؤمنون', 24: 'النور', 25: 'الفرقان',
+  26: 'الشعراء', 27: 'النمل', 28: 'القصص', 29: 'العنكبوت', 30: 'الروم',
+  31: 'لقمان', 32: 'السجدة', 33: 'الأحزاب', 34: 'سبأ', 35: 'فاطر',
+  36: 'يس', 37: 'الصافات', 38: 'ص', 39: 'الزمر', 40: 'غافر',
+  41: 'فصلت', 42: 'الشورى', 43: 'الزخرف', 44: 'الدخان', 45: 'الجاثية',
+  46: 'الأحقاف', 47: 'محمد', 48: 'الفتح', 49: 'الحجرات', 50: 'ق',
+  51: 'الذاريات', 52: 'الطور', 53: 'النجم', 54: 'القمر', 55: 'الرحمن',
+  56: 'الواقعة', 57: 'الحديد', 58: 'المجادلة', 59: 'الحشر', 60: 'الممتحنة',
+  61: 'الصف', 62: 'الجمعة', 63: 'المنافقون', 64: 'التغابن', 65: 'الطلاق',
+  66: 'التحريم', 67: 'الملك', 68: 'القلم', 69: 'الحاقة', 70: 'المعارج',
+  71: 'نوح', 72: 'الجن', 73: 'المزمل', 74: 'المدثر', 75: 'القيامة',
+  76: 'الإنسان', 77: 'المرسلات', 78: 'النبأ', 79: 'النازعات', 80: 'عبس',
+  81: 'التكوير', 82: 'الانفطار', 83: 'المطففين', 84: 'الانشقاق', 85: 'البروج',
+  86: 'الطارق', 87: 'الأعلى', 88: 'الغاشية', 89: 'الفجر', 90: 'البلد',
+  91: 'الشمس', 92: 'الليل', 93: 'الضحى', 94: 'الشرح', 95: 'التين',
+  96: 'العلق', 97: 'القدر', 98: 'البينة', 99: 'الزلزلة', 100: 'العاديات',
+  101: 'القارعة', 102: 'التكاثر', 103: 'العصر', 104: 'الهمزة', 105: 'الفيل',
+  106: 'قريش', 107: 'الماعون', 108: 'الكوثر', 109: 'الكافرون', 110: 'النصر',
+  111: 'المسد', 112: 'الإخلاص', 113: 'الفلق', 114: 'الناس'
+};
 
 // Normalize Arabic text for comparison - remove ALL diacritics and special marks
 export function normalizeArabic(text: string): string {
@@ -32,6 +60,85 @@ export function normalizeArabic(text: string): string {
   return normalized;
 }
 
+interface ParsedAyah {
+  surah: number;
+  ayah: number;
+  text: string;
+}
+
+/**
+ * Parse Tanzil format: surah|ayah|text
+ */
+function parseTanzilLine(line: string): ParsedAyah | null {
+  const parts = line.split('|');
+  if (parts.length < 3) return null;
+  
+  const surah = parseInt(parts[0], 10);
+  const ayah = parseInt(parts[1], 10);
+  const text = parts.slice(2).join('|'); // In case text contains |
+  
+  if (isNaN(surah) || isNaN(ayah)) return null;
+  
+  return { surah, ayah, text };
+}
+
+/**
+ * Parse Tanzil Quran text and organize by pages using Tanzil page index
+ */
+export async function parseTanzilQuran(text: string): Promise<QuranPage[]> {
+  const pageIndex = await loadTanzilPageIndex();
+  const lines = text.split('\n').filter(line => line.trim());
+  
+  // Parse all ayahs
+  const ayahs: ParsedAyah[] = [];
+  for (const line of lines) {
+    const parsed = parseTanzilLine(line);
+    if (parsed) {
+      ayahs.push(parsed);
+    }
+  }
+  
+  console.log(`Parsed ${ayahs.length} ayahs from Tanzil`);
+  
+  // Group ayahs by page
+  const pageMap = new Map<number, { texts: string[]; surahName?: string }>();
+  
+  for (const ayah of ayahs) {
+    const pageNum = getPageForAyah(ayah.surah, ayah.ayah, pageIndex);
+    
+    if (!pageMap.has(pageNum)) {
+      pageMap.set(pageNum, { texts: [], surahName: SURAH_NAMES[ayah.surah] });
+    }
+    
+    const page = pageMap.get(pageNum)!;
+    
+    // Add surah header if this is ayah 1 (new surah)
+    if (ayah.ayah === 1 && ayah.surah !== 1) { // Skip Fatiha basmalah
+      page.texts.push(`سورة ${SURAH_NAMES[ayah.surah]}`);
+    }
+    
+    // Add ayah text with number marker
+    page.texts.push(`${ayah.text} ﴿${ayah.ayah}﴾`);
+  }
+  
+  // Convert to QuranPage array
+  const pages: QuranPage[] = [];
+  for (let pageNum = 1; pageNum <= 604; pageNum++) {
+    const pageData = pageMap.get(pageNum);
+    pages.push({
+      pageNumber: pageNum,
+      text: pageData ? pageData.texts.join('\n') : '',
+      surahName: pageData?.surahName,
+    });
+  }
+  
+  console.log(`Created ${pages.length} pages from Tanzil data`);
+  return pages;
+}
+
+/**
+ * Legacy parser for old mushaf.txt format
+ */
 export function parseMushafText(text: string): QuranPage[] {
   const lines = text.split('\n');
   const pages: QuranPage[] = [];
