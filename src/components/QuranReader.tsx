@@ -34,15 +34,17 @@ export function QuranReader() {
     stop,
     nextWord,
     prevWord,
+    jumpTo,
   } = useAutoPlay({
     words: pageWords,
     currentWordIndex,
     setCurrentWordIndex,
   });
 
+  // When user clicks a word, jump to it (works during playback too)
   const handleWordClick = useCallback((_: GhareebWord, index: number) => {
-    setCurrentWordIndex(index);
-  }, [setCurrentWordIndex]);
+    jumpTo(index);
+  }, [jumpTo]);
 
   // Loading state
   if (isLoading) {
