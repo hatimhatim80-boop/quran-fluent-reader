@@ -74,12 +74,12 @@ export function useAutoPlay({
     return clearTimer;
   }, [isPlaying, speed, words.length, nextWord, clearTimer]);
 
-  // Stop playing when words change (page change)
+  // Reset to first word when words change (page change) while playing
   useEffect(() => {
-    if (isPlaying) {
-      setCurrentWordIndex(0);
-    }
-  }, [words]);
+    if (!isPlaying) return;
+    clearTimer();
+    setCurrentWordIndex(0);
+  }, [words, isPlaying, clearTimer, setCurrentWordIndex]);
 
   return {
     isPlaying,
