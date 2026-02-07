@@ -3,6 +3,7 @@ import { GhareebWord } from '@/types/quran';
 import { createPortal } from 'react-dom';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useSettingsStore } from '@/stores/settingsStore';
+import { dispatchWordInspection } from './DevDebugPanel';
 
 interface GhareebWordPopoverProps {
   word: GhareebWord;
@@ -127,6 +128,20 @@ export function GhareebWordPopover({
 
   const handleClick = (e: React.MouseEvent) => {
     e.stopPropagation();
+    
+    // Dispatch inspection event for DEV debug panel
+    if (process.env.NODE_ENV !== 'production') {
+      dispatchWordInspection({
+        uniqueKey: word.uniqueKey,
+        originalWord: word.wordText,
+        surahNumber: word.surahNumber,
+        verseNumber: word.verseNumber,
+        wordIndex: word.wordIndex,
+        meaning: word.meaning || '',
+        tokenIndex: index,
+      });
+    }
+    
     if (isManualOpen) {
       closePopover();
     } else {

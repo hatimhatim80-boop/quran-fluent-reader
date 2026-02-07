@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback, useEffect } from 'react';
+import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import {
   Collapsible,
   CollapsibleContent,
@@ -21,6 +21,7 @@ import {
   CheckCircle,
   XCircle,
   Info,
+  Clock,
 } from 'lucide-react';
 import { QuranPage, GhareebWord } from '@/types/quran';
 import { normalizeArabic } from '@/utils/quranParser';
@@ -82,6 +83,8 @@ export interface InspectedWord {
   surah?: number;
   ayah?: number;
   wordIndex?: number;
+  tokenIndex?: number;
+  assemblyId?: string;
 }
 
 interface DevDebugPanelProps {
@@ -90,6 +93,26 @@ interface DevDebugPanelProps {
   ghareebWords: GhareebWord[];
   renderedWords: GhareebWord[];
   onInvalidateCache?: () => void;
+}
+
+// ============= GLOBAL EVENT FOR WORD SELECTION =============
+
+// Custom event for word inspection
+export const DEV_INSPECT_WORD_EVENT = 'dev-debug-inspect-word';
+
+export interface DevInspectWordDetail {
+  uniqueKey: string;
+  originalWord: string;
+  surahNumber: number;
+  verseNumber: number;
+  wordIndex: number;
+  meaning: string;
+  tokenIndex?: number;
+}
+
+// Helper to dispatch inspection event from anywhere
+export function dispatchWordInspection(detail: DevInspectWordDetail) {
+  window.dispatchEvent(new CustomEvent(DEV_INSPECT_WORD_EVENT, { detail }));
 }
 
 // ============= HELPER FUNCTIONS =============
@@ -343,44 +366,134 @@ export function DevDebugPanel({
   const [isOpen, setIsOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<'assembly' | 'matching' | 'inspect'>('assembly');
   const [inspectedWord, setInspectedWord] = useState<InspectedWord | null>(null);
+  const [lastSelectionEvent, setLastSelectionEvent] = useState<string | null>(null);
   const [snapshotTime, setSnapshotTime] = useState<string>(new Date().toLocaleTimeString('ar-EG'));
+  const longPressTimer = useRef<NodeJS.Timeout | null>(null);
   
   // Analyze page
   const analysis = useMemo(() => {
     return analyzePageAssembly(page, ghareebWords, renderedWords);
   }, [page, ghareebWords, renderedWords]);
   
-  // Handle word click for inspection
-  const handleWordClick = useCallback((event: MouseEvent) => {
+  // Helper to find and set inspected word
+  const inspectWordByKey = useCallback((key: string, source: string = 'click') => {
+    const word = ghareebWords.find(w => w.uniqueKey === key) || 
+                 renderedWords.find(w => w.uniqueKey === key);
+    
+    if (word) {
+      const timestamp = new Date().toLocaleTimeString('ar-EG');
+      setLastSelectionEvent(`${source} @ ${timestamp}`);
+      setInspectedWord({
+        originalWord: word.wordText,
+        normalizedWord: normalizeArabic(word.wordText),
+        identityKey: word.uniqueKey,
+        matchedMeaningId: key,
+        meaningPreview: word.meaning?.slice(0, 60) + (word.meaning?.length > 60 ? '...' : '') || 'لا يوجد',
+        surah: word.surahNumber,
+        ayah: word.verseNumber,
+        wordIndex: word.wordIndex,
+        tokenIndex: renderedWords.findIndex(w => w.uniqueKey === key),
+        assemblyId: `block-${word.surahNumber}`,
+      });
+      
+      // Auto-switch to inspect tab
+      if (isOpen) {
+        setActiveTab('inspect');
+      }
+      
+      return true;
+    }
+    return false;
+  }, [ghareebWords, renderedWords, isOpen]);
+  
+  // Handle DOM click with data-ghareeb-key attribute
+  const handleDOMWordClick = useCallback((event: MouseEvent) => {
     const target = event.target as HTMLElement;
     const ghareebEl = target.closest('[data-ghareeb-key]') as HTMLElement;
     
-    if (ghareebEl && isOpen && activeTab === 'inspect') {
+    if (ghareebEl) {
       const key = ghareebEl.dataset.ghareebKey || '';
-      const word = ghareebWords.find(w => w.uniqueKey === key);
-      
-      if (word) {
-        setInspectedWord({
-          originalWord: word.wordText,
-          normalizedWord: normalizeArabic(word.wordText),
-          identityKey: word.uniqueKey,
-          matchedMeaningId: key,
-          meaningPreview: word.meaning.slice(0, 60) + (word.meaning.length > 60 ? '...' : ''),
-          surah: word.surahNumber,
-          ayah: word.verseNumber,
-          wordIndex: word.wordIndex,
-        });
+      if (key) {
+        inspectWordByKey(key, 'click');
       }
     }
-  }, [ghareebWords, isOpen, activeTab]);
+  }, [inspectWordByKey]);
   
-  // Listen for clicks on ghareeb words
-  useEffect(() => {
-    if (isOpen && activeTab === 'inspect') {
-      document.addEventListener('click', handleWordClick);
-      return () => document.removeEventListener('click', handleWordClick);
+  // Handle long-press for mobile
+  const handlePointerDown = useCallback((event: PointerEvent) => {
+    const target = event.target as HTMLElement;
+    const ghareebEl = target.closest('[data-ghareeb-key]') as HTMLElement;
+    
+    if (ghareebEl) {
+      const key = ghareebEl.dataset.ghareebKey || '';
+      if (key) {
+        longPressTimer.current = setTimeout(() => {
+          inspectWordByKey(key, 'long-press');
+        }, 500);
+      }
     }
-  }, [isOpen, activeTab, handleWordClick]);
+  }, [inspectWordByKey]);
+  
+  const handlePointerUp = useCallback(() => {
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
+    }
+  }, []);
+  
+  // Listen for custom inspection events (from GhareebWordPopover)
+  useEffect(() => {
+    const handleCustomInspect = (e: CustomEvent<DevInspectWordDetail>) => {
+      const detail = e.detail;
+      const timestamp = new Date().toLocaleTimeString('ar-EG');
+      setLastSelectionEvent(`custom-event @ ${timestamp}`);
+      setInspectedWord({
+        originalWord: detail.originalWord,
+        normalizedWord: normalizeArabic(detail.originalWord),
+        identityKey: detail.uniqueKey,
+        matchedMeaningId: detail.uniqueKey,
+        meaningPreview: detail.meaning?.slice(0, 60) + (detail.meaning?.length > 60 ? '...' : '') || 'لا يوجد',
+        surah: detail.surahNumber,
+        ayah: detail.verseNumber,
+        wordIndex: detail.wordIndex,
+        tokenIndex: detail.tokenIndex,
+        assemblyId: `block-${detail.surahNumber}`,
+      });
+      
+      if (isOpen) {
+        setActiveTab('inspect');
+      }
+    };
+    
+    window.addEventListener(DEV_INSPECT_WORD_EVENT as any, handleCustomInspect);
+    return () => window.removeEventListener(DEV_INSPECT_WORD_EVENT as any, handleCustomInspect);
+  }, [isOpen]);
+  
+  // Listen for DOM clicks when panel is open
+  useEffect(() => {
+    if (isOpen) {
+      document.addEventListener('click', handleDOMWordClick, true);
+      document.addEventListener('pointerdown', handlePointerDown);
+      document.addEventListener('pointerup', handlePointerUp);
+      document.addEventListener('pointercancel', handlePointerUp);
+      
+      return () => {
+        document.removeEventListener('click', handleDOMWordClick, true);
+        document.removeEventListener('pointerdown', handlePointerDown);
+        document.removeEventListener('pointerup', handlePointerUp);
+        document.removeEventListener('pointercancel', handlePointerUp);
+      };
+    }
+  }, [isOpen, handleDOMWordClick, handlePointerDown, handlePointerUp]);
+  
+  // Cleanup long-press timer
+  useEffect(() => {
+    return () => {
+      if (longPressTimer.current) {
+        clearTimeout(longPressTimer.current);
+      }
+    };
+  }, []);
   
   // Refresh snapshot time
   const handleRefresh = useCallback(() => {
@@ -574,15 +687,24 @@ export function DevDebugPanel({
               <div className="p-2 rounded bg-muted/50 border border-dashed">
                 <div className="flex items-center gap-2 text-muted-foreground">
                   <MousePointer className="w-3 h-3" />
-                  <span>Click any highlighted word to inspect</span>
+                  <span>Click or long-press any highlighted word to inspect</span>
                 </div>
+              </div>
+              
+              {/* Selection Event Status */}
+              <div className="flex items-center gap-2 text-[10px] px-1">
+                <Clock className="w-3 h-3 text-muted-foreground" />
+                <span className="text-muted-foreground">Last selection:</span>
+                <span className={lastSelectionEvent ? 'text-primary' : 'text-muted-foreground'}>
+                  {lastSelectionEvent || 'none'}
+                </span>
               </div>
               
               {inspectedWord ? (
                 <div className="p-3 rounded border bg-card space-y-2">
                   <div className="flex items-center justify-between">
                     <span className="font-arabic text-lg" dir="rtl">{inspectedWord.originalWord}</span>
-                    <Badge variant="outline">{inspectedWord.identityKey}</Badge>
+                    <Badge variant="outline" className="text-[9px]">{inspectedWord.identityKey}</Badge>
                   </div>
                   
                   <div className="grid grid-cols-2 gap-2 text-[10px]">
@@ -596,22 +718,34 @@ export function DevDebugPanel({
                     </div>
                   </div>
                   
+                  <div className="grid grid-cols-2 gap-2 text-[10px]">
+                    <div>
+                      <span className="text-muted-foreground">Assembly:</span>
+                      <div className="font-mono">{inspectedWord.assemblyId || 'unknown'}</div>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Token Index:</span>
+                      <div className="font-mono">{inspectedWord.tokenIndex ?? 'N/A'}</div>
+                    </div>
+                  </div>
+                  
                   <div>
                     <span className="text-muted-foreground text-[10px]">Meaning ID:</span>
-                    <div className="font-mono text-[10px]">{inspectedWord.matchedMeaningId || 'null'}</div>
+                    <div className="font-mono text-[10px] break-all">{inspectedWord.matchedMeaningId || 'null'}</div>
                   </div>
                   
                   <div>
                     <span className="text-muted-foreground text-[10px]">Meaning Preview:</span>
-                    <div className="font-arabic text-sm p-1 bg-muted rounded" dir="rtl">
+                    <div className="font-arabic text-sm p-1.5 bg-muted rounded" dir="rtl">
                       {inspectedWord.meaningPreview || 'لا يوجد معنى'}
                     </div>
                   </div>
                 </div>
               ) : (
-                <div className="flex items-center justify-center gap-2 py-8 text-muted-foreground">
+                <div className="flex flex-col items-center justify-center gap-2 py-8 text-muted-foreground">
                   <Info className="w-4 h-4" />
-                  No word selected
+                  <span>لم يتم تحديد كلمة</span>
+                  <span className="text-[10px]">Click a highlighted word in the mushaf</span>
                 </div>
               )}
             </TabsContent>
