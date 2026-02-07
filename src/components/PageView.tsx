@@ -8,6 +8,7 @@ interface PageViewProps {
   ghareebWords: GhareebWord[];
   highlightedWordIndex: number;
   meaningEnabled: boolean;
+  isPlaying?: boolean;
   onWordClick: (word: GhareebWord, index: number) => void;
 }
 
@@ -26,6 +27,7 @@ export function PageView({
   ghareebWords,
   highlightedWordIndex,
   meaningEnabled,
+  isPlaying = false,
   onWordClick,
 }: PageViewProps) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -262,6 +264,7 @@ export function PageView({
                   word={entry.original}
                   index={entry.index}
                   isHighlighted={isHighlighted}
+                  forceOpen={isPlaying && isHighlighted}
                   onSelect={onWordClick}
                   containerRef={containerRef}
                 >
@@ -294,6 +297,7 @@ export function PageView({
                   word={entry.original}
                   index={entry.index}
                   isHighlighted={isHighlighted}
+                  forceOpen={isPlaying && isHighlighted}
                   onSelect={onWordClick}
                   containerRef={containerRef}
                 >
@@ -333,7 +337,7 @@ export function PageView({
     }
 
     return <div className="inline">{allElements}</div>;
-  }, [page.text, ghareebWords, highlightedWordIndex, meaningEnabled, onWordClick, surahContextByLine, isSurahHeader, isBismillah]);
+  }, [page.text, ghareebWords, highlightedWordIndex, meaningEnabled, isPlaying, onWordClick, surahContextByLine, isSurahHeader, isBismillah]);
 
   return (
     <div ref={containerRef} className="page-frame p-5 sm:p-8">
