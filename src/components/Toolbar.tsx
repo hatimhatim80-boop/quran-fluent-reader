@@ -1,25 +1,21 @@
 import React from 'react';
 import { 
   BookOpen, 
-  Type, 
-  Palette, 
-  Layout, 
   Rocket, 
-  ClipboardCheck,
   Play,
   Pause,
   Settings2,
-  Database,
   ArrowDownUp,
   FileText,
   Wrench,
+  FolderOpen,
 } from 'lucide-react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { SettingsDialog } from './SettingsDialog';
 import { BuildCenterDialog } from './BuildCenterDialog';
-import { DataManagerDialog } from './DataManagerDialog';
 import { OrderFixerDialog } from './OrderFixerDialog';
 import { PageEditorDialog } from './PageEditorDialog';
+import { FileEditorDialog } from './FileEditorDialog';
 import { GhareebWord } from '@/types/quran';
 
 interface ToolbarProps {
@@ -29,6 +25,7 @@ interface ToolbarProps {
   currentWordIndex: number;
   currentPage?: number;
   pageWords?: GhareebWord[];
+  allWords?: GhareebWord[];
   onNavigateToPage?: (page: number) => void;
   onHighlightWord?: (index: number) => void;
 }
@@ -40,10 +37,10 @@ export function Toolbar({
   currentWordIndex,
   currentPage = 1,
   pageWords = [],
+  allWords = [],
   onNavigateToPage,
   onHighlightWord,
 }: ToolbarProps) {
-  const navigate = useNavigate();
 
   return (
     <header className="text-center pb-2">
@@ -88,43 +85,13 @@ export function Toolbar({
         {/* Separator */}
         <div className="w-px h-6 bg-border mx-1" />
 
-        {/* Settings */}
+        {/* Settings (unified - includes fonts, colors, popover) */}
         <SettingsDialog>
           <button
             className="nav-button w-9 h-9 rounded-lg flex items-center justify-center"
-            title="الإعدادات"
+            title="الإعدادات (الخطوط، الألوان، النوافذ)"
           >
             <Settings2 className="w-4 h-4" />
-          </button>
-        </SettingsDialog>
-
-        {/* Fonts (opens settings) */}
-        <SettingsDialog>
-          <button
-            className="nav-button w-9 h-9 rounded-lg flex items-center justify-center"
-            title="الخطوط"
-          >
-            <Type className="w-4 h-4" />
-          </button>
-        </SettingsDialog>
-
-        {/* Colors (opens settings) */}
-        <SettingsDialog>
-          <button
-            className="nav-button w-9 h-9 rounded-lg flex items-center justify-center"
-            title="الألوان"
-          >
-            <Palette className="w-4 h-4" />
-          </button>
-        </SettingsDialog>
-
-        {/* Popover Style (opens settings) */}
-        <SettingsDialog>
-          <button
-            className="nav-button w-9 h-9 rounded-lg flex items-center justify-center"
-            title="تنسيق النوافذ"
-          >
-            <Layout className="w-4 h-4" />
           </button>
         </SettingsDialog>
 
@@ -140,28 +107,15 @@ export function Toolbar({
           <Wrench className="w-4 h-4" />
         </Link>
 
-        {/* Data Manager */}
-        <DataManagerDialog>
+        {/* File Editor */}
+        <FileEditorDialog allWords={allWords}>
           <button
             className="nav-button w-9 h-9 rounded-lg flex items-center justify-center"
-            title="مدير البيانات"
+            title="محرر الملفات"
           >
-            <Database className="w-4 h-4" />
+            <FolderOpen className="w-4 h-4" />
           </button>
-        </DataManagerDialog>
-
-        {/* Order Fixer */}
-        <OrderFixerDialog
-          currentPage={currentPage}
-          onNavigateToPage={onNavigateToPage}
-        >
-          <button
-            className="nav-button w-9 h-9 rounded-lg flex items-center justify-center"
-            title="مصحح الترتيب"
-          >
-            <ArrowDownUp className="w-4 h-4" />
-          </button>
-        </OrderFixerDialog>
+        </FileEditorDialog>
 
         {/* Page Editor */}
         <PageEditorDialog
@@ -178,6 +132,19 @@ export function Toolbar({
           </button>
         </PageEditorDialog>
 
+        {/* Order Fixer */}
+        <OrderFixerDialog
+          currentPage={currentPage}
+          onNavigateToPage={onNavigateToPage}
+        >
+          <button
+            className="nav-button w-9 h-9 rounded-lg flex items-center justify-center"
+            title="مصحح الترتيب"
+          >
+            <ArrowDownUp className="w-4 h-4" />
+          </button>
+        </OrderFixerDialog>
+
         {/* Separator */}
         <div className="w-px h-6 bg-border mx-1" />
 
@@ -190,15 +157,6 @@ export function Toolbar({
             <Rocket className="w-4 h-4" />
           </button>
         </BuildCenterDialog>
-
-        {/* Validation Report Link */}
-        <Link
-          to="/validation"
-          className="nav-button w-9 h-9 rounded-lg flex items-center justify-center"
-          title="تقرير التحقق"
-        >
-          <ClipboardCheck className="w-4 h-4" />
-        </Link>
       </div>
     </header>
   );

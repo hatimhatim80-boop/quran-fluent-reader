@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { GhareebWord } from '@/types/quran';
 import { createPortal } from 'react-dom';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { useSettingsStore } from '@/stores/settingsStore';
 
 interface GhareebWordPopoverProps {
   word: GhareebWord;
@@ -34,6 +35,12 @@ export function GhareebWordPopover({
   const wordRef = useRef<HTMLSpanElement>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
   const isMobile = useIsMobile();
+  
+  // Get settings for live updates
+  const { settings } = useSettingsStore();
+  const popoverSettings = settings.popover;
+  const fontSettings = settings.fonts;
+  const colorSettings = settings.colors;
 
   // Popover is open if forced (auto-play) or manually opened
   const isOpen = forceOpen || isManualOpen;
@@ -41,13 +48,15 @@ export function GhareebWordPopover({
   // Single source of truth for meaning - NO duplication
   const meaning = word.meaning?.trim() ? word.meaning : 'لا يوجد معنى';
 
+  // Get popover width from settings
+  const popoverWidth = popoverSettings.width || (isMobile ? 220 : 280);
+
   const calculatePosition = useCallback((): PopoverPosition | null => {
     if (!wordRef.current || !containerRef.current) return null;
 
     const wordRect = wordRef.current.getBoundingClientRect();
     const containerRect = containerRef.current.getBoundingClientRect();
 
-    const popoverWidth = isMobile ? 220 : 280;
     const popoverHeight = 120;
     const arrowHeight = 10;
     const verticalOffset = 12;
@@ -76,7 +85,7 @@ export function GhareebWordPopover({
     }
 
     return { x, y, arrowX, flipped };
-  }, [containerRef, isMobile]);
+  }, [containerRef, popoverWidth]);
 
   const closePopover = useCallback(() => {
     setIsManualOpen(false);
@@ -93,8 +102,6 @@ export function GhareebWordPopover({
   }, [calculatePosition, index, onSelect, word]);
 
   // Auto-position when forceOpen changes (autoplay)
-  // During smooth scrolling, the word's bounding rect can change across frames,
-  // so we re-measure briefly to avoid "missing" popovers for some words.
   useEffect(() => {
     if (!forceOpen) return;
 
@@ -111,7 +118,6 @@ export function GhareebWordPopover({
       }
     };
 
-    // Measure immediately, then for a short time while scroll animation settles
     tick();
 
     return () => {
@@ -133,7 +139,6 @@ export function GhareebWordPopover({
     if (!isOpen) return;
 
     const handleOutsideClick = (e: MouseEvent | TouchEvent) => {
-      // أثناء التشغيل التلقائي (forceOpen) لا نغلق بالضغط خارجياً لأن الهدف هو العرض المستمر
       if (forceOpen) return;
 
       if (
@@ -145,8 +150,6 @@ export function GhareebWordPopover({
     };
 
     const handleScroll = () => {
-      // أثناء التشغيل التلقائي، التمرير يحدث غالباً بسبب scrollIntoView.
-      // بدلاً من الإغلاق، نعيد حساب الموضع كي لا تختفي النافذة خارج الشاشة.
       if (forceOpen) {
         const pos = calculatePosition();
         if (pos) setPosition(pos);
@@ -182,6 +185,39 @@ export function GhareebWordPopover({
 
   const portalTarget = containerRef.current;
 
+  // Build dynamic styles from settings
+  const shadowMap: Record<string, string> = {
+    none: 'none',
+    soft: '0 2px 8px rgba(0, 0, 0, 0.08)',
+    medium: '0 8px 24px rgba(0, 0, 0, 0.15), 0 4px 8px rgba(0, 0, 0, 0.08)',
+    strong: '0 12px 32px rgba(0, 0, 0, 0.25), 0 6px 12px rgba(0, 0, 0, 0.12)',
+  };
+
+  const popoverStyle: React.CSSProperties = {
+    left: position?.x,
+    top: position?.y,
+    width: popoverWidth,
+    '--arrow-x': `${position?.arrowX}px`,
+  } as React.CSSProperties;
+
+  const contentStyle: React.CSSProperties = {
+    padding: popoverSettings.padding,
+    borderRadius: popoverSettings.borderRadius,
+    opacity: popoverSettings.opacity / 100,
+    boxShadow: shadowMap[popoverSettings.shadow] || shadowMap.medium,
+    background: `linear-gradient(180deg, hsl(${colorSettings.popoverBackground}) 0%, hsl(${colorSettings.popoverBackground}) 100%)`,
+    borderColor: `hsl(${colorSettings.popoverBorder})`,
+  };
+
+  const wordStyle: React.CSSProperties = {
+    color: `hsl(${colorSettings.popoverText})`,
+  };
+
+  const meaningStyle: React.CSSProperties = {
+    fontSize: `${fontSettings.meaningFontSize}rem`,
+    color: `hsl(${colorSettings.popoverText})`,
+  };
+
   return (
     <>
       <span
@@ -202,20 +238,13 @@ export function GhareebWordPopover({
             <div
               ref={popoverRef}
               className={`ghareeb-popover ${position.flipped ? 'ghareeb-popover--flipped' : ''}`}
-              style={
-                {
-                  left: position.x,
-                  top: position.y,
-                  width: isMobile ? 220 : 280,
-                  '--arrow-x': `${position.arrowX}px`,
-                } as React.CSSProperties
-              }
+              style={popoverStyle}
             >
-              <div className="ghareeb-popover__content">
-                <div className="ghareeb-popover__word">{word.wordText}</div>
-                <div className="ghareeb-popover__meaning">{meaning}</div>
+              <div className="ghareeb-popover__content" style={contentStyle}>
+                <div className="ghareeb-popover__word" style={wordStyle}>{word.wordText}</div>
+                <div className="ghareeb-popover__meaning" style={meaningStyle}>{meaning}</div>
               </div>
-              <div className="ghareeb-popover__arrow" />
+              {popoverSettings.showArrow && <div className="ghareeb-popover__arrow" />}
             </div>,
             portalTarget,
           )
