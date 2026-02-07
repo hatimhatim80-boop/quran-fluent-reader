@@ -10,6 +10,7 @@ import {
   Wrench,
   Database,
   FolderOpen,
+  Stethoscope,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { SettingsDialog } from './SettingsDialog';
@@ -18,6 +19,8 @@ import { OrderFixerDialog } from './OrderFixerDialog';
 import { FullPageEditorDialog } from './FullPageEditorDialog';
 import { WorkingDataManager } from './WorkingDataManager';
 import { FullFilesViewer } from './FullFilesViewer';
+import { DiagnosticModeActivator, DiagnosticModeOnly } from './DiagnosticModeActivator';
+import { DiagnosticPanel } from './DiagnosticPanel';
 import { GhareebWord, QuranPage } from '@/types/quran';
 
 interface ToolbarProps {
@@ -33,6 +36,7 @@ interface ToolbarProps {
   onNavigateToPage?: (page: number) => void;
   onHighlightWord?: (index: number) => void;
   onRefreshData?: () => void;
+  onForceRebuild?: () => void;
 }
 
 export function Toolbar({ 
@@ -48,19 +52,25 @@ export function Toolbar({
   onNavigateToPage,
   onHighlightWord,
   onRefreshData,
+  onForceRebuild,
 }: ToolbarProps) {
+  const currentPageData = pages.find(p => p.pageNumber === currentPage);
+  const currentPageGhareeb = allWords.filter(w => w.pageNumber === currentPage);
+  const currentRenderedWords = renderedWords.filter(w => w.pageNumber === currentPage);
 
   return (
     <header className="text-center pb-2">
-      {/* Logo & Title */}
-      <div className="flex items-center justify-center gap-2 mb-2">
-        <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
-          <BookOpen className="w-4 h-4 text-primary" />
+      {/* Logo & Title - with hidden gesture activation */}
+      <DiagnosticModeActivator>
+        <div className="flex items-center justify-center gap-2 mb-2">
+          <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+            <BookOpen className="w-4 h-4 text-primary" />
+          </div>
+          <h1 className="text-xl sm:text-2xl font-bold font-arabic text-foreground">
+            القرآن الكريم
+          </h1>
         </div>
-        <h1 className="text-xl sm:text-2xl font-bold font-arabic text-foreground">
-          القرآن الكريم
-        </h1>
-      </div>
+      </DiagnosticModeActivator>
       
       <p className="text-xs text-muted-foreground font-arabic mb-3">
         الميسر في غريب القرآن
@@ -183,6 +193,23 @@ export function Toolbar({
             <Rocket className="w-4 h-4" />
           </button>
         </BuildCenterDialog>
+
+        {/* Diagnostic Panel - Only visible in Diagnostic Mode */}
+        <DiagnosticModeOnly>
+          {currentPageData && (
+            <>
+              <div className="w-px h-6 bg-border mx-1" />
+              <DiagnosticPanel
+                page={currentPageData}
+                pageNumber={currentPage}
+                ghareebWords={currentPageGhareeb}
+                renderedWords={currentRenderedWords}
+                onInvalidateCache={onRefreshData}
+                onForceRebuild={onForceRebuild}
+              />
+            </>
+          )}
+        </DiagnosticModeOnly>
       </div>
     </header>
   );
