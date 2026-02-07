@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -22,6 +22,12 @@ import {
 } from '@/components/ui/table';
 import { GhareebWord, QuranPage } from '@/types/quran';
 import { useDataStore } from '@/stores/dataStore';
+import { 
+  getExpectedPageContent, 
+  buildPageText, 
+  validatePageCompleteness,
+  getPageDebugInfo,
+} from '@/utils/pageAssemblyModel';
 import {
   FileText,
   Save,
@@ -36,6 +42,10 @@ import {
   AlertTriangle,
   Check,
   X,
+  RefreshCw,
+  CheckCircle,
+  Info,
+  ScanLine,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -103,6 +113,19 @@ export function FullPageEditorDialog({
   const [originalMeaningsText, setOriginalMeaningsText] = useState('');
   const [isMeaningsDirty, setIsMeaningsDirty] = useState(false);
   
+  // Page validation state
+  const [isValidating, setIsValidating] = useState(false);
+  const [isRebuilding, setIsRebuilding] = useState(false);
+  const [validationIssues, setValidationIssues] = useState<string[]>([]);
+  const [pageDebugInfo, setPageDebugInfo] = useState<{
+    firstVerse: string;
+    lastVerse: string;
+    totalVerses: number;
+    hasSurahTransition: boolean;
+    surahs: number[];
+  } | null>(null);
+  const [tanzilText, setTanzilText] = useState<string>('');
+  
   // Individual editing
   const [editingWord, setEditingWord] = useState<GhareebWord | null>(null);
   const [editForm, setEditForm] = useState({
@@ -118,11 +141,122 @@ export function FullPageEditorDialog({
   
   const { addWordOverride, userOverrides, applyOverrides, resetAll } = useDataStore();
 
+  // Load Tanzil text on mount
+  useEffect(() => {
+    if (open && !tanzilText) {
+      fetch('/data/quran-tanzil.txt')
+        .then(res => res.text())
+        .then(text => setTanzilText(text))
+        .catch(err => console.error('Failed to load tanzil:', err));
+    }
+  }, [open, tanzilText]);
+
   // Get resolved words for this page
   const resolvedWords = useMemo(() => {
     const all = applyOverrides(allWords);
     return all.filter((w) => w.pageNumber === page).sort((a, b) => a.order - b.order);
   }, [allWords, applyOverrides, page]);
+  
+  // Rebuild page from official source
+  const handleRebuildFromSource = useCallback(async () => {
+    if (!tanzilText) {
+      toast.error('جاري تحميل البيانات...');
+      return;
+    }
+    
+    setIsRebuilding(true);
+    try {
+      const expected = await getExpectedPageContent(page, tanzilText);
+      const rebuiltText = buildPageText(expected);
+      
+      // Set the rebuilt text
+      setQuranText(rebuiltText);
+      setIsQuranDirty(true);
+      
+      // Load debug info
+      const debugInfo = await getPageDebugInfo(page, tanzilText);
+      setPageDebugInfo(debugInfo);
+      
+      toast.success(`تم إعادة بناء الصفحة ${page} (${expected.segments.length} آية)`);
+    } catch (err) {
+      console.error('Rebuild error:', err);
+      toast.error('خطأ في إعادة بناء الصفحة');
+    } finally {
+      setIsRebuilding(false);
+    }
+  }, [page, tanzilText]);
+  
+  // Validate page completeness
+  const handleValidatePage = useCallback(async () => {
+    if (!tanzilText) {
+      toast.error('جاري تحميل البيانات...');
+      return;
+    }
+    
+    setIsValidating(true);
+    setValidationIssues([]);
+    
+    try {
+      const issues = await validatePageCompleteness(page, quranText, tanzilText);
+      const debugInfo = await getPageDebugInfo(page, tanzilText);
+      
+      setPageDebugInfo(debugInfo);
+      
+      if (issues.length === 0) {
+        toast.success('✅ الصفحة سليمة - لا توجد مشاكل');
+        setValidationIssues([]);
+      } else {
+        const issueMessages = issues.map(i => `${i.description}: ${i.expected} vs ${i.actual}`);
+        setValidationIssues(issueMessages);
+        toast.error(`وُجدت ${issues.length} مشكلة في الصفحة`);
+      }
+    } catch (err) {
+      console.error('Validation error:', err);
+      toast.error('خطأ في التحقق');
+    } finally {
+      setIsValidating(false);
+    }
+  }, [page, quranText, tanzilText]);
+  
+  // Auto-fix: rebuild and save
+  const handleAutoFix = useCallback(async () => {
+    if (!tanzilText) {
+      toast.error('جاري تحميل البيانات...');
+      return;
+    }
+    
+    setIsRebuilding(true);
+    try {
+      const expected = await getExpectedPageContent(page, tanzilText);
+      const rebuiltText = buildPageText(expected);
+      
+      // Save directly as override
+      const newOverride: MushafOverride = {
+        pageNumber: page,
+        text: rebuiltText,
+        updatedAt: new Date().toISOString(),
+      };
+      
+      const updated = new Map(mushafOverrides);
+      updated.set(page, newOverride);
+      setMushafOverrides(updated);
+      saveMushafOverrides(updated);
+      
+      // Update UI state
+      setQuranText(rebuiltText);
+      setOriginalQuranText(rebuiltText);
+      setIsQuranDirty(false);
+      setValidationIssues([]);
+      
+      toast.success(`✅ تم إصلاح صفحة ${page} تلقائياً`);
+      onRefreshData?.();
+    } catch (err) {
+      console.error('Auto-fix error:', err);
+      toast.error('خطأ في الإصلاح التلقائي');
+    } finally {
+      setIsRebuilding(false);
+    }
+  }, [page, tanzilText, mushafOverrides, onRefreshData]);
 
   // Load page data when page changes
   useEffect(() => {
@@ -398,6 +532,86 @@ export function FullPageEditorDialog({
 
             {/* Quran Text Tab */}
             <TabsContent value="quran" className="space-y-4 mt-4">
+              {/* Rebuild & Validate Actions - CRITICAL BUTTONS */}
+              <div className="flex flex-wrap gap-2 p-3 bg-muted/30 rounded-lg border">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={handleRebuildFromSource}
+                  disabled={isRebuilding || !tanzilText}
+                  className="font-arabic gap-1"
+                >
+                  {isRebuilding ? (
+                    <RefreshCw className="w-3 h-3 animate-spin" />
+                  ) : (
+                    <RefreshCw className="w-3 h-3" />
+                  )}
+                  🔄 إعادة بناء الصفحة من المصدر
+                </Button>
+                
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={handleValidatePage}
+                  disabled={isValidating || !tanzilText}
+                  className="font-arabic gap-1"
+                >
+                  {isValidating ? (
+                    <ScanLine className="w-3 h-3 animate-pulse" />
+                  ) : (
+                    <ScanLine className="w-3 h-3" />
+                  )}
+                  فحص اكتمال الصفحة
+                </Button>
+                
+                {validationIssues.length > 0 && (
+                  <Button
+                    size="sm"
+                    variant="default"
+                    onClick={handleAutoFix}
+                    disabled={isRebuilding}
+                    className="font-arabic gap-1"
+                  >
+                    <CheckCircle className="w-3 h-3" />
+                    ✅ إصلاح تلقائي
+                  </Button>
+                )}
+              </div>
+              
+              {/* Validation Issues Display */}
+              {validationIssues.length > 0 && (
+                <div className="p-3 bg-destructive/10 border border-destructive/30 rounded-lg">
+                  <div className="flex items-center gap-2 mb-2">
+                    <AlertTriangle className="w-4 h-4 text-destructive" />
+                    <span className="font-arabic font-semibold text-destructive">مشاكل في الصفحة:</span>
+                  </div>
+                  <ul className="text-sm font-arabic text-destructive/90 space-y-1">
+                    {validationIssues.map((issue, idx) => (
+                      <li key={idx}>• {issue}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              
+              {/* Page Debug Info */}
+              {pageDebugInfo && (
+                <div className="p-3 bg-primary/5 border border-primary/20 rounded-lg text-sm font-arabic">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Info className="w-4 h-4 text-primary" />
+                    <span className="font-semibold">معلومات الصفحة:</span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 text-muted-foreground">
+                    <span>الآية الأولى: <strong className="text-foreground">{pageDebugInfo.firstVerse}</strong></span>
+                    <span>الآية الأخيرة: <strong className="text-foreground">{pageDebugInfo.lastVerse}</strong></span>
+                    <span>إجمالي الآيات: <strong className="text-foreground">{pageDebugInfo.totalVerses}</strong></span>
+                    <span>السور: <strong className="text-foreground">{pageDebugInfo.surahs.join(', ')}</strong></span>
+                    {pageDebugInfo.hasSurahTransition && (
+                      <span className="col-span-2 text-amber-600">⚠️ الصفحة تحتوي على انتقال بين السور</span>
+                    )}
+                  </div>
+                </div>
+              )}
+              
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <Label className="font-arabic font-semibold">نص صفحة المصحف الكامل</Label>

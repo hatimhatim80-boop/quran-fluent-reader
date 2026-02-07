@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   ArrowRight, 
@@ -21,20 +21,26 @@ import {
   Trash2,
   Check,
   X,
+  ScanLine,
+  BookOpen,
+  Info,
 } from 'lucide-react';
 import { loadGhareebData } from '@/utils/ghareebLoader';
-import { parseMushafText } from '@/utils/quranParser';
+import { parseMushafText, parseTanzilQuran } from '@/utils/quranParser';
 import { validateMatching, exportReportAsJSON, exportReportAsCSV, MatchingReport, MismatchEntry, MismatchReason } from '@/utils/matchingValidator';
+import { scanAllPagesForIssues, PageIssue, getPageDebugInfo, buildPageText, getExpectedPageContent } from '@/utils/pageAssemblyModel';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { CorrectionDialog } from '@/components/CorrectionDialog';
 import { useCorrectionsStore } from '@/stores/correctionsStore';
 import { useDataStore } from '@/stores/dataStore';
 import { toast } from 'sonner';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { QuranPage } from '@/types/quran';
 
 const REASON_LABELS: Record<MismatchReason, string> = {
   not_found_in_page: 'غير موجودة في الصفحة',
@@ -52,6 +58,13 @@ const REASON_ICONS: Record<MismatchReason, string> = {
   duplicate_match: '🔁',
   partial_match: '⚡',
   unknown: '❓',
+};
+
+const PAGE_ISSUE_LABELS: Record<string, string> = {
+  missing_verses: 'آيات مفقودة',
+  surah_boundary_drop: 'انتقال سورة مفقود',
+  wrong_page_assignment: 'صفحة خاطئة',
+  extra_verses: 'آيات زائدة',
 };
 
 // Fix mode types
@@ -78,6 +91,25 @@ export default function ValidationReport() {
   const [searchQuery, setSearchQuery] = useState('');
   const [showIgnored, setShowIgnored] = useState(false);
   const [sortBy, setSortBy] = useState<'page' | 'reason' | 'surah'>('page');
+  
+  // Active tab state
+  const [activeTab, setActiveTab] = useState<'mismatches' | 'page-completeness'>('mismatches');
+  
+  // Page completeness validation state
+  const [pageIssues, setPageIssues] = useState<PageIssue[]>([]);
+  const [isScanning, setIsScanning] = useState(false);
+  const [scanProgress, setScanProgress] = useState({ current: 0, total: 604 });
+  const [pages, setPages] = useState<QuranPage[]>([]);
+  const [tanzilText, setTanzilText] = useState('');
+  const [selectedPageDebug, setSelectedPageDebug] = useState<number | null>(null);
+  const [pageDebugInfo, setPageDebugInfo] = useState<{
+    firstVerse: string;
+    lastVerse: string;
+    segmentsList: string[];
+    totalVerses: number;
+    hasSurahTransition: boolean;
+    surahs: number[];
+  } | null>(null);
   
   // Add word dialog state
   const [showAddDialog, setShowAddDialog] = useState(false);
@@ -116,12 +148,15 @@ export default function ValidationReport() {
         setLoading(true);
         
         // تحميل البيانات
-        const [ghareebMap, mushafResponse] = await Promise.all([
+        const [ghareebMap, mushafResponse, tanzilResponse] = await Promise.all([
           loadGhareebData(),
           fetch('/data/mushaf.txt').then((r) => r.text()),
+          fetch('/data/quran-tanzil.txt').then((r) => r.text()),
         ]);
         
-        const pages = parseMushafText(mushafResponse);
+        const loadedPages = parseMushafText(mushafResponse);
+        setPages(loadedPages);
+        setTanzilText(tanzilResponse);
         
         // Build all words list for duplicate matching
         const words: Array<{ word: string; surah: number; ayah: number; wordIndex: number; page: number }> = [];
@@ -139,7 +174,7 @@ export default function ValidationReport() {
         setAllWords(words);
         
         // تشغيل التحقق
-        const result = validateMatching(ghareebMap, pages);
+        const result = validateMatching(ghareebMap, loadedPages);
         setReport(result);
       } catch (err) {
         console.error('Validation error:', err);
@@ -151,6 +186,70 @@ export default function ValidationReport() {
     
     runValidation();
   }, []);
+
+  // Run page completeness scan
+  const runPageScan = useCallback(async () => {
+    if (pages.length === 0 || !tanzilText) {
+      toast.error('يرجى الانتظار حتى تحميل البيانات');
+      return;
+    }
+    
+    setIsScanning(true);
+    setPageIssues([]);
+    
+    try {
+      const issues = await scanAllPagesForIssues(
+        pages,
+        tanzilText,
+        (current, total) => setScanProgress({ current, total })
+      );
+      setPageIssues(issues);
+      toast.success(`تم فحص ${pages.length} صفحة، تم العثور على ${issues.length} مشكلة`);
+    } catch (err) {
+      console.error('Scan error:', err);
+      toast.error('خطأ في الفحص');
+    } finally {
+      setIsScanning(false);
+    }
+  }, [pages, tanzilText]);
+
+  // Load debug info for a page
+  const loadPageDebugInfo = useCallback(async (pageNumber: number) => {
+    if (!tanzilText) return;
+    
+    try {
+      const info = await getPageDebugInfo(pageNumber, tanzilText);
+      setPageDebugInfo(info);
+      setSelectedPageDebug(pageNumber);
+    } catch (err) {
+      console.error('Debug info error:', err);
+    }
+  }, [tanzilText]);
+
+  // Auto-fix a page issue
+  const autoFixPageIssue = useCallback(async (issue: PageIssue) => {
+    if (!tanzilText) return;
+    
+    try {
+      // Get the expected content for this page
+      const expected = await getExpectedPageContent(issue.pageNumber, tanzilText);
+      const rebuiltText = buildPageText(expected);
+      
+      // Store the fix as a mushaf override
+      const overridesKey = 'quran-mushaf-overrides';
+      const existing = JSON.parse(localStorage.getItem(overridesKey) || '{}');
+      existing[issue.pageNumber] = rebuiltText;
+      localStorage.setItem(overridesKey, JSON.stringify(existing));
+      
+      toast.success(`تم إصلاح صفحة ${issue.pageNumber}`);
+      
+      // Remove this issue from the list
+      setPageIssues(prev => prev.filter(i => i.pageNumber !== issue.pageNumber));
+    } catch (err) {
+      console.error('Auto-fix error:', err);
+      toast.error('خطأ في الإصلاح التلقائي');
+    }
+  }, [tanzilText]);
 
   // Filter out ignored corrections
   const ignoredKeys = useMemo(() => getIgnoredKeys(), [corrections, getIgnoredKeys]);
@@ -435,7 +534,7 @@ export default function ValidationReport() {
         </div>
 
         {/* Summary Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
           <div className="page-frame p-4 text-center">
             <div className="text-2xl font-bold text-primary">{report.totalGhareebWords.toLocaleString('ar-EG')}</div>
             <div className="text-sm font-arabic text-muted-foreground">إجمالي الكلمات</div>
@@ -456,8 +555,37 @@ export default function ValidationReport() {
             <div className="text-2xl font-bold text-amber-600">{userOverrides.length}</div>
             <div className="text-sm font-arabic text-muted-foreground">التعديلات</div>
           </div>
+          <div className="page-frame p-4 text-center">
+            <div className="text-2xl font-bold text-orange-600">{pageIssues.length}</div>
+            <div className="text-sm font-arabic text-muted-foreground">مشاكل الصفحات</div>
+          </div>
         </div>
 
+        {/* Tabs for different validation types */}
+        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'mismatches' | 'page-completeness')}>
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="mismatches" className="font-arabic gap-2">
+              <FileText className="w-4 h-4" />
+              الكلمات غير المطابقة
+              {activeUnmatchedCount > 0 && (
+                <span className="text-xs px-1.5 py-0.5 rounded-full bg-destructive text-destructive-foreground">
+                  {activeUnmatchedCount}
+                </span>
+              )}
+            </TabsTrigger>
+            <TabsTrigger value="page-completeness" className="font-arabic gap-2">
+              <ScanLine className="w-4 h-4" />
+              اكتمال الصفحات
+              {pageIssues.length > 0 && (
+                <span className="text-xs px-1.5 py-0.5 rounded-full bg-orange-500 text-white">
+                  {pageIssues.length}
+                </span>
+              )}
+            </TabsTrigger>
+          </TabsList>
+
+          {/* Mismatches Tab */}
+          <TabsContent value="mismatches" className="space-y-6 mt-4">
         {/* Reason Breakdown */}
         {Object.keys(reasonCounts).length > 0 && (
           <div className="page-frame p-4">
@@ -650,6 +778,147 @@ export default function ValidationReport() {
             )}
           </div>
         )}
+          </TabsContent>
+
+          {/* Page Completeness Tab */}
+          <TabsContent value="page-completeness" className="space-y-6 mt-4">
+            {/* Page Scan Controls */}
+            <div className="page-frame p-4">
+              <div className="flex flex-wrap items-center justify-between gap-4">
+                <div>
+                  <h2 className="font-arabic font-bold">فحص اكتمال الصفحات</h2>
+                  <p className="text-sm text-muted-foreground font-arabic">
+                    يكتشف الآيات المفقودة وانتقالات السور المكسورة
+                  </p>
+                </div>
+                <Button
+                  onClick={runPageScan}
+                  disabled={isScanning || pages.length === 0}
+                  className="font-arabic gap-2"
+                >
+                  {isScanning ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      جاري الفحص... ({scanProgress.current}/{scanProgress.total})
+                    </>
+                  ) : (
+                    <>
+                      <ScanLine className="w-4 h-4" />
+                      فحص جميع الصفحات
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
+
+            {/* Page Issues List */}
+            {pageIssues.length > 0 && (
+              <div className="page-frame p-4">
+                <h2 className="font-arabic font-bold mb-3 flex items-center gap-2">
+                  <AlertTriangle className="w-5 h-5 text-orange-500" />
+                  الصفحات التي تحتاج إصلاح ({pageIssues.length})
+                </h2>
+                <ScrollArea className="max-h-[400px]">
+                  <div className="space-y-2">
+                    {pageIssues.map((issue, idx) => (
+                      <div
+                        key={`${issue.pageNumber}-${idx}`}
+                        className="p-3 border rounded-lg bg-card flex items-start justify-between gap-4"
+                      >
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            <span className="text-lg font-bold text-primary">صفحة {issue.pageNumber}</span>
+                            <span className="text-xs px-2 py-1 rounded-full bg-orange-100 text-orange-700 font-arabic">
+                              {PAGE_ISSUE_LABELS[issue.type] || issue.type}
+                            </span>
+                          </div>
+                          <p className="text-sm font-arabic text-muted-foreground mt-1">{issue.description}</p>
+                          <div className="text-xs font-arabic text-muted-foreground/70 mt-1">
+                            المتوقع: {issue.expected} | الفعلي: {issue.actual}
+                          </div>
+                          {issue.missingVerses && issue.missingVerses.length > 0 && (
+                            <div className="text-xs font-arabic text-destructive mt-1">
+                              الآيات المفقودة: {issue.missingVerses.slice(0, 5).map(v => `${v.surah}:${v.ayah}`).join(', ')}
+                              {issue.missingVerses.length > 5 && ` +${issue.missingVerses.length - 5} أخرى`}
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex gap-1">
+                          <Button
+                            size="sm"
+                            onClick={() => autoFixPageIssue(issue)}
+                            className="font-arabic gap-1"
+                          >
+                            <CheckCircle className="w-3 h-3" />
+                            إصلاح
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => loadPageDebugInfo(issue.pageNumber)}
+                          >
+                            <Info className="w-3 h-3" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => goToPage(issue.pageNumber)}
+                          >
+                            <Eye className="w-3 h-3" />
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </ScrollArea>
+              </div>
+            )}
+
+            {/* Debug Info Panel */}
+            {selectedPageDebug !== null && pageDebugInfo && (
+              <div className="page-frame p-4">
+                <h2 className="font-arabic font-bold mb-3 flex items-center gap-2">
+                  <BookOpen className="w-5 h-5 text-primary" />
+                  معلومات صفحة {selectedPageDebug}
+                </h2>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm font-arabic">
+                  <div>
+                    <span className="text-muted-foreground">الآية الأولى:</span>
+                    <div className="font-bold">{pageDebugInfo.firstVerse}</div>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">الآية الأخيرة:</span>
+                    <div className="font-bold">{pageDebugInfo.lastVerse}</div>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">إجمالي الآيات:</span>
+                    <div className="font-bold">{pageDebugInfo.totalVerses}</div>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">السور:</span>
+                    <div className="font-bold">{pageDebugInfo.surahs.join(', ')}</div>
+                  </div>
+                </div>
+                {pageDebugInfo.hasSurahTransition && (
+                  <div className="mt-2 p-2 bg-amber-50 border border-amber-200 rounded text-amber-700 text-sm font-arabic">
+                    ⚠️ هذه الصفحة تحتوي على انتقال بين السور
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* No Issues State */}
+            {!isScanning && pageIssues.length === 0 && (
+              <div className="page-frame p-8 text-center">
+                <CheckCircle className="w-12 h-12 text-green-500 mx-auto mb-4" />
+                <p className="font-arabic text-lg">لم يتم العثور على مشاكل في الصفحات</p>
+                <p className="font-arabic text-sm text-muted-foreground mt-1">
+                  اضغط "فحص جميع الصفحات" للتحقق من اكتمال البيانات
+                </p>
+              </div>
+            )}
+          </TabsContent>
+        </Tabs>
       </div>
 
       {/* Add Word Dialog */}
