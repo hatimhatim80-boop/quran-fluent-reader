@@ -1,7 +1,6 @@
 import React, { useMemo, useEffect } from 'react';
 import { QuranPage, GhareebWord } from '@/types/quran';
 import { normalizeArabic } from '@/utils/quranParser';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 
 interface PageViewProps {
   page: QuranPage;
@@ -192,41 +191,17 @@ export function PageView({
           const displaySurah = localSurah || gw.original.surahName;
           
           return (
-            <Popover key={`${lineIdx}-${tokenIndex}`} open={isHighlighted}>
-              <PopoverTrigger asChild>
-                <span
-                  className={`${isHighlighted ? 'word-highlight ' : ''}word-ghareeb`}
-                  data-ghareeb-index={gw.index}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onWordClick(gw.original, gw.index);
-                  }}
-                >
-                  {token}
-                </span>
-              </PopoverTrigger>
-
-              <PopoverContent
-                side="top"
-                align="center"
-                sideOffset={10}
-                className="meaning-box w-[min(22rem,calc(100vw-2rem))] p-3"
-              >
-                <div className="space-y-2" dir="rtl">
-                  <div className="flex items-center justify-between gap-3">
-                    <span className="font-arabic font-bold text-primary text-lg">
-                      {gw.original.wordText}
-                    </span>
-                    <span className="text-xs font-arabic text-muted-foreground">
-                      {displaySurah} ({gw.original.verseNumber})
-                    </span>
-                  </div>
-                  <div className="font-arabic text-sm leading-relaxed text-foreground">
-                    {gw.original.meaning}
-                  </div>
-                </div>
-              </PopoverContent>
-            </Popover>
+            <span
+              key={`${lineIdx}-${tokenIndex}`}
+              className={`${isHighlighted ? 'word-highlight ' : ''}word-ghareeb cursor-pointer`}
+              data-ghareeb-index={gw.index}
+              onClick={(e) => {
+                e.stopPropagation();
+                onWordClick(gw.original, gw.index);
+              }}
+            >
+              {token}
+            </span>
           );
         }
 
