@@ -28,13 +28,10 @@ export function useAutoPlay({
   const play = useCallback(() => {
     if (words.length === 0) return;
     
+    // Always start from beginning when play is pressed
+    setCurrentWordIndex(0);
     setIsPlaying(true);
-    
-    // If at the end or not started, start from beginning
-    if (currentWordIndex === -1 || currentWordIndex >= words.length - 1) {
-      setCurrentWordIndex(0);
-    }
-  }, [words.length, currentWordIndex, setCurrentWordIndex]);
+  }, [words.length, setCurrentWordIndex]);
 
   const pause = useCallback(() => {
     setIsPlaying(false);
