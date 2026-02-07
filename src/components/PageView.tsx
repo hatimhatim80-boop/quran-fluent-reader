@@ -137,7 +137,20 @@ export function PageView({
           return <span key={`${lineIdx}-${tokenIndex}`}>{token}</span>;
         }
 
+        // Skip verse numbers (Arabic or decorated numerals)
+        // Verse numbers are typically: ١٢٣ or ﴿١٢٣﴾ or (123) etc.
+        const isVerseNumber = /^[٠-٩0-9۰-۹]+$/.test(token.replace(/[﴿﴾()[\]{}۝]/g, '').trim()) ||
+                              /^[﴿﴾()[\]{}۝٠-٩0-9۰-۹\s]+$/.test(token);
+        if (isVerseNumber) {
+          return <span key={`${lineIdx}-${tokenIndex}`}>{token}</span>;
+        }
+
         const normalizedToken = normalizeArabic(token);
+        
+        // Skip if normalized token is too short or empty (likely punctuation/numbers)
+        if (normalizedToken.length < 2) {
+          return <span key={`${lineIdx}-${tokenIndex}`}>{token}</span>;
+        }
         
         // Find matching ghareeb entries
         let matchedEntry: {
@@ -153,12 +166,14 @@ export function PageView({
           const firstWord = entries[0]?.firstWord || key;
           const allWords = entries[0]?.allWords || [key];
           
+          // Require minimum length match to avoid false positives
+          if (firstWord.length < 2 && normalizedToken.length < 2) continue;
+          
           const isMatch = 
             normalizedToken === key ||
             normalizedToken === firstWord ||
-            normalizedToken.includes(firstWord) ||
-            firstWord.includes(normalizedToken) ||
-            allWords.some(w => normalizedToken.includes(w) || w.includes(normalizedToken));
+            (normalizedToken.length >= 3 && firstWord.length >= 3 && (normalizedToken.includes(firstWord) || firstWord.includes(normalizedToken))) ||
+            allWords.some(w => w.length >= 3 && normalizedToken.length >= 3 && (normalizedToken.includes(w) || w.includes(normalizedToken)));
           
           if (!isMatch) continue;
           
