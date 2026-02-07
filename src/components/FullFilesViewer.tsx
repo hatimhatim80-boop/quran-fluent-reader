@@ -175,14 +175,16 @@ export function FullFilesViewer({ children, pages, allWords, onRefresh }: FullFi
   }, [fullQuranText, searchQuery]);
 
   const filteredMeaningsText = useMemo(() => {
-    if (!searchQuery.trim()) return fullMeaningsText;
+    const textToFilter = rawMeaningsFile || fullMeaningsText;
+    
+    if (!searchQuery.trim()) return textToFilter;
     
     const query = searchQuery.trim();
-    return fullMeaningsText
+    return textToFilter
       .split('\n')
-      .filter(line => line.includes(query) || line.startsWith('==='))
+      .filter(line => line.includes(query))
       .join('\n');
-  }, [fullMeaningsText, searchQuery]);
+  }, [fullMeaningsText, rawMeaningsFile, searchQuery]);
 
   // Copy to clipboard
   const handleCopy = (text: string, label: string) => {
