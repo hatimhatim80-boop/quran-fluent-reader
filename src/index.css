@@ -102,16 +102,21 @@
     font-family: 'Amiri', 'Noto Naskh Arabic', serif;
     direction: rtl;
     text-align: justify;
-    line-height: 2.6;
+    line-height: 2.2;
     font-size: 1.75rem;
     letter-spacing: 0;
-    word-spacing: 0.12em;
+    word-spacing: 0.1em;
+    color: hsl(25 35% 12%);
+  }
+
+  .dark .arabic-text {
+    color: hsl(38 30% 90%);
   }
 
   @media (min-width: 640px) {
     .arabic-text {
       font-size: 2rem;
-      line-height: 2.8;
+      line-height: 2.3;
     }
   }
 

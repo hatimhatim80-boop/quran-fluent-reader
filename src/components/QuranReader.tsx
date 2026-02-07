@@ -45,14 +45,15 @@ export function QuranReader() {
 
   // Auto-start playback when page has ghareeb words
   useEffect(() => {
-    if (pageWords.length > 0 && currentWordIndex < 0) {
+    if (pageWords.length > 0 && !isPlaying) {
       // Small delay to let page render first
       const timer = setTimeout(() => {
+        setCurrentWordIndex(0);
         play();
-      }, 500);
+      }, 300);
       return () => clearTimeout(timer);
     }
-  }, [currentPage, pageWords.length]);
+  }, [currentPage, pageWords.length, play, setCurrentWordIndex]);
 
   useEffect(() => {
     if (currentWordIndex >= 0 && currentWordIndex < pageWords.length) {
