@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
 import { QuranPage, GhareebWord } from '@/types/quran';
+import { removeDiacritics } from '@/utils/quranParser';
 
 interface PageViewProps {
   page: QuranPage;
@@ -15,7 +16,12 @@ export function PageView({
   onWordClick,
 }: PageViewProps) {
   const renderedContent = useMemo(() => {
-    if (!page.text || ghareebWords.length === 0) {
+    if (!page.text) {
+      return null;
+    }
+
+    // If no ghareeb words, just render plain text
+    if (ghareebWords.length === 0) {
       return page.text.split('\n').map((line, idx) => (
         <div key={idx} className="mb-2">
           {line.startsWith('سُورَةُ') ? (
@@ -33,9 +39,14 @@ export function PageView({
       ));
     }
 
-    // Create a map of ghareeb words for quick lookup
-    const wordUsage: { [key: string]: number } = {};
-    
+    // Create searchable versions of ghareeb words
+    const ghareebSearchable = ghareebWords.map((gw, idx) => ({
+      original: gw,
+      index: idx,
+      cleanWord: removeDiacritics(gw.wordText),
+      used: false,
+    }));
+
     return page.text.split('\n').map((line, lineIdx) => {
       // Check for surah header
       if (line.startsWith('سُورَةُ')) {
@@ -63,35 +74,32 @@ export function PageView({
           return <span key={`${lineIdx}-${tokenIndex}`}>{token}</span>;
         }
 
-        const normalizedToken = token.trim();
+        const cleanToken = removeDiacritics(token);
         
-        // Check if this token matches any ghareeb word
-        for (let i = 0; i < ghareebWords.length; i++) {
-          const gw = ghareebWords[i];
+        // Check if this token matches any ghareeb word (not yet used)
+        for (const gw of ghareebSearchable) {
+          if (gw.used) continue;
           
-          // Check for match (considering that tokens might have diacritics)
-          if (normalizedToken.includes(gw.wordText) || gw.wordText.includes(normalizedToken)) {
-            const key = `${gw.wordText}-${gw.order}`;
-            const usageCount = wordUsage[key] || 0;
+          // Check for match - the token should contain or equal the ghareeb word
+          if (cleanToken === gw.cleanWord || 
+              cleanToken.includes(gw.cleanWord) || 
+              gw.cleanWord.includes(cleanToken)) {
             
-            // Only highlight first occurrence of each unique word
-            if (usageCount === 0) {
-              wordUsage[key] = usageCount + 1;
-              const isHighlighted = highlightedWordIndex === i;
-              
-              return (
-                <span
-                  key={`${lineIdx}-${tokenIndex}`}
-                  className={isHighlighted ? 'word-highlight' : 'word-ghareeb'}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onWordClick(gw, i);
-                  }}
-                >
-                  {token}
-                </span>
-              );
-            }
+            gw.used = true;
+            const isHighlighted = highlightedWordIndex === gw.index;
+            
+            return (
+              <span
+                key={`${lineIdx}-${tokenIndex}`}
+                className={isHighlighted ? 'word-highlight' : 'word-ghareeb'}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onWordClick(gw.original, gw.index);
+                }}
+              >
+                {token}
+              </span>
+            );
           }
         }
 
