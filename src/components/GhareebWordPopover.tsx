@@ -41,13 +41,14 @@ export function GhareebWordPopover({
     const containerRect = containerRef.current.getBoundingClientRect();
     
     const popoverWidth = isMobile ? 220 : 260;
-    const popoverHeight = 90; // Approximate height
-    const arrowHeight = 8;
-    const padding = 12;
+    const popoverHeight = 100;
+    const arrowHeight = 10;
+    const verticalOffset = 10;
+    const padding = 8;
 
     // Calculate center position above the word
     let x = wordRect.left + wordRect.width / 2 - popoverWidth / 2;
-    let y = wordRect.top - popoverHeight - arrowHeight;
+    let y = wordRect.top - popoverHeight - arrowHeight - verticalOffset;
     let flipped = false;
 
     // Clamp horizontally within container
@@ -55,14 +56,14 @@ export function GhareebWordPopover({
     const maxX = containerRect.right - popoverWidth - padding;
     x = Math.max(minX, Math.min(maxX, x));
 
-    // Calculate arrow position (relative to popover)
+    // Calculate arrow position (relative to popover left edge)
     const wordCenterX = wordRect.left + wordRect.width / 2;
     let arrowX = wordCenterX - x;
-    arrowX = Math.max(16, Math.min(popoverWidth - 16, arrowX));
+    arrowX = Math.max(20, Math.min(popoverWidth - 20, arrowX));
 
-    // Flip below if not enough space above
-    if (y < containerRect.top + padding) {
-      y = wordRect.bottom + arrowHeight;
+    // Flip below if not enough space above (check against viewport top too)
+    if (y < Math.max(containerRect.top, 10) + padding) {
+      y = wordRect.bottom + arrowHeight + verticalOffset;
       flipped = true;
     }
 
@@ -83,7 +84,6 @@ export function GhareebWordPopover({
     setPosition(null);
   }, []);
 
-  // Handle click/tap
   const handleClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (isOpen) {
@@ -93,12 +93,11 @@ export function GhareebWordPopover({
     }
   };
 
-  // Handle hover (desktop only)
   const handleMouseEnter = () => {
     if (isMobile) return;
     hoverTimeoutRef.current = setTimeout(() => {
       openPopover();
-    }, 100);
+    }, 80);
   };
 
   const handleMouseLeave = () => {
@@ -109,11 +108,10 @@ export function GhareebWordPopover({
     closePopover();
   };
 
-  // Close on outside click or scroll
   useEffect(() => {
     if (!isOpen) return;
 
-    const handleOutsideClick = (e: MouseEvent) => {
+    const handleOutsideClick = (e: MouseEvent | TouchEvent) => {
       if (
         wordRef.current && !wordRef.current.contains(e.target as Node) &&
         popoverRef.current && !popoverRef.current.contains(e.target as Node)
@@ -127,17 +125,16 @@ export function GhareebWordPopover({
     };
 
     document.addEventListener('mousedown', handleOutsideClick);
-    document.addEventListener('touchstart', handleOutsideClick as any);
+    document.addEventListener('touchstart', handleOutsideClick);
     window.addEventListener('scroll', handleScroll, true);
 
     return () => {
       document.removeEventListener('mousedown', handleOutsideClick);
-      document.removeEventListener('touchstart', handleOutsideClick as any);
+      document.removeEventListener('touchstart', handleOutsideClick);
       window.removeEventListener('scroll', handleScroll, true);
     };
   }, [isOpen, closePopover]);
 
-  // Recalculate position on window resize
   useEffect(() => {
     if (!isOpen) return;
 
@@ -150,7 +147,6 @@ export function GhareebWordPopover({
     return () => window.removeEventListener('resize', handleResize);
   }, [isOpen, calculatePosition]);
 
-  // Cleanup hover timeout
   useEffect(() => {
     return () => {
       if (hoverTimeoutRef.current) {
@@ -165,6 +161,8 @@ export function GhareebWordPopover({
         ref={wordRef}
         className={`ghareeb-word ${isHighlighted ? 'ghareeb-word--active' : ''}`}
         data-ghareeb-index={index}
+        data-surah={word.surahName}
+        data-verse={word.verseNumber}
         onClick={handleClick}
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
@@ -179,17 +177,17 @@ export function GhareebWordPopover({
           style={{
             left: position.x,
             top: position.y,
-            maxWidth: isMobile ? 220 : 260,
+            width: isMobile ? 220 : 260,
             '--arrow-x': `${position.arrowX}px`,
           } as React.CSSProperties}
           onMouseEnter={() => !isMobile && setIsOpen(true)}
           onMouseLeave={() => !isMobile && closePopover()}
         >
           <div className="ghareeb-popover__content">
-            <div className="ghareeb-popover__word font-arabic">
+            <div className="ghareeb-popover__word">
               {word.wordText}
             </div>
-            <div className="ghareeb-popover__meaning font-arabic">
+            <div className="ghareeb-popover__meaning">
               {word.meaning}
             </div>
           </div>
