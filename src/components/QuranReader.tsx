@@ -22,9 +22,12 @@ export function QuranReader() {
     getPageWords,
     loadPagesCSV,
     loadGhareebCSV,
+    loadPagesData,
+    loadGhareebData,
   } = useQuranData();
 
   const [selectedWord, setSelectedWord] = useState<GhareebWord | null>(null);
+  const [ghareebLoaded, setGhareebLoaded] = useState(false);
 
   const currentPageData = getCurrentPageData();
   const pageWords = getPageWords(currentPage);
@@ -63,14 +66,26 @@ export function QuranReader() {
     }
   }, [isPlaying, setCurrentWordIndex]);
 
+  const handleGhareebCSV = (file: File) => {
+    loadGhareebCSV(file);
+    setGhareebLoaded(true);
+  };
+
+  const handleGhareebData = (words: GhareebWord[]) => {
+    loadGhareebData(words);
+    setGhareebLoaded(true);
+  };
+
   // Show file uploader if no pages loaded
   if (pages.length === 0) {
     return (
       <FileUploader
         onPagesUpload={loadPagesCSV}
-        onGhareebUpload={loadGhareebCSV}
+        onGhareebUpload={handleGhareebCSV}
+        onPagesData={loadPagesData}
+        onGhareebData={handleGhareebData}
         pagesLoaded={pages.length > 0}
-        ghareebLoaded={false}
+        ghareebLoaded={ghareebLoaded}
       />
     );
   }
