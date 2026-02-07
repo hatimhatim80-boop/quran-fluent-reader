@@ -113,6 +113,10 @@ export function QuranReader() {
           onPlayPause={handlePlayPause}
           wordsCount={renderedWords.length}
           currentWordIndex={currentWordIndex}
+          currentPage={currentPage}
+          pageWords={renderedWords}
+          onNavigateToPage={goToPage}
+          onHighlightWord={jumpTo}
         />
 
         {/* Debug display when enabled */}
