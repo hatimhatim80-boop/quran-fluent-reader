@@ -43,12 +43,20 @@ export function QuranReader() {
     setCurrentWordIndex,
   });
 
-  // Update selected word when auto-play changes current index
+  // Update selected word when current index changes (from auto-play or manual click)
   useEffect(() => {
     if (currentWordIndex >= 0 && currentWordIndex < pageWords.length) {
-      setSelectedWord(pageWords[currentWordIndex]);
+      const word = pageWords[currentWordIndex];
+      if (word) {
+        setSelectedWord(word);
+      }
+    } else {
+      // Only clear if not playing
+      if (!isPlaying) {
+        setSelectedWord(null);
+      }
     }
-  }, [currentWordIndex, pageWords]);
+  }, [currentWordIndex, pageWords, isPlaying]);
 
   const handleWordClick = useCallback((word: GhareebWord, index: number) => {
     setSelectedWord(word);
