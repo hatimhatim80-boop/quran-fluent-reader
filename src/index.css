@@ -207,7 +207,7 @@
 
   /* Popover styling */
   .ghareeb-popover {
-    position: fixed;
+    position: absolute;
     z-index: 1000;
     animation: popover-in 0.18s ease-out;
     transform-origin: bottom center;

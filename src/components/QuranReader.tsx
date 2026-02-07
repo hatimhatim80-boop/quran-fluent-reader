@@ -1,12 +1,11 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback } from 'react';
 import { useQuranData } from '@/hooks/useQuranData';
 import { useAutoPlay } from '@/hooks/useAutoPlay';
 import { GhareebWord } from '@/types/quran';
 import { PageView } from './PageView';
 import { PageNavigation } from './PageNavigation';
 import { AutoPlayControls } from './AutoPlayControls';
-import { MeaningBox } from './MeaningBox';
-import { Loader2, BookOpen } from 'lucide-react';
+import { Loader2, BookOpen, Play, Square } from 'lucide-react';
 export function QuranReader() {
   const {
     pages,
@@ -23,7 +22,7 @@ export function QuranReader() {
     prevPage,
   } = useQuranData();
 
-  const [selectedWord, setSelectedWord] = useState<GhareebWord | null>(null);
+  const [meaningEnabled, setMeaningEnabled] = useState(false);
 
   const pageData = getCurrentPageData();
   const pageWords = getPageGhareebWords;
@@ -43,32 +42,9 @@ export function QuranReader() {
     setCurrentWordIndex,
   });
 
-  // Update selected word when current index changes (from auto-play or manual click)
-  useEffect(() => {
-    if (currentWordIndex >= 0 && currentWordIndex < pageWords.length) {
-      const word = pageWords[currentWordIndex];
-      if (word) {
-        setSelectedWord(word);
-      }
-    } else {
-      // Only clear if not playing
-      if (!isPlaying) {
-        setSelectedWord(null);
-      }
-    }
-  }, [currentWordIndex, pageWords, isPlaying]);
-
-  const handleWordClick = useCallback((word: GhareebWord, index: number) => {
-    setSelectedWord(word);
+  const handleWordClick = useCallback((_: GhareebWord, index: number) => {
     setCurrentWordIndex(index);
   }, [setCurrentWordIndex]);
-
-  const handleCloseMeaning = useCallback(() => {
-    setSelectedWord(null);
-    if (!isPlaying) {
-      setCurrentWordIndex(-1);
-    }
-  }, [isPlaying, setCurrentWordIndex]);
 
   // Loading state
   if (isLoading) {
@@ -106,13 +82,29 @@ export function QuranReader() {
       <div className="max-w-2xl mx-auto px-4 py-6 sm:py-8 space-y-5">
         {/* Minimal Header */}
         <header className="text-center pb-2">
-          <div className="inline-flex items-center gap-2 mb-1">
-            <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
-              <BookOpen className="w-4 h-4 text-primary" />
+          <div className="flex items-center justify-center gap-3 mb-1">
+            <div className="inline-flex items-center gap-2">
+              <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+                <BookOpen className="w-4 h-4 text-primary" />
+              </div>
+              <h1 className="text-xl sm:text-2xl font-bold font-arabic text-foreground">
+                القرآن الكريم
+              </h1>
             </div>
-            <h1 className="text-xl sm:text-2xl font-bold font-arabic text-foreground">
-              القرآن الكريم
-            </h1>
+
+            <button
+              type="button"
+              className="nav-button w-10 h-10 rounded-lg"
+              aria-pressed={meaningEnabled}
+              onClick={() => setMeaningEnabled(v => !v)}
+              title={meaningEnabled ? 'إيقاف معاني الكلمات' : 'تشغيل معاني الكلمات'}
+            >
+              {meaningEnabled ? (
+                <Square className="w-5 h-5" />
+              ) : (
+                <Play className="w-5 h-5 mr-[-2px]" />
+              )}
+            </button>
           </div>
           <p className="text-xs text-muted-foreground font-arabic">
             الميسر في غريب القرآن
@@ -125,8 +117,9 @@ export function QuranReader() {
             page={pageData}
             ghareebWords={pageWords}
             highlightedWordIndex={currentWordIndex}
+            meaningEnabled={meaningEnabled}
             onWordClick={handleWordClick}
-        />
+          />
         )}
 
         {/* Auto-Play Controls - Compact */}
@@ -146,9 +139,6 @@ export function QuranReader() {
             />
           </div>
         )}
-
-        {/* Meaning Box */}
-        <MeaningBox word={selectedWord} onClose={handleCloseMeaning} />
 
         {/* Navigation */}
         <PageNavigation

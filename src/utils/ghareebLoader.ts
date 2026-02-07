@@ -30,6 +30,9 @@ export async function loadGhareebData(): Promise<Map<number, GhareebWord[]>> {
   ghareebByTanzilPage = new Map();
   let totalWords = 0;
   
+  // Stable indexing for words inside the same (surah, ayah)
+  const wordIndexCounters = new Map<string, number>();
+  
   for (const page of data.pages) {
     for (const item of page.items) {
       const wordText = extractWordFromRaw(item.raw);
@@ -41,9 +44,14 @@ export async function loadGhareebData(): Promise<Map<number, GhareebWord[]>> {
       
       // Calculate the correct page using Tanzil's page index
       const correctPage = getPageForAyah(item.surah, item.ayah, pageIndex);
+
+      // Stable wordIndex within (surah, ayah)
+      const counterKey = `${item.surah}_${item.ayah}`;
+      const wordIndex = (wordIndexCounters.get(counterKey) ?? 0) + 1;
+      wordIndexCounters.set(counterKey, wordIndex);
       
-      // Create unique key for this word instance
-      const uniqueKey = `${item.surah}_${item.ayah}_${wordText.slice(0, 10)}`;
+      // Stable key for this word instance
+      const uniqueKey = `${item.surah}_${item.ayah}_${wordIndex}`;
       
       const ghareebWord: GhareebWord = {
         pageNumber: correctPage,
@@ -52,6 +60,7 @@ export async function loadGhareebData(): Promise<Map<number, GhareebWord[]>> {
         surahName: item.surah_name,
         surahNumber: item.surah,
         verseNumber: item.ayah,
+        wordIndex,
         order: 0,
         uniqueKey,
       };
