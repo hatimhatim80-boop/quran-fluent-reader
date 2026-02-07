@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { useQuranData } from '@/hooks/useQuranData';
 import { useAutoPlay } from '@/hooks/useAutoPlay';
 import { GhareebWord } from '@/types/quran';
@@ -8,6 +8,7 @@ import { AutoPlayControls } from './AutoPlayControls';
 import { Toolbar } from './Toolbar';
 import { DiagnosticModeBadge } from './DiagnosticModeActivator';
 import { useSettingsApplier } from '@/hooks/useSettingsApplier';
+import { useDevDebugContextStore } from '@/stores/devDebugContextStore';
 import { Loader2 } from 'lucide-react';
 
 export function QuranReader() {
@@ -35,6 +36,23 @@ export function QuranReader() {
 
   const pageData = getCurrentPageData();
   const pageWords = getPageGhareebWords; // Used as input to PageView matching
+
+  // DEV Debug (global overlay) context
+  const setDevDebugContext = useDevDebugContextStore((s) => s.setContext);
+
+  useEffect(() => {
+    if (process.env.NODE_ENV === 'production') return;
+    if (!pageData) return;
+
+    setDevDebugContext({
+      source: 'reader',
+      page: pageData,
+      pageNumber: currentPage,
+      ghareebWords: pageWords,
+      renderedWords,
+      invalidateCache: () => window.location.reload(),
+    });
+  }, [currentPage, pageData, pageWords, renderedWords, setDevDebugContext]);
 
   const {
     isPlaying,

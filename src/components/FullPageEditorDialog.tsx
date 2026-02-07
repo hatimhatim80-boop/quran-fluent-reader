@@ -48,7 +48,7 @@ import {
   ScanLine,
 } from 'lucide-react';
 import { toast } from 'sonner';
-import { DevDebugPanel } from './DevDebugPanel';
+import { useDevDebugContextStore } from '@/stores/devDebugContextStore';
 
 interface FullPageEditorDialogProps {
   children: React.ReactNode;
@@ -143,6 +143,7 @@ export function FullPageEditorDialog({
   const [mushafOverrides, setMushafOverrides] = useState<Map<number, MushafOverride>>(() => loadMushafOverrides());
   
   const { addWordOverride, userOverrides, applyOverrides, resetAll } = useDataStore();
+  const setDevDebugContext = useDevDebugContextStore((s) => s.setContext);
 
   // Load Tanzil text on mount
   useEffect(() => {
@@ -159,6 +160,24 @@ export function FullPageEditorDialog({
     const all = applyOverrides(allWords);
     return all.filter((w) => w.pageNumber === page).sort((a, b) => a.order - b.order);
   }, [allWords, applyOverrides, page]);
+
+  // DEV Debug (global overlay) context
+  useEffect(() => {
+    if (process.env.NODE_ENV === 'production') return;
+    if (!open) return;
+
+    const pageObj = pages.find((p) => p.pageNumber === page);
+    if (!pageObj) return;
+
+    setDevDebugContext({
+      source: 'full_page_editor',
+      page: pageObj,
+      pageNumber: page,
+      ghareebWords: resolvedWords,
+      renderedWords: renderedWords.filter((w) => w.pageNumber === page),
+      invalidateCache: onRefreshData,
+    });
+  }, [open, page, pages, resolvedWords, renderedWords, onRefreshData, setDevDebugContext]);
   
   // Rebuild page from official source
   const handleRebuildFromSource = useCallback(async () => {
@@ -466,18 +485,7 @@ export function FullPageEditorDialog({
             <FileText className="w-5 h-5" />
             محرر الصفحات الكامل
           </DialogTitle>
-          {/* DEV Debug Panel Toggle - Top Right */}
-          {process.env.NODE_ENV !== 'production' && pages.find(p => p.pageNumber === page) && (
-            <div dir="ltr">
-              <DevDebugPanel
-                page={pages.find(p => p.pageNumber === page)!}
-                pageNumber={page}
-                ghareebWords={resolvedWords}
-                renderedWords={renderedWords.filter(w => w.pageNumber === page)}
-                onInvalidateCache={onRefreshData}
-              />
-            </div>
-          )}
+          {/* DEV Debug panel is global (App-level overlay) */}
         </DialogHeader>
 
         <div className="space-y-4 mt-4">

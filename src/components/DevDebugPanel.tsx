@@ -93,6 +93,7 @@ interface DevDebugPanelProps {
   ghareebWords: GhareebWord[];
   renderedWords: GhareebWord[];
   onInvalidateCache?: () => void;
+  mappingVersionId?: string;
 }
 
 // ============= GLOBAL EVENT FOR WORD SELECTION =============
@@ -108,6 +109,10 @@ export interface DevInspectWordDetail {
   wordIndex: number;
   meaning: string;
   tokenIndex?: number;
+  assemblyId?: string;
+  matchedMeaningId?: string;
+  meaningPreview?: string;
+  selectionSource?: string;
 }
 
 // Helper to dispatch inspection event from anywhere
@@ -145,7 +150,7 @@ function analyzePageAssembly(
 ): {
   assemblies: AssemblyBlock[];
   matchingStats: MatchingStats;
-  dataVersions: { quranText: string; ghareeb: string };
+  dataVersions: { quranText: string; ghareeb: string; mapping: string };
 } {
   const lines = page.text.split('\n');
   const assemblies: AssemblyBlock[] = [];
@@ -220,10 +225,11 @@ function analyzePageAssembly(
   // Calculate matching stats
   const matchingStats = calculateMatchingStats(ghareebWords, renderedWords);
   
-  // Generate version IDs
+  // Generate version IDs (summary identifiers only)
   const dataVersions = {
     quranText: `hash-${hashCode(page.text.slice(0, 100))}`,
     ghareeb: `count-${ghareebWords.length}-${Date.now().toString(36).slice(-4)}`,
+    mapping: 'page-mapping.json',
   };
   
   return { assemblies, matchingStats, dataVersions };
@@ -362,6 +368,7 @@ export function DevDebugPanel({
   ghareebWords,
   renderedWords,
   onInvalidateCache,
+  mappingVersionId,
 }: DevDebugPanelProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<'assembly' | 'matching' | 'inspect'>('assembly');
@@ -446,20 +453,29 @@ export function DevDebugPanel({
     const handleCustomInspect = (e: CustomEvent<DevInspectWordDetail>) => {
       const detail = e.detail;
       const timestamp = new Date().toLocaleTimeString('ar-EG');
-      setLastSelectionEvent(`custom-event @ ${timestamp}`);
+      const source = detail.selectionSource || 'event';
+
+      setLastSelectionEvent(`${source} @ ${timestamp}`);
+
+      const preview =
+        detail.meaningPreview ??
+        (detail.meaning
+          ? detail.meaning.slice(0, 60) + (detail.meaning.length > 60 ? '...' : '')
+          : '');
+
       setInspectedWord({
         originalWord: detail.originalWord,
         normalizedWord: normalizeArabic(detail.originalWord),
         identityKey: detail.uniqueKey,
-        matchedMeaningId: detail.uniqueKey,
-        meaningPreview: detail.meaning?.slice(0, 60) + (detail.meaning?.length > 60 ? '...' : '') || 'لا يوجد',
+        matchedMeaningId: detail.matchedMeaningId ?? detail.uniqueKey,
+        meaningPreview: preview || 'لا يوجد',
         surah: detail.surahNumber,
         ayah: detail.verseNumber,
         wordIndex: detail.wordIndex,
         tokenIndex: detail.tokenIndex,
-        assemblyId: `block-${detail.surahNumber}`,
+        assemblyId: detail.assemblyId ?? 'unknown',
       });
-      
+
       if (isOpen) {
         setActiveTab('inspect');
       }
@@ -469,19 +485,19 @@ export function DevDebugPanel({
     return () => window.removeEventListener(DEV_INSPECT_WORD_EVENT as any, handleCustomInspect);
   }, [isOpen]);
   
-  // Listen for DOM clicks when panel is open
+  // Listen for DOM clicks when panel is open (best-effort; global overlay also emits events)
   useEffect(() => {
     if (isOpen) {
       document.addEventListener('click', handleDOMWordClick, true);
-      document.addEventListener('pointerdown', handlePointerDown);
-      document.addEventListener('pointerup', handlePointerUp);
-      document.addEventListener('pointercancel', handlePointerUp);
-      
+      document.addEventListener('pointerdown', handlePointerDown, true);
+      document.addEventListener('pointerup', handlePointerUp, true);
+      document.addEventListener('pointercancel', handlePointerUp, true);
+
       return () => {
         document.removeEventListener('click', handleDOMWordClick, true);
-        document.removeEventListener('pointerdown', handlePointerDown);
-        document.removeEventListener('pointerup', handlePointerUp);
-        document.removeEventListener('pointercancel', handlePointerUp);
+        document.removeEventListener('pointerdown', handlePointerDown, true);
+        document.removeEventListener('pointerup', handlePointerUp, true);
+        document.removeEventListener('pointercancel', handlePointerUp, true);
       };
     }
   }, [isOpen, handleDOMWordClick, handlePointerDown, handlePointerUp]);
@@ -533,6 +549,7 @@ export function DevDebugPanel({
               <Badge variant="outline">Page {pageNumber}</Badge>
               <Badge variant="secondary">{analysis.dataVersions.quranText}</Badge>
               <Badge variant="secondary">{analysis.dataVersions.ghareeb}</Badge>
+              <Badge variant="secondary">{mappingVersionId || analysis.dataVersions.mapping}</Badge>
             </div>
             <div className="flex items-center gap-2">
               <span className="text-muted-foreground">Snapshot: {snapshotTime}</span>
