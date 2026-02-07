@@ -114,6 +114,9 @@ export function GhareebWordPopover({
     if (!isOpen) return;
 
     const handleOutsideClick = (e: MouseEvent | TouchEvent) => {
+      // أثناء التشغيل التلقائي (forceOpen) لا نغلق بالضغط خارجياً لأن الهدف هو العرض المستمر
+      if (forceOpen) return;
+
       if (
         wordRef.current && !wordRef.current.contains(e.target as Node) &&
         popoverRef.current && !popoverRef.current.contains(e.target as Node)
@@ -123,6 +126,10 @@ export function GhareebWordPopover({
     };
 
     const handleScroll = () => {
+      // التمرير يُستخدم أيضاً داخلياً بواسطة التشغيل التلقائي (scrollIntoView).
+      // إذا أغلقنا هنا سنصفّر position بينما forceOpen ما يزال true، فيختفي الـPopover.
+      if (forceOpen) return;
+
       closePopover();
     };
 
@@ -135,7 +142,7 @@ export function GhareebWordPopover({
       document.removeEventListener('touchstart', handleOutsideClick);
       window.removeEventListener('scroll', handleScroll, true);
     };
-  }, [isOpen, closePopover]);
+  }, [isOpen, forceOpen, closePopover]);
 
   // Reposition on resize
   useEffect(() => {
