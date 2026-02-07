@@ -86,6 +86,15 @@ export function useQuranData() {
     return getWordsForPage(ghareebPageMap, currentPage, pageData.text);
   }, [ghareebPageMap, currentPage, pages]);
 
+  // Get ALL ghareeb words from all pages (for file editor)
+  const allGhareebWords = useMemo((): GhareebWord[] => {
+    const all: GhareebWord[] = [];
+    ghareebPageMap.forEach((words) => {
+      all.push(...words);
+    });
+    return all;
+  }, [ghareebPageMap]);
+
   const goToPage = useCallback((page: number) => {
     const validPage = Math.max(1, Math.min(page, totalPages));
     setCurrentPage(validPage);
@@ -114,6 +123,7 @@ export function useQuranData() {
     totalPages,
     getCurrentPageData,
     getPageGhareebWords,
+    allGhareebWords,
     goToPage,
     nextPage,
     prevPage,

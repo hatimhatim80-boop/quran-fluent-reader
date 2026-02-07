@@ -6,7 +6,7 @@ import { PageView } from './PageView';
 import { PageNavigation } from './PageNavigation';
 import { AutoPlayControls } from './AutoPlayControls';
 import { Toolbar } from './Toolbar';
-import { useSettingsStore } from '@/stores/settingsStore';
+import { useSettingsApplier } from '@/hooks/useSettingsApplier';
 import { Loader2 } from 'lucide-react';
 
 export function QuranReader() {
@@ -20,12 +20,14 @@ export function QuranReader() {
     totalPages,
     getCurrentPageData,
     getPageGhareebWords,
+    allGhareebWords,
     goToPage,
     nextPage,
     prevPage,
   } = useQuranData();
 
-  const { settings } = useSettingsStore();
+  // Apply settings to CSS variables in real-time
+  const settings = useSettingsApplier();
 
   // SINGLE SOURCE OF TRUTH: rendered words from PageView
   const [renderedWords, setRenderedWords] = useState<GhareebWord[]>([]);
@@ -115,6 +117,7 @@ export function QuranReader() {
           currentWordIndex={currentWordIndex}
           currentPage={currentPage}
           pageWords={renderedWords}
+          allWords={allGhareebWords}
           onNavigateToPage={goToPage}
           onHighlightWord={jumpTo}
         />
