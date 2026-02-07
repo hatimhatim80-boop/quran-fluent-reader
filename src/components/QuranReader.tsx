@@ -5,7 +5,7 @@ import { GhareebWord } from '@/types/quran';
 import { PageView } from './PageView';
 import { PageNavigation } from './PageNavigation';
 import { AutoPlayControls } from './AutoPlayControls';
-import { Loader2, BookOpen, Play, Pause } from 'lucide-react';
+import { Loader2, BookOpen, Play, Pause, Square } from 'lucide-react';
 export function QuranReader() {
   const {
     pages,
@@ -95,19 +95,28 @@ export function QuranReader() {
               </h1>
             </div>
 
-            <button
-              type="button"
-              className={`nav-button w-10 h-10 rounded-lg ${isPlaying ? 'bg-primary/20' : ''}`}
-              aria-pressed={isPlaying}
-              onClick={() => isPlaying ? pause() : play()}
-              title={isPlaying ? 'إيقاف مؤقت' : 'تشغيل معاني الكلمات'}
-            >
-              {isPlaying ? (
-                <Pause className="w-5 h-5" />
-              ) : (
-                <Play className="w-5 h-5 mr-[-2px]" />
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                className={`nav-button w-10 h-10 rounded-lg ${isPlaying ? 'bg-primary/20' : ''}`}
+                aria-pressed={isPlaying}
+                onClick={() => isPlaying ? pause() : play()}
+                title={isPlaying ? 'إيقاف مؤقت' : 'تشغيل معاني الكلمات'}
+              >
+                {isPlaying ? (
+                  <Pause className="w-5 h-5" />
+                ) : (
+                  <Play className="w-5 h-5 mr-[-2px]" />
+                )}
+              </button>
+              
+              {/* Status indicator */}
+              {(isPlaying || currentWordIndex >= 0) && pageWords.length > 0 && (
+                <span className="text-xs font-arabic text-muted-foreground bg-muted/50 px-2 py-1 rounded-md">
+                  {currentWordIndex + 1} / {pageWords.length}
+                </span>
               )}
-            </button>
+            </div>
           </div>
           <p className="text-xs text-muted-foreground font-arabic">
             الميسر في غريب القرآن

@@ -200,7 +200,9 @@ export function GhareebWordPopover({
             >
               <div className="ghareeb-popover__content">
                 <div className="ghareeb-popover__word">{word.wordText}</div>
-                <div className="ghareeb-popover__meaning">{word.meaning}</div>
+                <div className="ghareeb-popover__meaning">
+                  {word.meaning || 'لا يوجد معنى'}
+                </div>
               </div>
               <div className="ghareeb-popover__arrow" />
             </div>,

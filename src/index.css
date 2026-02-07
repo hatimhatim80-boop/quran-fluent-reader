@@ -246,16 +246,16 @@
   }
 
   .ghareeb-popover__word {
-    font-size: 1.2rem;
+    font-size: 1.5rem;
     font-weight: 700;
     color: hsl(var(--foreground));
     line-height: 1.5;
-    margin-bottom: 6px;
+    margin-bottom: 8px;
     font-family: 'Amiri', 'Noto Naskh Arabic', serif;
   }
 
   .ghareeb-popover__meaning {
-    font-size: 1rem;
+    font-size: 1.15rem;
     font-weight: 600;
     color: hsl(var(--accent-foreground));
     line-height: 1.6;
