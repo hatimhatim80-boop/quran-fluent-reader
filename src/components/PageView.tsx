@@ -7,6 +7,7 @@ interface PageViewProps {
   page: QuranPage;
   ghareebWords: GhareebWord[];
   highlightedWordIndex: number;
+  meaningEnabled: boolean;
   onWordClick: (word: GhareebWord, index: number) => void;
 }
 
@@ -24,6 +25,7 @@ export function PageView({
   page,
   ghareebWords,
   highlightedWordIndex,
+  meaningEnabled,
   onWordClick,
 }: PageViewProps) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -251,34 +253,68 @@ export function PageView({
               phraseText.push(tokenData[k].token);
             }
             
-            lineElements.push(
-              <GhareebWordPopover
-                key={`${lineIdx}-phrase-${i}`}
-                word={entry.original}
-                index={entry.index}
-                isHighlighted={isHighlighted}
-                onSelect={onWordClick}
-                containerRef={containerRef}
-              >
-                {phraseText.join('')}
-              </GhareebWordPopover>
-            );
+            const phrase = phraseText.join('');
+
+            if (meaningEnabled) {
+              lineElements.push(
+                <GhareebWordPopover
+                  key={`${lineIdx}-phrase-${i}`}
+                  word={entry.original}
+                  index={entry.index}
+                  isHighlighted={isHighlighted}
+                  onSelect={onWordClick}
+                  containerRef={containerRef}
+                >
+                  {phrase}
+                </GhareebWordPopover>
+              );
+            } else {
+              lineElements.push(
+                <span
+                  key={`${lineIdx}-phrase-${i}`}
+                  className={`ghareeb-word ${isHighlighted ? 'ghareeb-word--active' : ''}`}
+                  data-ghareeb-index={entry.index}
+                  data-ghareeb-key={entry.original.uniqueKey}
+                  data-surah-number={entry.original.surahNumber}
+                  data-verse={entry.original.verseNumber}
+                  data-word-index={entry.original.wordIndex}
+                >
+                  {phrase}
+                </span>
+              );
+            }
             
             i = lastPhraseTokenIdx + 1;
             continue;
           } else if (!td.isPartOfPhrase) {
-            lineElements.push(
-              <GhareebWordPopover
-                key={`${lineIdx}-${i}`}
-                word={entry.original}
-                index={entry.index}
-                isHighlighted={isHighlighted}
-                onSelect={onWordClick}
-                containerRef={containerRef}
-              >
-                {td.token}
-              </GhareebWordPopover>
-            );
+            if (meaningEnabled) {
+              lineElements.push(
+                <GhareebWordPopover
+                  key={`${lineIdx}-${i}`}
+                  word={entry.original}
+                  index={entry.index}
+                  isHighlighted={isHighlighted}
+                  onSelect={onWordClick}
+                  containerRef={containerRef}
+                >
+                  {td.token}
+                </GhareebWordPopover>
+              );
+            } else {
+              lineElements.push(
+                <span
+                  key={`${lineIdx}-${i}`}
+                  className={`ghareeb-word ${isHighlighted ? 'ghareeb-word--active' : ''}`}
+                  data-ghareeb-index={entry.index}
+                  data-ghareeb-key={entry.original.uniqueKey}
+                  data-surah-number={entry.original.surahNumber}
+                  data-verse={entry.original.verseNumber}
+                  data-word-index={entry.original.wordIndex}
+                >
+                  {td.token}
+                </span>
+              );
+            }
             i++;
             continue;
           }
@@ -297,7 +333,7 @@ export function PageView({
     }
 
     return <div className="inline">{allElements}</div>;
-  }, [page.text, ghareebWords, highlightedWordIndex, onWordClick, surahContextByLine, isSurahHeader, isBismillah]);
+  }, [page.text, ghareebWords, highlightedWordIndex, meaningEnabled, onWordClick, surahContextByLine, isSurahHeader, isBismillah]);
 
   return (
     <div ref={containerRef} className="page-frame p-5 sm:p-8">

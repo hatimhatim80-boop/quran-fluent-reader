@@ -11,8 +11,9 @@ export interface GhareebWord {
   surahName: string;
   surahNumber: number;   // Surah number for precise matching
   verseNumber: number;   // Ayah number for precise matching
+  wordIndex: number;     // Word index within (surah, ayah) for stable keys
   order: number;         // Order within the page for auto-play
-  uniqueKey: string;     // Unique key: surah_ayah_wordIndex
+  uniqueKey: string;     // Stable key: surah_ayah_wordIndex
 }
 
 export interface SavedProgress {

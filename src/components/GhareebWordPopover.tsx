@@ -32,82 +32,84 @@ export function GhareebWordPopover({
   const wordRef = useRef<HTMLSpanElement>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
   const isMobile = useIsMobile();
-  const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  const calculatePosition = useCallback(() => {
+  const calculatePosition = useCallback((): PopoverPosition | null => {
     if (!wordRef.current || !containerRef.current) return null;
 
     const wordRect = wordRef.current.getBoundingClientRect();
     const containerRect = containerRef.current.getBoundingClientRect();
-    
+
     const popoverWidth = isMobile ? 220 : 260;
-    const popoverHeight = 100;
+    const popoverHeight = 110;
     const arrowHeight = 10;
     const verticalOffset = 10;
-    const padding = 8;
+    const padding = 10;
 
-    // Calculate center position above the word
-    let x = wordRect.left + wordRect.width / 2 - popoverWidth / 2;
-    let y = wordRect.top - popoverHeight - arrowHeight - verticalOffset;
+    // Coordinates relative to the mushaf container (page frame)
+    const containerWidth = containerRect.width;
+
+    const wordCenterX = wordRect.left - containerRect.left + wordRect.width / 2;
+    let x = wordCenterX - popoverWidth / 2;
+    let y = wordRect.top - containerRect.top - popoverHeight - arrowHeight - verticalOffset;
     let flipped = false;
 
-    // Clamp horizontally within container
-    const minX = containerRect.left + padding;
-    const maxX = containerRect.right - popoverWidth - padding;
+    // Clamp within container
+    const minX = padding;
+    const maxX = Math.max(padding, containerWidth - popoverWidth - padding);
     x = Math.max(minX, Math.min(maxX, x));
 
-    // Calculate arrow position (relative to popover left edge)
-    const wordCenterX = wordRect.left + wordRect.width / 2;
+    // Arrow within popover
     let arrowX = wordCenterX - x;
     arrowX = Math.max(20, Math.min(popoverWidth - 20, arrowX));
 
-    // Flip below if not enough space above (check against viewport top too)
-    if (y < Math.max(containerRect.top, 10) + padding) {
-      y = wordRect.bottom + arrowHeight + verticalOffset;
+    // Flip below if not enough space above
+    if (y < padding) {
+      y = wordRect.bottom - containerRect.top + arrowHeight + verticalOffset;
       flipped = true;
     }
 
     return { x, y, arrowX, flipped };
   }, [containerRef, isMobile]);
 
-  const openPopover = useCallback(() => {
-    const pos = calculatePosition();
-    if (pos) {
-      setPosition(pos);
-      setIsOpen(true);
-      onSelect(word, index);
-    }
-  }, [calculatePosition, onSelect, word, index]);
-
   const closePopover = useCallback(() => {
     setIsOpen(false);
     setPosition(null);
   }, []);
 
+  const openPopover = useCallback(() => {
+    const stableKey = wordRef.current?.dataset.ghareebKey || word.uniqueKey;
+    const meaning = word.meaning;
+
+    const pos = calculatePosition();
+    if (!pos) {
+      console.warn('[ghareeb-popover] Failed to position popover', {
+        key: stableKey,
+        meaningLookup: meaning,
+        hasContainer: Boolean(containerRef.current),
+        hasWordEl: Boolean(wordRef.current),
+      });
+      return;
+    }
+
+    if (!meaning) {
+      console.warn('[ghareeb-popover] Meaning lookup missing', {
+        key: stableKey,
+        meaningLookup: meaning,
+      });
+    }
+
+    setPosition(pos);
+    setIsOpen(true);
+    onSelect(word, index);
+  }, [calculatePosition, containerRef, index, onSelect, word]);
+
   const handleClick = (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (isOpen) {
-      closePopover();
-    } else {
-      openPopover();
-    }
+    if (isOpen) closePopover();
+    else openPopover();
   };
 
-  const handleMouseEnter = () => {
-    if (isMobile) return;
-    hoverTimeoutRef.current = setTimeout(() => {
-      openPopover();
-    }, 80);
-  };
-
-  const handleMouseLeave = () => {
-    if (isMobile) return;
-    if (hoverTimeoutRef.current) {
-      clearTimeout(hoverTimeoutRef.current);
-    }
-    closePopover();
-  };
-
+  // Close on outside tap/click or scroll
   useEffect(() => {
     if (!isOpen) return;
 
@@ -135,6 +137,7 @@ export function GhareebWordPopover({
     };
   }, [isOpen, closePopover]);
 
+  // Reposition on resize
   useEffect(() => {
     if (!isOpen) return;
 
@@ -147,13 +150,7 @@ export function GhareebWordPopover({
     return () => window.removeEventListener('resize', handleResize);
   }, [isOpen, calculatePosition]);
 
-  useEffect(() => {
-    return () => {
-      if (hoverTimeoutRef.current) {
-        clearTimeout(hoverTimeoutRef.current);
-      }
-    };
-  }, []);
+  const portalTarget = containerRef.current;
 
   return (
     <>
@@ -161,40 +158,38 @@ export function GhareebWordPopover({
         ref={wordRef}
         className={`ghareeb-word ${isHighlighted ? 'ghareeb-word--active' : ''}`}
         data-ghareeb-index={index}
-        data-surah={word.surahName}
+        data-ghareeb-key={word.uniqueKey}
+        data-surah-number={word.surahNumber}
         data-verse={word.verseNumber}
+        data-word-index={word.wordIndex}
         onClick={handleClick}
-        onMouseEnter={handleMouseEnter}
-        onMouseLeave={handleMouseLeave}
       >
         {children}
       </span>
 
-      {isOpen && position && createPortal(
-        <div
-          ref={popoverRef}
-          className={`ghareeb-popover ${position.flipped ? 'ghareeb-popover--flipped' : ''}`}
-          style={{
-            left: position.x,
-            top: position.y,
-            width: isMobile ? 220 : 260,
-            '--arrow-x': `${position.arrowX}px`,
-          } as React.CSSProperties}
-          onMouseEnter={() => !isMobile && setIsOpen(true)}
-          onMouseLeave={() => !isMobile && closePopover()}
-        >
-          <div className="ghareeb-popover__content">
-            <div className="ghareeb-popover__word">
-              {word.wordText}
-            </div>
-            <div className="ghareeb-popover__meaning">
-              {word.meaning}
-            </div>
-          </div>
-          <div className="ghareeb-popover__arrow" />
-        </div>,
-        document.body
-      )}
+      {isOpen && position && portalTarget
+        ? createPortal(
+            <div
+              ref={popoverRef}
+              className={`ghareeb-popover ${position.flipped ? 'ghareeb-popover--flipped' : ''}`}
+              style={
+                {
+                  left: position.x,
+                  top: position.y,
+                  width: isMobile ? 220 : 260,
+                  '--arrow-x': `${position.arrowX}px`,
+                } as React.CSSProperties
+              }
+            >
+              <div className="ghareeb-popover__content">
+                <div className="ghareeb-popover__word">{word.wordText}</div>
+                <div className="ghareeb-popover__meaning">{word.meaning}</div>
+              </div>
+              <div className="ghareeb-popover__arrow" />
+            </div>,
+            portalTarget,
+          )
+        : null}
     </>
   );
 }
