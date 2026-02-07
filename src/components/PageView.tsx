@@ -1,4 +1,4 @@
-import React, { useMemo, useEffect, useRef } from 'react';
+import React, { useMemo, useEffect, useRef, useCallback } from 'react';
 import { QuranPage, GhareebWord } from '@/types/quran';
 import { normalizeArabic } from '@/utils/quranParser';
 import { GhareebWordPopover } from './GhareebWordPopover';
@@ -53,26 +53,49 @@ export function PageView({
     return contextMap;
   }, [page.text, page.surahName]);
 
+  // Check if line is a surah header
+  const isSurahHeader = useCallback((line: string): boolean => {
+    return line.startsWith('سُورَةُ') || line.startsWith('سورة ');
+  }, []);
+
+  // Check if line is bismillah
+  const isBismillah = useCallback((line: string): boolean => {
+    return line.includes('بِسمِ اللَّهِ') || line.includes('بِسۡمِ ٱللَّهِ');
+  }, []);
+
   const renderedContent = useMemo(() => {
     if (!page.text) return null;
 
-    // If no ghareeb words, render plain text
+    const lines = page.text.split('\n');
+    
+    // If no ghareeb words, render continuous text
     if (ghareebWords.length === 0) {
-      return page.text.split('\n').map((line, idx) => (
-        <div key={idx} className="mb-1">
-          {line.startsWith('سُورَةُ') ? (
-            <div className="surah-header">
-              <span className="text-lg sm:text-xl font-bold text-primary font-arabic">
+      const elements: React.ReactNode[] = [];
+      
+      for (let idx = 0; idx < lines.length; idx++) {
+        const line = lines[idx];
+        
+        if (isSurahHeader(line)) {
+          elements.push(
+            <div key={`header-${idx}`} className="surah-header">
+              <span className="text-xl sm:text-2xl font-bold text-primary font-arabic">
                 {line}
               </span>
             </div>
-          ) : line.startsWith('بِسۡمِ ٱللَّهِ') ? (
-            <div className="bismillah font-arabic">{line}</div>
-          ) : (
-            <span>{line}</span>
-          )}
-        </div>
-      ));
+          );
+        } else if (isBismillah(line)) {
+          elements.push(
+            <div key={`bismillah-${idx}`} className="bismillah font-arabic">
+              {line}
+            </div>
+          );
+        } else {
+          // Regular verse text - inline
+          elements.push(<span key={idx}>{line} </span>);
+        }
+      }
+      
+      return <div className="inline">{elements}</div>;
     }
 
     // Prepare ghareeb entries
@@ -93,28 +116,33 @@ export function PageView({
     const sortedEntries = [...ghareebEntries].sort((a, b) => b.wordCount - a.wordCount);
     const usedIndices = new Set<number>();
 
-    return page.text.split('\n').map((line, lineIdx) => {
+    const allElements: React.ReactNode[] = [];
+    
+    for (let lineIdx = 0; lineIdx < lines.length; lineIdx++) {
+      const line = lines[lineIdx];
       const localSurah = surahContextByLine[lineIdx] || '';
       const normalizedLocalSurah = normalizeSurahName(localSurah);
 
       // Surah header
-      if (line.startsWith('سُورَةُ')) {
-        return (
-          <div key={lineIdx} className="surah-header">
-            <span className="text-lg sm:text-xl font-bold text-primary font-arabic">
+      if (isSurahHeader(line)) {
+        allElements.push(
+          <div key={`header-${lineIdx}`} className="surah-header">
+            <span className="text-xl sm:text-2xl font-bold text-primary font-arabic">
               {line}
             </span>
           </div>
         );
+        continue;
       }
 
       // Bismillah
-      if (line.startsWith('بِسۡمِ ٱللَّهِ')) {
-        return (
-          <div key={lineIdx} className="bismillah font-arabic">
+      if (isBismillah(line)) {
+        allElements.push(
+          <div key={`bismillah-${lineIdx}`} className="bismillah font-arabic">
             {line}
           </div>
         );
+        continue;
       }
 
       // Split line into tokens
@@ -197,15 +225,15 @@ export function PageView({
         }
       }
 
-      // Build elements
-      const elements: React.ReactNode[] = [];
+      // Build line elements
+      const lineElements: React.ReactNode[] = [];
       let i = 0;
       
       while (i < tokenData.length) {
         const td = tokenData[i];
         
         if (td.isSpace) {
-          elements.push(<span key={`${lineIdx}-${i}`}>{td.token}</span>);
+          lineElements.push(<span key={`${lineIdx}-${i}`}>{td.token}</span>);
           i++;
           continue;
         }
@@ -223,7 +251,7 @@ export function PageView({
               phraseText.push(tokenData[k].token);
             }
             
-            elements.push(
+            lineElements.push(
               <GhareebWordPopover
                 key={`${lineIdx}-phrase-${i}`}
                 word={entry.original}
@@ -239,7 +267,7 @@ export function PageView({
             i = lastPhraseTokenIdx + 1;
             continue;
           } else if (!td.isPartOfPhrase) {
-            elements.push(
+            lineElements.push(
               <GhareebWordPopover
                 key={`${lineIdx}-${i}`}
                 word={entry.original}
@@ -256,17 +284,20 @@ export function PageView({
           }
         }
         
-        elements.push(<span key={`${lineIdx}-${i}`}>{td.token}</span>);
+        lineElements.push(<span key={`${lineIdx}-${i}`}>{td.token}</span>);
         i++;
       }
 
-      return (
-        <div key={lineIdx} className="mb-0.5">
-          {elements}
-        </div>
+      // Add line elements as inline span (continuous text flow)
+      allElements.push(
+        <span key={`line-${lineIdx}`}>
+          {lineElements}{' '}
+        </span>
       );
-    });
-  }, [page.text, ghareebWords, highlightedWordIndex, onWordClick, surahContextByLine]);
+    }
+
+    return <div className="inline">{allElements}</div>;
+  }, [page.text, ghareebWords, highlightedWordIndex, onWordClick, surahContextByLine, isSurahHeader, isBismillah]);
 
   return (
     <div ref={containerRef} className="page-frame p-5 sm:p-8">

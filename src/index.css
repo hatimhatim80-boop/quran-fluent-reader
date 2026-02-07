@@ -102,10 +102,17 @@
     font-family: 'Amiri', 'Noto Naskh Arabic', serif;
     direction: rtl;
     text-align: justify;
-    line-height: 2.4;
-    font-size: 1.5rem;
+    line-height: 2.6;
+    font-size: 1.75rem;
     letter-spacing: 0;
-    word-spacing: 0.1em;
+    word-spacing: 0.12em;
+  }
+
+  @media (min-width: 640px) {
+    .arabic-text {
+      font-size: 2rem;
+      line-height: 2.8;
+    }
   }
 
   .quran-page {
