@@ -1,5 +1,5 @@
 import { GhareebWord } from '@/types/quran';
-import { normalizeArabic } from './quranParser';
+import { normalizeArabic, extractWordRoot } from './quranParser';
 
 export type MismatchReason =
   | 'not_found_in_page'   // الكلمة غير موجودة في نص الصفحة
@@ -25,6 +25,48 @@ export interface MatchingReport {
   generatedAt: string;
 }
 
+// تحقق من وجود الكلمة بعدة استراتيجيات
+function findWordInText(word: string, pageText: string): { found: boolean; method: string } {
+  // الاستراتيجية 1: التطبيع القياسي
+  const normalizedWord = normalizeArabic(word);
+  const normalizedPage = normalizeArabic(pageText);
+  
+  if (normalizedPage.includes(normalizedWord)) {
+    return { found: true, method: 'standard' };
+  }
+  
+  // الاستراتيجية 2: التطبيع العدواني
+  const aggressiveWord = normalizeArabic(word, 'aggressive');
+  const aggressivePage = normalizeArabic(pageText, 'aggressive');
+  
+  if (aggressivePage.includes(aggressiveWord)) {
+    return { found: true, method: 'aggressive' };
+  }
+  
+  // الاستراتيجية 3: البحث بدون ألف البداية
+  if (aggressiveWord.startsWith('ا')) {
+    const wordWithoutAlef = aggressiveWord.slice(1);
+    if (wordWithoutAlef.length >= 2 && aggressivePage.includes(wordWithoutAlef)) {
+      return { found: true, method: 'no_leading_alef' };
+    }
+  }
+  
+  // الاستراتيجية 4: البحث عن الجذر
+  const wordRoot = extractWordRoot(word);
+  if (wordRoot.length >= 3) {
+    // ابحث عن الجذر ضمن كلمات الصفحة
+    const pageWords = aggressivePage.split(/\s+/);
+    for (const pageWord of pageWords) {
+      const pageWordRoot = extractWordRoot(pageWord);
+      if (pageWordRoot === wordRoot && pageWord.length >= aggressiveWord.length - 2) {
+        return { found: true, method: 'root_match' };
+      }
+    }
+  }
+  
+  return { found: false, method: 'none' };
+}
+
 /**
  * يتحقق من تطابق كلمات الغريب مع نص المصحف
  * @param ghareebMap خريطة الكلمات الغريبة (من loadGhareebData)
@@ -40,10 +82,10 @@ export function validateMatching(
   const mismatches: MismatchEntry[] = [];
   let matchedCount = 0;
 
-  // بناء فهرس نصوص الصفحات المُطَبَّعة
-  const normalizedPages = new Map<number, string>();
+  // بناء فهرس نصوص الصفحات
+  const pageTexts = new Map<number, string>();
   for (const page of pages) {
-    normalizedPages.set(page.pageNumber, normalizeArabic(page.text));
+    pageTexts.set(page.pageNumber, page.text);
   }
 
   // تتبع الكلمات التي تمت مطابقتها لتجنب التكرار
@@ -59,11 +101,11 @@ export function validateMatching(
       continue;
     }
 
-    // البحث في الصفحة المتوقعة
-    const pageText = normalizedPages.get(pageNum) || '';
-    const foundInExpectedPage = pageText.includes(normalizedWord);
+    // البحث في الصفحة المتوقعة بالاستراتيجيات المتعددة
+    const pageText = pageTexts.get(pageNum) || '';
+    const searchResult = findWordInText(word.wordText, pageText);
 
-    if (foundInExpectedPage) {
+    if (searchResult.found) {
       // تحقق من التكرار
       const key = `${pageNum}_${normalizedWord}`;
       if (matchedKeys.has(key)) {
@@ -84,8 +126,9 @@ export function validateMatching(
     const foundInPages: number[] = [];
 
     for (const adjPage of adjacentPages) {
-      const adjText = normalizedPages.get(adjPage);
-      if (adjText?.includes(normalizedWord)) {
+      const adjText = pageTexts.get(adjPage) || '';
+      const adjResult = findWordInText(word.wordText, adjText);
+      if (adjResult.found) {
         foundInPages.push(adjPage);
       }
     }
@@ -101,15 +144,20 @@ export function validateMatching(
       continue;
     }
 
-    // البحث بتطابق جزئي (أول 3 أحرف)
-    const prefix = normalizedWord.slice(0, 3);
-    const partialMatch = pageText.includes(prefix);
+    // البحث بتطابق جزئي محسّن
+    const aggressiveWord = normalizeArabic(word.wordText, 'aggressive');
+    const aggressivePage = normalizeArabic(pageText, 'aggressive');
+    const prefix = aggressiveWord.slice(0, 3);
+    const suffix = aggressiveWord.slice(-3);
+    
+    const prefixMatch = aggressivePage.includes(prefix);
+    const suffixMatch = aggressivePage.includes(suffix);
 
-    if (partialMatch) {
+    if (prefixMatch || suffixMatch) {
       mismatches.push({
         word,
         reason: 'partial_match',
-        detail: `تطابق جزئي للكلمة "${word.wordText}" (البادئة "${prefix}" موجودة)`,
+        detail: `تطابق جزئي للكلمة "${word.wordText}" (${prefixMatch ? 'البادئة' : 'اللاحقة'} موجودة)`,
       });
     } else {
       mismatches.push({
