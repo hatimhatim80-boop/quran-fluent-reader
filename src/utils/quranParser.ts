@@ -33,16 +33,20 @@ export function normalizeArabic(text: string): string {
   let normalized = text;
   
   // Remove all Unicode ranges that contain diacritical marks and special symbols
+  // Including U+08D3-U+08FF (Arabic Extended-A: tanween, vowel marks, etc.)
   normalized = normalized.replace(/[\u0610-\u061A\u064B-\u065F\u0670\u06D6-\u06ED\u08D3-\u08FF]/g, '');
   
-  // Remove Quranic special characters
+  // Remove Quranic special characters and tajweed marks
   normalized = normalized.replace(/[ۣۖۗۘۙۚۛۜ۟۠ۡۢۤۥۦۧۨ۩۪ۭ۫۬ۮۯ]/g, '');
+  
+  // Remove Quran-specific bracket symbols
+  normalized = normalized.replace(/[﴿﴾]/g, '');
   
   // Normalize alef forms
   normalized = normalized.replace(/[ٱإأآٲٳٵ]/g, 'ا');
   
   // Normalize other letters
-  normalized = normalized.replace(/ٰ/g, ''); // Superscript alef
+  normalized = normalized.replace(/ٰ/g, ''); // Superscript alef (U+0670)
   normalized = normalized.replace(/ى/g, 'ي'); // Alef maksura to yeh
   normalized = normalized.replace(/ۀ/g, 'ه'); // Heh with yeh above
   normalized = normalized.replace(/ة/g, 'ه'); // Teh marbuta to heh
@@ -51,7 +55,8 @@ export function normalizeArabic(text: string): string {
   normalized = normalized.replace(/ء/g, ''); // Remove standalone hamza
   normalized = normalized.replace(/ـ/g, ''); // Remove tatweel
   
-  // Remove any remaining non-Arabic characters except spaces
+  // Remove any remaining non-Arabic base letters except spaces
+  // Keep only Arabic letters (U+0621-U+064A) and extended forms (U+066E-U+06D3)
   normalized = normalized.replace(/[^\u0621-\u064A\u066E-\u06D3\s]/g, '');
   
   // Normalize whitespace
