@@ -125,6 +125,18 @@ export function useQuranData() {
     return pages.find(p => p.page_number === currentPage);
   };
 
+  const loadPagesData = (data: QuranPage[]) => {
+    setPages(data.sort((a, b) => a.page_number - b.page_number));
+    setIsLoading(false);
+  };
+
+  const loadGhareebData = (data: GhareebWord[]) => {
+    setGhareebWords(data.sort((a, b) => {
+      if (a.page_number !== b.page_number) return a.page_number - b.page_number;
+      return a.order - b.order;
+    }));
+  };
+
   return {
     pages,
     ghareebWords,
@@ -140,5 +152,7 @@ export function useQuranData() {
     getPageWords,
     loadPagesCSV,
     loadGhareebCSV,
+    loadPagesData,
+    loadGhareebData,
   };
 }
