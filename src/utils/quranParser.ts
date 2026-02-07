@@ -1,4 +1,31 @@
-import { Surah, Verse, GhareebWord } from '@/types/quran';
+import { QuranPage, GhareebWord } from '@/types/quran';
+
+// Surah name to page number mapping (approximate start pages)
+const SURAH_PAGES: { [key: string]: number } = {
+  'الفاتحة': 1, 'البقرة': 2, 'آل عمران': 50, 'النساء': 77, 'المائدة': 106,
+  'الأنعام': 128, 'الأعراف': 151, 'الأنفال': 177, 'التوبة': 187, 'يونس': 208,
+  'هود': 221, 'يوسف': 235, 'الرعد': 249, 'إبراهيم': 255, 'الحجر': 262,
+  'النحل': 267, 'الإسراء': 282, 'الكهف': 293, 'مريم': 305, 'طه': 312,
+  'الأنبياء': 322, 'الحج': 332, 'المؤمنون': 342, 'النور': 350, 'الفرقان': 359,
+  'الشعراء': 367, 'النمل': 377, 'القصص': 385, 'العنكبوت': 396, 'الروم': 404,
+  'لقمان': 411, 'السجدة': 415, 'الأحزاب': 418, 'سبأ': 428, 'فاطر': 434,
+  'يس': 440, 'الصافات': 446, 'ص': 453, 'الزمر': 458, 'غافر': 467,
+  'فصلت': 477, 'الشورى': 483, 'الزخرف': 489, 'الدخان': 496, 'الجاثية': 499,
+  'الأحقاف': 502, 'محمد': 507, 'الفتح': 511, 'الحجرات': 515, 'ق': 518,
+  'الذاريات': 520, 'الطور': 523, 'النجم': 526, 'القمر': 528, 'الرحمن': 531,
+  'الواقعة': 534, 'الحديد': 537, 'المجادلة': 542, 'الحشر': 545, 'الممتحنة': 549,
+  'الصف': 551, 'الجمعة': 553, 'المنافقون': 554, 'التغابن': 556, 'الطلاق': 558,
+  'التحريم': 560, 'الملك': 562, 'القلم': 564, 'الحاقة': 566, 'المعارج': 568,
+  'نوح': 570, 'الجن': 572, 'المزمل': 574, 'المدثر': 575, 'القيامة': 577,
+  'الإنسان': 578, 'المرسلات': 580, 'النبأ': 582, 'النازعات': 583, 'عبس': 585,
+  'التكوير': 586, 'الانفطار': 587, 'المطففين': 587, 'الانشقاق': 589, 'البروج': 590,
+  'الطارق': 591, 'الأعلى': 591, 'الغاشية': 592, 'الفجر': 593, 'البلد': 594,
+  'الشمس': 595, 'الليل': 595, 'الضحى': 596, 'الشرح': 596, 'التين': 597,
+  'العلق': 597, 'القدر': 598, 'البينة': 598, 'الزلزلة': 599, 'العاديات': 599,
+  'القارعة': 600, 'التكاثر': 600, 'العصر': 601, 'الهمزة': 601, 'الفيل': 601,
+  'قريش': 602, 'الماعون': 602, 'الكوثر': 602, 'الكافرون': 603, 'النصر': 603,
+  'المسد': 603, 'الإخلاص': 604, 'الفلق': 604, 'الناس': 604,
+};
 
 // Convert Arabic numerals to Western numerals
 function arabicToNumber(arabicNum: string): number {
@@ -18,98 +45,96 @@ function cleanWordText(text: string): string {
   return text.replace(/[﴿﴾]/g, '').trim();
 }
 
-export function parseMushafText(text: string): Surah[] {
-  const lines = text.split('\n');
-  const surahs: Surah[] = [];
-  let currentSurah: Surah | null = null;
-  let currentVerseText = '';
-  let lastVerseNumber = 0;
-
-  for (const line of lines) {
-    const trimmedLine = line.trim();
-    if (!trimmedLine) continue;
-
-    // Check for surah header
-    if (trimmedLine.startsWith('سُورَةُ')) {
-      // Save previous surah if exists
-      if (currentSurah) {
-        surahs.push(currentSurah);
-      }
-      
-      // Extract surah name
-      const surahName = trimmedLine.replace('سُورَةُ', '').trim();
-      currentSurah = {
-        name: surahName,
-        verses: [],
-      };
-      currentVerseText = '';
-      lastVerseNumber = 0;
-      continue;
-    }
-
-    if (!currentSurah) continue;
-
-    // Skip basmalah if it's at the start of surah (except Al-Fatiha)
-    if (trimmedLine.startsWith('بِسۡمِ ٱللَّهِ ٱلرَّحۡمَٰنِ ٱلرَّحِيمِ') && 
-        currentSurah.name !== 'الفَاتِحَةِ' &&
-        currentSurah.verses.length === 0) {
-      continue;
-    }
-
-    // Find verse numbers in the line (Arabic numerals like ١, ٢, ٣)
-    const versePattern = /([٠-٩]+)/g;
-    let match;
-    let lastIndex = 0;
-    const matches: { number: number; index: number }[] = [];
-
-    while ((match = versePattern.exec(trimmedLine)) !== null) {
-      const num = arabicToNumber(match[1]);
-      if (num > lastVerseNumber && num <= lastVerseNumber + 5) {
-        matches.push({ number: num, index: match.index });
-      }
-    }
-
-    if (matches.length === 0) {
-      // No verse numbers in this line, accumulate text
-      currentVerseText += ' ' + trimmedLine;
-    } else {
-      // Process verses
-      let textStart = 0;
-      for (const m of matches) {
-        const verseText = (currentVerseText + ' ' + trimmedLine.substring(textStart, m.index)).trim();
-        
-        if (verseText && m.number > 0) {
-          currentSurah.verses.push({
-            surahName: currentSurah.name,
-            verseNumber: m.number,
-            text: verseText.replace(/[٠-٩]+\s*$/, '').trim(), // Remove trailing verse number
-          });
-          lastVerseNumber = m.number;
-        }
-        
-        currentVerseText = '';
-        textStart = m.index + m.number.toString().length + 1;
-      }
-      
-      // Remaining text after last verse number
-      if (textStart < trimmedLine.length) {
-        currentVerseText = trimmedLine.substring(textStart).trim();
-      }
-    }
-  }
-
-  // Don't forget the last surah
-  if (currentSurah) {
-    surahs.push(currentSurah);
-  }
-
-  return surahs;
+// Normalize surah name for comparison
+function normalizeSurahName(name: string): string {
+  return name
+    .replace(/ٱ/g, 'ا')
+    .replace(/ٰ/g, 'ا')
+    .replace(/ۡ/g, '')
+    .replace(/ۢ/g, '')
+    .replace(/ۧ/g, '')
+    .replace(/ۖ/g, '')
+    .replace(/ۗ/g, '')
+    .replace(/ۘ/g, '')
+    .replace(/ۚ/g, '')
+    .replace(/ۛ/g, '')
+    .replace(/ۜ/g, '')
+    .replace(/ُ/g, '')
+    .replace(/ِ/g, '')
+    .replace(/َ/g, '')
+    .replace(/ّ/g, '')
+    .replace(/ً/g, '')
+    .replace(/ٍ/g, '')
+    .replace(/ٌ/g, '')
+    .replace(/ْ/g, '')
+    .replace(/ٓ/g, '')
+    .replace(/ٔ/g, '')
+    .replace(/ٕ/g, '')
+    .replace(/ـ/g, '')
+    .trim();
 }
 
-export function parseGhareebText(text: string): GhareebWord[] {
+export function parseMushafText(text: string): QuranPage[] {
+  const lines = text.split('\n');
+  const pages: QuranPage[] = [];
+  
+  let currentPageLines: string[] = [];
+  let currentSurahName: string | undefined;
+  let pageNumber = 1;
+
+  for (const line of lines) {
+    // Empty line = page break
+    if (line.trim() === '') {
+      if (currentPageLines.length > 0) {
+        pages.push({
+          pageNumber,
+          text: currentPageLines.join('\n'),
+          surahName: currentSurahName,
+        });
+        pageNumber++;
+        currentPageLines = [];
+      }
+      continue;
+    }
+
+    // Check for surah header
+    if (line.trim().startsWith('سُورَةُ')) {
+      currentSurahName = line.trim().replace('سُورَةُ', '').trim();
+    }
+
+    currentPageLines.push(line);
+  }
+
+  // Don't forget the last page
+  if (currentPageLines.length > 0) {
+    pages.push({
+      pageNumber,
+      text: currentPageLines.join('\n'),
+      surahName: currentSurahName,
+    });
+  }
+
+  return pages;
+}
+
+export function parseGhareebText(text: string, pages: QuranPage[]): GhareebWord[] {
   const lines = text.split('\n');
   const words: GhareebWord[] = [];
-  let orderCounter: { [key: string]: number } = {};
+  
+  // Create a map of surah names to their page ranges
+  const surahToPages: { [key: string]: number[] } = {};
+  for (const page of pages) {
+    if (page.surahName) {
+      const normalized = normalizeSurahName(page.surahName);
+      if (!surahToPages[normalized]) {
+        surahToPages[normalized] = [];
+      }
+      surahToPages[normalized].push(page.pageNumber);
+    }
+  }
+
+  // Track order within each page
+  const pageOrderCounter: { [pageNum: number]: number } = {};
 
   for (const line of lines) {
     const trimmedLine = line.trim();
@@ -128,26 +153,49 @@ export function parseGhareebText(text: string): GhareebWord[] {
 
     if (!wordText || !surahName || !verseNumber) continue;
 
-    // Track order within each verse
-    const key = `${surahName}-${verseNumber}`;
-    if (!orderCounter[key]) {
-      orderCounter[key] = 0;
+    // Find page number based on surah
+    // Use the SURAH_PAGES mapping as a base estimate
+    let pageNumber = SURAH_PAGES[surahName] || 1;
+    
+    // Try to find a more accurate page by searching page text
+    for (const page of pages) {
+      if (page.text.includes(wordText)) {
+        // Check if this page contains content from the right surah
+        const normalizedSurah = normalizeSurahName(surahName);
+        const normalizedPageSurah = page.surahName ? normalizeSurahName(page.surahName) : '';
+        
+        if (normalizedPageSurah.includes(normalizedSurah) || 
+            normalizedSurah.includes(normalizedPageSurah) ||
+            page.pageNumber >= pageNumber) {
+          pageNumber = page.pageNumber;
+          break;
+        }
+      }
     }
-    orderCounter[key]++;
+
+    // Track order within the page
+    if (!pageOrderCounter[pageNumber]) {
+      pageOrderCounter[pageNumber] = 0;
+    }
+    pageOrderCounter[pageNumber]++;
 
     words.push({
-      surahName,
-      verseNumber,
+      pageNumber,
       wordText,
       meaning,
-      order: orderCounter[key],
+      surahName,
+      verseNumber,
+      order: pageOrderCounter[pageNumber],
     });
   }
 
-  return words;
+  return words.sort((a, b) => {
+    if (a.pageNumber !== b.pageNumber) return a.pageNumber - b.pageNumber;
+    return a.order - b.order;
+  });
 }
 
-export async function loadQuranData(): Promise<{ surahs: Surah[]; ghareebWords: GhareebWord[] }> {
+export async function loadQuranData(): Promise<{ pages: QuranPage[]; ghareebWords: GhareebWord[] }> {
   try {
     const [mushafResponse, ghareebResponse] = await Promise.all([
       fetch('/data/mushaf.txt'),
@@ -157,12 +205,14 @@ export async function loadQuranData(): Promise<{ surahs: Surah[]; ghareebWords: 
     const mushafText = await mushafResponse.text();
     const ghareebText = await ghareebResponse.text();
 
-    const surahs = parseMushafText(mushafText);
-    const ghareebWords = parseGhareebText(ghareebText);
+    const pages = parseMushafText(mushafText);
+    const ghareebWords = parseGhareebText(ghareebText, pages);
 
-    return { surahs, ghareebWords };
+    console.log(`Loaded ${pages.length} pages and ${ghareebWords.length} ghareeb words`);
+
+    return { pages, ghareebWords };
   } catch (error) {
     console.error('Error loading Quran data:', error);
-    return { surahs: [], ghareebWords: [] };
+    return { pages: [], ghareebWords: [] };
   }
 }
