@@ -22,9 +22,14 @@ import {
   XCircle,
   Info,
   Clock,
+  Trash2,
+  ArrowRightLeft,
+  Save,
 } from 'lucide-react';
 import { QuranPage, GhareebWord } from '@/types/quran';
 import { normalizeArabic } from '@/utils/quranParser';
+import { useDataStore } from '@/stores/dataStore';
+import { toast } from 'sonner';
 
 // ============= TYPES =============
 
@@ -360,6 +365,247 @@ function hashCode(str: string): string {
   return Math.abs(hash).toString(16).slice(0, 8);
 }
 
+// ============= INSPECT TAB WITH EDITING ACTIONS =============
+
+interface InspectTabContentProps {
+  inspectedWord: InspectedWord | null;
+  lastSelectionEvent: string | null;
+  reassignMode: boolean;
+  setReassignMode: (mode: boolean) => void;
+  pendingReassignTarget: string | null;
+  pageNumber: number;
+  ghareebWords: GhareebWord[];
+  renderedWords: GhareebWord[];
+  onInvalidateCache?: () => void;
+  setInspectedWord: (word: InspectedWord | null) => void;
+}
+
+function InspectTabContent({
+  inspectedWord,
+  lastSelectionEvent,
+  reassignMode,
+  setReassignMode,
+  pendingReassignTarget,
+  pageNumber,
+  ghareebWords,
+  renderedWords,
+  onInvalidateCache,
+  setInspectedWord,
+}: InspectTabContentProps) {
+  const addWordOverride = useDataStore((s) => s.addWordOverride);
+  const deleteWordOverride = useDataStore((s) => s.deleteWordOverride);
+  const getOverrideByKey = useDataStore((s) => s.getOverrideByKey);
+  
+  // Handle: Remove Ghareeb highlight from this word
+  const handleRemoveHighlight = useCallback(() => {
+    if (!inspectedWord) return;
+    
+    // Add a "delete" override for this word
+    addWordOverride({
+      key: inspectedWord.identityKey,
+      pageNumber,
+      wordText: inspectedWord.originalWord,
+      meaning: '',
+      surahNumber: inspectedWord.surah,
+      verseNumber: inspectedWord.ayah,
+      wordIndex: inspectedWord.wordIndex,
+      operation: 'delete',
+    });
+    
+    toast.success('تم إزالة التمييز', {
+      description: `الكلمة "${inspectedWord.originalWord}" لن تظهر كغريبة`,
+    });
+    
+    // Refresh view
+    onInvalidateCache?.();
+    setInspectedWord(null);
+  }, [inspectedWord, pageNumber, addWordOverride, onInvalidateCache, setInspectedWord]);
+  
+  // Handle: Reassign meaning to another word
+  const handleReassignMeaning = useCallback(() => {
+    if (!inspectedWord || !pendingReassignTarget) {
+      toast.error('اختر الكلمة الهدف أولاً');
+      return;
+    }
+    
+    // Find target word details
+    const targetWord = renderedWords.find(w => w.uniqueKey === pendingReassignTarget) ||
+                       ghareebWords.find(w => w.uniqueKey === pendingReassignTarget);
+    
+    if (!targetWord) {
+      toast.error('لم يتم العثور على الكلمة الهدف');
+      return;
+    }
+    
+    // Step 1: Delete the source (remove highlight from "إن")
+    addWordOverride({
+      key: inspectedWord.identityKey,
+      pageNumber,
+      wordText: inspectedWord.originalWord,
+      meaning: '',
+      surahNumber: inspectedWord.surah,
+      verseNumber: inspectedWord.ayah,
+      wordIndex: inspectedWord.wordIndex,
+      operation: 'delete',
+    });
+    
+    // Step 2: Add/edit the target word with the meaning
+    // Parse target key to get its position
+    const targetParts = pendingReassignTarget.split('_');
+    const targetSurah = parseInt(targetParts[0]) || targetWord.surahNumber;
+    const targetAyah = parseInt(targetParts[1]) || targetWord.verseNumber;
+    const targetWordIdx = parseInt(targetParts[2]) || targetWord.wordIndex;
+    
+    addWordOverride({
+      key: pendingReassignTarget,
+      pageNumber,
+      wordText: targetWord.wordText,
+      meaning: inspectedWord.meaningPreview?.replace('...', '') || '',
+      surahNumber: targetSurah,
+      verseNumber: targetAyah,
+      wordIndex: targetWordIdx,
+      operation: 'add',
+    });
+    
+    toast.success('تم نقل المعنى', {
+      description: `نُقل المعنى من "${inspectedWord.originalWord}" إلى "${targetWord.wordText}"`,
+    });
+    
+    // Refresh view
+    onInvalidateCache?.();
+    setInspectedWord(null);
+  }, [inspectedWord, pendingReassignTarget, renderedWords, ghareebWords, pageNumber, addWordOverride, onInvalidateCache, setInspectedWord]);
+  
+  // Check if current word has override
+  const existingOverride = inspectedWord ? getOverrideByKey(inspectedWord.identityKey) : undefined;
+  
+  return (
+    <>
+      <div className="p-2 rounded bg-muted/50 border border-dashed">
+        <div className="flex items-center gap-2 text-muted-foreground">
+          <MousePointer className="w-3 h-3" />
+          <span>
+            {reassignMode 
+              ? '🎯 وضع النقل: انقر على الكلمة الهدف'
+              : 'Click or long-press any highlighted word to inspect'}
+          </span>
+        </div>
+      </div>
+      
+      {/* Selection Event Status */}
+      <div className="flex items-center gap-2 text-[10px] px-1">
+        <Clock className="w-3 h-3 text-muted-foreground" />
+        <span className="text-muted-foreground">Last selection:</span>
+        <span className={lastSelectionEvent ? 'text-primary' : 'text-muted-foreground'}>
+          {lastSelectionEvent || 'none'}
+        </span>
+      </div>
+      
+      {inspectedWord ? (
+        <div className="p-3 rounded border bg-card space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="font-arabic text-lg" dir="rtl">{inspectedWord.originalWord}</span>
+            <Badge variant="outline" className="text-[9px]">{inspectedWord.identityKey}</Badge>
+          </div>
+          
+          {existingOverride && (
+            <Badge variant="secondary" className="text-[9px]">
+              ⚠️ يوجد تعديل سابق: {existingOverride.operation}
+            </Badge>
+          )}
+          
+          <div className="grid grid-cols-2 gap-2 text-[10px]">
+            <div>
+              <span className="text-muted-foreground">Normalized:</span>
+              <div className="font-arabic" dir="rtl">{inspectedWord.normalizedWord}</div>
+            </div>
+            <div>
+              <span className="text-muted-foreground">Position:</span>
+              <div>{inspectedWord.surah}:{inspectedWord.ayah}:{inspectedWord.wordIndex}</div>
+            </div>
+          </div>
+          
+          <div className="grid grid-cols-2 gap-2 text-[10px]">
+            <div>
+              <span className="text-muted-foreground">Assembly:</span>
+              <div className="font-mono">{inspectedWord.assemblyId || 'unknown'}</div>
+            </div>
+            <div>
+              <span className="text-muted-foreground">Token Index:</span>
+              <div className="font-mono">{inspectedWord.tokenIndex ?? 'N/A'}</div>
+            </div>
+          </div>
+          
+          <div>
+            <span className="text-muted-foreground text-[10px]">Meaning ID:</span>
+            <div className="font-mono text-[10px] break-all">{inspectedWord.matchedMeaningId || 'null'}</div>
+          </div>
+          
+          <div>
+            <span className="text-muted-foreground text-[10px]">Meaning Preview:</span>
+            <div className="font-arabic text-sm p-1.5 bg-muted rounded" dir="rtl">
+              {inspectedWord.meaningPreview || 'لا يوجد معنى'}
+            </div>
+          </div>
+          
+          {/* DEV-ONLY Editing Actions */}
+          <div className="border-t pt-2 mt-2 space-y-2">
+            <div className="text-[10px] text-muted-foreground font-semibold flex items-center gap-1">
+              <Save className="w-3 h-3" />
+              DEV Actions (persisted to overrides)
+            </div>
+            
+            {/* Action 1: Remove Highlight */}
+            <Button
+              size="sm"
+              variant="destructive"
+              className="w-full h-7 text-[10px] gap-1"
+              onClick={handleRemoveHighlight}
+            >
+              <Trash2 className="w-3 h-3" />
+              إزالة التمييز من هذه الكلمة
+            </Button>
+            
+            {/* Action 2: Reassign Meaning */}
+            <div className="space-y-1">
+              <Button
+                size="sm"
+                variant={reassignMode ? 'default' : 'outline'}
+                className="w-full h-7 text-[10px] gap-1"
+                onClick={() => setReassignMode(!reassignMode)}
+              >
+                <ArrowRightLeft className="w-3 h-3" />
+                {reassignMode ? '🎯 في انتظار اختيار الهدف...' : 'نقل المعنى إلى كلمة أخرى'}
+              </Button>
+              
+              {pendingReassignTarget && (
+                <div className="flex items-center gap-1 text-[10px]">
+                  <span className="text-muted-foreground">الهدف:</span>
+                  <Badge variant="secondary" className="text-[9px]">{pendingReassignTarget}</Badge>
+                  <Button
+                    size="sm"
+                    variant="default"
+                    className="h-5 text-[9px] px-2 ml-auto"
+                    onClick={handleReassignMeaning}
+                  >
+                    تأكيد النقل
+                  </Button>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className="flex flex-col items-center justify-center gap-2 py-8 text-muted-foreground">
+          <Info className="w-4 h-4" />
+          <span>لم يتم تحديد كلمة</span>
+          <span className="text-[10px]">Click a highlighted word in the mushaf</span>
+        </div>
+      )}
+    </>
+  );
+}
+
 // ============= COMPONENT =============
 
 export function DevDebugPanel({
@@ -376,6 +622,28 @@ export function DevDebugPanel({
   const [lastSelectionEvent, setLastSelectionEvent] = useState<string | null>(null);
   const [snapshotTime, setSnapshotTime] = useState<string>(new Date().toLocaleTimeString('ar-EG'));
   const longPressTimer = useRef<NodeJS.Timeout | null>(null);
+  
+  // DEV-only editing state
+  const [reassignMode, setReassignMode] = useState(false);
+  const [pendingReassignTarget, setPendingReassignTarget] = useState<string | null>(null);
+  
+  // Listen for reassign target selection
+  useEffect(() => {
+    if (!reassignMode) return;
+    
+    const handleReassignTarget = (e: CustomEvent<DevInspectWordDetail>) => {
+      const detail = e.detail;
+      // If in reassign mode, capture this as the target
+      setPendingReassignTarget(detail.uniqueKey);
+      setReassignMode(false);
+      toast.info(`اختيار الهدف: ${detail.originalWord}`, {
+        description: `المفتاح: ${detail.uniqueKey}`,
+      });
+    };
+    
+    window.addEventListener(DEV_INSPECT_WORD_EVENT as any, handleReassignTarget);
+    return () => window.removeEventListener(DEV_INSPECT_WORD_EVENT as any, handleReassignTarget);
+  }, [reassignMode]);
   
   // Analyze page
   const analysis = useMemo(() => {
@@ -701,70 +969,18 @@ export function DevDebugPanel({
             
             {/* Inspect Tab */}
             <TabsContent value="inspect" className="mt-2 space-y-2">
-              <div className="p-2 rounded bg-muted/50 border border-dashed">
-                <div className="flex items-center gap-2 text-muted-foreground">
-                  <MousePointer className="w-3 h-3" />
-                  <span>Click or long-press any highlighted word to inspect</span>
-                </div>
-              </div>
-              
-              {/* Selection Event Status */}
-              <div className="flex items-center gap-2 text-[10px] px-1">
-                <Clock className="w-3 h-3 text-muted-foreground" />
-                <span className="text-muted-foreground">Last selection:</span>
-                <span className={lastSelectionEvent ? 'text-primary' : 'text-muted-foreground'}>
-                  {lastSelectionEvent || 'none'}
-                </span>
-              </div>
-              
-              {inspectedWord ? (
-                <div className="p-3 rounded border bg-card space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="font-arabic text-lg" dir="rtl">{inspectedWord.originalWord}</span>
-                    <Badge variant="outline" className="text-[9px]">{inspectedWord.identityKey}</Badge>
-                  </div>
-                  
-                  <div className="grid grid-cols-2 gap-2 text-[10px]">
-                    <div>
-                      <span className="text-muted-foreground">Normalized:</span>
-                      <div className="font-arabic" dir="rtl">{inspectedWord.normalizedWord}</div>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground">Position:</span>
-                      <div>{inspectedWord.surah}:{inspectedWord.ayah}:{inspectedWord.wordIndex}</div>
-                    </div>
-                  </div>
-                  
-                  <div className="grid grid-cols-2 gap-2 text-[10px]">
-                    <div>
-                      <span className="text-muted-foreground">Assembly:</span>
-                      <div className="font-mono">{inspectedWord.assemblyId || 'unknown'}</div>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground">Token Index:</span>
-                      <div className="font-mono">{inspectedWord.tokenIndex ?? 'N/A'}</div>
-                    </div>
-                  </div>
-                  
-                  <div>
-                    <span className="text-muted-foreground text-[10px]">Meaning ID:</span>
-                    <div className="font-mono text-[10px] break-all">{inspectedWord.matchedMeaningId || 'null'}</div>
-                  </div>
-                  
-                  <div>
-                    <span className="text-muted-foreground text-[10px]">Meaning Preview:</span>
-                    <div className="font-arabic text-sm p-1.5 bg-muted rounded" dir="rtl">
-                      {inspectedWord.meaningPreview || 'لا يوجد معنى'}
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <div className="flex flex-col items-center justify-center gap-2 py-8 text-muted-foreground">
-                  <Info className="w-4 h-4" />
-                  <span>لم يتم تحديد كلمة</span>
-                  <span className="text-[10px]">Click a highlighted word in the mushaf</span>
-                </div>
-              )}
+              <InspectTabContent
+                inspectedWord={inspectedWord}
+                lastSelectionEvent={lastSelectionEvent}
+                reassignMode={reassignMode}
+                setReassignMode={setReassignMode}
+                pendingReassignTarget={pendingReassignTarget}
+                pageNumber={pageNumber}
+                ghareebWords={ghareebWords}
+                renderedWords={renderedWords}
+                onInvalidateCache={onInvalidateCache}
+                setInspectedWord={setInspectedWord}
+              />
             </TabsContent>
           </Tabs>
           
