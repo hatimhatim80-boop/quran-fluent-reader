@@ -74,36 +74,15 @@ export function PageView({
       ));
     }
 
-    // Process ghareeb words: normalize and group by normalized text
-    const ghareebByNormalized = new Map<string, Array<{
-      original: GhareebWord;
-      index: number;
-      normalizedFull: string;
-      firstWord: string;
-      allWords: string[];
-      normalizedSurah: string;
-    }>>();
+    // Prepare ghareeb entries with normalized text, sorted by length (longest first for multi-word matching)
+    const ghareebEntries = ghareebWords.map((gw, idx) => ({
+      original: gw,
+      index: idx,
+      normalizedFull: normalizeArabic(gw.wordText),
+      normalizedSurah: normalizeSurahName(gw.surahName),
+    })).sort((a, b) => b.normalizedFull.length - a.normalizedFull.length);
 
-    ghareebWords.forEach((gw, idx) => {
-      const normalized = normalizeArabic(gw.wordText);
-      const words = normalized.split(' ').filter(w => w.length >= 2);
-      const entry = {
-        original: gw,
-        index: idx,
-        normalizedFull: normalized,
-        firstWord: words[0] || normalized,
-        allWords: words,
-        normalizedSurah: normalizeSurahName(gw.surahName),
-      };
-      
-      const key = normalized;
-      if (!ghareebByNormalized.has(key)) {
-        ghareebByNormalized.set(key, []);
-      }
-      ghareebByNormalized.get(key)!.push(entry);
-    });
-
-    // Track which ghareeb entries have been used (by their index)
+    // Track which ghareeb entries have been used
     const usedIndices = new Set<number>();
 
     return page.text.split('\n').map((line, lineIdx) => {
@@ -129,99 +108,123 @@ export function PageView({
         );
       }
 
-      // Split line by whitespace while preserving spaces
-      const tokens = line.split(/(\s+)/);
+      // For phrase matching, we need to work with the normalized line
+      const normalizedLine = normalizeArabic(line);
       
-      const elements = tokens.map((token, tokenIndex) => {
-        if (/^\s+$/.test(token)) {
-          return <span key={`${lineIdx}-${tokenIndex}`}>{token}</span>;
-        }
-
-        // Skip verse numbers (Arabic or decorated numerals)
-        // Verse numbers are typically: ١٢٣ or ﴿١٢٣﴾ or (123) etc.
-        const isVerseNumber = /^[٠-٩0-9۰-۹]+$/.test(token.replace(/[﴿﴾()[\]{}۝]/g, '').trim()) ||
-                              /^[﴿﴾()[\]{}۝٠-٩0-9۰-۹\s]+$/.test(token);
-        if (isVerseNumber) {
-          return <span key={`${lineIdx}-${tokenIndex}`}>{token}</span>;
-        }
-
-        const normalizedToken = normalizeArabic(token);
+      // Find all phrase matches in this line
+      interface PhraseMatch {
+        startIdx: number; // position in original line
+        endIdx: number;
+        text: string; // original text
+        entry: typeof ghareebEntries[0];
+      }
+      const phraseMatches: PhraseMatch[] = [];
+      
+      for (const entry of ghareebEntries) {
+        if (usedIndices.has(entry.index)) continue;
+        if (entry.normalizedFull.length < 2) continue;
         
-        // Skip if normalized token is too short or empty (likely punctuation/numbers)
-        if (normalizedToken.length < 2) {
-          return <span key={`${lineIdx}-${tokenIndex}`}>{token}</span>;
-        }
+        // Check surah context
+        const surahMatch = normalizedLocalSurah === '' || 
+          entry.normalizedSurah === normalizedLocalSurah || 
+          entry.normalizedSurah.includes(normalizedLocalSurah) || 
+          normalizedLocalSurah.includes(entry.normalizedSurah);
+        if (!surahMatch) continue;
         
-        // Find matching ghareeb entries
-        let matchedEntry: {
-          original: GhareebWord;
-          index: number;
-          normalizedFull: string;
-          firstWord: string;
-          allWords: string[];
-          normalizedSurah: string;
-        } | null = null;
-        for (const [key, entries] of ghareebByNormalized) {
-          // Check if token matches this normalized key
-          const firstWord = entries[0]?.firstWord || key;
-          const allWords = entries[0]?.allWords || [key];
-          
-          // Require minimum length match to avoid false positives
-          if (firstWord.length < 2 && normalizedToken.length < 2) continue;
-          
-          const isMatch = 
-            normalizedToken === key ||
-            normalizedToken === firstWord ||
-            (normalizedToken.length >= 3 && firstWord.length >= 3 && (normalizedToken.includes(firstWord) || firstWord.includes(normalizedToken))) ||
-            allWords.some(w => w.length >= 3 && normalizedToken.length >= 3 && (normalizedToken.includes(w) || w.includes(normalizedToken)));
-          
-          if (!isMatch) continue;
-          
-          // Filter by surah context and unused
-          const validEntries = entries.filter(e => 
-            !usedIndices.has(e.index) && 
-            (normalizedLocalSurah === '' || e.normalizedSurah === normalizedLocalSurah || e.normalizedSurah.includes(normalizedLocalSurah) || normalizedLocalSurah.includes(e.normalizedSurah))
-          );
-          
-          if (validEntries.length > 0) {
-            // Pick the first unused one (they're already in order)
-            matchedEntry = validEntries[0];
-            break;
+        // Find the phrase in the normalized line
+        const phraseIdx = normalizedLine.indexOf(entry.normalizedFull);
+        if (phraseIdx === -1) continue;
+        
+        // Map back to original line position
+        // We need to find the corresponding position in the original text
+        let origStart = 0;
+        let normCount = 0;
+        
+        // Count through original line until we reach the normalized position
+        for (let i = 0; i < line.length && normCount < phraseIdx; i++) {
+          const char = line[i];
+          const normChar = normalizeArabic(char);
+          if (normChar.length > 0) {
+            normCount += normChar.length;
           }
-          
-          // Fallback: if no surah match, pick any unused entry
-          const anyUnused = entries.find(e => !usedIndices.has(e.index));
-          if (anyUnused) {
-            matchedEntry = anyUnused;
-            break;
-          }
+          origStart = i + 1;
         }
         
-        if (matchedEntry) {
-          usedIndices.add(matchedEntry.index);
-          const isHighlighted = highlightedWordIndex === matchedEntry.index;
-          const gw = matchedEntry;
-          
-          // Use local surah from page context for display
-          const displaySurah = localSurah || gw.original.surahName;
-          
-          return (
-            <span
-              key={`${lineIdx}-${tokenIndex}`}
-              className={`${isHighlighted ? 'word-highlight ' : ''}word-ghareeb cursor-pointer`}
-              data-ghareeb-index={gw.index}
-              onClick={(e) => {
-                e.stopPropagation();
-                onWordClick(gw.original, gw.index);
-              }}
-            >
-              {token}
-            </span>
-          );
+        // Find the end position by matching the phrase length in normalized space
+        let origEnd = origStart;
+        let matchedNormLen = 0;
+        for (let i = origStart; i < line.length && matchedNormLen < entry.normalizedFull.length; i++) {
+          const char = line[i];
+          const normChar = normalizeArabic(char);
+          if (normChar.length > 0) {
+            matchedNormLen += normChar.length;
+          }
+          origEnd = i + 1;
         }
-
-        return <span key={`${lineIdx}-${tokenIndex}`}>{token}</span>;
+        
+        // Extract the original text for this match
+        const originalText = line.slice(origStart, origEnd);
+        
+        // Check for overlaps with existing matches
+        const overlaps = phraseMatches.some(m => 
+          (origStart >= m.startIdx && origStart < m.endIdx) ||
+          (origEnd > m.startIdx && origEnd <= m.endIdx) ||
+          (origStart <= m.startIdx && origEnd >= m.endIdx)
+        );
+        
+        if (!overlaps) {
+          phraseMatches.push({
+            startIdx: origStart,
+            endIdx: origEnd,
+            text: originalText,
+            entry,
+          });
+          usedIndices.add(entry.index);
+        }
+      }
+      
+      // Sort matches by position
+      phraseMatches.sort((a, b) => a.startIdx - b.startIdx);
+      
+      // Build the line with highlighted phrases
+      const elements: React.ReactNode[] = [];
+      let lastIdx = 0;
+      
+      phraseMatches.forEach((match, matchIdx) => {
+        // Add text before this match
+        if (match.startIdx > lastIdx) {
+          const beforeText = line.slice(lastIdx, match.startIdx);
+          elements.push(<span key={`${lineIdx}-before-${matchIdx}`}>{beforeText}</span>);
+        }
+        
+        // Add the highlighted phrase
+        const isHighlighted = highlightedWordIndex === match.entry.index;
+        elements.push(
+          <span
+            key={`${lineIdx}-match-${matchIdx}`}
+            className={`${isHighlighted ? 'word-highlight ' : ''}word-ghareeb cursor-pointer`}
+            data-ghareeb-index={match.entry.index}
+            onClick={(e) => {
+              e.stopPropagation();
+              onWordClick(match.entry.original, match.entry.index);
+            }}
+          >
+            {match.text}
+          </span>
+        );
+        
+        lastIdx = match.endIdx;
       });
+      
+      // Add remaining text
+      if (lastIdx < line.length) {
+        elements.push(<span key={`${lineIdx}-end`}>{line.slice(lastIdx)}</span>);
+      }
+      
+      // If no matches, just render the line
+      if (elements.length === 0) {
+        elements.push(<span key={`${lineIdx}-full`}>{line}</span>);
+      }
 
       return (
         <div key={lineIdx} className="mb-1">
