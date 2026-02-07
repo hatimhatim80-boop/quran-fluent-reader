@@ -1,11 +1,12 @@
 import React, { useCallback, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useQuranData } from '@/hooks/useQuranData';
 import { useAutoPlay } from '@/hooks/useAutoPlay';
 import { GhareebWord } from '@/types/quran';
 import { PageView } from './PageView';
 import { PageNavigation } from './PageNavigation';
 import { AutoPlayControls } from './AutoPlayControls';
-import { Loader2, BookOpen, Play, Pause } from 'lucide-react';
+import { Loader2, BookOpen, Play, Pause, ClipboardCheck } from 'lucide-react';
 
 export function QuranReader() {
   const {
@@ -128,6 +129,15 @@ export function QuranReader() {
                 </span>
               )}
             </div>
+
+            {/* Validation Report Link */}
+            <Link
+              to="/validation"
+              className="nav-button w-10 h-10 rounded-lg flex items-center justify-center"
+              title="تقرير التحقق من المطابقة"
+            >
+              <ClipboardCheck className="w-5 h-5" />
+            </Link>
           </div>
           <p className="text-xs text-muted-foreground font-arabic">
             الميسر في غريب القرآن
