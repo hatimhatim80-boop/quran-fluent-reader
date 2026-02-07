@@ -1,11 +1,11 @@
-import React, { useState, useCallback } from 'react';
+import React, { useCallback } from 'react';
 import { useQuranData } from '@/hooks/useQuranData';
 import { useAutoPlay } from '@/hooks/useAutoPlay';
 import { GhareebWord } from '@/types/quran';
 import { PageView } from './PageView';
 import { PageNavigation } from './PageNavigation';
 import { AutoPlayControls } from './AutoPlayControls';
-import { Loader2, BookOpen, Play, Square } from 'lucide-react';
+import { Loader2, BookOpen, Play, Pause } from 'lucide-react';
 export function QuranReader() {
   const {
     pages,
@@ -21,8 +21,6 @@ export function QuranReader() {
     nextPage,
     prevPage,
   } = useQuranData();
-
-  const [meaningEnabled, setMeaningEnabled] = useState(false);
 
   const pageData = getCurrentPageData();
   const pageWords = getPageGhareebWords;
@@ -77,6 +75,9 @@ export function QuranReader() {
     );
   }
 
+  // Determine if meanings should show (playing or has selection)
+  const meaningActive = isPlaying || currentWordIndex >= 0;
+
   return (
     <div className="min-h-screen bg-background" dir="rtl">
       <div className="max-w-2xl mx-auto px-4 py-6 sm:py-8 space-y-5">
@@ -94,13 +95,13 @@ export function QuranReader() {
 
             <button
               type="button"
-              className="nav-button w-10 h-10 rounded-lg"
-              aria-pressed={meaningEnabled}
-              onClick={() => setMeaningEnabled(v => !v)}
-              title={meaningEnabled ? 'إيقاف معاني الكلمات' : 'تشغيل معاني الكلمات'}
+              className={`nav-button w-10 h-10 rounded-lg ${isPlaying ? 'bg-primary/20' : ''}`}
+              aria-pressed={isPlaying}
+              onClick={() => isPlaying ? pause() : play()}
+              title={isPlaying ? 'إيقاف مؤقت' : 'تشغيل معاني الكلمات'}
             >
-              {meaningEnabled ? (
-                <Square className="w-5 h-5" />
+              {isPlaying ? (
+                <Pause className="w-5 h-5" />
               ) : (
                 <Play className="w-5 h-5 mr-[-2px]" />
               )}
@@ -117,7 +118,8 @@ export function QuranReader() {
             page={pageData}
             ghareebWords={pageWords}
             highlightedWordIndex={currentWordIndex}
-            meaningEnabled={meaningEnabled}
+            meaningEnabled={meaningActive}
+            isPlaying={isPlaying}
             onWordClick={handleWordClick}
           />
         )}

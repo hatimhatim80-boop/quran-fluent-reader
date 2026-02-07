@@ -7,6 +7,7 @@ interface GhareebWordPopoverProps {
   word: GhareebWord;
   index: number;
   isHighlighted: boolean;
+  forceOpen?: boolean;
   onSelect: (word: GhareebWord, index: number) => void;
   children: React.ReactNode;
   containerRef: React.RefObject<HTMLDivElement>;
@@ -23,15 +24,19 @@ export function GhareebWordPopover({
   word,
   index,
   isHighlighted,
+  forceOpen = false,
   onSelect,
   children,
   containerRef,
 }: GhareebWordPopoverProps) {
-  const [isOpen, setIsOpen] = useState(false);
+  const [isManualOpen, setIsManualOpen] = useState(false);
   const [position, setPosition] = useState<PopoverPosition | null>(null);
   const wordRef = useRef<HTMLSpanElement>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
   const isMobile = useIsMobile();
+
+  // Popover is open if forced (auto-play) or manually opened
+  const isOpen = forceOpen || isManualOpen;
 
   const calculatePosition = useCallback((): PopoverPosition | null => {
     if (!wordRef.current || !containerRef.current) return null;
@@ -72,7 +77,7 @@ export function GhareebWordPopover({
   }, [containerRef, isMobile]);
 
   const closePopover = useCallback(() => {
-    setIsOpen(false);
+    setIsManualOpen(false);
     setPosition(null);
   }, []);
 
@@ -99,14 +104,26 @@ export function GhareebWordPopover({
     }
 
     setPosition(pos);
-    setIsOpen(true);
+    setIsManualOpen(true);
     onSelect(word, index);
   }, [calculatePosition, containerRef, index, onSelect, word]);
 
+  // Auto-position when forceOpen changes
+  useEffect(() => {
+    if (forceOpen) {
+      const pos = calculatePosition();
+      if (pos) setPosition(pos);
+    }
+  }, [forceOpen, calculatePosition]);
+
   const handleClick = (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (isOpen) closePopover();
-    else openPopover();
+    // Manual click - toggle or jump to this word
+    if (isManualOpen) {
+      closePopover();
+    } else {
+      openPopover();
+    }
   };
 
   // Close on outside tap/click or scroll
