@@ -29,7 +29,8 @@ const SURAH_NAMES: Record<number, string> = {
 };
 
 // Normalize Arabic text for comparison - remove ALL diacritics and special marks
-export function normalizeArabic(text: string): string {
+// Enhanced for comprehensive Uthmani script matching
+export function normalizeArabic(text: string, level: 'standard' | 'aggressive' = 'standard'): string {
   let normalized = text;
   
   // Remove all Unicode ranges that contain diacritical marks and special symbols
@@ -40,13 +41,18 @@ export function normalizeArabic(text: string): string {
   normalized = normalized.replace(/[ۣۖۗۘۙۚۛۜ۟۠ۡۢۤۥۦۧۨ۩۪ۭ۫۬ۮۯ]/g, '');
   
   // Remove Quran-specific bracket symbols
-  normalized = normalized.replace(/[﴿﴾]/g, '');
+  normalized = normalized.replace(/[﴿﴾۝]/g, '');
   
-  // Normalize alef forms
-  normalized = normalized.replace(/[ٱإأآٲٳٵ]/g, 'ا');
+  // Remove additional Uthmani marks and symbols
+  normalized = normalized.replace(/[\u06D4\u06DD\u06DE\u06DF\u06E0\u06E1]/g, '');
+  
+  // Normalize alef forms - comprehensive list
+  normalized = normalized.replace(/[ٱإأآٲٳٵٵٴٶٷ]/g, 'ا');
+  
+  // Remove superscript alef (appears as small alef above letters)
+  normalized = normalized.replace(/[ٰۤ]/g, '');
   
   // Normalize other letters
-  normalized = normalized.replace(/ٰ/g, ''); // Superscript alef (U+0670)
   normalized = normalized.replace(/ى/g, 'ي'); // Alef maksura to yeh
   normalized = normalized.replace(/ۀ/g, 'ه'); // Heh with yeh above
   normalized = normalized.replace(/ة/g, 'ه'); // Teh marbuta to heh
@@ -54,6 +60,25 @@ export function normalizeArabic(text: string): string {
   normalized = normalized.replace(/ئ/g, 'ي'); // Yeh with hamza  
   normalized = normalized.replace(/ء/g, ''); // Remove standalone hamza
   normalized = normalized.replace(/ـ/g, ''); // Remove tatweel
+  normalized = normalized.replace(/ٔ/g, ''); // Hamza above (U+0654)
+  normalized = normalized.replace(/ٕ/g, ''); // Hamza below (U+0655)
+  
+  // Aggressive normalization for harder matching
+  if (level === 'aggressive') {
+    // Normalize lam-alef ligatures
+    normalized = normalized.replace(/لا/g, 'لا');
+    normalized = normalized.replace(/لإ/g, 'لا');
+    normalized = normalized.replace(/لأ/g, 'لا');
+    normalized = normalized.replace(/لآ/g, 'لا');
+    
+    // Additional letter normalizations
+    normalized = normalized.replace(/ڪ/g, 'ك'); // Swash kaf
+    normalized = normalized.replace(/ک/g, 'ك'); // Persian kaf
+    normalized = normalized.replace(/گ/g, 'ك'); // Gaf
+    normalized = normalized.replace(/ی/g, 'ي'); // Persian yeh
+    normalized = normalized.replace(/ں/g, 'ن'); // Noon ghunna
+    normalized = normalized.replace(/[ھہۂۃ]/g, 'ه'); // Heh variants
+  }
   
   // Remove any remaining non-Arabic base letters except spaces
   // Keep only Arabic letters (U+0621-U+064A) and extended forms (U+066E-U+06D3)
@@ -63,6 +88,13 @@ export function normalizeArabic(text: string): string {
   normalized = normalized.replace(/\s+/g, ' ').trim();
   
   return normalized;
+}
+
+// Extract word root (first few consonants for fuzzy matching)
+export function extractWordRoot(word: string): string {
+  const normalized = normalizeArabic(word, 'aggressive');
+  // Remove weak letters (alef, waw, yeh) from middle
+  return normalized.replace(/[اوي]/g, '').slice(0, 4);
 }
 
 interface ParsedAyah {
