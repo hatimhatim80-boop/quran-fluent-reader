@@ -165,44 +165,38 @@
     pointer-events: none;
   }
 
-  /* Premium ghareeb word - underline + glow only */
+  /* Premium ghareeb word - light yellow background */
   .ghareeb-word {
     position: relative;
     cursor: pointer;
     text-decoration: none;
-    border-bottom: 1.5px solid hsl(var(--ornament) / 0.5);
+    background-color: hsl(48 80% 90% / 0.6);
+    border-radius: 3px;
+    padding: 0 2px;
+    margin: 0 -2px;
     transition: all 0.2s ease;
-  }
-
-  .ghareeb-word::after {
-    content: '';
-    position: absolute;
-    inset: -2px -1px;
-    border-radius: 4px;
-    background: hsl(var(--highlight) / 0);
-    box-shadow: 0 0 0 0 hsl(var(--highlight) / 0);
-    transition: all 0.2s ease;
-    pointer-events: none;
-    z-index: -1;
   }
 
   .ghareeb-word:hover {
-    border-bottom-color: hsl(var(--ornament) / 0.8);
-  }
-
-  .ghareeb-word:hover::after {
-    background: hsl(var(--highlight) / 0.15);
-    box-shadow: 0 0 12px 2px hsl(var(--highlight) / 0.25);
+    background-color: hsl(48 80% 85% / 0.8);
   }
 
   .ghareeb-word--active {
-    border-bottom-color: hsl(var(--ornament));
+    background-color: hsl(48 85% 75% / 0.9);
+    box-shadow: 0 0 8px 2px hsl(48 80% 70% / 0.4);
   }
 
-  .ghareeb-word--active::after {
-    background: hsl(var(--highlight) / 0.2);
-    box-shadow: 0 0 16px 4px hsl(var(--highlight) / 0.35);
-    animation: gentle-glow 2s ease-in-out infinite;
+  .dark .ghareeb-word {
+    background-color: hsl(48 60% 30% / 0.4);
+  }
+
+  .dark .ghareeb-word:hover {
+    background-color: hsl(48 60% 35% / 0.5);
+  }
+
+  .dark .ghareeb-word--active {
+    background-color: hsl(48 65% 40% / 0.6);
+    box-shadow: 0 0 8px 2px hsl(48 60% 35% / 0.4);
   }
 
   /* Popover styling - High z-index to ensure visibility */
