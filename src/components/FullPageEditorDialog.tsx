@@ -48,6 +48,7 @@ import {
   ScanLine,
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { DevDebugPanel } from './DevDebugPanel';
 
 interface FullPageEditorDialogProps {
   children: React.ReactNode;
@@ -55,6 +56,7 @@ interface FullPageEditorDialogProps {
   pages?: QuranPage[];
   pageWords?: GhareebWord[];
   allWords?: GhareebWord[];
+  renderedWords?: GhareebWord[];
   onNavigateToPage?: (page: number) => void;
   onHighlightWord?: (index: number) => void;
   onRefreshData?: () => void;
@@ -95,6 +97,7 @@ export function FullPageEditorDialog({
   pages = [],
   pageWords = [],
   allWords = [],
+  renderedWords = [],
   onNavigateToPage,
   onHighlightWord,
   onRefreshData,
@@ -458,11 +461,23 @@ export function FullPageEditorDialog({
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>{children}</DialogTrigger>
       <DialogContent className="max-w-5xl max-h-[90vh] overflow-hidden" dir="rtl">
-        <DialogHeader>
+        <DialogHeader className="flex flex-row items-center justify-between">
           <DialogTitle className="font-arabic text-xl flex items-center gap-2">
             <FileText className="w-5 h-5" />
             محرر الصفحات الكامل
           </DialogTitle>
+          {/* DEV Debug Panel Toggle - Top Right */}
+          {process.env.NODE_ENV !== 'production' && pages.find(p => p.pageNumber === page) && (
+            <div dir="ltr">
+              <DevDebugPanel
+                page={pages.find(p => p.pageNumber === page)!}
+                pageNumber={page}
+                ghareebWords={resolvedWords}
+                renderedWords={renderedWords.filter(w => w.pageNumber === page)}
+                onInvalidateCache={onRefreshData}
+              />
+            </div>
+          )}
         </DialogHeader>
 
         <div className="space-y-4 mt-4">
