@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { useQuranData } from '@/hooks/useQuranData';
 import { useAutoPlay } from '@/hooks/useAutoPlay';
 import { GhareebWord } from '@/types/quran';
@@ -27,7 +27,7 @@ export function QuranReader() {
   const [selectedWord, setSelectedWord] = useState<GhareebWord | null>(null);
 
   const pageData = getCurrentPageData();
-  const pageWords = getPageGhareebWords();
+  const pageWords = useMemo(() => getPageGhareebWords(), [getPageGhareebWords]);
 
   const {
     isPlaying,
