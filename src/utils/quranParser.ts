@@ -18,49 +18,37 @@ function cleanWordText(text: string): string {
   return text.replace(/[﴿﴾]/g, '').trim();
 }
 
-// Remove diacritics for comparison (but keep the letter forms)
-function removeDiacritics(text: string): string {
-  return text
-    // Remove common Arabic diacritics
-    .replace(/[\u064B-\u065F]/g, '') // Fathatan, Dammatan, Kasratan, Fatha, Damma, Kasra, Shadda, Sukun, etc.
-    .replace(/[\u0670]/g, '') // Superscript alef
-    .replace(/[\u06D6-\u06DC]/g, '') // Small high ligatures
-    .replace(/[\u06DF-\u06E4]/g, '') // Small high marks
-    .replace(/[\u06E7-\u06E8]/g, '') // Small high yeh/noon
-    .replace(/[\u06EA-\u06ED]/g, '') // Small low marks
-    .replace(/ٱ/g, 'ا') // Alef wasla to regular alef
-    .replace(/ٰ/g, 'ا') // Superscript alef to regular alef
-    .replace(/ۡ/g, '') // Small high rounded zero
-    .replace(/ۢ/g, '') // Small high seen
-    .replace(/ۥ/g, '') // Small waw
-    .replace(/ۦ/g, '') // Small yeh
-    .replace(/ۧ/g, '') // Small high yeh
-    .replace(/ۨ/g, '') // Small high noon
-    .replace(/۩/g, '') // Sajdah mark
-    .replace(/۪/g, '') // Empty centre low stop
-    .replace(/۫/g, '') // Empty centre high stop
-    .replace(/۬/g, '') // Rounded high stop
-    .replace(/ۭ/g, '') // Small low meem
-    .replace(/ۖ/g, '') // Small high ligature
-    .replace(/ۗ/g, '')
-    .replace(/ۘ/g, '')
-    .replace(/ۙ/g, '')
-    .replace(/ۚ/g, '')
-    .replace(/ۛ/g, '')
-    .replace(/ۜ/g, '')
-    .replace(/۟/g, '')
-    .replace(/۠/g, '')
-    .replace(/ۤ/g, '')
-    .replace(/ﷺ/g, '')
-    .replace(/﷽/g, '')
-    .trim();
-}
-
-// Check if two Arabic texts match (ignoring diacritics)
-function arabicMatch(text1: string, text2: string): boolean {
-  const clean1 = removeDiacritics(text1);
-  const clean2 = removeDiacritics(text2);
-  return clean1 === clean2 || clean1.includes(clean2) || clean2.includes(clean1);
+// Normalize Arabic text for comparison - remove ALL diacritics and special marks
+function normalizeArabic(text: string): string {
+  // First, convert to a consistent form by removing all diacritics and special marks
+  let normalized = text;
+  
+  // Remove all Unicode ranges that contain diacritical marks and special symbols
+  normalized = normalized.replace(/[\u0610-\u061A\u064B-\u065F\u0670\u06D6-\u06ED\u08D3-\u08FF]/g, '');
+  
+  // Remove Quranic special characters
+  normalized = normalized.replace(/[ۣۖۗۘۙۚۛۜ۟۠ۡۢۤۥۦۧۨ۩۪ۭ۫۬ۮۯ]/g, '');
+  
+  // Normalize alef forms
+  normalized = normalized.replace(/[ٱإأآٲٳٵ]/g, 'ا');
+  
+  // Normalize other letters
+  normalized = normalized.replace(/ٰ/g, ''); // Superscript alef
+  normalized = normalized.replace(/ى/g, 'ي'); // Alef maksura to yeh
+  normalized = normalized.replace(/ۀ/g, 'ه'); // Heh with yeh above
+  normalized = normalized.replace(/ة/g, 'ه'); // Teh marbuta to heh
+  normalized = normalized.replace(/ؤ/g, 'و'); // Waw with hamza
+  normalized = normalized.replace(/ئ/g, 'ي'); // Yeh with hamza  
+  normalized = normalized.replace(/ء/g, ''); // Remove standalone hamza
+  normalized = normalized.replace(/ـ/g, ''); // Remove tatweel
+  
+  // Remove any remaining non-Arabic characters except spaces
+  normalized = normalized.replace(/[^\u0621-\u064A\u066E-\u06D3\s]/g, '');
+  
+  // Normalize whitespace
+  normalized = normalized.replace(/\s+/g, ' ').trim();
+  
+  return normalized;
 }
 
 export function parseMushafText(text: string): QuranPage[] {
@@ -111,12 +99,15 @@ export function parseGhareebText(text: string, pages: QuranPage[]): GhareebWord[
   const lines = text.split('\n');
   const words: GhareebWord[] = [];
   
-  // Create searchable versions of pages (without diacritics)
-  const pageSearchable = pages.map(p => ({
+  // Pre-process pages: create normalized versions for searching
+  const processedPages = pages.map(p => ({
     pageNumber: p.pageNumber,
-    cleanText: removeDiacritics(p.text),
+    normalizedText: normalizeArabic(p.text),
     originalText: p.text,
   }));
+
+  let foundCount = 0;
+  let notFoundCount = 0;
 
   for (const line of lines) {
     const trimmedLine = line.trim();
@@ -135,24 +126,58 @@ export function parseGhareebText(text: string, pages: QuranPage[]): GhareebWord[
 
     if (!wordText || !surahName || !verseNumber) continue;
 
-    const cleanWordForSearch = removeDiacritics(wordText);
+    // Normalize the ghareeb word for searching
+    const normalizedWord = normalizeArabic(wordText);
     
-    // Find all pages that contain this word
+    // Skip if normalization resulted in empty string
+    if (!normalizedWord || normalizedWord.length < 2) continue;
+    
+    // Find the page that contains this word
     let foundPageNumber = -1;
     
-    for (const page of pageSearchable) {
-      if (page.cleanText.includes(cleanWordForSearch)) {
+    // First try: exact phrase match
+    for (const page of processedPages) {
+      if (page.normalizedText.includes(normalizedWord)) {
         foundPageNumber = page.pageNumber;
-        break; // Take the first match
+        break;
       }
     }
     
-    // If not found, skip this word (it might be a variant spelling)
+    // Second try: match individual significant words from the phrase
     if (foundPageNumber === -1) {
-      console.log(`Word not found in pages: ${wordText} (${surahName} ${verseNumber})`);
-      continue;
+      const wordParts = normalizedWord.split(' ').filter(w => w.length >= 3);
+      if (wordParts.length > 0) {
+        // Try matching the longest word
+        const longestWord = wordParts.reduce((a, b) => a.length >= b.length ? a : b);
+        for (const page of processedPages) {
+          if (page.normalizedText.includes(longestWord)) {
+            foundPageNumber = page.pageNumber;
+            break;
+          }
+        }
+      }
+    }
+    
+    // Third try: more flexible matching
+    if (foundPageNumber === -1) {
+      const wordParts = normalizedWord.split(' ').filter(w => w.length >= 2);
+      for (const wordPart of wordParts) {
+        for (const page of processedPages) {
+          if (page.normalizedText.includes(wordPart)) {
+            foundPageNumber = page.pageNumber;
+            break;
+          }
+        }
+        if (foundPageNumber !== -1) break;
+      }
+    }
+    
+    if (foundPageNumber === -1) {
+      notFoundCount++;
+      continue; // Skip words we can't find
     }
 
+    foundCount++;
     words.push({
       pageNumber: foundPageNumber,
       wordText,
@@ -163,7 +188,7 @@ export function parseGhareebText(text: string, pages: QuranPage[]): GhareebWord[
     });
   }
 
-  console.log(`Parsed ${words.length} ghareeb words`);
+  console.log(`Ghareeb words: ${foundCount} found, ${notFoundCount} not found`);
   
   return words.sort((a, b) => {
     if (a.pageNumber !== b.pageNumber) return a.pageNumber - b.pageNumber;
@@ -172,7 +197,7 @@ export function parseGhareebText(text: string, pages: QuranPage[]): GhareebWord[
 }
 
 // Export for use in PageView
-export { removeDiacritics, arabicMatch };
+export { normalizeArabic };
 
 export async function loadQuranData(): Promise<{ pages: QuranPage[]; ghareebWords: GhareebWord[] }> {
   try {
