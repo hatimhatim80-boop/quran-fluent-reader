@@ -3,7 +3,6 @@ import { useQuranData } from '@/hooks/useQuranData';
 import { useAutoPlay } from '@/hooks/useAutoPlay';
 import { GhareebWord } from '@/types/quran';
 import { PageView } from './PageView';
-import { MeaningBox } from './MeaningBox';
 import { PageNavigation } from './PageNavigation';
 import { AutoPlayControls } from './AutoPlayControls';
 import { Loader2, BookOpen } from 'lucide-react';
@@ -118,11 +117,8 @@ export function QuranReader() {
             ghareebWords={pageWords}
             highlightedWordIndex={currentWordIndex}
             onWordClick={handleWordClick}
-          />
+        />
         )}
-
-        {/* Meaning Box - Bottom Panel */}
-        <MeaningBox word={selectedWord} onClose={handleCloseMeaning} />
 
         {/* Auto-Play Controls - Compact */}
         {pageWords.length > 0 && (

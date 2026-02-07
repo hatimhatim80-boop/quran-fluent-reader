@@ -1,6 +1,7 @@
-import React, { useMemo, useEffect } from 'react';
+import React, { useMemo, useEffect, useRef } from 'react';
 import { QuranPage, GhareebWord } from '@/types/quran';
 import { normalizeArabic } from '@/utils/quranParser';
+import { GhareebWordPopover } from './GhareebWordPopover';
 
 interface PageViewProps {
   page: QuranPage;
@@ -25,6 +26,8 @@ export function PageView({
   highlightedWordIndex,
   onWordClick,
 }: PageViewProps) {
+  const containerRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
     if (highlightedWordIndex < 0) return;
     const el = document.querySelector<HTMLElement>(
@@ -221,34 +224,32 @@ export function PageView({
             }
             
             elements.push(
-              <span
+              <GhareebWordPopover
                 key={`${lineIdx}-phrase-${i}`}
-                className={`${isHighlighted ? 'word-highlight ' : ''}word-ghareeb`}
-                data-ghareeb-index={entry.index}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onWordClick(entry.original, entry.index);
-                }}
+                word={entry.original}
+                index={entry.index}
+                isHighlighted={isHighlighted}
+                onSelect={onWordClick}
+                containerRef={containerRef}
               >
                 {phraseText.join('')}
-              </span>
+              </GhareebWordPopover>
             );
             
             i = lastPhraseTokenIdx + 1;
             continue;
           } else if (!td.isPartOfPhrase) {
             elements.push(
-              <span
+              <GhareebWordPopover
                 key={`${lineIdx}-${i}`}
-                className={`${isHighlighted ? 'word-highlight ' : ''}word-ghareeb`}
-                data-ghareeb-index={entry.index}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onWordClick(entry.original, entry.index);
-                }}
+                word={entry.original}
+                index={entry.index}
+                isHighlighted={isHighlighted}
+                onSelect={onWordClick}
+                containerRef={containerRef}
               >
                 {td.token}
-              </span>
+              </GhareebWordPopover>
             );
             i++;
             continue;
@@ -268,7 +269,7 @@ export function PageView({
   }, [page.text, ghareebWords, highlightedWordIndex, onWordClick, surahContextByLine]);
 
   return (
-    <div className="page-frame p-5 sm:p-8">
+    <div ref={containerRef} className="page-frame p-5 sm:p-8">
       {/* Page Number */}
       <div className="flex justify-center mb-5">
         <span className="bg-secondary/80 text-secondary-foreground px-4 py-1.5 rounded-full text-sm font-arabic shadow-sm">
