@@ -1,158 +1,169 @@
-import { useState, useEffect } from 'react';
-import { QuranPage, GhareebWord, SavedProgress } from '@/types/quran';
+import { useState, useEffect, useCallback } from 'react';
+import { Surah, GhareebWord, SavedProgress } from '@/types/quran';
+import { loadQuranData } from '@/utils/quranParser';
 
 const STORAGE_KEY = 'quran-app-progress';
 
 export function useQuranData() {
-  const [pages, setPages] = useState<QuranPage[]>([]);
+  const [surahs, setSurahs] = useState<Surah[]>([]);
   const [ghareebWords, setGhareebWords] = useState<GhareebWord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [currentPage, setCurrentPage] = useState(1);
+  const [error, setError] = useState<string | null>(null);
+  
+  const [currentSurahIndex, setCurrentSurahIndex] = useState(0);
+  const [currentVerseIndex, setCurrentVerseIndex] = useState(0);
   const [currentWordIndex, setCurrentWordIndex] = useState(-1);
 
-  // Load saved progress
+  // Load data on mount
   useEffect(() => {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved) {
+    async function loadData() {
+      setIsLoading(true);
+      setError(null);
+      
       try {
-        const progress: SavedProgress = JSON.parse(saved);
-        setCurrentPage(progress.lastPage || 1);
-        setCurrentWordIndex(progress.lastWordIndex ?? -1);
+        const { surahs: loadedSurahs, ghareebWords: loadedWords } = await loadQuranData();
+        
+        if (loadedSurahs.length === 0) {
+          setError('لم يتم العثور على بيانات القرآن');
+        } else {
+          setSurahs(loadedSurahs);
+          setGhareebWords(loadedWords);
+          
+          // Load saved progress
+          const saved = localStorage.getItem(STORAGE_KEY);
+          if (saved) {
+            try {
+              const progress: SavedProgress = JSON.parse(saved);
+              setCurrentSurahIndex(Math.min(progress.currentSurahIndex || 0, loadedSurahs.length - 1));
+              setCurrentVerseIndex(progress.currentVerseIndex || 0);
+              setCurrentWordIndex(progress.currentWordIndex ?? -1);
+            } catch (e) {
+              console.error('Failed to load progress:', e);
+            }
+          }
+        }
       } catch (e) {
-        console.error('Failed to load progress:', e);
+        setError('حدث خطأ في تحميل البيانات');
+        console.error(e);
+      } finally {
+        setIsLoading(false);
       }
     }
+    
+    loadData();
   }, []);
 
-  // Save progress whenever page or word changes
+  // Save progress
   useEffect(() => {
-    if (pages.length > 0) {
+    if (surahs.length > 0) {
       const progress: SavedProgress = {
-        lastPage: currentPage,
-        lastWordIndex: currentWordIndex,
+        currentSurahIndex,
+        currentVerseIndex,
+        currentWordIndex,
       };
       localStorage.setItem(STORAGE_KEY, JSON.stringify(progress));
     }
-  }, [currentPage, currentWordIndex, pages.length]);
+  }, [currentSurahIndex, currentVerseIndex, currentWordIndex, surahs.length]);
 
-  const parseCSV = (text: string): string[][] => {
-    const lines = text.trim().split('\n');
-    return lines.map(line => {
-      const result: string[] = [];
-      let current = '';
-      let inQuotes = false;
-      
-      for (let i = 0; i < line.length; i++) {
-        const char = line[i];
-        if (char === '"') {
-          inQuotes = !inQuotes;
-        } else if (char === ',' && !inQuotes) {
-          result.push(current.trim());
-          current = '';
-        } else {
-          current += char;
-        }
-      }
-      result.push(current.trim());
-      return result;
-    });
-  };
+  const currentSurah = surahs[currentSurahIndex];
+  const currentVerse = currentSurah?.verses[currentVerseIndex];
 
-  const loadPagesCSV = (file: File) => {
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const text = e.target?.result as string;
-      const rows = parseCSV(text);
-      const header = rows[0];
-      const pageNumIndex = header.findIndex(h => h.toLowerCase().includes('page_number'));
-      const textIndex = header.findIndex(h => h.toLowerCase().includes('page_text'));
-      
-      const parsed: QuranPage[] = rows.slice(1).map(row => ({
-        page_number: parseInt(row[pageNumIndex], 10),
-        page_text: row[textIndex] || '',
-      })).filter(p => !isNaN(p.page_number));
-      
-      setPages(parsed.sort((a, b) => a.page_number - b.page_number));
-      setIsLoading(false);
-    };
-    reader.readAsText(file);
-  };
-
-  const loadGhareebCSV = (file: File) => {
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const text = e.target?.result as string;
-      const rows = parseCSV(text);
-      const header = rows[0];
-      const pageNumIndex = header.findIndex(h => h.toLowerCase().includes('page_number'));
-      const orderIndex = header.findIndex(h => h.toLowerCase().includes('order'));
-      const wordIndex = header.findIndex(h => h.toLowerCase().includes('word_text'));
-      const meaningIndex = header.findIndex(h => h.toLowerCase().includes('meaning'));
-      
-      const parsed: GhareebWord[] = rows.slice(1).map(row => ({
-        page_number: parseInt(row[pageNumIndex], 10),
-        order: parseInt(row[orderIndex], 10),
-        word_text: row[wordIndex] || '',
-        meaning: row[meaningIndex] || '',
-      })).filter(w => !isNaN(w.page_number) && w.word_text);
-      
-      setGhareebWords(parsed.sort((a, b) => {
-        if (a.page_number !== b.page_number) return a.page_number - b.page_number;
-        return a.order - b.order;
-      }));
-    };
-    reader.readAsText(file);
-  };
-
-  const getPageWords = (pageNumber: number): GhareebWord[] => {
+  // Get ghareeb words for current verse
+  const getVerseGhareebWords = useCallback((): GhareebWord[] => {
+    if (!currentSurah || !currentVerse) return [];
+    
     return ghareebWords
-      .filter(w => w.page_number === pageNumber)
+      .filter(w => 
+        w.surahName === currentSurah.name && 
+        w.verseNumber === currentVerse.verseNumber
+      )
       .sort((a, b) => a.order - b.order);
-  };
+  }, [currentSurah, currentVerse, ghareebWords]);
 
-  const totalPages = pages.length > 0 ? Math.max(...pages.map(p => p.page_number)) : 604;
+  // Get ghareeb words for current surah
+  const getSurahGhareebWords = useCallback((): GhareebWord[] => {
+    if (!currentSurah) return [];
+    
+    return ghareebWords
+      .filter(w => w.surahName === currentSurah.name)
+      .sort((a, b) => {
+        if (a.verseNumber !== b.verseNumber) return a.verseNumber - b.verseNumber;
+        return a.order - b.order;
+      });
+  }, [currentSurah, ghareebWords]);
 
-  const goToPage = (page: number) => {
-    const validPage = Math.max(1, Math.min(page, totalPages));
-    setCurrentPage(validPage);
+  const goToSurah = useCallback((index: number) => {
+    const validIndex = Math.max(0, Math.min(index, surahs.length - 1));
+    setCurrentSurahIndex(validIndex);
+    setCurrentVerseIndex(0);
     setCurrentWordIndex(-1);
-  };
+  }, [surahs.length]);
 
-  const nextPage = () => goToPage(currentPage + 1);
-  const prevPage = () => goToPage(currentPage - 1);
+  const goToVerse = useCallback((index: number) => {
+    if (!currentSurah) return;
+    const validIndex = Math.max(0, Math.min(index, currentSurah.verses.length - 1));
+    setCurrentVerseIndex(validIndex);
+    setCurrentWordIndex(-1);
+  }, [currentSurah]);
 
-  const getCurrentPageData = (): QuranPage | undefined => {
-    return pages.find(p => p.page_number === currentPage);
-  };
+  const nextVerse = useCallback(() => {
+    if (!currentSurah) return;
+    
+    if (currentVerseIndex < currentSurah.verses.length - 1) {
+      setCurrentVerseIndex(v => v + 1);
+      setCurrentWordIndex(-1);
+    } else if (currentSurahIndex < surahs.length - 1) {
+      // Move to next surah
+      setCurrentSurahIndex(s => s + 1);
+      setCurrentVerseIndex(0);
+      setCurrentWordIndex(-1);
+    }
+  }, [currentSurah, currentVerseIndex, currentSurahIndex, surahs.length]);
 
-  const loadPagesData = (data: QuranPage[]) => {
-    setPages(data.sort((a, b) => a.page_number - b.page_number));
-    setIsLoading(false);
-  };
+  const prevVerse = useCallback(() => {
+    if (currentVerseIndex > 0) {
+      setCurrentVerseIndex(v => v - 1);
+      setCurrentWordIndex(-1);
+    } else if (currentSurahIndex > 0) {
+      // Move to previous surah's last verse
+      const prevSurah = surahs[currentSurahIndex - 1];
+      setCurrentSurahIndex(s => s - 1);
+      setCurrentVerseIndex(prevSurah.verses.length - 1);
+      setCurrentWordIndex(-1);
+    }
+  }, [currentVerseIndex, currentSurahIndex, surahs]);
 
-  const loadGhareebData = (data: GhareebWord[]) => {
-    setGhareebWords(data.sort((a, b) => {
-      if (a.page_number !== b.page_number) return a.page_number - b.page_number;
-      return a.order - b.order;
-    }));
-  };
+  const nextSurah = useCallback(() => {
+    if (currentSurahIndex < surahs.length - 1) {
+      goToSurah(currentSurahIndex + 1);
+    }
+  }, [currentSurahIndex, surahs.length, goToSurah]);
+
+  const prevSurah = useCallback(() => {
+    if (currentSurahIndex > 0) {
+      goToSurah(currentSurahIndex - 1);
+    }
+  }, [currentSurahIndex, goToSurah]);
 
   return {
-    pages,
+    surahs,
     ghareebWords,
     isLoading,
-    currentPage,
+    error,
+    currentSurah,
+    currentVerse,
+    currentSurahIndex,
+    currentVerseIndex,
     currentWordIndex,
     setCurrentWordIndex,
-    totalPages,
-    goToPage,
-    nextPage,
-    prevPage,
-    getCurrentPageData,
-    getPageWords,
-    loadPagesCSV,
-    loadGhareebCSV,
-    loadPagesData,
-    loadGhareebData,
+    getVerseGhareebWords,
+    getSurahGhareebWords,
+    goToSurah,
+    goToVerse,
+    nextVerse,
+    prevVerse,
+    nextSurah,
+    prevSurah,
+    totalSurahs: surahs.length,
   };
 }

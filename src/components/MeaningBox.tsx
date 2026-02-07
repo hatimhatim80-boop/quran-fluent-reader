@@ -1,6 +1,6 @@
 import React from 'react';
-import { GhareebWord } from '@/types/quran';
 import { X } from 'lucide-react';
+import { GhareebWord } from '@/types/quran';
 
 interface MeaningBoxProps {
   word: GhareebWord | null;
@@ -16,10 +16,10 @@ export function MeaningBox({ word, onClose }: MeaningBoxProps) {
         <div className="flex-1">
           <div className="flex items-center gap-3 mb-3">
             <span className="text-2xl font-bold font-arabic text-primary">
-              {word.word_text}
+              {word.wordText}
             </span>
             <span className="bg-primary/10 text-primary px-2 py-0.5 rounded text-sm font-arabic">
-              كلمة غريبة
+              {word.surahName} - آية {word.verseNumber}
             </span>
           </div>
           <p className="font-arabic text-lg text-foreground leading-relaxed">
