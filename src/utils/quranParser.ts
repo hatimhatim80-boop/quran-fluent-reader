@@ -1,4 +1,5 @@
 import { QuranPage, GhareebWord } from '@/types/quran';
+import { calculatePageNumber } from './pageMapper';
 
 // Convert Arabic numerals to Western numerals
 function arabicToNumber(arabicNum: string): number {
@@ -96,7 +97,7 @@ export function parseMushafText(text: string): QuranPage[] {
   return pages;
 }
 
-// Parse ghareeb words without page mapping - we'll match by text
+// Parse ghareeb words with calculated page numbers based on surah/verse mapping
 export function parseGhareebText(text: string): GhareebWord[] {
   const lines = text.split('\n');
   const words: GhareebWord[] = [];
@@ -119,13 +120,16 @@ export function parseGhareebText(text: string): GhareebWord[] {
 
     if (!wordText || !meaning) continue;
 
-    // Create unique key for deduplication (word + meaning)
-    const uniqueKey = `${wordText}|${meaning}`;
+    // Create unique key for deduplication (word + surah + verse + meaning)
+    const uniqueKey = `${wordText}|${surahName}|${verseNumber}|${meaning}`;
     if (seenWords.has(uniqueKey)) continue;
     seenWords.add(uniqueKey);
 
+    // Calculate page number from surah and verse
+    const pageNumber = calculatePageNumber(surahName, verseNumber);
+
     words.push({
-      pageNumber: 0, // Not used anymore
+      pageNumber,
       wordText,
       meaning,
       surahName,
@@ -139,7 +143,8 @@ export function parseGhareebText(text: string): GhareebWord[] {
 }
 
 // Find ghareeb words that appear in a given page text
-export function findWordsInPage(pageText: string, allWords: GhareebWord[]): GhareebWord[] {
+// Uses both text matching AND page number verification for accuracy
+export function findWordsInPage(pageText: string, allWords: GhareebWord[], pageNumber?: number): GhareebWord[] {
   const normalizedPageText = normalizeArabic(pageText);
   const foundWords: { word: GhareebWord; firstIndex: number }[] = [];
   const usedKeys = new Set<string>();
@@ -148,10 +153,17 @@ export function findWordsInPage(pageText: string, allWords: GhareebWord[]): Ghar
     const normalizedWord = normalizeArabic(word.wordText);
     if (normalizedWord.length < 2) continue;
 
+    // If pageNumber is provided, prioritize words mapped to this page (±1 tolerance)
+    if (pageNumber !== undefined && word.pageNumber > 0) {
+      const pageDiff = Math.abs(word.pageNumber - pageNumber);
+      if (pageDiff > 1) continue; // Skip words mapped to different pages
+    }
+
     // Check if this word appears in the page text
     const index = normalizedPageText.indexOf(normalizedWord);
     if (index !== -1) {
-      const key = `${word.wordText}|${word.meaning}`;
+      // Create unique key including surah and verse for better deduplication
+      const key = `${word.wordText}|${word.surahName}|${word.verseNumber}|${word.meaning}`;
       if (!usedKeys.has(key)) {
         usedKeys.add(key);
         foundWords.push({ word, firstIndex: index });

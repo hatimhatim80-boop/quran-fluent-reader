@@ -69,11 +69,12 @@ export function useQuranData() {
     return pages.find(p => p.pageNumber === currentPage);
   }, [pages, currentPage]);
 
-  // Get ghareeb words found in current page text (not by page number)
+  // Get ghareeb words found in current page text with page number verification
   const getPageGhareebWords = useMemo((): GhareebWord[] => {
     const pageData = pages.find(p => p.pageNumber === currentPage);
     if (!pageData) return [];
-    return findWordsInPage(pageData.text, allGhareebWords);
+    // Pass pageNumber for better filtering based on surah/verse mapping
+    return findWordsInPage(pageData.text, allGhareebWords, currentPage);
   }, [pages, currentPage, allGhareebWords]);
 
   const goToPage = useCallback((page: number) => {
