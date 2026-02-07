@@ -6,82 +6,84 @@
 
 @layer base {
   :root {
-    /* Warm, spiritual color palette */
-    --background: 40 30% 96%;
-    --foreground: 30 25% 15%;
+    /* Premium Mushaf-inspired palette */
+    --background: 35 35% 95%;
+    --foreground: 25 30% 18%;
 
-    --card: 40 35% 98%;
-    --card-foreground: 30 25% 15%;
+    --card: 38 40% 97%;
+    --card-foreground: 25 30% 18%;
 
-    --popover: 40 35% 98%;
-    --popover-foreground: 30 25% 15%;
+    --popover: 38 45% 98%;
+    --popover-foreground: 25 30% 18%;
 
-    /* Gold/amber for primary actions */
-    --primary: 38 70% 45%;
-    --primary-foreground: 40 30% 98%;
+    /* Elegant gold for primary */
+    --primary: 36 55% 42%;
+    --primary-foreground: 38 40% 98%;
 
-    /* Soft cream for secondary */
-    --secondary: 40 25% 90%;
-    --secondary-foreground: 30 25% 20%;
+    /* Warm cream for secondary */
+    --secondary: 38 30% 92%;
+    --secondary-foreground: 25 25% 25%;
 
-    --muted: 40 20% 92%;
-    --muted-foreground: 30 15% 45%;
+    --muted: 35 20% 90%;
+    --muted-foreground: 25 15% 50%;
 
-    /* Gold accent for highlights */
-    --accent: 42 85% 55%;
-    --accent-foreground: 30 25% 10%;
+    /* Soft amber accent */
+    --accent: 38 50% 50%;
+    --accent-foreground: 25 30% 12%;
 
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive: 0 70% 55%;
+    --destructive-foreground: 0 0% 100%;
 
-    --border: 35 25% 85%;
-    --input: 35 25% 85%;
-    --ring: 38 70% 45%;
+    --border: 35 25% 88%;
+    --input: 35 25% 88%;
+    --ring: 36 55% 42%;
 
-    --radius: 0.5rem;
+    --radius: 0.75rem;
 
-    /* Custom colors for Quran app */
-    --highlight: 42 90% 60%;
-    --highlight-glow: 42 100% 70%;
-    --page-border: 35 40% 70%;
-    --ornament: 38 60% 40%;
-    --meaning-bg: 40 40% 95%;
+    /* Custom Quran app colors */
+    --highlight: 45 85% 72%;
+    --highlight-soft: 45 60% 85%;
+    --page-border: 35 30% 82%;
+    --ornament: 36 45% 50%;
+    --meaning-bg: 38 50% 96%;
+    --verse-number: 36 40% 55%;
   }
 
   .dark {
-    --background: 30 20% 8%;
-    --foreground: 40 25% 90%;
+    --background: 25 20% 7%;
+    --foreground: 38 30% 92%;
 
-    --card: 30 20% 12%;
-    --card-foreground: 40 25% 90%;
+    --card: 25 18% 10%;
+    --card-foreground: 38 30% 92%;
 
-    --popover: 30 20% 12%;
-    --popover-foreground: 40 25% 90%;
+    --popover: 25 18% 12%;
+    --popover-foreground: 38 30% 92%;
 
-    --primary: 42 75% 50%;
-    --primary-foreground: 30 20% 8%;
+    --primary: 40 60% 55%;
+    --primary-foreground: 25 20% 7%;
 
-    --secondary: 30 15% 20%;
-    --secondary-foreground: 40 25% 90%;
+    --secondary: 25 15% 18%;
+    --secondary-foreground: 38 30% 92%;
 
-    --muted: 30 15% 18%;
-    --muted-foreground: 40 15% 60%;
+    --muted: 25 12% 16%;
+    --muted-foreground: 38 20% 55%;
 
-    --accent: 42 80% 50%;
-    --accent-foreground: 30 20% 8%;
+    --accent: 40 55% 48%;
+    --accent-foreground: 25 20% 7%;
 
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive: 0 55% 40%;
+    --destructive-foreground: 0 0% 100%;
 
-    --border: 30 15% 25%;
-    --input: 30 15% 25%;
-    --ring: 42 75% 50%;
+    --border: 25 15% 22%;
+    --input: 25 15% 22%;
+    --ring: 40 60% 55%;
 
-    --highlight: 42 85% 50%;
-    --highlight-glow: 42 100% 60%;
-    --page-border: 35 30% 35%;
-    --ornament: 42 60% 45%;
-    --meaning-bg: 30 20% 15%;
+    --highlight: 42 70% 45%;
+    --highlight-soft: 42 50% 25%;
+    --page-border: 30 20% 25%;
+    --ornament: 40 50% 50%;
+    --meaning-bg: 25 18% 12%;
+    --verse-number: 40 45% 50%;
   }
 }
 
@@ -91,18 +93,19 @@
   }
 
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground antialiased;
     font-family: 'Amiri', 'Noto Naskh Arabic', serif;
   }
 
-  /* Arabic text styling */
+  /* Premium Arabic text styling */
   .arabic-text {
     font-family: 'Amiri', 'Noto Naskh Arabic', serif;
     direction: rtl;
     text-align: justify;
-    line-height: 2.2;
-    font-size: 1.75rem;
+    line-height: 2.4;
+    font-size: 1.5rem;
     letter-spacing: 0;
+    word-spacing: 0.1em;
   }
 
   .quran-page {
@@ -110,106 +113,181 @@
     text-align: justify;
     text-justify: inter-word;
   }
+
+  /* Verse number styling */
+  .verse-number {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.65em;
+    color: hsl(var(--verse-number));
+    margin: 0 0.15em;
+    vertical-align: middle;
+  }
 }
 
 @layer components {
+  /* Premium page frame */
   .page-frame {
-    background: hsl(var(--card));
-    border: 3px solid hsl(var(--page-border));
-    border-radius: 0.75rem;
+    background: linear-gradient(
+      180deg,
+      hsl(var(--card)) 0%,
+      hsl(38 45% 96%) 50%,
+      hsl(var(--card)) 100%
+    );
+    border: 1px solid hsl(var(--page-border));
+    border-radius: 1rem;
     box-shadow: 
-      0 4px 6px -1px rgba(0, 0, 0, 0.1),
-      0 2px 4px -1px rgba(0, 0, 0, 0.06),
-      inset 0 0 60px rgba(0, 0, 0, 0.02);
+      0 1px 3px rgba(0, 0, 0, 0.04),
+      0 4px 12px rgba(0, 0, 0, 0.03);
     position: relative;
   }
 
+  /* Subtle inner border */
   .page-frame::before {
     content: '';
     position: absolute;
-    inset: 8px;
-    border: 1px solid hsl(var(--ornament) / 0.3);
-    border-radius: 0.5rem;
+    inset: 6px;
+    border: 1px solid hsl(var(--ornament) / 0.15);
+    border-radius: 0.75rem;
     pointer-events: none;
   }
 
+  /* Soft highlight for ghareeb words */
   .word-highlight {
     background: linear-gradient(
       135deg,
-      hsl(var(--highlight) / 0.4) 0%,
-      hsl(var(--highlight-glow) / 0.5) 100%
+      hsl(var(--highlight) / 0.5) 0%,
+      hsl(var(--highlight) / 0.7) 100%
     );
-    border-radius: 4px;
-    padding: 2px 6px;
-    margin: 0 2px;
-    box-shadow: 0 0 12px hsl(var(--highlight) / 0.4);
-    animation: pulse-glow 1.5s ease-in-out infinite;
+    border-radius: 6px;
+    padding: 2px 4px;
+    margin: 0 1px;
+    box-shadow: 0 0 0 2px hsl(var(--highlight) / 0.3);
+    animation: soft-pulse 2s ease-in-out infinite;
   }
 
+  /* Ghareeb word - subtle styling */
   .word-ghareeb {
-    background: #ffe58f;
-    padding: 0 2px;
+    background: hsl(var(--highlight-soft));
+    padding: 1px 3px;
     border-radius: 4px;
     cursor: pointer;
     transition: all 0.2s ease;
+    border-bottom: 1.5px solid hsl(var(--ornament) / 0.4);
   }
 
   .word-ghareeb:hover {
     background: hsl(var(--highlight) / 0.6);
+    border-bottom-color: hsl(var(--ornament) / 0.7);
   }
 
+  /* Legacy class for compatibility */
   .ghareeb {
-    background: #ffe58f;
-    padding: 0 2px;
+    background: hsl(var(--highlight-soft));
+    padding: 1px 3px;
     border-radius: 4px;
   }
 
-  .meaning-box {
+  /* Meaning panel - bottom sheet style */
+  .meaning-panel {
     background: hsl(var(--meaning-bg));
-    border: 2px solid hsl(var(--ornament) / 0.4);
-    border-radius: 0.75rem;
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+    border: 1px solid hsl(var(--border));
+    border-radius: 1.25rem 1.25rem 1rem 1rem;
+    box-shadow: 
+      0 -4px 20px rgba(0, 0, 0, 0.06),
+      0 -1px 6px rgba(0, 0, 0, 0.04);
   }
 
+  /* Clean navigation button */
   .nav-button {
     @apply flex items-center justify-center;
-    background: hsl(var(--secondary));
-    border: 2px solid hsl(var(--border));
+    background: hsl(var(--card));
+    border: 1px solid hsl(var(--border));
+    border-radius: 0.75rem;
     transition: all 0.2s ease;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
   }
 
   .nav-button:hover {
     background: hsl(var(--primary));
     color: hsl(var(--primary-foreground));
     border-color: hsl(var(--primary));
+    transform: translateY(-1px);
+    box-shadow: 0 3px 8px hsl(var(--primary) / 0.2);
   }
 
+  .nav-button:active {
+    transform: translateY(0);
+  }
+
+  /* Control button */
   .control-button {
     background: hsl(var(--primary));
     color: hsl(var(--primary-foreground));
+    border-radius: 0.75rem;
     transition: all 0.2s ease;
+    box-shadow: 0 2px 6px hsl(var(--primary) / 0.25);
   }
 
   .control-button:hover {
     background: hsl(var(--primary) / 0.9);
-    transform: scale(1.02);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px hsl(var(--primary) / 0.3);
+  }
+
+  .control-button:active {
+    transform: translateY(0);
+  }
+
+  /* Surah header */
+  .surah-header {
+    @apply text-center py-3 my-4;
+    background: linear-gradient(
+      90deg,
+      transparent 0%,
+      hsl(var(--ornament) / 0.08) 20%,
+      hsl(var(--ornament) / 0.12) 50%,
+      hsl(var(--ornament) / 0.08) 80%,
+      transparent 100%
+    );
+    border-top: 1px solid hsl(var(--ornament) / 0.2);
+    border-bottom: 1px solid hsl(var(--ornament) / 0.2);
+  }
+
+  /* Bismillah styling */
+  .bismillah {
+    @apply text-center py-2 my-3;
+    color: hsl(var(--primary));
+    font-size: 1.2rem;
   }
 }
 
 @layer utilities {
-  @keyframes pulse-glow {
+  @keyframes soft-pulse {
     0%, 100% {
-      box-shadow: 0 0 12px hsl(var(--highlight) / 0.4);
+      box-shadow: 0 0 0 2px hsl(var(--highlight) / 0.3);
     }
     50% {
-      box-shadow: 0 0 20px hsl(var(--highlight) / 0.6);
+      box-shadow: 0 0 0 4px hsl(var(--highlight) / 0.2);
     }
   }
 
   @keyframes fade-in {
     from {
       opacity: 0;
-      transform: translateY(10px);
+      transform: translateY(8px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes slide-up {
+    from {
+      opacity: 0;
+      transform: translateY(100%);
     }
     to {
       opacity: 1;
@@ -218,6 +296,10 @@
   }
 
   .animate-fade-in {
-    animation: fade-in 0.3s ease-out;
+    animation: fade-in 0.25s ease-out;
+  }
+
+  .animate-slide-up {
+    animation: slide-up 0.3s ease-out;
   }
 }
