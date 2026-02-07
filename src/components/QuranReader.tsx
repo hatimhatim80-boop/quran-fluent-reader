@@ -119,6 +119,7 @@ export function QuranReader() {
           pages={pages}
           pageWords={renderedWords}
           allWords={allGhareebWords}
+          renderedWords={renderedWords}
           onNavigateToPage={goToPage}
           onHighlightWord={jumpTo}
           onRefreshData={() => {

@@ -29,6 +29,7 @@ interface ToolbarProps {
   pages?: QuranPage[];
   pageWords?: GhareebWord[];
   allWords?: GhareebWord[];
+  renderedWords?: GhareebWord[];
   onNavigateToPage?: (page: number) => void;
   onHighlightWord?: (index: number) => void;
   onRefreshData?: () => void;
@@ -43,6 +44,7 @@ export function Toolbar({
   pages = [],
   pageWords = [],
   allWords = [],
+  renderedWords = [],
   onNavigateToPage,
   onHighlightWord,
   onRefreshData,
@@ -143,6 +145,7 @@ export function Toolbar({
           pages={pages}
           pageWords={pageWords}
           allWords={allWords}
+          renderedWords={renderedWords}
           onNavigateToPage={onNavigateToPage}
           onHighlightWord={onHighlightWord}
           onRefreshData={onRefreshData}
