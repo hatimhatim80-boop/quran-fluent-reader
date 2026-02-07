@@ -5,8 +5,8 @@ import { GhareebWord } from '@/types/quran';
 import { PageView } from './PageView';
 import { PageNavigation } from './PageNavigation';
 import { AutoPlayControls } from './AutoPlayControls';
+import { MeaningBox } from './MeaningBox';
 import { Loader2, BookOpen } from 'lucide-react';
-
 export function QuranReader() {
   const {
     pages,
@@ -43,18 +43,7 @@ export function QuranReader() {
     setCurrentWordIndex,
   });
 
-  // Auto-start playback when page has ghareeb words
-  useEffect(() => {
-    if (pageWords.length > 0 && !isPlaying) {
-      // Small delay to let page render first
-      const timer = setTimeout(() => {
-        setCurrentWordIndex(0);
-        play();
-      }, 300);
-      return () => clearTimeout(timer);
-    }
-  }, [currentPage, pageWords.length, play, setCurrentWordIndex]);
-
+  // Update selected word when auto-play changes current index
   useEffect(() => {
     if (currentWordIndex >= 0 && currentWordIndex < pageWords.length) {
       setSelectedWord(pageWords[currentWordIndex]);
@@ -149,6 +138,9 @@ export function QuranReader() {
             />
           </div>
         )}
+
+        {/* Meaning Box */}
+        <MeaningBox word={selectedWord} onClose={handleCloseMeaning} />
 
         {/* Navigation */}
         <PageNavigation
