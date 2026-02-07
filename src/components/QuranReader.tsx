@@ -1,36 +1,37 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { useQuranData } from '@/hooks/useQuranData';
 import { useAutoPlay } from '@/hooks/useAutoPlay';
 import { GhareebWord } from '@/types/quran';
-import { FileUploader } from './FileUploader';
-import { QuranPageView } from './QuranPageView';
+import { SurahView } from './SurahView';
 import { MeaningBox } from './MeaningBox';
-import { NavigationControls } from './NavigationControls';
+import { SurahNavigation } from './SurahNavigation';
 import { AutoPlayControls } from './AutoPlayControls';
+import { Loader2 } from 'lucide-react';
 
 export function QuranReader() {
   const {
-    pages,
-    currentPage,
+    surahs,
+    isLoading,
+    error,
+    currentSurah,
+    currentVerse,
+    currentSurahIndex,
+    currentVerseIndex,
     currentWordIndex,
     setCurrentWordIndex,
-    totalPages,
-    goToPage,
-    nextPage,
-    prevPage,
-    getCurrentPageData,
-    getPageWords,
-    loadPagesCSV,
-    loadGhareebCSV,
-    loadPagesData,
-    loadGhareebData,
+    getSurahGhareebWords,
+    goToSurah,
+    goToVerse,
+    nextVerse,
+    prevVerse,
+    nextSurah,
+    prevSurah,
+    totalSurahs,
   } = useQuranData();
 
   const [selectedWord, setSelectedWord] = useState<GhareebWord | null>(null);
-  const [ghareebLoaded, setGhareebLoaded] = useState(false);
 
-  const currentPageData = getCurrentPageData();
-  const pageWords = getPageWords(currentPage);
+  const surahWords = getSurahGhareebWords();
 
   const {
     isPlaying,
@@ -42,17 +43,17 @@ export function QuranReader() {
     nextWord,
     prevWord,
   } = useAutoPlay({
-    words: pageWords,
+    words: surahWords,
     currentWordIndex,
     setCurrentWordIndex,
   });
 
   // Update selected word when highlighted word changes
-  React.useEffect(() => {
-    if (currentWordIndex >= 0 && currentWordIndex < pageWords.length) {
-      setSelectedWord(pageWords[currentWordIndex]);
+  useEffect(() => {
+    if (currentWordIndex >= 0 && currentWordIndex < surahWords.length) {
+      setSelectedWord(surahWords[currentWordIndex]);
     }
-  }, [currentWordIndex, pageWords]);
+  }, [currentWordIndex, surahWords]);
 
   const handleWordClick = useCallback((word: GhareebWord, index: number) => {
     setSelectedWord(word);
@@ -66,27 +67,29 @@ export function QuranReader() {
     }
   }, [isPlaying, setCurrentWordIndex]);
 
-  const handleGhareebCSV = (file: File) => {
-    loadGhareebCSV(file);
-    setGhareebLoaded(true);
-  };
-
-  const handleGhareebData = (words: GhareebWord[]) => {
-    loadGhareebData(words);
-    setGhareebLoaded(true);
-  };
-
-  // Show file uploader if no pages loaded
-  if (pages.length === 0) {
+  // Loading state
+  if (isLoading) {
     return (
-      <FileUploader
-        onPagesUpload={loadPagesCSV}
-        onGhareebUpload={handleGhareebCSV}
-        onPagesData={loadPagesData}
-        onGhareebData={handleGhareebData}
-        pagesLoaded={pages.length > 0}
-        ghareebLoaded={ghareebLoaded}
-      />
+      <div className="min-h-screen bg-background flex items-center justify-center" dir="rtl">
+        <div className="text-center space-y-4">
+          <Loader2 className="w-12 h-12 text-primary animate-spin mx-auto" />
+          <p className="font-arabic text-muted-foreground">جاري تحميل القرآن الكريم...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Error state
+  if (error || surahs.length === 0) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center" dir="rtl">
+        <div className="page-frame p-8 max-w-md text-center">
+          <p className="font-arabic text-destructive text-lg mb-2">⚠️ {error || 'لم يتم تحميل البيانات'}</p>
+          <p className="font-arabic text-muted-foreground text-sm">
+            تأكد من وجود ملفات البيانات في مجلد public/data
+          </p>
+        </div>
+      </div>
     );
   }
 
@@ -99,25 +102,20 @@ export function QuranReader() {
             القرآن الكريم
           </h1>
           <p className="text-muted-foreground font-arabic text-sm mt-1">
-            مع شرح الكلمات الغريبة
+            الميسر في غريب القرآن
           </p>
         </header>
 
-        {/* Quran Page */}
-        {currentPageData ? (
-          <QuranPageView
-            pageText={currentPageData.page_text}
-            pageNumber={currentPageData.page_number}
-            ghareebWords={pageWords}
+        {/* Surah View */}
+        {currentSurah && (
+          <SurahView
+            surah={currentSurah}
+            ghareebWords={surahWords}
             highlightedWordIndex={currentWordIndex}
+            currentVerseIndex={currentVerseIndex}
             onWordClick={handleWordClick}
+            onVerseClick={goToVerse}
           />
-        ) : (
-          <div className="page-frame p-8 text-center">
-            <p className="font-arabic text-muted-foreground">
-              الصفحة غير موجودة
-            </p>
-          </div>
         )}
 
         {/* Meaning Box */}
@@ -128,7 +126,7 @@ export function QuranReader() {
           <AutoPlayControls
             isPlaying={isPlaying}
             speed={speed}
-            wordsCount={pageWords.length}
+            wordsCount={surahWords.length}
             currentWordIndex={currentWordIndex}
             onPlay={play}
             onPause={pause}
@@ -140,12 +138,17 @@ export function QuranReader() {
         </div>
 
         {/* Navigation */}
-        <NavigationControls
-          currentPage={currentPage}
-          totalPages={totalPages}
-          onPrevPage={prevPage}
-          onNextPage={nextPage}
-          onGoToPage={goToPage}
+        <SurahNavigation
+          surahs={surahs}
+          currentSurahIndex={currentSurahIndex}
+          currentVerseIndex={currentVerseIndex}
+          totalVerses={currentSurah?.verses.length || 0}
+          onPrevSurah={prevSurah}
+          onNextSurah={nextSurah}
+          onPrevVerse={prevVerse}
+          onNextVerse={nextVerse}
+          onGoToSurah={goToSurah}
+          onGoToVerse={goToVerse}
         />
 
         {/* Footer */}
