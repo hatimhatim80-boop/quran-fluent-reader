@@ -77,10 +77,14 @@ export function useQuranData() {
     return pages.find(p => p.pageNumber === currentPage);
   }, [pages, currentPage]);
 
-  // Get ghareeb words for current page directly from the precise JSON data
+  // Get ghareeb words for current page using text-based matching
   const getPageGhareebWords = useMemo((): GhareebWord[] => {
-    return getWordsForPage(ghareebPageMap, currentPage);
-  }, [ghareebPageMap, currentPage]);
+    const pageData = pages.find(p => p.pageNumber === currentPage);
+    if (!pageData) return [];
+    
+    // Pass the actual page text for text-based matching
+    return getWordsForPage(ghareebPageMap, currentPage, pageData.text);
+  }, [ghareebPageMap, currentPage, pages]);
 
   const goToPage = useCallback((page: number) => {
     const validPage = Math.max(1, Math.min(page, totalPages));

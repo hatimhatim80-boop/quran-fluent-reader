@@ -1,4 +1,5 @@
-import { GhareebWord, GhareebJsonData, GhareebPageItem } from '@/types/quran';
+import { GhareebWord, GhareebJsonData } from '@/types/quran';
+import { normalizeArabic } from './quranParser';
 
 /**
  * Extract the actual Quranic word from the raw field
@@ -12,15 +13,18 @@ function extractWordFromRaw(raw: string): string {
   return '';
 }
 
+// Store all ghareeb words for text-based matching
+let allGhareebWords: GhareebWord[] = [];
+
 /**
  * Load ghareeb words from the accurate JSON file
- * Returns a Map of pageNumber -> GhareebWord[]
  */
 export async function loadGhareebData(): Promise<Map<number, GhareebWord[]>> {
   const response = await fetch('/data/ghareeb-pages.json');
   const data: GhareebJsonData = await response.json();
   
   const pageMap = new Map<number, GhareebWord[]>();
+  allGhareebWords = [];
   
   for (const page of data.pages) {
     const words: GhareebWord[] = [];
@@ -44,7 +48,7 @@ export async function loadGhareebData(): Promise<Map<number, GhareebWord[]>> {
       // Create unique key for precise matching
       const uniqueKey = `${item.surah}_${item.ayah}_${wordIndexInAyah}`;
       
-      words.push({
+      const ghareebWord: GhareebWord = {
         pageNumber: page.page,
         wordText,
         meaning,
@@ -53,7 +57,10 @@ export async function loadGhareebData(): Promise<Map<number, GhareebWord[]>> {
         verseNumber: item.ayah,
         order: words.length,
         uniqueKey,
-      });
+      };
+      
+      words.push(ghareebWord);
+      allGhareebWords.push(ghareebWord);
     }
     
     if (words.length > 0) {
@@ -61,16 +68,72 @@ export async function loadGhareebData(): Promise<Map<number, GhareebWord[]>> {
     }
   }
   
-  console.log(`Loaded ghareeb data for ${pageMap.size} pages`);
+  console.log(`Loaded ghareeb data for ${pageMap.size} pages, total ${allGhareebWords.length} words`);
   return pageMap;
 }
 
 /**
- * Get ghareeb words for a specific page
+ * Find ghareeb words that appear in a given page text
+ * This searches the actual text content for matches
+ */
+export function findWordsInPageText(
+  pageText: string,
+  pageNumber: number,
+  pageMap: Map<number, GhareebWord[]>
+): GhareebWord[] {
+  const normalizedPageText = normalizeArabic(pageText);
+  const foundWords: { word: GhareebWord; firstIndex: number }[] = [];
+  const usedKeys = new Set<string>();
+
+  // First, try words from this page and adjacent pages (±2 for tolerance)
+  const pagesToCheck = [pageNumber, pageNumber - 1, pageNumber + 1, pageNumber - 2, pageNumber + 2];
+  const candidateWords: GhareebWord[] = [];
+  
+  for (const p of pagesToCheck) {
+    const pageWords = pageMap.get(p);
+    if (pageWords) {
+      candidateWords.push(...pageWords);
+    }
+  }
+
+  for (const word of candidateWords) {
+    const normalizedWord = normalizeArabic(word.wordText);
+    if (normalizedWord.length < 2) continue;
+
+    // Check if this word appears in the page text
+    const index = normalizedPageText.indexOf(normalizedWord);
+    if (index !== -1) {
+      // Create unique key to avoid duplicates
+      const key = word.uniqueKey;
+      if (!usedKeys.has(key)) {
+        usedKeys.add(key);
+        foundWords.push({ word, firstIndex: index });
+      }
+    }
+  }
+
+  // Sort by first occurrence in text
+  foundWords.sort((a, b) => a.firstIndex - b.firstIndex);
+  
+  return foundWords.map((fw, idx) => ({
+    ...fw.word,
+    order: idx,
+  }));
+}
+
+/**
+ * Get ghareeb words for a specific page by matching text content
  */
 export function getWordsForPage(
   pageMap: Map<number, GhareebWord[]>,
-  pageNumber: number
+  pageNumber: number,
+  pageText?: string
 ): GhareebWord[] {
+  // If we have page text, use text-based matching
+  if (pageText) {
+    return findWordsInPageText(pageText, pageNumber, pageMap);
+  }
+  
+  // Fallback to direct page lookup
   return pageMap.get(pageNumber) || [];
 }
