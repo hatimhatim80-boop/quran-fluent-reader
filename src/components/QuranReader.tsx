@@ -1,11 +1,12 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useState } from 'react';
 import { useQuranData } from '@/hooks/useQuranData';
 import { useAutoPlay } from '@/hooks/useAutoPlay';
 import { GhareebWord } from '@/types/quran';
 import { PageView } from './PageView';
 import { PageNavigation } from './PageNavigation';
 import { AutoPlayControls } from './AutoPlayControls';
-import { Loader2, BookOpen, Play, Pause, Square } from 'lucide-react';
+import { Loader2, BookOpen, Play, Pause } from 'lucide-react';
+
 export function QuranReader() {
   const {
     pages,
@@ -22,8 +23,11 @@ export function QuranReader() {
     prevPage,
   } = useQuranData();
 
+  // SINGLE SOURCE OF TRUTH: rendered words from PageView
+  const [renderedWords, setRenderedWords] = useState<GhareebWord[]>([]);
+
   const pageData = getCurrentPageData();
-  const pageWords = getPageGhareebWords;
+  const pageWords = getPageGhareebWords; // Used as input to PageView matching
 
   const {
     isPlaying,
@@ -36,10 +40,16 @@ export function QuranReader() {
     prevWord,
     jumpTo,
   } = useAutoPlay({
-    words: pageWords,
+    words: renderedWords, // Use rendered words for autoplay
     currentWordIndex,
     setCurrentWordIndex,
   });
+
+  // Callback when PageView reports its rendered words
+  const handleRenderedWordsChange = useCallback((words: GhareebWord[]) => {
+    console.log('[QuranReader] Rendered words received:', words.length);
+    setRenderedWords(words);
+  }, []);
 
   // When user clicks a word, jump to it (works during playback too)
   const handleWordClick = useCallback((_: GhareebWord, index: number) => {
@@ -96,7 +106,7 @@ export function QuranReader() {
             </div>
 
             <div className="flex items-center gap-2">
-              {/* Single Play/Pause button - NOT nested */}
+              {/* Single Play/Pause button */}
               <button
                 type="button"
                 className={`nav-button w-10 h-10 rounded-lg ${isPlaying ? 'bg-primary/20 border-primary' : ''}`}
@@ -111,10 +121,10 @@ export function QuranReader() {
                 )}
               </button>
               
-              {/* Status badge - OUTSIDE button, separate element */}
-              {(isPlaying || currentWordIndex >= 0) && pageWords.length > 0 && (
+              {/* Status badge - shows rendered word count */}
+              {(isPlaying || currentWordIndex >= 0) && renderedWords.length > 0 && (
                 <span className="text-xs font-arabic text-muted-foreground bg-muted/50 px-2 py-1 rounded-md whitespace-nowrap">
-                  {currentWordIndex + 1} / {pageWords.length}
+                  {currentWordIndex + 1} / {renderedWords.length}
                 </span>
               )}
             </div>
@@ -133,16 +143,17 @@ export function QuranReader() {
             meaningEnabled={meaningActive}
             isPlaying={isPlaying}
             onWordClick={handleWordClick}
+            onRenderedWordsChange={handleRenderedWordsChange}
           />
         )}
 
-        {/* Auto-Play Controls - Compact */}
-        {pageWords.length > 0 && (
+        {/* Auto-Play Controls - uses rendered words count */}
+        {renderedWords.length > 0 && (
           <div className="page-frame p-4">
             <AutoPlayControls
               isPlaying={isPlaying}
               speed={speed}
-              wordsCount={pageWords.length}
+              wordsCount={renderedWords.length}
               currentWordIndex={currentWordIndex}
               onPlay={play}
               onPause={pause}
