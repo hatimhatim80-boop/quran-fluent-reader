@@ -38,19 +38,21 @@ export function GhareebWordPopover({
   // Popover is open if forced (auto-play) or manually opened
   const isOpen = forceOpen || isManualOpen;
 
+  // Single source of truth for meaning - NO duplication
+  const meaning = word.meaning?.trim() ? word.meaning : 'لا يوجد معنى';
+
   const calculatePosition = useCallback((): PopoverPosition | null => {
     if (!wordRef.current || !containerRef.current) return null;
 
     const wordRect = wordRef.current.getBoundingClientRect();
     const containerRect = containerRef.current.getBoundingClientRect();
 
-    const popoverWidth = isMobile ? 220 : 260;
-    const popoverHeight = 110;
+    const popoverWidth = isMobile ? 220 : 280;
+    const popoverHeight = 120;
     const arrowHeight = 10;
-    const verticalOffset = 10;
-    const padding = 10;
+    const verticalOffset = 12;
+    const padding = 12;
 
-    // Coordinates relative to the mushaf container (page frame)
     const containerWidth = containerRect.width;
 
     const wordCenterX = wordRect.left - containerRect.left + wordRect.width / 2;
@@ -82,31 +84,13 @@ export function GhareebWordPopover({
   }, []);
 
   const openPopover = useCallback(() => {
-    const stableKey = wordRef.current?.dataset.ghareebKey || word.uniqueKey;
-    const meaning = word.meaning;
-
     const pos = calculatePosition();
-    if (!pos) {
-      console.warn('[ghareeb-popover] Failed to position popover', {
-        key: stableKey,
-        meaningLookup: meaning,
-        hasContainer: Boolean(containerRef.current),
-        hasWordEl: Boolean(wordRef.current),
-      });
-      return;
-    }
-
-    if (!meaning) {
-      console.warn('[ghareeb-popover] Meaning lookup missing', {
-        key: stableKey,
-        meaningLookup: meaning,
-      });
-    }
+    if (!pos) return;
 
     setPosition(pos);
     setIsManualOpen(true);
     onSelect(word, index);
-  }, [calculatePosition, containerRef, index, onSelect, word]);
+  }, [calculatePosition, index, onSelect, word]);
 
   // Auto-position when forceOpen changes
   useEffect(() => {
@@ -118,7 +102,6 @@ export function GhareebWordPopover({
 
   const handleClick = (e: React.MouseEvent) => {
     e.stopPropagation();
-    // Manual click - toggle or jump to this word
     if (isManualOpen) {
       closePopover();
     } else {
@@ -193,16 +176,14 @@ export function GhareebWordPopover({
                 {
                   left: position.x,
                   top: position.y,
-                  width: isMobile ? 220 : 260,
+                  width: isMobile ? 220 : 280,
                   '--arrow-x': `${position.arrowX}px`,
                 } as React.CSSProperties
               }
             >
               <div className="ghareeb-popover__content">
                 <div className="ghareeb-popover__word">{word.wordText}</div>
-                <div className="ghareeb-popover__meaning">
-                  {word.meaning || 'لا يوجد معنى'}
-                </div>
+                <div className="ghareeb-popover__meaning">{meaning}</div>
               </div>
               <div className="ghareeb-popover__arrow" />
             </div>,

@@ -96,9 +96,10 @@ export function QuranReader() {
             </div>
 
             <div className="flex items-center gap-2">
+              {/* Single Play/Pause button - NOT nested */}
               <button
                 type="button"
-                className={`nav-button w-10 h-10 rounded-lg ${isPlaying ? 'bg-primary/20' : ''}`}
+                className={`nav-button w-10 h-10 rounded-lg ${isPlaying ? 'bg-primary/20 border-primary' : ''}`}
                 aria-pressed={isPlaying}
                 onClick={() => isPlaying ? pause() : play()}
                 title={isPlaying ? 'إيقاف مؤقت' : 'تشغيل معاني الكلمات'}
@@ -110,9 +111,9 @@ export function QuranReader() {
                 )}
               </button>
               
-              {/* Status indicator */}
+              {/* Status badge - OUTSIDE button, separate element */}
               {(isPlaying || currentWordIndex >= 0) && pageWords.length > 0 && (
-                <span className="text-xs font-arabic text-muted-foreground bg-muted/50 px-2 py-1 rounded-md">
+                <span className="text-xs font-arabic text-muted-foreground bg-muted/50 px-2 py-1 rounded-md whitespace-nowrap">
                   {currentWordIndex + 1} / {pageWords.length}
                 </span>
               )}

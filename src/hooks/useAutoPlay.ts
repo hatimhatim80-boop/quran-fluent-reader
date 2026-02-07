@@ -62,51 +62,62 @@ export function useAutoPlay({
     }
   }, []);
 
-  // Schedule next word using setTimeout chain
+  // Schedule next word using setTimeout chain - NEVER stops on missing meaning
   const scheduleNext = useCallback(() => {
+    // Double-check we're still playing
     if (!isPlayingRef.current) {
       console.log('[autoplay] Not playing, stopping schedule');
       return;
     }
 
-    const currentWords = wordsRef.current;
-    const currentIdx = currentIndexRef.current;
     const delayMs = speedRef.current * 1000;
+    const currentIdx = currentIndexRef.current;
+    const total = wordsRef.current.length;
 
-    console.log('[autoplay] Scheduling next step:', {
+    console.log('[autoplay] ⏱️ Scheduling next step:', {
       currentIndex: currentIdx,
-      totalWords: currentWords.length,
+      totalWords: total,
       delayMs,
     });
 
+    // Clear any existing timer before setting new one
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
+    }
+
     timeoutRef.current = setTimeout(() => {
+      // Re-check playing state inside timeout
       if (!isPlayingRef.current) {
         console.log('[autoplay] Stopped during timeout, aborting');
         return;
       }
 
       const nextIdx = currentIndexRef.current + 1;
-      const total = wordsRef.current.length;
+      const totalWords = wordsRef.current.length;
+      const currentWord = wordsRef.current[currentIndexRef.current];
+      const hasMeaning = currentWord?.meaning?.trim();
 
-      console.log('[autoplay] Advancing:', {
+      console.log('[autoplay] ➡️ Advancing:', {
         from: currentIndexRef.current,
         to: nextIdx,
-        total,
-        word: wordsRef.current[currentIndexRef.current]?.wordText || 'N/A',
-        key: wordsRef.current[currentIndexRef.current]?.uniqueKey || 'N/A',
+        total: totalWords,
+        word: currentWord?.wordText || 'N/A',
+        key: currentWord?.uniqueKey || 'N/A',
+        meaning: hasMeaning ? 'found' : 'لا يوجد معنى (continuing)',
       });
 
-      if (nextIdx < total) {
+      if (nextIdx < totalWords) {
         // Advance to next word
         setCurrentWordIndex(nextIdx);
         currentIndexRef.current = nextIdx;
         // Scroll to new word
         scrollToActiveWord(nextIdx);
-        // Schedule the next step
+        // Schedule the next step - ALWAYS continue
         scheduleNext();
       } else {
         // Reached end
-        console.log('[autoplay] Finished all words');
+        console.log('[autoplay] ✅ Finished all', totalWords, 'words');
         setIsPlaying(false);
         isPlayingRef.current = false;
         onPageEnd?.();
@@ -115,12 +126,9 @@ export function useAutoPlay({
   }, [setCurrentWordIndex, onPageEnd, scrollToActiveWord]);
 
   const play = useCallback(() => {
-    // Prevent double timers - if already playing, pause instead
+    // IGNORE if already playing - prevent double timers
     if (isPlayingRef.current) {
-      console.log('[autoplay] Already playing, pausing instead');
-      setIsPlaying(false);
-      isPlayingRef.current = false;
-      clearTimer();
+      console.log('[autoplay] Already playing, ignoring play request');
       return;
     }
 
@@ -132,19 +140,20 @@ export function useAutoPlay({
     clearTimer();
     
     // Always start from beginning
-    console.log('[autoplay] Starting playback, words:', wordsRef.current.length);
+    console.log('[autoplay] ▶️ Starting playback, total words:', wordsRef.current.length);
     setCurrentWordIndex(0);
     currentIndexRef.current = 0;
     setIsPlaying(true);
     isPlayingRef.current = true;
 
-    // Log first word
+    // Log first word with meaning status
     const firstWord = wordsRef.current[0];
+    const hasMeaning = firstWord?.meaning?.trim();
     console.log('[autoplay] First word:', {
       index: 0,
       text: firstWord?.wordText,
       key: firstWord?.uniqueKey,
-      meaning: firstWord?.meaning ? 'found' : 'NOT FOUND',
+      meaning: hasMeaning ? 'found' : 'لا يوجد معنى',
     });
 
     // Scroll to first word
