@@ -1,73 +1,135 @@
-# Welcome to your Lovable project
+# قارئ القرآن الكريم - Quran Fluent Reader
 
-## Project info
+تطبيق احترافي لقراءة القرآن الكريم مع ميزة عرض معاني الكلمات الغريبة والتشغيل التلقائي.
 
-**URL**: https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID
+## المميزات
 
-## How can I edit this code?
+- 📖 **قراءة المصحف**: عرض نص القرآن الكريم صفحة بصفحة
+- 🔤 **معاني الكلمات الغريبة**: إظهار معاني الكلمات الغريبة تلقائياً
+- ▶️ **التشغيل التلقائي**: التنقل بين الكلمات تلقائياً مع إمكانية التحكم بالسرعة
+- ⚙️ **إعدادات متقدمة**: تخصيص الخطوط والألوان وتنسيق النوافذ المنبثقة
+- 📊 **تقرير المطابقة**: أداة للتحقق من دقة ربط الكلمات بالمعاني
+- ✏️ **نظام التصحيح**: تعديل الأخطاء وتطبيقها على التكرارات
+- 💾 **حفظ التقدم**: حفظ آخر صفحة وكلمة تم الوصول إليها
 
-There are several ways of editing your application.
+## التقنيات المستخدمة
 
-**Use Lovable**
+- **React 18** + **TypeScript**
+- **Vite** للبناء السريع
+- **Tailwind CSS** للتنسيق
+- **Zustand** لإدارة الحالة
+- **shadcn/ui** للمكونات
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and start prompting.
+## التشغيل المحلي
 
-Changes made via Lovable will be committed automatically to this repo.
+```bash
+# تثبيت الاعتماديات
+npm install
 
-**Use your preferred IDE**
-
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
-
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
-
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
+# تشغيل خادم التطوير
 npm run dev
+
+# بناء للإنتاج
+npm run build
 ```
 
-**Edit a file directly in GitHub**
+## بناء تطبيق Desktop (Tauri)
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+### المتطلبات
+- [Rust](https://www.rust-lang.org/tools/install)
+- [Node.js](https://nodejs.org/) v18+
 
-**Use GitHub Codespaces**
+### خطوات البناء
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+```bash
+# تثبيت Tauri CLI
+npm install -D @tauri-apps/cli
 
-## What technologies are used for this project?
+# إنشاء مجلد Tauri (إذا لم يكن موجوداً)
+npx tauri init
 
-This project is built with:
+# بناء التطبيق
+npm run build
+npx tauri build
+```
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+ستجد الملفات التنفيذية في:
+- **Windows**: `src-tauri/target/release/quran-fluent-reader.exe`
+- **macOS**: `src-tauri/target/release/bundle/dmg/`
+- **Linux**: `src-tauri/target/release/bundle/appimage/`
 
-## How can I deploy this project?
+## بناء تطبيق Android (Capacitor)
 
-Simply open [Lovable](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and click on Share -> Publish.
+### المتطلبات
+- [Android Studio](https://developer.android.com/studio)
+- Java JDK 17+
 
-## Can I connect a custom domain to my Lovable project?
+### خطوات البناء
 
-Yes, you can!
+```bash
+# تثبيت Capacitor
+npm install @capacitor/core @capacitor/cli @capacitor/android
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+# إضافة منصة Android
+npx cap add android
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+# بناء التطبيق
+npm run build
+npx cap sync android
+
+# فتح في Android Studio
+npx cap open android
+
+# أو تشغيل مباشرة على جهاز متصل
+npx cap run android
+```
+
+## GitHub Actions (البناء التلقائي)
+
+عند إنشاء Release أو tag جديد (مثل `v1.0.0`)، سيتم تلقائياً:
+
+1. بناء تطبيقات Desktop لـ:
+   - Windows (exe)
+   - macOS (dmg, app)
+   - Linux (AppImage, deb)
+
+2. بناء APK لـ Android
+
+ستجد جميع الملفات في صفحة [Releases](../../releases).
+
+### إعداد GitHub Actions
+
+ملف Workflow موجود في `.github/workflows/build-apps.yml`
+
+لتفعيله:
+1. تأكد من صلاحيات GITHUB_TOKEN في Settings > Actions > General
+2. أنشئ tag جديد: `git tag v1.0.0 && git push origin v1.0.0`
+3. أو أنشئ Release من GitHub
+
+## هيكل المشروع
+
+```
+├── src/
+│   ├── components/        # مكونات React
+│   ├── hooks/             # React hooks مخصصة
+│   ├── pages/             # صفحات التطبيق
+│   ├── stores/            # Zustand stores
+│   ├── types/             # تعريفات TypeScript
+│   └── utils/             # دوال مساعدة
+├── public/
+│   └── data/              # بيانات القرآن والغريب
+├── src-tauri/             # إعدادات Tauri Desktop
+├── capacitor.config.ts    # إعدادات Capacitor Mobile
+└── .github/workflows/     # GitHub Actions
+```
+
+## المساهمة
+
+1. Fork المشروع
+2. أنشئ branch جديد: `git checkout -b feat/feature-name`
+3. قم بالتعديلات
+4. أنشئ Pull Request
+
+## الترخيص
+
+MIT License
