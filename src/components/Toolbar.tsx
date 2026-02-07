@@ -8,15 +8,15 @@ import {
   ArrowDownUp,
   FileText,
   Wrench,
-  FolderOpen,
+  Database,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { SettingsDialog } from './SettingsDialog';
 import { BuildCenterDialog } from './BuildCenterDialog';
 import { OrderFixerDialog } from './OrderFixerDialog';
-import { PageEditorDialog } from './PageEditorDialog';
-import { FileEditorDialog } from './FileEditorDialog';
-import { GhareebWord } from '@/types/quran';
+import { FullPageEditorDialog } from './FullPageEditorDialog';
+import { WorkingDataManager } from './WorkingDataManager';
+import { GhareebWord, QuranPage } from '@/types/quran';
 
 interface ToolbarProps {
   isPlaying: boolean;
@@ -24,10 +24,12 @@ interface ToolbarProps {
   wordsCount: number;
   currentWordIndex: number;
   currentPage?: number;
+  pages?: QuranPage[];
   pageWords?: GhareebWord[];
   allWords?: GhareebWord[];
   onNavigateToPage?: (page: number) => void;
   onHighlightWord?: (index: number) => void;
+  onRefreshData?: () => void;
 }
 
 export function Toolbar({ 
@@ -36,10 +38,12 @@ export function Toolbar({
   wordsCount, 
   currentWordIndex,
   currentPage = 1,
+  pages = [],
   pageWords = [],
   allWords = [],
   onNavigateToPage,
   onHighlightWord,
+  onRefreshData,
 }: ToolbarProps) {
 
   return (
@@ -107,30 +111,33 @@ export function Toolbar({
           <Wrench className="w-4 h-4" />
         </Link>
 
-        {/* File Editor */}
-        <FileEditorDialog allWords={allWords}>
+        {/* Data Manager - Working version */}
+        <WorkingDataManager allWords={allWords}>
           <button
             className="nav-button w-9 h-9 rounded-lg flex items-center justify-center"
-            title="محرر الملفات"
+            title="مدير البيانات"
           >
-            <FolderOpen className="w-4 h-4" />
+            <Database className="w-4 h-4" />
           </button>
-        </FileEditorDialog>
+        </WorkingDataManager>
 
-        {/* Page Editor */}
-        <PageEditorDialog
+        {/* Full Page Editor */}
+        <FullPageEditorDialog
           currentPage={currentPage}
+          pages={pages}
           pageWords={pageWords}
+          allWords={allWords}
           onNavigateToPage={onNavigateToPage}
           onHighlightWord={onHighlightWord}
+          onRefreshData={onRefreshData}
         >
           <button
             className="nav-button w-9 h-9 rounded-lg flex items-center justify-center"
-            title="التعديل حسب الصفحات"
+            title="محرر الصفحات الكامل"
           >
             <FileText className="w-4 h-4" />
           </button>
-        </PageEditorDialog>
+        </FullPageEditorDialog>
 
         {/* Order Fixer */}
         <OrderFixerDialog
