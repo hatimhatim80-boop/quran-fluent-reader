@@ -74,13 +74,22 @@ export function PageView({
       ));
     }
 
-    // Prepare ghareeb entries with normalized text, sorted by length (longest first for multi-word matching)
-    const ghareebEntries = ghareebWords.map((gw, idx) => ({
-      original: gw,
-      index: idx,
-      normalizedFull: normalizeArabic(gw.wordText),
-      normalizedSurah: normalizeSurahName(gw.surahName),
-    })).sort((a, b) => b.normalizedFull.length - a.normalizedFull.length);
+    // Prepare ghareeb entries with normalized words
+    const ghareebEntries = ghareebWords.map((gw, idx) => {
+      const normalizedFull = normalizeArabic(gw.wordText);
+      const words = normalizedFull.split(/\s+/).filter(w => w.length >= 2);
+      return {
+        original: gw,
+        index: idx,
+        normalizedFull,
+        words, // Individual normalized words in the phrase
+        wordCount: words.length,
+        normalizedSurah: normalizeSurahName(gw.surahName),
+      };
+    });
+
+    // Sort by word count descending (match longer phrases first)
+    const sortedEntries = [...ghareebEntries].sort((a, b) => b.wordCount - a.wordCount);
 
     // Track which ghareeb entries have been used
     const usedIndices = new Set<number>();
@@ -108,122 +117,148 @@ export function PageView({
         );
       }
 
-      // For phrase matching, we need to work with the normalized line
-      const normalizedLine = normalizeArabic(line);
-      
-      // Find all phrase matches in this line
-      interface PhraseMatch {
-        startIdx: number; // position in original line
-        endIdx: number;
-        text: string; // original text
-        entry: typeof ghareebEntries[0];
-      }
-      const phraseMatches: PhraseMatch[] = [];
-      
-      for (const entry of ghareebEntries) {
+      // Split line into tokens (words and spaces)
+      const tokens = line.split(/(\s+)/);
+      const tokenData = tokens.map((token, idx) => ({
+        token,
+        idx,
+        isSpace: /^\s+$/.test(token),
+        normalized: /^\s+$/.test(token) ? '' : normalizeArabic(token),
+        matched: false,
+        matchEntry: null as typeof ghareebEntries[0] | null,
+        isPartOfPhrase: false,
+        phraseStart: false,
+        phraseTokens: [] as number[], // indices of tokens in this phrase
+      }));
+
+      // Try to match multi-word phrases first, then single words
+      for (const entry of sortedEntries) {
         if (usedIndices.has(entry.index)) continue;
-        if (entry.normalizedFull.length < 2) continue;
-        
+        if (entry.words.length === 0) continue;
+
         // Check surah context
         const surahMatch = normalizedLocalSurah === '' || 
           entry.normalizedSurah === normalizedLocalSurah || 
           entry.normalizedSurah.includes(normalizedLocalSurah) || 
           normalizedLocalSurah.includes(entry.normalizedSurah);
         if (!surahMatch) continue;
-        
-        // Find the phrase in the normalized line
-        const phraseIdx = normalizedLine.indexOf(entry.normalizedFull);
-        if (phraseIdx === -1) continue;
-        
-        // Map back to original line position
-        // We need to find the corresponding position in the original text
-        let origStart = 0;
-        let normCount = 0;
-        
-        // Count through original line until we reach the normalized position
-        for (let i = 0; i < line.length && normCount < phraseIdx; i++) {
-          const char = line[i];
-          const normChar = normalizeArabic(char);
-          if (normChar.length > 0) {
-            normCount += normChar.length;
+
+        // Find consecutive tokens that match the phrase words
+        for (let i = 0; i < tokenData.length; i++) {
+          if (tokenData[i].isSpace || tokenData[i].matched) continue;
+          
+          // Check if this token starts a phrase match
+          let phraseWordIdx = 0;
+          let matchedTokens: number[] = [];
+          let j = i;
+          
+          while (j < tokenData.length && phraseWordIdx < entry.words.length) {
+            if (tokenData[j].isSpace) {
+              j++;
+              continue;
+            }
+            if (tokenData[j].matched) break;
+            
+            const tokenNorm = tokenData[j].normalized;
+            const phraseWord = entry.words[phraseWordIdx];
+            
+            // Check if this token matches the current phrase word
+            const isMatch = tokenNorm === phraseWord || 
+              tokenNorm.includes(phraseWord) || 
+              phraseWord.includes(tokenNorm);
+            
+            if (isMatch) {
+              matchedTokens.push(j);
+              phraseWordIdx++;
+              j++;
+            } else {
+              break;
+            }
           }
-          origStart = i + 1;
-        }
-        
-        // Find the end position by matching the phrase length in normalized space
-        let origEnd = origStart;
-        let matchedNormLen = 0;
-        for (let i = origStart; i < line.length && matchedNormLen < entry.normalizedFull.length; i++) {
-          const char = line[i];
-          const normChar = normalizeArabic(char);
-          if (normChar.length > 0) {
-            matchedNormLen += normChar.length;
+          
+          // If we matched all words in the phrase
+          if (phraseWordIdx === entry.words.length && matchedTokens.length > 0) {
+            // Mark all matched tokens
+            matchedTokens.forEach((tokenIdx, idx) => {
+              tokenData[tokenIdx].matched = true;
+              tokenData[tokenIdx].matchEntry = entry;
+              tokenData[tokenIdx].isPartOfPhrase = matchedTokens.length > 1;
+              tokenData[tokenIdx].phraseStart = idx === 0;
+              tokenData[tokenIdx].phraseTokens = matchedTokens;
+            });
+            usedIndices.add(entry.index);
+            break; // Move to next entry
           }
-          origEnd = i + 1;
-        }
-        
-        // Extract the original text for this match
-        const originalText = line.slice(origStart, origEnd);
-        
-        // Check for overlaps with existing matches
-        const overlaps = phraseMatches.some(m => 
-          (origStart >= m.startIdx && origStart < m.endIdx) ||
-          (origEnd > m.startIdx && origEnd <= m.endIdx) ||
-          (origStart <= m.startIdx && origEnd >= m.endIdx)
-        );
-        
-        if (!overlaps) {
-          phraseMatches.push({
-            startIdx: origStart,
-            endIdx: origEnd,
-            text: originalText,
-            entry,
-          });
-          usedIndices.add(entry.index);
         }
       }
-      
-      // Sort matches by position
-      phraseMatches.sort((a, b) => a.startIdx - b.startIdx);
-      
-      // Build the line with highlighted phrases
+
+      // Build the rendered elements
       const elements: React.ReactNode[] = [];
-      let lastIdx = 0;
+      let i = 0;
       
-      phraseMatches.forEach((match, matchIdx) => {
-        // Add text before this match
-        if (match.startIdx > lastIdx) {
-          const beforeText = line.slice(lastIdx, match.startIdx);
-          elements.push(<span key={`${lineIdx}-before-${matchIdx}`}>{beforeText}</span>);
+      while (i < tokenData.length) {
+        const td = tokenData[i];
+        
+        if (td.isSpace) {
+          elements.push(<span key={`${lineIdx}-${i}`}>{td.token}</span>);
+          i++;
+          continue;
         }
         
-        // Add the highlighted phrase
-        const isHighlighted = highlightedWordIndex === match.entry.index;
-        elements.push(
-          <span
-            key={`${lineIdx}-match-${matchIdx}`}
-            className={`${isHighlighted ? 'word-highlight ' : ''}word-ghareeb cursor-pointer`}
-            data-ghareeb-index={match.entry.index}
-            onClick={(e) => {
-              e.stopPropagation();
-              onWordClick(match.entry.original, match.entry.index);
-            }}
-          >
-            {match.text}
-          </span>
-        );
+        if (td.matched && td.matchEntry) {
+          const entry = td.matchEntry;
+          const isHighlighted = highlightedWordIndex === entry.index;
+          
+          if (td.isPartOfPhrase && td.phraseStart) {
+            // Collect all tokens in this phrase (including spaces between)
+            const phraseTokenIndices = td.phraseTokens;
+            const lastPhraseTokenIdx = phraseTokenIndices[phraseTokenIndices.length - 1];
+            
+            // Collect all tokens from first to last (including spaces)
+            const phraseText: string[] = [];
+            for (let k = i; k <= lastPhraseTokenIdx; k++) {
+              phraseText.push(tokenData[k].token);
+            }
+            
+            elements.push(
+              <span
+                key={`${lineIdx}-phrase-${i}`}
+                className={`${isHighlighted ? 'word-highlight ' : ''}word-ghareeb cursor-pointer`}
+                data-ghareeb-index={entry.index}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onWordClick(entry.original, entry.index);
+                }}
+              >
+                {phraseText.join('')}
+              </span>
+            );
+            
+            i = lastPhraseTokenIdx + 1;
+            continue;
+          } else if (!td.isPartOfPhrase) {
+            // Single word match
+            elements.push(
+              <span
+                key={`${lineIdx}-${i}`}
+                className={`${isHighlighted ? 'word-highlight ' : ''}word-ghareeb cursor-pointer`}
+                data-ghareeb-index={entry.index}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onWordClick(entry.original, entry.index);
+                }}
+              >
+                {td.token}
+              </span>
+            );
+            i++;
+            continue;
+          }
+        }
         
-        lastIdx = match.endIdx;
-      });
-      
-      // Add remaining text
-      if (lastIdx < line.length) {
-        elements.push(<span key={`${lineIdx}-end`}>{line.slice(lastIdx)}</span>);
-      }
-      
-      // If no matches, just render the line
-      if (elements.length === 0) {
-        elements.push(<span key={`${lineIdx}-full`}>{line}</span>);
+        // Unmatched token
+        elements.push(<span key={`${lineIdx}-${i}`}>{td.token}</span>);
+        i++;
       }
 
       return (
