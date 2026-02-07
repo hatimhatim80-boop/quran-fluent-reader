@@ -19,7 +19,7 @@ export function MeaningBox({ word, onClose }: MeaningBoxProps) {
               {word.wordText}
             </span>
             <span className="bg-primary/10 text-primary px-2 py-0.5 rounded text-sm font-arabic">
-              {word.surahName} - آية {word.verseNumber}
+              {word.surahName} ({word.verseNumber})
             </span>
           </div>
           <p className="font-arabic text-lg text-foreground leading-relaxed">

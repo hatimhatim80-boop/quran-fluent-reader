@@ -1,30 +1,19 @@
-export interface Surah {
-  name: string;
-  verses: Verse[];
-}
-
-export interface Verse {
-  surahName: string;
-  verseNumber: number;
+export interface QuranPage {
+  pageNumber: number;
   text: string;
+  surahName?: string; // First surah that appears on this page
 }
 
 export interface GhareebWord {
-  surahName: string;
-  verseNumber: number;
+  pageNumber: number;
   wordText: string;
   meaning: string;
-  order: number; // Order within the verse for auto-play
+  surahName: string;
+  verseNumber: number;
+  order: number; // Order within the page for auto-play
 }
 
 export interface SavedProgress {
-  currentSurahIndex: number;
-  currentVerseIndex: number;
+  currentPage: number;
   currentWordIndex: number;
-}
-
-// Legacy types for backward compatibility
-export interface QuranPage {
-  page_number: number;
-  page_text: string;
 }

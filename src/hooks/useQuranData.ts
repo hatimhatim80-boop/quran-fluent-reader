@@ -1,17 +1,16 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Surah, GhareebWord, SavedProgress } from '@/types/quran';
+import { QuranPage, GhareebWord, SavedProgress } from '@/types/quran';
 import { loadQuranData } from '@/utils/quranParser';
 
 const STORAGE_KEY = 'quran-app-progress';
 
 export function useQuranData() {
-  const [surahs, setSurahs] = useState<Surah[]>([]);
+  const [pages, setPages] = useState<QuranPage[]>([]);
   const [ghareebWords, setGhareebWords] = useState<GhareebWord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   
-  const [currentSurahIndex, setCurrentSurahIndex] = useState(0);
-  const [currentVerseIndex, setCurrentVerseIndex] = useState(0);
+  const [currentPage, setCurrentPage] = useState(1);
   const [currentWordIndex, setCurrentWordIndex] = useState(-1);
 
   // Load data on mount
@@ -21,12 +20,12 @@ export function useQuranData() {
       setError(null);
       
       try {
-        const { surahs: loadedSurahs, ghareebWords: loadedWords } = await loadQuranData();
+        const { pages: loadedPages, ghareebWords: loadedWords } = await loadQuranData();
         
-        if (loadedSurahs.length === 0) {
+        if (loadedPages.length === 0) {
           setError('لم يتم العثور على بيانات القرآن');
         } else {
-          setSurahs(loadedSurahs);
+          setPages(loadedPages);
           setGhareebWords(loadedWords);
           
           // Load saved progress
@@ -34,8 +33,7 @@ export function useQuranData() {
           if (saved) {
             try {
               const progress: SavedProgress = JSON.parse(saved);
-              setCurrentSurahIndex(Math.min(progress.currentSurahIndex || 0, loadedSurahs.length - 1));
-              setCurrentVerseIndex(progress.currentVerseIndex || 0);
+              setCurrentPage(Math.min(progress.currentPage || 1, loadedPages.length));
               setCurrentWordIndex(progress.currentWordIndex ?? -1);
             } catch (e) {
               console.error('Failed to load progress:', e);
@@ -55,115 +53,60 @@ export function useQuranData() {
 
   // Save progress
   useEffect(() => {
-    if (surahs.length > 0) {
+    if (pages.length > 0) {
       const progress: SavedProgress = {
-        currentSurahIndex,
-        currentVerseIndex,
+        currentPage,
         currentWordIndex,
       };
       localStorage.setItem(STORAGE_KEY, JSON.stringify(progress));
     }
-  }, [currentSurahIndex, currentVerseIndex, currentWordIndex, surahs.length]);
+  }, [currentPage, currentWordIndex, pages.length]);
 
-  const currentSurah = surahs[currentSurahIndex];
-  const currentVerse = currentSurah?.verses[currentVerseIndex];
+  const totalPages = pages.length || 604;
 
-  // Get ghareeb words for current verse
-  const getVerseGhareebWords = useCallback((): GhareebWord[] => {
-    if (!currentSurah || !currentVerse) return [];
-    
+  // Get current page data
+  const getCurrentPageData = useCallback((): QuranPage | undefined => {
+    return pages.find(p => p.pageNumber === currentPage);
+  }, [pages, currentPage]);
+
+  // Get ghareeb words for current page
+  const getPageGhareebWords = useCallback((): GhareebWord[] => {
     return ghareebWords
-      .filter(w => 
-        w.surahName === currentSurah.name && 
-        w.verseNumber === currentVerse.verseNumber
-      )
+      .filter(w => w.pageNumber === currentPage)
       .sort((a, b) => a.order - b.order);
-  }, [currentSurah, currentVerse, ghareebWords]);
+  }, [ghareebWords, currentPage]);
 
-  // Get ghareeb words for current surah
-  const getSurahGhareebWords = useCallback((): GhareebWord[] => {
-    if (!currentSurah) return [];
-    
-    return ghareebWords
-      .filter(w => w.surahName === currentSurah.name)
-      .sort((a, b) => {
-        if (a.verseNumber !== b.verseNumber) return a.verseNumber - b.verseNumber;
-        return a.order - b.order;
-      });
-  }, [currentSurah, ghareebWords]);
-
-  const goToSurah = useCallback((index: number) => {
-    const validIndex = Math.max(0, Math.min(index, surahs.length - 1));
-    setCurrentSurahIndex(validIndex);
-    setCurrentVerseIndex(0);
+  const goToPage = useCallback((page: number) => {
+    const validPage = Math.max(1, Math.min(page, totalPages));
+    setCurrentPage(validPage);
     setCurrentWordIndex(-1);
-  }, [surahs.length]);
+  }, [totalPages]);
 
-  const goToVerse = useCallback((index: number) => {
-    if (!currentSurah) return;
-    const validIndex = Math.max(0, Math.min(index, currentSurah.verses.length - 1));
-    setCurrentVerseIndex(validIndex);
-    setCurrentWordIndex(-1);
-  }, [currentSurah]);
-
-  const nextVerse = useCallback(() => {
-    if (!currentSurah) return;
-    
-    if (currentVerseIndex < currentSurah.verses.length - 1) {
-      setCurrentVerseIndex(v => v + 1);
-      setCurrentWordIndex(-1);
-    } else if (currentSurahIndex < surahs.length - 1) {
-      // Move to next surah
-      setCurrentSurahIndex(s => s + 1);
-      setCurrentVerseIndex(0);
-      setCurrentWordIndex(-1);
+  const nextPage = useCallback(() => {
+    if (currentPage < totalPages) {
+      goToPage(currentPage + 1);
     }
-  }, [currentSurah, currentVerseIndex, currentSurahIndex, surahs.length]);
+  }, [currentPage, totalPages, goToPage]);
 
-  const prevVerse = useCallback(() => {
-    if (currentVerseIndex > 0) {
-      setCurrentVerseIndex(v => v - 1);
-      setCurrentWordIndex(-1);
-    } else if (currentSurahIndex > 0) {
-      // Move to previous surah's last verse
-      const prevSurah = surahs[currentSurahIndex - 1];
-      setCurrentSurahIndex(s => s - 1);
-      setCurrentVerseIndex(prevSurah.verses.length - 1);
-      setCurrentWordIndex(-1);
+  const prevPage = useCallback(() => {
+    if (currentPage > 1) {
+      goToPage(currentPage - 1);
     }
-  }, [currentVerseIndex, currentSurahIndex, surahs]);
-
-  const nextSurah = useCallback(() => {
-    if (currentSurahIndex < surahs.length - 1) {
-      goToSurah(currentSurahIndex + 1);
-    }
-  }, [currentSurahIndex, surahs.length, goToSurah]);
-
-  const prevSurah = useCallback(() => {
-    if (currentSurahIndex > 0) {
-      goToSurah(currentSurahIndex - 1);
-    }
-  }, [currentSurahIndex, goToSurah]);
+  }, [currentPage, goToPage]);
 
   return {
-    surahs,
+    pages,
     ghareebWords,
     isLoading,
     error,
-    currentSurah,
-    currentVerse,
-    currentSurahIndex,
-    currentVerseIndex,
+    currentPage,
     currentWordIndex,
     setCurrentWordIndex,
-    getVerseGhareebWords,
-    getSurahGhareebWords,
-    goToSurah,
-    goToVerse,
-    nextVerse,
-    prevVerse,
-    nextSurah,
-    prevSurah,
-    totalSurahs: surahs.length,
+    totalPages,
+    getCurrentPageData,
+    getPageGhareebWords,
+    goToPage,
+    nextPage,
+    prevPage,
   };
 }

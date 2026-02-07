@@ -2,36 +2,32 @@ import React, { useState, useCallback, useEffect } from 'react';
 import { useQuranData } from '@/hooks/useQuranData';
 import { useAutoPlay } from '@/hooks/useAutoPlay';
 import { GhareebWord } from '@/types/quran';
-import { SurahView } from './SurahView';
+import { PageView } from './PageView';
 import { MeaningBox } from './MeaningBox';
-import { SurahNavigation } from './SurahNavigation';
+import { PageNavigation } from './PageNavigation';
 import { AutoPlayControls } from './AutoPlayControls';
 import { Loader2 } from 'lucide-react';
 
 export function QuranReader() {
   const {
-    surahs,
+    pages,
     isLoading,
     error,
-    currentSurah,
-    currentVerse,
-    currentSurahIndex,
-    currentVerseIndex,
+    currentPage,
     currentWordIndex,
     setCurrentWordIndex,
-    getSurahGhareebWords,
-    goToSurah,
-    goToVerse,
-    nextVerse,
-    prevVerse,
-    nextSurah,
-    prevSurah,
-    totalSurahs,
+    totalPages,
+    getCurrentPageData,
+    getPageGhareebWords,
+    goToPage,
+    nextPage,
+    prevPage,
   } = useQuranData();
 
   const [selectedWord, setSelectedWord] = useState<GhareebWord | null>(null);
 
-  const surahWords = getSurahGhareebWords();
+  const pageData = getCurrentPageData();
+  const pageWords = getPageGhareebWords();
 
   const {
     isPlaying,
@@ -43,17 +39,17 @@ export function QuranReader() {
     nextWord,
     prevWord,
   } = useAutoPlay({
-    words: surahWords,
+    words: pageWords,
     currentWordIndex,
     setCurrentWordIndex,
   });
 
   // Update selected word when highlighted word changes
   useEffect(() => {
-    if (currentWordIndex >= 0 && currentWordIndex < surahWords.length) {
-      setSelectedWord(surahWords[currentWordIndex]);
+    if (currentWordIndex >= 0 && currentWordIndex < pageWords.length) {
+      setSelectedWord(pageWords[currentWordIndex]);
     }
-  }, [currentWordIndex, surahWords]);
+  }, [currentWordIndex, pageWords]);
 
   const handleWordClick = useCallback((word: GhareebWord, index: number) => {
     setSelectedWord(word);
@@ -80,7 +76,7 @@ export function QuranReader() {
   }
 
   // Error state
-  if (error || surahs.length === 0) {
+  if (error || pages.length === 0) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center" dir="rtl">
         <div className="page-frame p-8 max-w-md text-center">
@@ -106,15 +102,13 @@ export function QuranReader() {
           </p>
         </header>
 
-        {/* Surah View */}
-        {currentSurah && (
-          <SurahView
-            surah={currentSurah}
-            ghareebWords={surahWords}
+        {/* Page View */}
+        {pageData && (
+          <PageView
+            page={pageData}
+            ghareebWords={pageWords}
             highlightedWordIndex={currentWordIndex}
-            currentVerseIndex={currentVerseIndex}
             onWordClick={handleWordClick}
-            onVerseClick={goToVerse}
           />
         )}
 
@@ -126,7 +120,7 @@ export function QuranReader() {
           <AutoPlayControls
             isPlaying={isPlaying}
             speed={speed}
-            wordsCount={surahWords.length}
+            wordsCount={pageWords.length}
             currentWordIndex={currentWordIndex}
             onPlay={play}
             onPause={pause}
@@ -138,17 +132,12 @@ export function QuranReader() {
         </div>
 
         {/* Navigation */}
-        <SurahNavigation
-          surahs={surahs}
-          currentSurahIndex={currentSurahIndex}
-          currentVerseIndex={currentVerseIndex}
-          totalVerses={currentSurah?.verses.length || 0}
-          onPrevSurah={prevSurah}
-          onNextSurah={nextSurah}
-          onPrevVerse={prevVerse}
-          onNextVerse={nextVerse}
-          onGoToSurah={goToSurah}
-          onGoToVerse={goToVerse}
+        <PageNavigation
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPrevPage={prevPage}
+          onNextPage={nextPage}
+          onGoToPage={goToPage}
         />
 
         {/* Footer */}
