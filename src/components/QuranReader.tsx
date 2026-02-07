@@ -116,10 +116,15 @@ export function QuranReader() {
           wordsCount={renderedWords.length}
           currentWordIndex={currentWordIndex}
           currentPage={currentPage}
+          pages={pages}
           pageWords={renderedWords}
           allWords={allGhareebWords}
           onNavigateToPage={goToPage}
           onHighlightWord={jumpTo}
+          onRefreshData={() => {
+            // Force re-render by triggering page reload
+            window.location.reload();
+          }}
         />
 
         {/* Debug display when enabled */}
