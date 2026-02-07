@@ -1,12 +1,15 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowRight, Download, Loader2, AlertTriangle, CheckCircle, XCircle } from 'lucide-react';
+import { ArrowRight, Download, Loader2, AlertTriangle, CheckCircle, XCircle, Edit3, Search, Filter, RotateCcw, Upload } from 'lucide-react';
 import { loadGhareebData } from '@/utils/ghareebLoader';
 import { parseMushafText } from '@/utils/quranParser';
 import { validateMatching, exportReportAsJSON, exportReportAsCSV, MatchingReport, MismatchEntry, MismatchReason } from '@/utils/matchingValidator';
-import { GhareebWord } from '@/types/quran';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { CorrectionDialog } from '@/components/CorrectionDialog';
+import { useCorrectionsStore } from '@/stores/correctionsStore';
+import { toast } from 'sonner';
 
 const REASON_LABELS: Record<MismatchReason, string> = {
   not_found_in_page: 'غير موجودة',
@@ -19,10 +22,20 @@ const REASON_LABELS: Record<MismatchReason, string> = {
 
 export default function ValidationReport() {
   const navigate = useNavigate();
+  const { corrections, getIgnoredKeys, exportCorrections, importCorrections, undo, canUndo, resetAll } = useCorrectionsStore();
+  
   const [loading, setLoading] = useState(true);
   const [report, setReport] = useState<MatchingReport | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [filterReason, setFilterReason] = useState<MismatchReason | 'all'>('all');
+  const [searchQuery, setSearchQuery] = useState('');
+  
+  // Correction dialog state
+  const [selectedMismatch, setSelectedMismatch] = useState<MismatchEntry | null>(null);
+  const [correctionDialogOpen, setCorrectionDialogOpen] = useState(false);
+  
+  // All words for duplicate matching
+  const [allWords, setAllWords] = useState<Array<{ word: string; surah: number; ayah: number; wordIndex: number; page: number }>>([]);
 
   useEffect(() => {
     async function runValidation() {
@@ -36,6 +49,21 @@ export default function ValidationReport() {
         ]);
         
         const pages = parseMushafText(mushafResponse);
+        
+        // Build all words list for duplicate matching
+        const words: Array<{ word: string; surah: number; ayah: number; wordIndex: number; page: number }> = [];
+        ghareebMap.forEach((pageWords) => {
+          pageWords.forEach((w) => {
+            words.push({
+              word: w.wordText,
+              surah: w.surahNumber,
+              ayah: w.verseNumber,
+              wordIndex: w.wordIndex,
+              page: w.pageNumber,
+            });
+          });
+        });
+        setAllWords(words);
         
         // تشغيل التحقق
         const result = validateMatching(ghareebMap, pages);
@@ -51,11 +79,29 @@ export default function ValidationReport() {
     runValidation();
   }, []);
 
+  // Filter out ignored corrections
+  const ignoredKeys = useMemo(() => getIgnoredKeys(), [corrections, getIgnoredKeys]);
+
   const filteredMismatches = useMemo(() => {
     if (!report) return [];
-    if (filterReason === 'all') return report.mismatches;
-    return report.mismatches.filter((m) => m.reason === filterReason);
-  }, [report, filterReason]);
+    
+    let filtered = report.mismatches.filter((m) => !ignoredKeys.has(m.word.uniqueKey));
+    
+    if (filterReason !== 'all') {
+      filtered = filtered.filter((m) => m.reason === filterReason);
+    }
+    
+    if (searchQuery.trim()) {
+      const query = searchQuery.trim().toLowerCase();
+      filtered = filtered.filter((m) => 
+        m.word.wordText.includes(query) ||
+        m.word.surahName.toLowerCase().includes(query) ||
+        m.detail.toLowerCase().includes(query)
+      );
+    }
+    
+    return filtered;
+  }, [report, filterReason, searchQuery, ignoredKeys]);
 
   const handleExportJSON = () => {
     if (!report) return;
@@ -67,6 +113,35 @@ export default function ValidationReport() {
     if (!report) return;
     const csv = exportReportAsCSV(report);
     downloadFile(csv, 'matching-report.csv', 'text/csv;charset=utf-8');
+  };
+
+  const handleExportCorrections = () => {
+    const json = exportCorrections();
+    downloadFile(json, 'corrections.json', 'application/json');
+    toast.success('تم تصدير التصحيحات');
+  };
+
+  const handleImportCorrections = () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.json';
+    input.onchange = (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+          const json = ev.target?.result as string;
+          const result = importCorrections(json);
+          if (result.success) {
+            toast.success(`تم استيراد ${result.count} تصحيح`);
+          } else {
+            toast.error('فشل استيراد التصحيحات');
+          }
+        };
+        reader.readAsText(file);
+      }
+    };
+    input.click();
   };
 
   const downloadFile = (content: string, filename: string, mimeType: string) => {
@@ -82,9 +157,13 @@ export default function ValidationReport() {
   };
 
   const goToPage = (pageNumber: number) => {
-    // حفظ رقم الصفحة في localStorage ثم الانتقال
     localStorage.setItem('quran_current_page', pageNumber.toString());
     navigate('/');
+  };
+
+  const openCorrectionDialog = (mismatch: MismatchEntry) => {
+    setSelectedMismatch(mismatch);
+    setCorrectionDialogOpen(true);
   };
 
   if (loading) {
@@ -116,9 +195,13 @@ export default function ValidationReport() {
   if (!report) return null;
 
   const reasonCounts = report.mismatches.reduce((acc, m) => {
-    acc[m.reason] = (acc[m.reason] || 0) + 1;
+    if (!ignoredKeys.has(m.word.uniqueKey)) {
+      acc[m.reason] = (acc[m.reason] || 0) + 1;
+    }
     return acc;
   }, {} as Record<MismatchReason, number>);
+
+  const activeUnmatchedCount = report.mismatches.filter((m) => !ignoredKeys.has(m.word.uniqueKey)).length;
 
   return (
     <div className="min-h-screen bg-background py-6 px-4" dir="rtl">
@@ -136,7 +219,7 @@ export default function ValidationReport() {
         </div>
 
         {/* Summary Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
           <div className="page-frame p-4 text-center">
             <div className="text-2xl font-bold text-primary">{report.totalGhareebWords.toLocaleString('ar-EG')}</div>
             <div className="text-sm font-arabic text-muted-foreground">إجمالي الكلمات</div>
@@ -146,12 +229,16 @@ export default function ValidationReport() {
             <div className="text-sm font-arabic text-muted-foreground">مطابقة</div>
           </div>
           <div className="page-frame p-4 text-center">
-            <div className="text-2xl font-bold text-destructive">{report.unmatchedCount.toLocaleString('ar-EG')}</div>
+            <div className="text-2xl font-bold text-destructive">{activeUnmatchedCount.toLocaleString('ar-EG')}</div>
             <div className="text-sm font-arabic text-muted-foreground">غير مطابقة</div>
           </div>
           <div className="page-frame p-4 text-center">
             <div className="text-2xl font-bold text-primary">{report.coveragePercent}%</div>
             <div className="text-sm font-arabic text-muted-foreground">نسبة التغطية</div>
+          </div>
+          <div className="page-frame p-4 text-center">
+            <div className="text-2xl font-bold text-accent">{corrections.length}</div>
+            <div className="text-sm font-arabic text-muted-foreground">التصحيحات</div>
           </div>
         </div>
 
@@ -163,7 +250,8 @@ export default function ValidationReport() {
               {Object.entries(reasonCounts).map(([reason, count]) => (
                 <span
                   key={reason}
-                  className="px-3 py-1 rounded-full bg-muted text-sm font-arabic"
+                  className="px-3 py-1 rounded-full bg-muted text-sm font-arabic cursor-pointer hover:bg-muted/80"
+                  onClick={() => setFilterReason(reason as MismatchReason)}
                 >
                   {REASON_LABELS[reason as MismatchReason]}: {count}
                 </span>
@@ -172,27 +260,51 @@ export default function ValidationReport() {
           </div>
         )}
 
-        {/* Export Buttons */}
-        <div className="flex gap-3">
-          <Button onClick={handleExportJSON} variant="outline" className="gap-2">
+        {/* Actions Row */}
+        <div className="flex flex-wrap gap-3">
+          <Button onClick={handleExportJSON} variant="outline" size="sm" className="gap-2">
             <Download className="w-4 h-4" />
-            <span className="font-arabic">تصدير JSON</span>
+            <span className="font-arabic">تصدير التقرير JSON</span>
           </Button>
-          <Button onClick={handleExportCSV} variant="outline" className="gap-2">
+          <Button onClick={handleExportCSV} variant="outline" size="sm" className="gap-2">
             <Download className="w-4 h-4" />
             <span className="font-arabic">تصدير CSV</span>
           </Button>
+          <div className="h-8 w-px bg-border mx-1" />
+          <Button onClick={handleExportCorrections} variant="outline" size="sm" className="gap-2">
+            <Download className="w-4 h-4" />
+            <span className="font-arabic">تصدير التصحيحات</span>
+          </Button>
+          <Button onClick={handleImportCorrections} variant="outline" size="sm" className="gap-2">
+            <Upload className="w-4 h-4" />
+            <span className="font-arabic">استيراد تصحيحات</span>
+          </Button>
+          {canUndo() && (
+            <Button onClick={undo} variant="ghost" size="sm" className="gap-2">
+              <RotateCcw className="w-4 h-4" />
+              <span className="font-arabic">تراجع</span>
+            </Button>
+          )}
         </div>
 
-        {/* Filter */}
-        <div className="flex items-center gap-3">
-          <span className="font-arabic text-sm">تصفية حسب السبب:</span>
+        {/* Search & Filter */}
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="relative flex-1 min-w-[200px]">
+            <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <Input
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="بحث في الكلمات..."
+              className="pr-10 font-arabic"
+            />
+          </div>
           <Select value={filterReason} onValueChange={(v) => setFilterReason(v as MismatchReason | 'all')}>
             <SelectTrigger className="w-48">
+              <Filter className="w-4 h-4 ml-2" />
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">الكل ({report.mismatches.length})</SelectItem>
+              <SelectItem value="all">الكل ({activeUnmatchedCount})</SelectItem>
               {Object.entries(reasonCounts).map(([reason, count]) => (
                 <SelectItem key={reason} value={reason}>
                   {REASON_LABELS[reason as MismatchReason]} ({count})
@@ -206,7 +318,9 @@ export default function ValidationReport() {
         {filteredMismatches.length === 0 ? (
           <div className="page-frame p-8 text-center">
             <CheckCircle className="w-12 h-12 text-accent mx-auto mb-4" />
-            <p className="font-arabic text-lg">جميع الكلمات مطابقة!</p>
+            <p className="font-arabic text-lg">
+              {searchQuery ? 'لا توجد نتائج' : 'جميع الكلمات مطابقة!'}
+            </p>
           </div>
         ) : (
           <div className="space-y-3">
@@ -233,14 +347,24 @@ export default function ValidationReport() {
                       {m.detail}
                     </div>
                   </div>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => goToPage(m.word.pageNumber)}
-                    className="shrink-0"
-                  >
-                    انتقل
-                  </Button>
+                  <div className="flex gap-1 shrink-0">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => openCorrectionDialog(m)}
+                      className="gap-1"
+                    >
+                      <Edit3 className="w-3 h-3" />
+                      <span className="font-arabic">تعديل</span>
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => goToPage(m.word.pageNumber)}
+                    >
+                      <span className="font-arabic">انتقل</span>
+                    </Button>
+                  </div>
                 </div>
               ))}
               {filteredMismatches.length > 200 && (
@@ -257,6 +381,15 @@ export default function ValidationReport() {
           تم التحقق في: {new Date(report.generatedAt).toLocaleString('ar-EG')}
         </div>
       </div>
+
+      {/* Correction Dialog */}
+      <CorrectionDialog
+        mismatch={selectedMismatch}
+        isOpen={correctionDialogOpen}
+        onClose={() => setCorrectionDialogOpen(false)}
+        onNavigate={goToPage}
+        allWords={allWords}
+      />
     </div>
   );
 }

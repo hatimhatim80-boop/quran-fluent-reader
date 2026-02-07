@@ -1,12 +1,13 @@
 import React, { useCallback, useState } from 'react';
-import { Link } from 'react-router-dom';
 import { useQuranData } from '@/hooks/useQuranData';
 import { useAutoPlay } from '@/hooks/useAutoPlay';
 import { GhareebWord } from '@/types/quran';
 import { PageView } from './PageView';
 import { PageNavigation } from './PageNavigation';
 import { AutoPlayControls } from './AutoPlayControls';
-import { Loader2, BookOpen, Play, Pause, ClipboardCheck } from 'lucide-react';
+import { Toolbar } from './Toolbar';
+import { useSettingsStore } from '@/stores/settingsStore';
+import { Loader2 } from 'lucide-react';
 
 export function QuranReader() {
   const {
@@ -23,6 +24,8 @@ export function QuranReader() {
     nextPage,
     prevPage,
   } = useQuranData();
+
+  const { settings } = useSettingsStore();
 
   // SINGLE SOURCE OF TRUTH: rendered words from PageView
   const [renderedWords, setRenderedWords] = useState<GhareebWord[]>([]);
@@ -48,14 +51,24 @@ export function QuranReader() {
 
   // Callback when PageView reports its rendered words
   const handleRenderedWordsChange = useCallback((words: GhareebWord[]) => {
-    console.log('[QuranReader] Rendered words received:', words.length);
+    if (settings.debugMode) {
+      console.log('[QuranReader] Rendered words received:', words.length);
+    }
     setRenderedWords(words);
-  }, []);
+  }, [settings.debugMode]);
 
   // When user clicks a word, jump to it (works during playback too)
   const handleWordClick = useCallback((_: GhareebWord, index: number) => {
     jumpTo(index);
   }, [jumpTo]);
+
+  const handlePlayPause = useCallback(() => {
+    if (isPlaying) {
+      pause();
+    } else {
+      play();
+    }
+  }, [isPlaying, play, pause]);
 
   // Loading state
   if (isLoading) {
@@ -94,55 +107,20 @@ export function QuranReader() {
   return (
     <div className="min-h-screen bg-background" dir="rtl">
       <div className="max-w-2xl mx-auto px-4 py-6 sm:py-8 space-y-5">
-        {/* Minimal Header */}
-        <header className="text-center pb-2">
-          <div className="flex items-center justify-center gap-3 mb-1">
-            <div className="inline-flex items-center gap-2">
-              <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
-                <BookOpen className="w-4 h-4 text-primary" />
-              </div>
-              <h1 className="text-xl sm:text-2xl font-bold font-arabic text-foreground">
-                القرآن الكريم
-              </h1>
-            </div>
+        {/* Toolbar */}
+        <Toolbar
+          isPlaying={isPlaying}
+          onPlayPause={handlePlayPause}
+          wordsCount={renderedWords.length}
+          currentWordIndex={currentWordIndex}
+        />
 
-            <div className="flex items-center gap-2">
-              {/* Single Play/Pause button */}
-              <button
-                type="button"
-                className={`nav-button w-10 h-10 rounded-lg ${isPlaying ? 'bg-primary/20 border-primary' : ''}`}
-                aria-pressed={isPlaying}
-                onClick={() => isPlaying ? pause() : play()}
-                title={isPlaying ? 'إيقاف مؤقت' : 'تشغيل معاني الكلمات'}
-              >
-                {isPlaying ? (
-                  <Pause className="w-5 h-5" />
-                ) : (
-                  <Play className="w-5 h-5 mr-[-2px]" />
-                )}
-              </button>
-              
-              {/* Status badge - shows rendered word count */}
-              {(isPlaying || currentWordIndex >= 0) && renderedWords.length > 0 && (
-                <span className="text-xs font-arabic text-muted-foreground bg-muted/50 px-2 py-1 rounded-md whitespace-nowrap">
-                  {currentWordIndex + 1} / {renderedWords.length}
-                </span>
-              )}
-            </div>
-
-            {/* Validation Report Link */}
-            <Link
-              to="/validation"
-              className="nav-button w-10 h-10 rounded-lg flex items-center justify-center"
-              title="تقرير التحقق من المطابقة"
-            >
-              <ClipboardCheck className="w-5 h-5" />
-            </Link>
+        {/* Debug display when enabled */}
+        {settings.debugMode && isPlaying && (
+          <div className="fixed top-4 left-4 z-50 bg-black/80 text-white text-xs px-3 py-2 rounded-lg font-mono">
+            Running {currentWordIndex + 1} / {renderedWords.length}
           </div>
-          <p className="text-xs text-muted-foreground font-arabic">
-            الميسر في غريب القرآن
-          </p>
-        </header>
+        )}
 
         {/* Page View */}
         {pageData && (

@@ -1,0 +1,43 @@
+{
+  "$schema": "https://v2.tauri.app/schema.json",
+  "productName": "quran-fluent-reader",
+  "identifier": "app.lovable.quran",
+  "version": "1.0.0",
+  "build": {
+    "beforeDevCommand": "npm run dev",
+    "beforeBuildCommand": "npm run build",
+    "frontendDist": "../dist",
+    "devUrl": "http://localhost:5173"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "قارئ القرآن الكريم",
+        "width": 1024,
+        "height": 768,
+        "resizable": true,
+        "fullscreen": false,
+        "center": true
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "shortDescription": "قارئ القرآن الكريم مع معاني الكلمات الغريبة",
+    "longDescription": "تطبيق لقراءة القرآن الكريم مع ميزة عرض معاني الكلمات الغريبة والتشغيل التلقائي",
+    "category": "Education",
+    "publisher": "Lovable",
+    "copyright": "© 2024"
+  }
+}
