@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { QuranPage, GhareebWord } from '@/types/quran';
-import { removeDiacritics } from '@/utils/quranParser';
+import { normalizeArabic } from '@/utils/quranParser';
 
 interface PageViewProps {
   page: QuranPage;
@@ -39,13 +39,20 @@ export function PageView({
       ));
     }
 
-    // Create searchable versions of ghareeb words
-    const ghareebSearchable = ghareebWords.map((gw, idx) => ({
-      original: gw,
-      index: idx,
-      cleanWord: removeDiacritics(gw.wordText),
-      used: false,
-    }));
+    // Process ghareeb words: normalize and track usage
+    const ghareebData = ghareebWords.map((gw, idx) => {
+      const normalized = normalizeArabic(gw.wordText);
+      // Get individual words from multi-word phrases
+      const words = normalized.split(' ').filter(w => w.length >= 2);
+      return {
+        original: gw,
+        index: idx,
+        normalizedFull: normalized,
+        firstWord: words[0] || normalized,
+        allWords: words,
+        used: false,
+      };
+    });
 
     return page.text.split('\n').map((line, lineIdx) => {
       // Check for surah header
@@ -74,17 +81,25 @@ export function PageView({
           return <span key={`${lineIdx}-${tokenIndex}`}>{token}</span>;
         }
 
-        const cleanToken = removeDiacritics(token);
+        const normalizedToken = normalizeArabic(token);
         
         // Check if this token matches any ghareeb word (not yet used)
-        for (const gw of ghareebSearchable) {
+        for (const gw of ghareebData) {
           if (gw.used) continue;
           
-          // Check for match - the token should contain or equal the ghareeb word
-          if (cleanToken === gw.cleanWord || 
-              cleanToken.includes(gw.cleanWord) || 
-              gw.cleanWord.includes(cleanToken)) {
-            
+          // Match if:
+          // 1. Token equals the full normalized word/phrase
+          // 2. Token equals the first word of a phrase
+          // 3. Token contains the first word (for words with attached particles)
+          // 4. First word contains the token (for partial matches)
+          const isMatch = 
+            normalizedToken === gw.normalizedFull ||
+            normalizedToken === gw.firstWord ||
+            normalizedToken.includes(gw.firstWord) ||
+            gw.firstWord.includes(normalizedToken) ||
+            gw.allWords.some(w => normalizedToken.includes(w) || w.includes(normalizedToken));
+          
+          if (isMatch) {
             gw.used = true;
             const isHighlighted = highlightedWordIndex === gw.index;
             
@@ -128,8 +143,15 @@ export function PageView({
         {renderedContent}
       </div>
 
+      {/* Word Count */}
+      {ghareebWords.length > 0 && (
+        <div className="text-center text-xs text-muted-foreground mt-4 font-arabic">
+          {ghareebWords.length} كلمة غريبة في هذه الصفحة
+        </div>
+      )}
+
       {/* Decorative Footer */}
-      <div className="flex justify-center mt-6">
+      <div className="flex justify-center mt-4">
         <div className="w-32 h-1 bg-gradient-to-r from-transparent via-ornament/30 to-transparent rounded-full" />
       </div>
     </div>
