@@ -716,7 +716,8 @@ export function DevDebugPanel({
     }
   }, []);
   
-  // Listen for custom inspection events (from GhareebWordPopover)
+  // Listen for custom inspection events (from global DevDebugOverlay)
+  // IMPORTANT: Listener must be attached ALWAYS, not just when panel is open
   useEffect(() => {
     const handleCustomInspect = (e: CustomEvent<DevInspectWordDetail>) => {
       const detail = e.detail;
@@ -744,14 +745,13 @@ export function DevDebugPanel({
         assemblyId: detail.assemblyId ?? 'unknown',
       });
 
-      if (isOpen) {
-        setActiveTab('inspect');
-      }
+      // Auto-switch to Inspect tab when a word is selected
+      setActiveTab('inspect');
     };
     
     window.addEventListener(DEV_INSPECT_WORD_EVENT as any, handleCustomInspect);
     return () => window.removeEventListener(DEV_INSPECT_WORD_EVENT as any, handleCustomInspect);
-  }, [isOpen]);
+  }, []);
   
   // Listen for DOM clicks when panel is open (best-effort; global overlay also emits events)
   useEffect(() => {
@@ -968,19 +968,23 @@ export function DevDebugPanel({
             </TabsContent>
             
             {/* Inspect Tab */}
-            <TabsContent value="inspect" className="mt-2 space-y-2">
-              <InspectTabContent
-                inspectedWord={inspectedWord}
-                lastSelectionEvent={lastSelectionEvent}
-                reassignMode={reassignMode}
-                setReassignMode={setReassignMode}
-                pendingReassignTarget={pendingReassignTarget}
-                pageNumber={pageNumber}
-                ghareebWords={ghareebWords}
-                renderedWords={renderedWords}
-                onInvalidateCache={onInvalidateCache}
-                setInspectedWord={setInspectedWord}
-              />
+            <TabsContent value="inspect" className="mt-2">
+              <ScrollArea className="h-[400px]">
+                <div className="pr-4 space-y-2">
+                  <InspectTabContent
+                    inspectedWord={inspectedWord}
+                    lastSelectionEvent={lastSelectionEvent}
+                    reassignMode={reassignMode}
+                    setReassignMode={setReassignMode}
+                    pendingReassignTarget={pendingReassignTarget}
+                    pageNumber={pageNumber}
+                    ghareebWords={ghareebWords}
+                    renderedWords={renderedWords}
+                    onInvalidateCache={onInvalidateCache}
+                    setInspectedWord={setInspectedWord}
+                  />
+                </div>
+              </ScrollArea>
             </TabsContent>
           </Tabs>
           
