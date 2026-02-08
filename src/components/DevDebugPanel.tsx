@@ -25,12 +25,15 @@ import {
   Trash2,
   ArrowRightLeft,
   Save,
+  PenLine,
+  AlertTriangle,
 } from 'lucide-react';
 import { QuranPage, GhareebWord } from '@/types/quran';
 import { normalizeArabic } from '@/utils/quranParser';
 import { useDataStore } from '@/stores/dataStore';
 import { useHighlightOverrideStore, makePositionKey, makeIdentityKey } from '@/stores/highlightOverrideStore';
 import { toast } from 'sonner';
+import { MeaningAssignDialog } from './MeaningAssignDialog';
 
 // ============= TYPES =============
 
@@ -403,10 +406,14 @@ function InspectTabContent({
   onInvalidateCache,
   setInspectedWord,
 }: InspectTabContentProps) {
+  // Dialog state for meaning assignment
+  const [showMeaningDialog, setShowMeaningDialog] = useState(false);
+  
   // Use highlight override store (primary for add/remove highlight)
   const setHighlightOverride = useHighlightOverrideStore((s) => s.setOverride);
   const removeHighlightOverride = useHighlightOverrideStore((s) => s.removeOverride);
   const getHighlightOverride = useHighlightOverrideStore((s) => s.getOverride);
+  const getEffectiveMeaning = useHighlightOverrideStore((s) => s.getEffectiveMeaning);
   const highlightVersion = useHighlightOverrideStore((s) => s.version);
   
   // Legacy data store (for reassign meaning)
@@ -430,8 +437,52 @@ function InspectTabContent({
     return inspectedWord?.isHighlighted ?? false;
   }, [existingHighlightOverride, inspectedWord?.isHighlighted]);
   
-  // Handle: Add highlight to this word
-  const handleAddHighlight = useCallback(() => {
+  // Check if word has a valid meaning
+  const meaningInfo = useMemo(() => {
+    if (!inspectedWord) return { meaning: '', source: 'default' as const, hasMeaning: false };
+    
+    const posKey = inspectedWord.positionKey || '';
+    const idKey = inspectedWord.identityKey || '';
+    const defaultMeaning = inspectedWord.meaningPreview || '';
+    
+    const info = getEffectiveMeaning(posKey, idKey, defaultMeaning);
+    
+    // If source is 'override-ref', resolve the meaning from ghareebWords
+    if (info.source === 'override-ref' && info.meaning) {
+      const refWord = ghareebWords.find(w => w.uniqueKey === info.meaning);
+      if (refWord && refWord.meaning) {
+        return {
+          meaning: refWord.meaning,
+          source: 'override-ref' as const,
+          hasMeaning: true,
+        };
+      }
+    }
+    
+    return info;
+  }, [inspectedWord, getEffectiveMeaning, highlightVersion, ghareebWords]);
+  
+  // Handle: Add highlight WITH meaning check
+  const handleAddHighlightClick = useCallback(() => {
+    if (!inspectedWord) return;
+    
+    // Check if word already has a meaning (from ghareeb database)
+    const existingMeaning = inspectedWord.meaningPreview && 
+      inspectedWord.meaningPreview.trim() && 
+      inspectedWord.meaningPreview !== 'لا يوجد' &&
+      inspectedWord.meaningPreview !== 'لا يوجد معنى';
+    
+    if (existingMeaning) {
+      // Word has meaning, can add highlight directly
+      doAddHighlight(inspectedWord.meaningPreview || '');
+    } else {
+      // No meaning - show dialog
+      setShowMeaningDialog(true);
+    }
+  }, [inspectedWord]);
+  
+  // Actually add the highlight with meaning
+  const doAddHighlight = useCallback((meaningText: string, meaningId?: string) => {
     if (!inspectedWord) return;
     
     const positionKey = inspectedWord.positionKey || 
@@ -444,7 +495,8 @@ function InspectTabContent({
       identityKey,
       wordText: inspectedWord.originalWord,
       highlight: true,
-      meaning: inspectedWord.meaningPreview || '',
+      meaningText: meaningId ? undefined : meaningText, // Use meaningText only if no meaningId
+      meaningId: meaningId,
       surahNumber: inspectedWord.surah,
       verseNumber: inspectedWord.ayah,
       wordIndex: inspectedWord.wordIndex,
@@ -453,11 +505,57 @@ function InspectTabContent({
       tokenIndex: inspectedWord.tokenIndex,
     });
     
-    toast.success('تم إضافة التمييز ✨', {
+    toast.success('تم إضافة التمييز والمعنى ✨', {
       description: `الكلمة "${inspectedWord.originalWord}" ستظهر كغريبة الآن`,
     });
     
     // Force refresh
+    onInvalidateCache?.();
+  }, [inspectedWord, pageNumber, setHighlightOverride, onInvalidateCache]);
+  
+  // Handle meaning assignment from dialog
+  const handleMeaningAssign = useCallback((params: { meaningText?: string; meaningId?: string }) => {
+    if (params.meaningText) {
+      doAddHighlight(params.meaningText);
+    } else if (params.meaningId) {
+      // Find the referenced meaning
+      const refWord = ghareebWords.find(w => w.uniqueKey === params.meaningId);
+      doAddHighlight(refWord?.meaning || '', params.meaningId);
+    }
+    setShowMeaningDialog(false);
+  }, [doAddHighlight, ghareebWords]);
+  
+  // Handle: Assign/Fix meaning for already highlighted word
+  const handleAssignMeaningToHighlighted = useCallback(() => {
+    setShowMeaningDialog(true);
+  }, []);
+  
+  // Handle: Update meaning on existing highlight
+  const handleUpdateMeaning = useCallback((params: { meaningText?: string; meaningId?: string }) => {
+    if (!inspectedWord) return;
+    
+    const positionKey = inspectedWord.positionKey || 
+      makePositionKey(pageNumber, inspectedWord.lineIndex ?? 0, inspectedWord.tokenIndex ?? 0);
+    const identityKey = inspectedWord.identityKey ||
+      makeIdentityKey(inspectedWord.surah ?? 0, inspectedWord.ayah ?? 0, inspectedWord.wordIndex ?? 0);
+    
+    setHighlightOverride({
+      positionKey,
+      identityKey,
+      wordText: inspectedWord.originalWord,
+      highlight: true, // Keep highlighted
+      meaningText: params.meaningId ? undefined : params.meaningText,
+      meaningId: params.meaningId,
+      surahNumber: inspectedWord.surah,
+      verseNumber: inspectedWord.ayah,
+      wordIndex: inspectedWord.wordIndex,
+      pageNumber,
+      lineIndex: inspectedWord.lineIndex,
+      tokenIndex: inspectedWord.tokenIndex,
+    });
+    
+    toast.success('تم تحديث المعنى ✨');
+    setShowMeaningDialog(false);
     onInvalidateCache?.();
   }, [inspectedWord, pageNumber, setHighlightOverride, onInvalidateCache]);
   
@@ -626,11 +724,37 @@ function InspectTabContent({
             </div>
           </div>
           
+          {/* Meaning Info with Warning */}
           <div>
-            <span className="text-muted-foreground text-[10px]">Meaning Preview:</span>
-            <div className="font-arabic text-sm p-1.5 bg-muted rounded" dir="rtl">
-              {inspectedWord.meaningPreview || 'لا يوجد معنى'}
-            </div>
+            <span className="text-muted-foreground text-[10px]">Meaning:</span>
+            {meaningInfo.hasMeaning ? (
+              <div className="font-arabic text-sm p-1.5 bg-muted rounded" dir="rtl">
+                {meaningInfo.meaning}
+                {meaningInfo.source !== 'default' && (
+                  <Badge variant="outline" className="text-[8px] mr-2">
+                    {meaningInfo.source === 'override-text' ? 'معنى يدوي' : 'مرجع'}
+                  </Badge>
+                )}
+              </div>
+            ) : (
+              <div className="p-2 rounded bg-destructive/10 border border-destructive/30">
+                <div className="flex items-center gap-2 text-destructive text-sm">
+                  <AlertTriangle className="w-4 h-4" />
+                  <span className="font-arabic">المعنى غير موجود!</span>
+                </div>
+                {isCurrentlyHighlighted && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="w-full h-6 text-[10px] gap-1 mt-2 border-destructive/50 text-destructive hover:bg-destructive/10"
+                    onClick={handleAssignMeaningToHighlighted}
+                  >
+                    <PenLine className="w-3 h-3" />
+                    إسناد معنى لهذه الكلمة
+                  </Button>
+                )}
+              </div>
+            )}
           </div>
           
           {/* DEV-ONLY Editing Actions */}
@@ -642,21 +766,34 @@ function InspectTabContent({
             
             {/* Conditional: Add or Remove Highlight */}
             {isCurrentlyHighlighted ? (
-              <Button
-                size="sm"
-                variant="destructive"
-                className="w-full h-7 text-[10px] gap-1"
-                onClick={handleRemoveHighlight}
-              >
-                <Trash2 className="w-3 h-3" />
-                إزالة التلوين من هذه الكلمة
-              </Button>
+              <>
+                <Button
+                  size="sm"
+                  variant="destructive"
+                  className="w-full h-7 text-[10px] gap-1"
+                  onClick={handleRemoveHighlight}
+                >
+                  <Trash2 className="w-3 h-3" />
+                  إزالة التلوين من هذه الكلمة
+                </Button>
+                
+                {/* Update Meaning button for highlighted words */}
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="w-full h-7 text-[10px] gap-1"
+                  onClick={handleAssignMeaningToHighlighted}
+                >
+                  <PenLine className="w-3 h-3" />
+                  تعديل المعنى
+                </Button>
+              </>
             ) : (
               <Button
                 size="sm"
                 variant="default"
-                className="w-full h-7 text-[10px] gap-1 bg-yellow-600 hover:bg-yellow-700"
-                onClick={handleAddHighlight}
+                className="w-full h-7 text-[10px] gap-1 bg-accent text-accent-foreground hover:bg-accent/80"
+                onClick={handleAddHighlightClick}
               >
                 <CheckCircle className="w-3 h-3" />
                 إضافة تلوين لهذه الكلمة
@@ -714,11 +851,30 @@ function InspectTabContent({
           <span className="text-[10px]">Click any word in the mushaf (highlighted or not)</span>
         </div>
       )}
+      
+      {/* Meaning Assignment Dialog */}
+      <MeaningAssignDialog
+        open={showMeaningDialog}
+        onOpenChange={setShowMeaningDialog}
+        wordText={inspectedWord?.originalWord || ''}
+        positionKey={inspectedWord?.positionKey || ''}
+        identityKey={inspectedWord?.identityKey || ''}
+        pageNumber={pageNumber}
+        lineIndex={inspectedWord?.lineIndex}
+        tokenIndex={inspectedWord?.tokenIndex}
+        surahNumber={inspectedWord?.surah}
+        verseNumber={inspectedWord?.ayah}
+        wordIndex={inspectedWord?.wordIndex}
+        ghareebWords={ghareebWords}
+        onAssignMeaning={isCurrentlyHighlighted ? handleUpdateMeaning : handleMeaningAssign}
+        onCancel={() => setShowMeaningDialog(false)}
+      />
     </>
   );
 }
 
 // ============= COMPONENT =============
+
 
 export function DevDebugPanel({
   page,
