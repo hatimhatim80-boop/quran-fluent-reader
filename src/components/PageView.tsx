@@ -2,6 +2,7 @@ import React, { useMemo, useEffect, useRef } from 'react';
 import { QuranPage, GhareebWord } from '@/types/quran';
 import { normalizeArabic } from '@/utils/quranParser';
 import { GhareebWordPopover } from './GhareebWordPopover';
+import { useHighlightOverrideStore, makePositionKey, makeIdentityKey } from '@/stores/highlightOverrideStore';
 
 interface PageViewProps {
   page: QuranPage;
@@ -58,6 +59,11 @@ export function PageView({
 }: PageViewProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const lastRenderedKeysRef = useRef<string>('');
+  
+  // Subscribe to highlight overrides for reactivity
+  const highlightOverrides = useHighlightOverrideStore((s) => s.overrides);
+  const highlightVersion = useHighlightOverrideStore((s) => s.version);
+  const shouldHighlight = useHighlightOverrideStore((s) => s.shouldHighlight);
 
   useEffect(() => {
     if (highlightedWordIndex < 0) return;
@@ -406,12 +412,55 @@ export function PageView({
           continue;
         }
         
+        // Generate position key for override lookup
+        const positionKey = makePositionKey(page.pageNumber, lineIdx, i);
+        
         if (td.matched && td.matchEntry) {
           const entry = td.matchEntry;
           // Use sequential index from the map
           const sequentialIndex = originalToSequentialIndex.get(entry.originalIndex) ?? -1;
           const isHighlighted = highlightedWordIndex === sequentialIndex;
           
+          // Generate identity key for this matched word
+          const identityKey = makeIdentityKey(
+            entry.original.surahNumber,
+            entry.original.verseNumber,
+            entry.original.wordIndex
+          );
+          
+          // CHECK OVERRIDE: Should this word be highlighted?
+          const shouldShowHighlight = shouldHighlight(positionKey, identityKey, true);
+          
+          if (!shouldShowHighlight) {
+            // Override says: DO NOT highlight this word (render as plain with inspectable data)
+            lineElements.push(
+              <span
+                key={`${lineIdx}-${i}`}
+                data-word-inspectable="true"
+                data-line-index={lineIdx}
+                data-token-index={i}
+                data-surah-number={entry.original.surahNumber}
+                data-verse={entry.original.verseNumber}
+                data-word-index={entry.original.wordIndex}
+                data-assembly-id={assemblyId}
+              >
+                {td.isPartOfPhrase && td.phraseStart ? (() => {
+                  const phraseTokenIndices = td.phraseTokens;
+                  const lastPhraseTokenIdx = phraseTokenIndices[phraseTokenIndices.length - 1];
+                  const phraseText: string[] = [];
+                  for (let k = i; k <= lastPhraseTokenIdx; k++) {
+                    phraseText.push(tokenData[k].token);
+                  }
+                  i = lastPhraseTokenIdx; // Will be incremented at end
+                  return phraseText.join('');
+                })() : td.token}
+              </span>
+            );
+            i++;
+            continue;
+          }
+          
+          // Normal highlight rendering
           if (td.isPartOfPhrase && td.phraseStart) {
             const phraseTokenIndices = td.phraseTokens;
             const lastPhraseTokenIdx = phraseTokenIndices[phraseTokenIndices.length - 1];
@@ -502,7 +551,43 @@ export function PageView({
           }
         }
         
-        lineElements.push(<span key={`${lineIdx}-${i}`}>{td.token}</span>);
+        // Non-matched word: check if there's an override to FORCE highlight
+        const forceHighlightOverride = highlightOverrides.find(
+          o => o.positionKey === positionKey && o.highlight === true
+        );
+        
+        if (forceHighlightOverride && !td.isVerseNumber) {
+          // Force highlight this word via override
+          lineElements.push(
+            <span
+              key={`${lineIdx}-${i}`}
+              className="ghareeb-word"
+              data-ghareeb-key={forceHighlightOverride.identityKey}
+              data-word-inspectable="true"
+              data-line-index={lineIdx}
+              data-token-index={i}
+              data-surah-number={forceHighlightOverride.surahNumber}
+              data-verse={forceHighlightOverride.verseNumber}
+              data-word-index={forceHighlightOverride.wordIndex}
+              data-assembly-id={assemblyId}
+            >
+              {td.token}
+            </span>
+          );
+        } else {
+          // Normal non-matched word: make it inspectable (DEV only) but not highlighted
+          lineElements.push(
+            <span 
+              key={`${lineIdx}-${i}`}
+              data-word-inspectable="true"
+              data-line-index={lineIdx}
+              data-token-index={i}
+              data-assembly-id={assemblyId}
+            >
+              {td.token}
+            </span>
+          );
+        }
         i++;
       }
 
@@ -515,7 +600,7 @@ export function PageView({
     }
 
     return <div className="inline">{allElements}</div>;
-  }, [page.text, ghareebWords, highlightedWordIndex, meaningEnabled, isPlaying, onWordClick, surahContextByLine, originalToSequentialIndex]);
+  }, [page.text, page.pageNumber, ghareebWords, highlightedWordIndex, meaningEnabled, isPlaying, onWordClick, surahContextByLine, originalToSequentialIndex, highlightOverrides, highlightVersion, shouldHighlight]);
 
   return (
     <div ref={containerRef} className="page-frame p-5 sm:p-8">
