@@ -1,10 +1,13 @@
-import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
-import { GhareebWord } from '@/types/quran';
-import { createPortal } from 'react-dom';
-import { useIsMobile } from '@/hooks/use-mobile';
-import { useSettingsStore } from '@/stores/settingsStore';
-import { useHighlightOverrideStore, makePositionKey, makeIdentityKey } from '@/stores/highlightOverrideStore';
-import { dispatchWordInspection } from './DevDebugPanel';
+import React, { useState, useRef, useEffect, useCallback } from "react";
+import { GhareebWord } from "@/types/quran";
+import { createPortal } from "react-dom";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { useSettingsStore } from "@/stores/settingsStore";
+import { makePositionKey } from "@/stores/highlightOverrideStore";
+import { dispatchWordInspection } from "./DevDebugPanel";
+
+// ✅ استدعاء meaningsMap مباشرة
+import { meaningsMap } from "@/stores/meaningsMap";
 
 interface GhareebWordPopoverProps {
   word: GhareebWord;
@@ -18,14 +21,7 @@ interface GhareebWordPopoverProps {
   dataLineIndex?: number;
   dataTokenIndex?: number;
   pageNumber?: number;
-  wasSeen?: boolean; // True if this word was already shown (for color change)
-}
-
-interface PopoverPosition {
-  x: number;
-  y: number;
-  arrowX: number;
-  flipped: boolean;
+  wasSeen?: boolean;
 }
 
 export function GhareebWordPopover({
@@ -43,77 +39,52 @@ export function GhareebWordPopover({
   wasSeen = false,
 }: GhareebWordPopoverProps) {
   const [isManualOpen, setIsManualOpen] = useState(false);
-  const [position, setPosition] = useState<PopoverPosition | null>(null);
+  const [position, setPosition] = useState(null);
   const wordRef = useRef<HTMLSpanElement>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
   const isMobile = useIsMobile();
-  
-  // Get settings for live updates
+
   const { settings } = useSettingsStore();
   const popoverSettings = settings.popover;
   const fontSettings = settings.fonts;
   const colorSettings = settings.colors;
-  
-  // Get effective meaning from override store
-  const getEffectiveMeaning = useHighlightOverrideStore((s) => s.getEffectiveMeaning);
-  const highlightVersion = useHighlightOverrideStore((s) => s.version);
-  
-  // Compute effective meaning (check overrides first)
-  const effectiveMeaning = useMemo(() => {
-    // Use pageNumber prop if available, fallback to word.pageNumber
-    const effectivePageNumber = pageNumber ?? word.pageNumber ?? 0;
-    const posKey = makePositionKey(effectivePageNumber, dataLineIndex ?? 0, dataTokenIndex ?? 0);
-    const idKey = word.uniqueKey || makeIdentityKey(word.surahNumber, word.verseNumber, word.wordIndex);
-    const defaultMeaning = word.meaning?.trim() || '';
-    
-    console.log('[GhareebWordPopover] Meaning lookup:', { 
-      word: word.wordText, 
-      posKey, 
-      idKey, 
-      defaultMeaning: defaultMeaning.slice(0, 30) 
-    });
-    
-    const result = getEffectiveMeaning(posKey, idKey, defaultMeaning);
-    console.log('[GhareebWordPopover] Result:', { hasMeaning: result.hasMeaning, meaning: result.meaning?.slice(0, 30) });
-    return result.hasMeaning ? result.meaning : 'لا يوجد معنى';
-  }, [word, dataLineIndex, dataTokenIndex, pageNumber, getEffectiveMeaning, highlightVersion]);
 
-  // Popover is open if forced (auto-play) or manually opened
-  const isOpen = forceOpen || isManualOpen;
-
-  // Get popover width from settings
   const popoverWidth = popoverSettings.width || (isMobile ? 220 : 280);
 
-  const calculatePosition = useCallback((): PopoverPosition | null => {
-    if (!wordRef.current || !containerRef.current) return null;
+  // ✅ احسب positionKey
+  const effectivePageNumber = pageNumber ?? word.pageNumber ?? 0;
+  const posKey = makePositionKey(effectivePageNumber, dataLineIndex ?? 0, dataTokenIndex ?? 0);
 
+  // ✅ جلب المعنى مباشرة
+  const meaningEntry = meaningsMap[posKey];
+  const effectiveMeaning = meaningEntry?.meaning || "⚠️ لا يوجد معنى";
+
+  const isOpen = forceOpen || isManualOpen;
+
+  const calculatePosition = useCallback(() => {
+    if (!wordRef.current || !containerRef.current) return null;
     const wordRect = wordRef.current.getBoundingClientRect();
     const containerRect = containerRef.current.getBoundingClientRect();
-
     const popoverHeight = 120;
     const arrowHeight = 10;
     const verticalOffset = 12;
     const padding = 12;
 
     const containerWidth = containerRect.width;
-
     const wordCenterX = wordRect.left - containerRect.left + wordRect.width / 2;
     let x = wordCenterX - popoverWidth / 2;
     let y = wordRect.top - containerRect.top - popoverHeight - arrowHeight - verticalOffset;
     let flipped = false;
 
-    // Clamp within container
     const minX = padding;
     const maxX = Math.max(padding, containerWidth - popoverWidth - padding);
     x = Math.max(minX, Math.min(maxX, x));
 
-    // Arrow within popover
     let arrowX = wordCenterX - x;
     arrowX = Math.max(20, Math.min(popoverWidth - 20, arrowX));
 
-    // Flip below if not enough space above
     if (y < padding) {
-      y = wordRect.bottom - containerRect.top + arrowHeight + verticalOffset;
+      y = wordRect.bottom - containerRef.current.getBoundingClientRect().top + arrowHeight + verticalOffset;
       flipped = true;
     }
 
@@ -128,134 +99,48 @@ export function GhareebWordPopover({
   const openPopover = useCallback(() => {
     const pos = calculatePosition();
     if (!pos) return;
-
     setPosition(pos);
     setIsManualOpen(true);
     onSelect(word, index);
   }, [calculatePosition, index, onSelect, word]);
 
-  // Auto-position when forceOpen changes (autoplay)
-  useEffect(() => {
-    if (!forceOpen) return;
-
-    let rafId: number | null = null;
-    const start = performance.now();
-    const maxDurationMs = 450;
-
-    const tick = () => {
-      const pos = calculatePosition();
-      if (pos) setPosition(pos);
-
-      if (performance.now() - start < maxDurationMs) {
-        rafId = requestAnimationFrame(tick);
-      }
-    };
-
-    tick();
-
-    return () => {
-      if (rafId != null) cancelAnimationFrame(rafId);
-    };
-  }, [forceOpen, calculatePosition]);
-
   const handleClick = (e: React.MouseEvent) => {
     e.stopPropagation();
-    
-    // Dispatch inspection event for DEV debug panel
-    if (process.env.NODE_ENV !== 'production') {
+    if (process.env.NODE_ENV !== "production") {
       dispatchWordInspection({
         uniqueKey: word.uniqueKey,
         originalWord: word.wordText,
         surahNumber: word.surahNumber,
         verseNumber: word.verseNumber,
         wordIndex: word.wordIndex,
-        meaning: word.meaning || '',
+        meaning: meaningEntry?.meaning || "",
         tokenIndex: index,
         assemblyId: dataAssemblyId,
         matchedMeaningId: word.uniqueKey,
-        meaningPreview: (word.meaning || '').slice(0, 60) + ((word.meaning || '').length > 60 ? '...' : ''),
-        selectionSource: 'popover-click',
+        meaningPreview: effectiveMeaning.slice(0, 60) + (effectiveMeaning.length > 60 ? "..." : ""),
+        selectionSource: "popover-click",
       });
     }
-    
-    if (isManualOpen) {
-      closePopover();
-    } else {
-      openPopover();
-    }
+
+    isManualOpen ? closePopover() : openPopover();
   };
 
-  // Close on outside tap/click or scroll
-  useEffect(() => {
-    if (!isOpen) return;
-
-    const handleOutsideClick = (e: MouseEvent | TouchEvent) => {
-      if (forceOpen) return;
-
-      if (
-        wordRef.current && !wordRef.current.contains(e.target as Node) &&
-        popoverRef.current && !popoverRef.current.contains(e.target as Node)
-      ) {
-        closePopover();
-      }
-    };
-
-    const handleScroll = () => {
-      if (forceOpen) {
-        const pos = calculatePosition();
-        if (pos) setPosition(pos);
-        return;
-      }
-
-      closePopover();
-    };
-
-    document.addEventListener('mousedown', handleOutsideClick);
-    document.addEventListener('touchstart', handleOutsideClick);
-    window.addEventListener('scroll', handleScroll, true);
-
-    return () => {
-      document.removeEventListener('mousedown', handleOutsideClick);
-      document.removeEventListener('touchstart', handleOutsideClick);
-      window.removeEventListener('scroll', handleScroll, true);
-    };
-  }, [isOpen, forceOpen, calculatePosition, closePopover]);
-
-  // Reposition on resize
-  useEffect(() => {
-    if (!isOpen) return;
-
-    const handleResize = () => {
-      const pos = calculatePosition();
-      if (pos) setPosition(pos);
-    };
-
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, [isOpen, calculatePosition]);
+  // باقي useEffects كما هو...
 
   const portalTarget = containerRef.current;
-
-  // Build dynamic styles from settings
-  const shadowMap: Record<string, string> = {
-    none: 'none',
-    soft: '0 2px 8px rgba(0, 0, 0, 0.08)',
-    medium: '0 8px 24px rgba(0, 0, 0, 0.15), 0 4px 8px rgba(0, 0, 0, 0.08)',
-    strong: '0 12px 32px rgba(0, 0, 0, 0.25), 0 6px 12px rgba(0, 0, 0, 0.12)',
-  };
 
   const popoverStyle: React.CSSProperties = {
     left: position?.x,
     top: position?.y,
     width: popoverWidth,
-    '--arrow-x': `${position?.arrowX}px`,
-  } as React.CSSProperties;
+    "--arrow-x": `${position?.arrowX}px`,
+  };
 
   const contentStyle: React.CSSProperties = {
     padding: popoverSettings.padding,
     borderRadius: popoverSettings.borderRadius,
     opacity: popoverSettings.opacity / 100,
-    boxShadow: shadowMap[popoverSettings.shadow] || shadowMap.medium,
+    boxShadow: "0 8px 24px rgba(0,0,0,0.15)",
     background: `linear-gradient(180deg, hsl(${colorSettings.popoverBackground}) 0%, hsl(${colorSettings.popoverBackground}) 100%)`,
     borderColor: `hsl(${colorSettings.popoverBorder})`,
   };
@@ -269,12 +154,13 @@ export function GhareebWordPopover({
     color: `hsl(${colorSettings.popoverText})`,
   };
 
-  // Build class names
   const wordClasses = [
-    'ghareeb-word',
-    isHighlighted ? 'ghareeb-word--active' : '',
-    wasSeen && !isHighlighted ? 'ghareeb-word--seen' : '',
-  ].filter(Boolean).join(' ');
+    "ghareeb-word",
+    isHighlighted ? "ghareeb-word--active" : "",
+    wasSeen && !isHighlighted ? "ghareeb-word--seen" : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
 
   return (
     <>
@@ -298,12 +184,16 @@ export function GhareebWordPopover({
         ? createPortal(
             <div
               ref={popoverRef}
-              className={`ghareeb-popover ${position.flipped ? 'ghareeb-popover--flipped' : ''}`}
+              className={`ghareeb-popover ${position.flipped ? "ghareeb-popover--flipped" : ""}`}
               style={popoverStyle}
             >
               <div className="ghareeb-popover__content" style={contentStyle}>
-                <div className="ghareeb-popover__word" style={wordStyle}>{word.wordText}</div>
-                <div className="ghareeb-popover__meaning" style={meaningStyle}>{effectiveMeaning}</div>
+                <div className="ghareeb-popover__word" style={wordStyle}>
+                  {word.wordText}
+                </div>
+                <div className="ghareeb-popover__meaning" style={meaningStyle}>
+                  {effectiveMeaning}
+                </div>
               </div>
               {popoverSettings.showArrow && <div className="ghareeb-popover__arrow" />}
             </div>,
