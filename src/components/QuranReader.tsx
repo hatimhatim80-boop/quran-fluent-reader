@@ -9,6 +9,7 @@ import { Toolbar } from './Toolbar';
 import { DiagnosticModeBadge } from './DiagnosticModeActivator';
 import { useSettingsApplier } from '@/hooks/useSettingsApplier';
 import { useDevDebugContextStore } from '@/stores/devDebugContextStore';
+import { useDiagnosticModeStore } from '@/stores/diagnosticModeStore';
 import { Loader2 } from 'lucide-react';
 
 export function QuranReader() {
@@ -39,9 +40,12 @@ export function QuranReader() {
 
   // DEV Debug (global overlay) context
   const setDevDebugContext = useDevDebugContextStore((s) => s.setContext);
+  const isDiagnosticEnabled = useDiagnosticModeStore((s) => s.isEnabled);
+  const isDev = process.env.NODE_ENV !== 'production';
 
   useEffect(() => {
-    if (process.env.NODE_ENV === 'production') return;
+    // Set context if EITHER diagnostic mode is enabled OR we're in dev environment
+    if (!isDiagnosticEnabled && !isDev) return;
     if (!pageData) return;
 
     setDevDebugContext({
@@ -52,7 +56,7 @@ export function QuranReader() {
       renderedWords,
       invalidateCache: () => window.location.reload(),
     });
-  }, [currentPage, pageData, pageWords, renderedWords, setDevDebugContext]);
+  }, [currentPage, pageData, pageWords, renderedWords, setDevDebugContext, isDiagnosticEnabled, isDev]);
 
   const {
     isPlaying,

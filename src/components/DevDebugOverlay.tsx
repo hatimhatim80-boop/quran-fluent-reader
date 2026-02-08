@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useDevDebugContextStore } from '@/stores/devDebugContextStore';
 import { DevDebugPanel, dispatchWordInspection, DevInspectWordDetail } from '@/components/DevDebugPanel';
+import { useDiagnosticModeStore } from '@/stores/diagnosticModeStore';
 
 function shortHash(input: string): string {
   let hash = 0;
@@ -44,7 +45,10 @@ function toInt(value: string | undefined): number | undefined {
 }
 
 export function DevDebugOverlay() {
-  const isProd = process.env.NODE_ENV === 'production';
+  // Show overlay if EITHER: diagnostic mode is enabled OR we're in dev environment
+  const isDiagnosticEnabled = useDiagnosticModeStore((s) => s.isEnabled);
+  const isDev = process.env.NODE_ENV !== 'production';
+  const shouldShow = isDiagnosticEnabled || isDev;
 
   const context = useDevDebugContextStore((s) => s.context);
   const [mappingVersionId, setMappingVersionId] = useState<string>('map-loading');
@@ -80,7 +84,7 @@ export function DevDebugOverlay() {
 
   // Load mapping version id once (small file)
   useEffect(() => {
-    if (isProd) return;
+    if (!shouldShow) return;
 
     let cancelled = false;
 
@@ -98,14 +102,14 @@ export function DevDebugOverlay() {
     return () => {
       cancelled = true;
     };
-  }, [isProd]);
+  }, [shouldShow]);
 
   // GLOBAL (app-wide) selection wiring
   const longPressTimerRef = useRef<number | null>(null);
   const lastKeyRef = useRef<string | null>(null);
 
   useEffect(() => {
-    if (isProd) return;
+    if (!shouldShow) return;
 
     const dispatchFromEl = (el: HTMLElement, source: string) => {
       // Check for highlighted word first
@@ -206,9 +210,9 @@ export function DevDebugOverlay() {
       document.removeEventListener('click', onClick, true);
       document.removeEventListener('pointerover', onPointerOver, true);
     };
-  }, [isProd, wordByKey, context?.pageNumber]);
+  }, [shouldShow, wordByKey, context?.pageNumber]);
 
-  if (isProd || !context) return null;
+  if (!shouldShow || !context) return null;
 
   return (
     <div className="fixed top-3 right-3 z-50 pointer-events-none">
