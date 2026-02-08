@@ -71,7 +71,6 @@ export function DevDebugOverlay() {
         wordIndex: w.wordIndex,
       });
     }
-
     for (const w of context.renderedWords) {
       if (!map.has(w.uniqueKey)) {
         map.set(w.uniqueKey, {
@@ -117,63 +116,55 @@ export function DevDebugOverlay() {
     if (!shouldShow) return;
 
     const dispatchFromEl = (el: HTMLElement, source: string) => {
-      // Highlighted word key (if exists)
+      // highlighted word key (real ghareeb mapping)
       const ghareebKey = el.dataset.ghareebKey;
 
-      // Position-based (always available for inspectable words)
+      // For non-highlighted words, build a position-based key
       const pageNum = context?.pageNumber || 0;
+
+      // We support multiple attribute naming styles just in case:
       const lineIdx = toInt(el.dataset.lineIndex) ?? toInt(el.dataset.wordLine) ?? 0;
       const tokenIdx = toInt(el.dataset.tokenIndex) ?? toInt(el.dataset.wordToken) ?? 0;
+
       const positionKey = `${pageNum}_${lineIdx}_${tokenIdx}`;
 
+      // Determine if this is a highlighted (ghareeb) word
       const isHighlighted = !!ghareebKey;
 
-      // Try to hydrate from map if highlighted (or if renderedWords also has it)
+      // Use ghareeb key if available, otherwise position key
+      const key = ghareebKey || positionKey;
+
+      // Prevent hover spam
+      if (source === "hover" && lastKeyRef.current === key) return;
+      lastKeyRef.current = key;
+
       const fromMap = ghareebKey ? wordByKey.get(ghareebKey) : undefined;
-
       const domWord = (el.textContent || "").trim();
-      const originalWord = fromMap?.wordText || domWord || "";
 
-      // Extract surah/verse/wordIndex from map OR DOM data attrs
+      const originalWord = fromMap?.wordText || domWord || key;
+      const meaning = fromMap?.meaning || "";
+
+      // Extract surah/verse info from data attributes or from map
       const surahNumber = fromMap?.surahNumber ?? toInt(el.dataset.surahNumber) ?? 0;
       const verseNumber = fromMap?.verseNumber ?? toInt(el.dataset.verse) ?? 0;
       const wordIndex = fromMap?.wordIndex ?? toInt(el.dataset.wordIndex) ?? 0;
 
-      const meaning = fromMap?.meaning || "";
-
-      /**
-       * ✅ CRITICAL FIX:
-       * - uniqueKey/identity must represent the *word identity* (surah_ayah_wordIndex) or ghareebKey
-       * - positionKey must remain only the location on the page
-       */
-      const identityKey =
-        ghareebKey || (surahNumber && verseNumber && wordIndex ? `${surahNumber}_${verseNumber}_${wordIndex}` : null);
-
-      const uniqueKey = identityKey || positionKey;
-
-      // Prevent hover spam (use uniqueKey)
-      if (source === "hover" && lastKeyRef.current === uniqueKey) return;
-      lastKeyRef.current = uniqueKey;
-
       const detail: DevInspectWordDetail = {
-        uniqueKey, // ✅ identity if possible, else fallback to position
-        originalWord: originalWord || uniqueKey,
+        uniqueKey: key,
+        originalWord,
         surahNumber,
         verseNumber,
         wordIndex,
         meaning,
         tokenIndex: toInt(el.dataset.ghareebIndex) ?? tokenIdx,
         assemblyId: el.dataset.assemblyId,
-
-        // ✅ For highlighted words, this is the real ghareeb key
         matchedMeaningId: ghareebKey || null,
-
         meaningPreview: meaning ? meaning.slice(0, 60) + (meaning.length > 60 ? "..." : "") : "",
         selectionSource: source,
 
-        // NEW: Include position data for override system
+        // Position-based fields for highlight overrides
         isHighlighted,
-        positionKey, // ✅ location key ONLY
+        positionKey,
         lineIndex: lineIdx,
         pageNumber: pageNum,
       };
