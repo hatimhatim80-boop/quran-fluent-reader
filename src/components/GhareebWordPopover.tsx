@@ -1,8 +1,9 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { GhareebWord } from '@/types/quran';
 import { createPortal } from 'react-dom';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useSettingsStore } from '@/stores/settingsStore';
+import { useHighlightOverrideStore, makePositionKey, makeIdentityKey } from '@/stores/highlightOverrideStore';
 import { dispatchWordInspection } from './DevDebugPanel';
 
 interface GhareebWordPopoverProps {
@@ -48,12 +49,23 @@ export function GhareebWordPopover({
   const popoverSettings = settings.popover;
   const fontSettings = settings.fonts;
   const colorSettings = settings.colors;
+  
+  // Get effective meaning from override store
+  const getEffectiveMeaning = useHighlightOverrideStore((s) => s.getEffectiveMeaning);
+  const highlightVersion = useHighlightOverrideStore((s) => s.version);
+  
+  // Compute effective meaning (check overrides first)
+  const effectiveMeaning = useMemo(() => {
+    const posKey = makePositionKey(word.pageNumber, dataLineIndex ?? 0, dataTokenIndex ?? 0);
+    const idKey = word.uniqueKey || makeIdentityKey(word.surahNumber, word.verseNumber, word.wordIndex);
+    const defaultMeaning = word.meaning?.trim() || '';
+    
+    const result = getEffectiveMeaning(posKey, idKey, defaultMeaning);
+    return result.hasMeaning ? result.meaning : 'لا يوجد معنى';
+  }, [word, dataLineIndex, dataTokenIndex, getEffectiveMeaning, highlightVersion]);
 
   // Popover is open if forced (auto-play) or manually opened
   const isOpen = forceOpen || isManualOpen;
-
-  // Single source of truth for meaning - NO duplication
-  const meaning = word.meaning?.trim() ? word.meaning : 'لا يوجد معنى';
 
   // Get popover width from settings
   const popoverWidth = popoverSettings.width || (isMobile ? 220 : 280);
@@ -270,7 +282,7 @@ export function GhareebWordPopover({
             >
               <div className="ghareeb-popover__content" style={contentStyle}>
                 <div className="ghareeb-popover__word" style={wordStyle}>{word.wordText}</div>
-                <div className="ghareeb-popover__meaning" style={meaningStyle}>{meaning}</div>
+                <div className="ghareeb-popover__meaning" style={meaningStyle}>{effectiveMeaning}</div>
               </div>
               {popoverSettings.showArrow && <div className="ghareeb-popover__arrow" />}
             </div>,

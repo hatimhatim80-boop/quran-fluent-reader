@@ -5,7 +5,7 @@ import { persist } from 'zustand/middleware';
  * Highlight Override Store
  * 
  * Controls which words should be highlighted/unhighlighted in the Quran reader.
- * This is separate from word edits - it only controls the visual highlighting.
+ * Also stores custom meaning text/references for manually highlighted words.
  * 
  * Key format: `${pageNumber}_${lineIndex}_${tokenIndex}` or `${surah}_${ayah}_${wordIndex}`
  */
@@ -23,8 +23,13 @@ export interface HighlightOverride {
   // Override type
   highlight: boolean; // true = force highlight, false = force remove highlight
   
-  // Optional: meaning to use when highlighting a new word
+  // NEW: Meaning handling - meaningText takes priority over meaningId
+  meaningText?: string;  // Custom user-entered meaning text
+  meaningId?: string;    // Reference to existing ghareeb word uniqueKey
+  
+  // Legacy field (deprecated, use meaningText instead)
   meaning?: string;
+  
   surahNumber?: number;
   verseNumber?: number;
   wordIndex?: number;
@@ -54,6 +59,13 @@ interface HighlightOverrideState {
   
   // Check if word should be highlighted (considering overrides)
   shouldHighlight: (positionKey: string, identityKey: string, defaultHighlight: boolean) => boolean;
+  
+  // Get effective meaning for a word (checks overrides first)
+  getEffectiveMeaning: (positionKey: string, identityKey: string, defaultMeaning: string) => {
+    meaning: string;
+    source: 'override-text' | 'override-ref' | 'default';
+    hasMeaning: boolean;
+  };
   
   // Bulk operations
   clearPageOverrides: (pageNumber: number) => void;
@@ -118,6 +130,51 @@ export const useHighlightOverrideStore = create<HighlightOverrideState>()(
         return defaultHighlight;
       },
       
+      getEffectiveMeaning: (positionKey, identityKey, defaultMeaning) => {
+        const override = get().overrides.find(
+          (o) => o.positionKey === positionKey || o.identityKey === identityKey
+        );
+        
+        if (override) {
+          // Priority 1: Custom text meaning
+          if (override.meaningText && override.meaningText.trim()) {
+            return {
+              meaning: override.meaningText,
+              source: 'override-text' as const,
+              hasMeaning: true,
+            };
+          }
+          
+          // Priority 2: Reference to existing meaning (meaningId)
+          // Note: The caller should resolve meaningId to actual text
+          if (override.meaningId) {
+            return {
+              meaning: override.meaningId, // Caller resolves this
+              source: 'override-ref' as const,
+              hasMeaning: true,
+            };
+          }
+          
+          // Legacy support: old 'meaning' field
+          if (override.meaning && override.meaning.trim()) {
+            return {
+              meaning: override.meaning,
+              source: 'override-text' as const,
+              hasMeaning: true,
+            };
+          }
+        }
+        
+        // Default meaning
+        const hasMeaning = defaultMeaning && defaultMeaning.trim().length > 0 && 
+                          defaultMeaning !== 'لا يوجد معنى' && defaultMeaning !== 'لا يوجد';
+        return {
+          meaning: defaultMeaning,
+          source: 'default' as const,
+          hasMeaning: !!hasMeaning,
+        };
+      },
+      
       clearPageOverrides: (pageNumber) => {
         set((state) => ({
           overrides: state.overrides.filter((o) => o.pageNumber !== pageNumber),
@@ -132,7 +189,7 @@ export const useHighlightOverrideStore = create<HighlightOverrideState>()(
       exportOverrides: () => {
         const { overrides } = get();
         return JSON.stringify({
-          version: '1.0',
+          version: '1.1',
           type: 'highlight-overrides',
           exportedAt: new Date().toISOString(),
           overrides,
