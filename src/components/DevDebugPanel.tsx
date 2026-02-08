@@ -33,7 +33,7 @@ import {
 import { QuranPage, GhareebWord } from '@/types/quran';
 import { normalizeArabic } from '@/utils/quranParser';
 import { useDataStore } from '@/stores/dataStore';
-import { useHighlightOverrideStore, makePositionKey, makeIdentityKey } from '@/stores/highlightOverrideStore';
+import { useHighlightOverrideStore, makeIdentityKey } from '@/stores/highlightOverrideStore';
 import { toast } from 'sonner';
 import { MeaningAssignDialog } from './MeaningAssignDialog';
 import { isStopword } from '@/utils/globalAudit';
@@ -42,12 +42,12 @@ import { GlobalAuditDialog } from './GlobalAuditDialog';
 // ============= TYPES =============
 
 export type RendererType = 'WORD_SPANS' | 'PLAIN_TEXT';
-export type FallbackReason = 
-  | 'TOKENIZE_ERROR' 
-  | 'NORMALIZE_ERROR' 
+export type FallbackReason =
+  | 'TOKENIZE_ERROR'
+  | 'NORMALIZE_ERROR'
   | 'NORMALIZATION_MISMATCH'
-  | 'DOM_PARSE_ERROR' 
-  | 'CACHE_STALE' 
+  | 'DOM_PARSE_ERROR'
+  | 'CACHE_STALE'
   | 'UNKNOWN'
   | null;
 
@@ -98,7 +98,7 @@ export interface InspectedWord {
   wordIndex?: number;
   tokenIndex?: number;
   assemblyId?: string;
-  // NEW: Position-based fields for highlight overrides
+  // Position-based fields for highlight overrides
   isHighlighted?: boolean;
   positionKey?: string;
   lineIndex?: number;
@@ -120,7 +120,6 @@ interface DevDebugPanelProps {
 
 // ============= GLOBAL EVENT FOR WORD SELECTION =============
 
-// Custom event for word inspection
 export const DEV_INSPECT_WORD_EVENT = 'dev-debug-inspect-word';
 
 export interface DevInspectWordDetail {
@@ -135,7 +134,7 @@ export interface DevInspectWordDetail {
   matchedMeaningId?: string | null;
   meaningPreview?: string;
   selectionSource?: string;
-  // NEW: Position-based data for highlight overrides
+  // Position-based data for highlight overrides
   isHighlighted?: boolean;
   positionKey?: string;
   lineIndex?: number;
@@ -181,60 +180,56 @@ function analyzePageAssembly(
 } {
   const lines = page.text.split('\n');
   const assemblies: AssemblyBlock[] = [];
-  
+
   let currentSurah = page.surahName || 'غير محدد';
   let currentSurahNumber = 0;
   let blockStartLine = 0;
   let currentBlockLines: string[] = [];
   let blockId = 0;
-  
-  // Track surah transitions for assembly blocks
-  const surahTransitions: { lineIdx: number; surahName: string }[] = [];
-  
+
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
     if (isSurahHeader(line)) {
-      // Close previous block if exists
       if (currentBlockLines.length > 0) {
-        assemblies.push(createAssemblyBlock(
-          blockId++,
-          currentSurah,
-          currentSurahNumber,
-          currentBlockLines,
-          ghareebWords,
-          renderedWords,
-          blockStartLine
-        ));
+        assemblies.push(
+          createAssemblyBlock(
+            blockId++,
+            currentSurah,
+            currentSurahNumber,
+            currentBlockLines,
+            ghareebWords,
+            renderedWords,
+            blockStartLine
+          )
+        );
         currentBlockLines = [];
       }
-      
+
       currentSurah = extractSurahName(line);
-      const matchedGhareeb = ghareebWords.find(gw => 
-        normalizeSurahName(gw.surahName) === normalizeSurahName(currentSurah)
+      const matchedGhareeb = ghareebWords.find(
+        (gw) => normalizeSurahName(gw.surahName) === normalizeSurahName(currentSurah)
       );
       currentSurahNumber = matchedGhareeb?.surahNumber || 0;
       blockStartLine = i + 1;
-      
-      surahTransitions.push({ lineIdx: i, surahName: currentSurah });
     } else if (!isBismillah(line) && line.trim()) {
       currentBlockLines.push(line);
     }
   }
-  
-  // Add final block
+
   if (currentBlockLines.length > 0) {
-    assemblies.push(createAssemblyBlock(
-      blockId,
-      currentSurah,
-      currentSurahNumber,
-      currentBlockLines,
-      ghareebWords,
-      renderedWords,
-      blockStartLine
-    ));
+    assemblies.push(
+      createAssemblyBlock(
+        blockId,
+        currentSurah,
+        currentSurahNumber,
+        currentBlockLines,
+        ghareebWords,
+        renderedWords,
+        blockStartLine
+      )
+    );
   }
-  
-  // If no transitions found, create a single block
+
   if (assemblies.length === 0 && lines.length > 0) {
     assemblies.push({
       id: 'block-0',
@@ -248,17 +243,15 @@ function analyzePageAssembly(
       ghareebInBlock: ghareebWords.length,
     });
   }
-  
-  // Calculate matching stats
+
   const matchingStats = calculateMatchingStats(ghareebWords, renderedWords);
-  
-  // Generate version IDs (summary identifiers only)
+
   const dataVersions = {
     quranText: `hash-${hashCode(page.text.slice(0, 100))}`,
     ghareeb: `count-${ghareebWords.length}-${Date.now().toString(36).slice(-4)}`,
     mapping: 'page-mapping.json',
   };
-  
+
   return { assemblies, matchingStats, dataVersions };
 }
 
@@ -273,33 +266,28 @@ function createAssemblyBlock(
 ): AssemblyBlock {
   const blockText = lines.join(' ');
   const tokenCount = countTokens(blockText);
-  
-  // Find ghareeb words that belong to this surah
+
   const normalizedSurah = normalizeSurahName(surahName);
-  const ghareebInBlock = ghareebWords.filter(gw => 
-    normalizeSurahName(gw.surahName) === normalizedSurah ||
-    gw.surahNumber === surahNumber
+  const ghareebInBlock = ghareebWords.filter(
+    (gw) => normalizeSurahName(gw.surahName) === normalizedSurah || gw.surahNumber === surahNumber
   );
-  
-  const matchedInBlock = renderedWords.filter(rw =>
-    normalizeSurahName(rw.surahName) === normalizedSurah ||
-    rw.surahNumber === surahNumber
+
+  const matchedInBlock = renderedWords.filter(
+    (rw) => normalizeSurahName(rw.surahName) === normalizedSurah || rw.surahNumber === surahNumber
   );
-  
-  // Determine ayah range from verse markers
+
   const ayahMatches = blockText.match(/﴿(\d+)﴾/g);
   let ayahRange = 'غير محدد';
   if (ayahMatches && ayahMatches.length > 0) {
-    const ayahs = ayahMatches.map(m => parseInt(m.replace(/[﴿﴾]/g, '')));
+    const ayahs = ayahMatches.map((m) => parseInt(m.replace(/[﴿﴾]/g, '')));
     const minAyah = Math.min(...ayahs);
     const maxAyah = Math.max(...ayahs);
     ayahRange = minAyah === maxAyah ? `${minAyah}` : `${minAyah}-${maxAyah}`;
   }
-  
-  // Determine renderer type and fallback reason
+
   let rendererType: RendererType = 'WORD_SPANS';
   let fallbackReason: FallbackReason = null;
-  
+
   if (ghareebInBlock.length === 0) {
     rendererType = 'PLAIN_TEXT';
   } else if (tokenCount === 0) {
@@ -308,7 +296,7 @@ function createAssemblyBlock(
   } else if (matchedInBlock.length === 0 && ghareebInBlock.length > 0) {
     fallbackReason = 'NORMALIZATION_MISMATCH';
   }
-  
+
   return {
     id: `block-${id}`,
     surahRange: `${surahName} (${surahNumber || '?'})`,
@@ -328,30 +316,25 @@ function countTokens(text: string): number {
     .replace(/سُورَةُ\s+\S+/g, '')
     .replace(/سورة\s+\S+/g, '')
     .replace(/بِسۡمِ ٱللَّهِ ٱلرَّحۡمَٰنِ ٱلرَّحِيمِ/g, '');
-  
-  return cleanText.split(/\s+/).filter(t => t.trim().length > 0).length;
+
+  return cleanText.split(/\s+/).filter((t) => t.trim().length > 0).length;
 }
 
-function calculateMatchingStats(
-  ghareebWords: GhareebWord[],
-  renderedWords: GhareebWord[]
-): MatchingStats {
-  const renderedKeys = new Set(renderedWords.map(w => w.uniqueKey));
-  
+function calculateMatchingStats(ghareebWords: GhareebWord[], renderedWords: GhareebWord[]): MatchingStats {
+  const renderedKeys = new Set(renderedWords.map((w) => w.uniqueKey));
+
   const unmatchedList: UnmatchedWord[] = [];
   let meaningsMissing = 0;
-  
+
   for (const gw of ghareebWords) {
     if (!renderedKeys.has(gw.uniqueKey)) {
-      // Determine reason
       let reason: UnmatchedReason = 'NO_TOKEN';
-      
-      // Check if normalized word is problematic
+
       const normalized = normalizeArabic(gw.wordText);
       if (!normalized || normalized.length < 2) {
         reason = 'NORMALIZATION_MISMATCH';
       }
-      
+
       unmatchedList.push({
         originalWord: gw.wordText,
         normalizedWord: normalized,
@@ -361,19 +344,18 @@ function calculateMatchingStats(
         ayah: gw.verseNumber,
       });
     } else {
-      // Check if meaning is missing
       if (!gw.meaning || gw.meaning.trim() === '') {
         meaningsMissing++;
       }
     }
   }
-  
+
   return {
     ghareebTotal: ghareebWords.length,
     matchedCount: renderedWords.length,
     unmatchedCount: unmatchedList.length,
     meaningsMissing,
-    unmatchedList: unmatchedList.slice(0, 10), // First 10
+    unmatchedList: unmatchedList.slice(0, 10),
   };
 }
 
@@ -394,7 +376,7 @@ interface InspectTabContentProps {
   lastSelectionEvent: string | null;
   reassignMode: boolean;
   setReassignMode: (mode: boolean) => void;
-  pendingReassignTarget: string | null;
+  pendingReassignTarget: DevInspectWordDetail | null;
   pageNumber: number;
   ghareebWords: GhareebWord[];
   renderedWords: GhareebWord[];
@@ -414,67 +396,63 @@ function InspectTabContent({
   onInvalidateCache,
   setInspectedWord,
 }: InspectTabContentProps) {
-  // Dialog state for meaning assignment
   const [showMeaningDialog, setShowMeaningDialog] = useState(false);
-  
-  // Use highlight override store (primary for add/remove highlight)
+
   const setHighlightOverride = useHighlightOverrideStore((s) => s.setOverride);
   const removeHighlightOverride = useHighlightOverrideStore((s) => s.removeOverride);
   const getHighlightOverride = useHighlightOverrideStore((s) => s.getOverride);
   const getEffectiveMeaning = useHighlightOverrideStore((s) => s.getEffectiveMeaning);
   const highlightVersion = useHighlightOverrideStore((s) => s.version);
-  
-  // Legacy data store (for reassign meaning)
-  const addWordOverride = useDataStore((s) => s.addWordOverride);
+
+  // legacy store only for showing legacy override badges (not for writing!)
   const getOverrideByKey = useDataStore((s) => s.getOverrideByKey);
-  
-  // Check existing highlight override for this word
+
   const existingHighlightOverride = useMemo(() => {
     if (!inspectedWord?.positionKey) return undefined;
     return getHighlightOverride(inspectedWord.positionKey);
   }, [inspectedWord?.positionKey, getHighlightOverride, highlightVersion]);
-  
-  // Check legacy override
+
   const existingDataOverride = inspectedWord ? getOverrideByKey(inspectedWord.identityKey) : undefined;
-  
-  // Determine if word is currently highlighted (considering overrides)
+
   const isCurrentlyHighlighted = useMemo(() => {
-    if (existingHighlightOverride) {
-      return existingHighlightOverride.highlight;
-    }
+    if (existingHighlightOverride) return existingHighlightOverride.highlight;
     return inspectedWord?.isHighlighted ?? false;
   }, [existingHighlightOverride, inspectedWord?.isHighlighted]);
-  
-  // Check if word has a valid meaning
+
   const meaningInfo = useMemo(() => {
     if (!inspectedWord) return { meaning: '', source: 'default' as const, hasMeaning: false };
-    
+
     const posKey = inspectedWord.positionKey || '';
     const idKey = inspectedWord.identityKey || '';
     const defaultMeaning = inspectedWord.meaningPreview || '';
-    
+
     const info = getEffectiveMeaning(posKey, idKey, defaultMeaning);
-    
-    // If source is 'override-ref', resolve the meaning from ghareebWords
+
     if (info.source === 'override-ref' && info.meaning) {
-      const refWord = ghareebWords.find(w => w.uniqueKey === info.meaning);
+      const refWord = ghareebWords.find((w) => w.uniqueKey === info.meaning);
       if (refWord && refWord.meaning) {
-        return {
-          meaning: refWord.meaning,
-          source: 'override-ref' as const,
-          hasMeaning: true,
-        };
+        return { meaning: refWord.meaning, source: 'override-ref' as const, hasMeaning: true };
       }
     }
-    
+
     return info;
   }, [inspectedWord, getEffectiveMeaning, highlightVersion, ghareebWords]);
-  
-  // Handle: Add highlight WITH meaning check AND stopword guardrail
+
+  // IMPORTANT: Do not allow editing without positionKey (prevents writing overrides to wrong 0:0 key)
+  const requirePositionKey = useCallback((): string | null => {
+    if (!inspectedWord?.positionKey) {
+      toast.error('لا يمكن تعديل التلوين/المعنى لأن PositionKey غير موجود', {
+        description:
+          'اختر الكلمة بالطريقة التي ترسل positionKey (عبر DevDebugOverlay/dispatchWordInspection).',
+      });
+      return null;
+    }
+    return inspectedWord.positionKey;
+  }, [inspectedWord]);
+
   const handleAddHighlightClick = useCallback(() => {
     if (!inspectedWord) return;
-    
-    // GUARDRAIL: Check if word is a stopword
+
     if (isStopword(inspectedWord.originalWord)) {
       toast.warning('هذه الكلمة أداة/حرف', {
         description: `"${inspectedWord.originalWord}" لا ينبغي تلوينها عادةً. هل تريد المتابعة؟`,
@@ -485,216 +463,236 @@ function InspectTabContent({
       });
       return;
     }
-    
     proceedWithHighlight();
   }, [inspectedWord]);
-  
-  // Proceed with highlight after guardrail check
+
   const proceedWithHighlight = useCallback(() => {
     if (!inspectedWord) return;
-    
-    // Check if word already has a meaning (from ghareeb database)
-    const existingMeaning = inspectedWord.meaningPreview && 
-      inspectedWord.meaningPreview.trim() && 
+
+    // Require positionKey before any write
+    const posKey = requirePositionKey();
+    if (!posKey) return;
+
+    const existingMeaning =
+      inspectedWord.meaningPreview &&
+      inspectedWord.meaningPreview.trim() &&
       inspectedWord.meaningPreview !== 'لا يوجد' &&
       inspectedWord.meaningPreview !== 'لا يوجد معنى';
-    
+
     if (existingMeaning) {
-      // Word has meaning, can add highlight directly
-      doAddHighlight(inspectedWord.meaningPreview || '');
+      doAddHighlight(posKey, inspectedWord.meaningPreview || '');
     } else {
-      // No meaning - show dialog
       setShowMeaningDialog(true);
     }
-  }, [inspectedWord]);
-  
-  // Actually add the highlight with meaning
-  const doAddHighlight = useCallback((meaningText: string, meaningId?: string) => {
-    if (!inspectedWord) return;
-    
-    const positionKey = inspectedWord.positionKey || 
-      makePositionKey(pageNumber, inspectedWord.lineIndex ?? 0, inspectedWord.tokenIndex ?? 0);
-    const identityKey = inspectedWord.identityKey ||
-      makeIdentityKey(inspectedWord.surah ?? 0, inspectedWord.ayah ?? 0, inspectedWord.wordIndex ?? 0);
-    
-    setHighlightOverride({
-      positionKey,
-      identityKey,
-      wordText: inspectedWord.originalWord,
-      highlight: true,
-      meaningText: meaningId ? undefined : meaningText, // Use meaningText only if no meaningId
-      meaningId: meaningId,
-      surahNumber: inspectedWord.surah,
-      verseNumber: inspectedWord.ayah,
-      wordIndex: inspectedWord.wordIndex,
-      pageNumber,
-      lineIndex: inspectedWord.lineIndex,
-      tokenIndex: inspectedWord.tokenIndex,
-    });
-    
-    toast.success('تم إضافة التمييز والمعنى ✨', {
-      description: `الكلمة "${inspectedWord.originalWord}" ستظهر كغريبة الآن`,
-    });
-    
-    // Force refresh
-    onInvalidateCache?.();
-  }, [inspectedWord, pageNumber, setHighlightOverride, onInvalidateCache]);
-  
-  // Handle meaning assignment from dialog
-  const handleMeaningAssign = useCallback((params: { meaningText?: string; meaningId?: string }) => {
-    if (params.meaningText) {
-      doAddHighlight(params.meaningText);
-    } else if (params.meaningId) {
-      // Find the referenced meaning
-      const refWord = ghareebWords.find(w => w.uniqueKey === params.meaningId);
-      doAddHighlight(refWord?.meaning || '', params.meaningId);
-    }
-    setShowMeaningDialog(false);
-  }, [doAddHighlight, ghareebWords]);
-  
-  // Handle: Assign/Fix meaning for already highlighted word
+  }, [inspectedWord, requirePositionKey]);
+
+  const doAddHighlight = useCallback(
+    (positionKey: string, meaningText: string, meaningId?: string) => {
+      if (!inspectedWord) return;
+
+      const identityKey =
+        inspectedWord.identityKey ||
+        makeIdentityKey(inspectedWord.surah ?? 0, inspectedWord.ayah ?? 0, inspectedWord.wordIndex ?? 0);
+
+      setHighlightOverride({
+        positionKey,
+        identityKey,
+        wordText: inspectedWord.originalWord,
+        highlight: true,
+        meaningText: meaningId ? undefined : meaningText,
+        meaningId: meaningId,
+        surahNumber: inspectedWord.surah,
+        verseNumber: inspectedWord.ayah,
+        wordIndex: inspectedWord.wordIndex,
+        pageNumber,
+        lineIndex: inspectedWord.lineIndex,
+        tokenIndex: inspectedWord.tokenIndex,
+      });
+
+      toast.success('تم إضافة التمييز والمعنى ✨', {
+        description: `الكلمة "${inspectedWord.originalWord}" ستظهر كغريبة الآن`,
+      });
+
+      onInvalidateCache?.();
+    },
+    [inspectedWord, pageNumber, setHighlightOverride, onInvalidateCache]
+  );
+
+  const handleMeaningAssign = useCallback(
+    (params: { meaningText?: string; meaningId?: string }) => {
+      if (!inspectedWord) return;
+
+      const posKey = requirePositionKey();
+      if (!posKey) return;
+
+      if (params.meaningText) {
+        doAddHighlight(posKey, params.meaningText);
+      } else if (params.meaningId) {
+        const refWord = ghareebWords.find((w) => w.uniqueKey === params.meaningId);
+        doAddHighlight(posKey, refWord?.meaning || '', params.meaningId);
+      }
+      setShowMeaningDialog(false);
+    },
+    [doAddHighlight, ghareebWords, inspectedWord, requirePositionKey]
+  );
+
   const handleAssignMeaningToHighlighted = useCallback(() => {
     setShowMeaningDialog(true);
   }, []);
-  
-  // Handle: Update meaning on existing highlight
-  const handleUpdateMeaning = useCallback((params: { meaningText?: string; meaningId?: string }) => {
-    if (!inspectedWord) return;
-    
-    const positionKey = inspectedWord.positionKey || 
-      makePositionKey(pageNumber, inspectedWord.lineIndex ?? 0, inspectedWord.tokenIndex ?? 0);
-    const identityKey = inspectedWord.identityKey ||
-      makeIdentityKey(inspectedWord.surah ?? 0, inspectedWord.ayah ?? 0, inspectedWord.wordIndex ?? 0);
-    
-    setHighlightOverride({
-      positionKey,
-      identityKey,
-      wordText: inspectedWord.originalWord,
-      highlight: true, // Keep highlighted
-      meaningText: params.meaningId ? undefined : params.meaningText,
-      meaningId: params.meaningId,
-      surahNumber: inspectedWord.surah,
-      verseNumber: inspectedWord.ayah,
-      wordIndex: inspectedWord.wordIndex,
-      pageNumber,
-      lineIndex: inspectedWord.lineIndex,
-      tokenIndex: inspectedWord.tokenIndex,
-    });
-    
-    toast.success('تم تحديث المعنى ✨');
-    setShowMeaningDialog(false);
-    onInvalidateCache?.();
-  }, [inspectedWord, pageNumber, setHighlightOverride, onInvalidateCache]);
-  
-  // Handle: Remove highlight from this word
+
+  const handleUpdateMeaning = useCallback(
+    (params: { meaningText?: string; meaningId?: string }) => {
+      if (!inspectedWord) return;
+
+      const positionKey = requirePositionKey();
+      if (!positionKey) return;
+
+      const identityKey =
+        inspectedWord.identityKey ||
+        makeIdentityKey(inspectedWord.surah ?? 0, inspectedWord.ayah ?? 0, inspectedWord.wordIndex ?? 0);
+
+      setHighlightOverride({
+        positionKey,
+        identityKey,
+        wordText: inspectedWord.originalWord,
+        highlight: true,
+        meaningText: params.meaningId ? undefined : params.meaningText,
+        meaningId: params.meaningId,
+        surahNumber: inspectedWord.surah,
+        verseNumber: inspectedWord.ayah,
+        wordIndex: inspectedWord.wordIndex,
+        pageNumber,
+        lineIndex: inspectedWord.lineIndex,
+        tokenIndex: inspectedWord.tokenIndex,
+      });
+
+      toast.success('تم تحديث المعنى ✨');
+      setShowMeaningDialog(false);
+      onInvalidateCache?.();
+    },
+    [inspectedWord, pageNumber, setHighlightOverride, onInvalidateCache, requirePositionKey]
+  );
+
   const handleRemoveHighlight = useCallback(() => {
     if (!inspectedWord) return;
-    
-    const positionKey = inspectedWord.positionKey || 
-      makePositionKey(pageNumber, inspectedWord.lineIndex ?? 0, inspectedWord.tokenIndex ?? 0);
-    const identityKey = inspectedWord.identityKey ||
+
+    const positionKey = requirePositionKey();
+    if (!positionKey) return;
+
+    const identityKey =
+      inspectedWord.identityKey ||
       makeIdentityKey(inspectedWord.surah ?? 0, inspectedWord.ayah ?? 0, inspectedWord.wordIndex ?? 0);
-    
-    // Set highlight to FALSE (not just remove - we need explicit false)
+
     setHighlightOverride({
       positionKey,
       identityKey,
       wordText: inspectedWord.originalWord,
-      highlight: false, // Explicitly hide
+      highlight: false,
       pageNumber,
       lineIndex: inspectedWord.lineIndex,
       tokenIndex: inspectedWord.tokenIndex,
     });
-    
+
     toast.success('تم إزالة التمييز', {
       description: `الكلمة "${inspectedWord.originalWord}" لن تظهر كغريبة`,
     });
-    
-    // Force refresh
+
     onInvalidateCache?.();
-  }, [inspectedWord, pageNumber, setHighlightOverride, onInvalidateCache]);
-  
-  // Handle: Restore to default (remove override)
+  }, [inspectedWord, pageNumber, setHighlightOverride, onInvalidateCache, requirePositionKey]);
+
   const handleRestoreDefault = useCallback(() => {
-    if (!inspectedWord?.positionKey) return;
-    
+    if (!inspectedWord?.positionKey) {
+      toast.error('لا يمكن استعادة الافتراضي: positionKey غير موجود');
+      return;
+    }
+
     removeHighlightOverride(inspectedWord.positionKey);
-    
+
     toast.success('تمت استعادة الافتراضي', {
       description: 'الكلمة ستظهر حسب السلوك الافتراضي',
     });
-    
+
     onInvalidateCache?.();
   }, [inspectedWord?.positionKey, removeHighlightOverride, onInvalidateCache]);
-  
-  // Handle: Reassign meaning to another word
+
+  // Reassign Meaning: now uses the SAME override store for both source and target (no mixing stores)
   const handleReassignMeaning = useCallback(() => {
     if (!inspectedWord || !pendingReassignTarget) {
       toast.error('اختر الكلمة الهدف أولاً');
       return;
     }
-    
-    // Find target word details
-    const targetWord = renderedWords.find(w => w.uniqueKey === pendingReassignTarget) ||
-                       ghareebWords.find(w => w.uniqueKey === pendingReassignTarget);
-    
-    if (!targetWord) {
-      toast.error('لم يتم العثور على الكلمة الهدف');
+
+    const sourcePosKey = requirePositionKey();
+    if (!sourcePosKey) return;
+
+    const targetPosKey = pendingReassignTarget.positionKey;
+    if (!targetPosKey) {
+      toast.error('لا يمكن نقل المعنى: PositionKey للهدف غير موجود', {
+        description: 'اختر الهدف من المصحف بحيث يرسل positionKey عبر event.',
+      });
       return;
     }
-    
-    // Step 1: Remove highlight from source
-    if (inspectedWord.positionKey) {
-      setHighlightOverride({
-        positionKey: inspectedWord.positionKey,
-        identityKey: inspectedWord.identityKey,
-        wordText: inspectedWord.originalWord,
-        highlight: false,
-        pageNumber,
-      });
-    }
-    
-    // Step 2: Add highlight + meaning to target
-    const targetParts = pendingReassignTarget.split('_');
-    const targetSurah = parseInt(targetParts[0]) || targetWord.surahNumber;
-    const targetAyah = parseInt(targetParts[1]) || targetWord.verseNumber;
-    const targetWordIdx = parseInt(targetParts[2]) || targetWord.wordIndex;
-    
-    addWordOverride({
-      key: pendingReassignTarget,
+
+    // Remove highlight from source (explicit false)
+    setHighlightOverride({
+      positionKey: sourcePosKey,
+      identityKey: inspectedWord.identityKey,
+      wordText: inspectedWord.originalWord,
+      highlight: false,
       pageNumber,
-      wordText: targetWord.wordText,
-      meaning: inspectedWord.meaningPreview?.replace('...', '') || '',
-      surahNumber: targetSurah,
-      verseNumber: targetAyah,
-      wordIndex: targetWordIdx,
-      operation: 'add',
+      lineIndex: inspectedWord.lineIndex,
+      tokenIndex: inspectedWord.tokenIndex,
     });
-    
+
+    // Add highlight + meaning to target
+    const targetIdentityKey = pendingReassignTarget.uniqueKey;
+    const resolvedMeaning = meaningInfo.hasMeaning ? meaningInfo.meaning : (inspectedWord.meaningPreview?.replace('...', '') || '');
+
+    setHighlightOverride({
+      positionKey: targetPosKey,
+      identityKey: targetIdentityKey,
+      wordText: pendingReassignTarget.originalWord,
+      highlight: true,
+      meaningText: resolvedMeaning || undefined,
+      meaningId: inspectedWord.matchedMeaningId ?? undefined,
+      pageNumber: pendingReassignTarget.pageNumber ?? pageNumber,
+      lineIndex: pendingReassignTarget.lineIndex,
+      tokenIndex: pendingReassignTarget.tokenIndex,
+      surahNumber: pendingReassignTarget.surahNumber,
+      verseNumber: pendingReassignTarget.verseNumber,
+      wordIndex: pendingReassignTarget.wordIndex,
+    });
+
     toast.success('تم نقل المعنى', {
-      description: `نُقل المعنى من "${inspectedWord.originalWord}" إلى "${targetWord.wordText}"`,
+      description: `نُقل المعنى من "${inspectedWord.originalWord}" إلى "${pendingReassignTarget.originalWord}"`,
     });
-    
-    // Refresh view
+
     onInvalidateCache?.();
     setInspectedWord(null);
     setReassignMode(false);
-  }, [inspectedWord, pendingReassignTarget, renderedWords, ghareebWords, pageNumber, setHighlightOverride, addWordOverride, onInvalidateCache, setInspectedWord, setReassignMode]);
-  
+  }, [
+    inspectedWord,
+    pendingReassignTarget,
+    pageNumber,
+    setHighlightOverride,
+    onInvalidateCache,
+    setInspectedWord,
+    setReassignMode,
+    requirePositionKey,
+    meaningInfo,
+  ]);
+
   return (
     <>
       <div className="p-2 rounded bg-muted/50 border border-dashed">
         <div className="flex items-center gap-2 text-muted-foreground text-[11px]">
           <MousePointer className="w-3 h-3" />
           <span>
-            {reassignMode 
-              ? '🎯 وضع النقل: انقر على الكلمة الهدف'
-              : 'انقر على أي كلمة (ملونة أو غير ملونة) لفحصها'}
+            {reassignMode ? '🎯 وضع النقل: انقر على الكلمة الهدف' : 'انقر على أي كلمة (ملونة أو غير ملونة) لفحصها'}
           </span>
         </div>
       </div>
-      
-      {/* Selection Event Status */}
+
       <div className="flex items-center gap-2 text-[10px] px-1">
         <Clock className="w-3 h-3 text-muted-foreground" />
         <span className="text-muted-foreground">Last selection:</span>
@@ -702,22 +700,20 @@ function InspectTabContent({
           {lastSelectionEvent || 'none'}
         </span>
       </div>
-      
+
       {inspectedWord ? (
         <div className="p-3 rounded border bg-card space-y-2">
           <div className="flex items-center justify-between gap-2">
-            <span className="font-arabic text-lg" dir="rtl">{inspectedWord.originalWord}</span>
+            <span className="font-arabic text-lg" dir="rtl">
+              {inspectedWord.originalWord}
+            </span>
             <div className="flex items-center gap-1">
-              <Badge 
-                variant={isCurrentlyHighlighted ? 'default' : 'secondary'} 
-                className="text-[9px]"
-              >
+              <Badge variant={isCurrentlyHighlighted ? 'default' : 'secondary'} className="text-[9px]">
                 {isCurrentlyHighlighted ? '✓ ملونة' : '○ عادية'}
               </Badge>
             </div>
           </div>
-          
-          {/* Show existing overrides */}
+
           {existingHighlightOverride && (
             <Badge variant="outline" className="text-[9px]">
               ⚙️ تعديل: {existingHighlightOverride.highlight ? 'إضافة تلوين' : 'إزالة تلوين'}
@@ -725,11 +721,10 @@ function InspectTabContent({
           )}
           {existingDataOverride && (
             <Badge variant="secondary" className="text-[9px]">
-              📝 override: {existingDataOverride.operation}
+              📝 legacy override: {existingDataOverride.operation}
             </Badge>
           )}
-          
-          {/* Normalized Word - MUST NOT BE EMPTY */}
+
           <div className="p-2 rounded bg-muted/50 border">
             <div className="flex items-center gap-2 text-[10px]">
               <span className="text-muted-foreground">Normalized:</span>
@@ -751,7 +746,7 @@ function InspectTabContent({
               </div>
             )}
           </div>
-          
+
           <div className="grid grid-cols-2 gap-2 text-[10px]">
             <div>
               <span className="text-muted-foreground">Position Key:</span>
@@ -762,19 +757,22 @@ function InspectTabContent({
               <div className="font-mono text-[9px] break-all">{inspectedWord.identityKey}</div>
             </div>
           </div>
-          
+
           <div className="grid grid-cols-2 gap-2 text-[10px]">
             <div>
               <span className="text-muted-foreground">Surah:Ayah:Word:</span>
-              <div>{inspectedWord.surah}:{inspectedWord.ayah}:{inspectedWord.wordIndex}</div>
+              <div>
+                {inspectedWord.surah}:{inspectedWord.ayah}:{inspectedWord.wordIndex}
+              </div>
             </div>
             <div>
               <span className="text-muted-foreground">Line:Token:</span>
-              <div>{inspectedWord.lineIndex ?? 'N/A'}:{inspectedWord.tokenIndex ?? 'N/A'}</div>
+              <div>
+                {inspectedWord.lineIndex ?? 'N/A'}:{inspectedWord.tokenIndex ?? 'N/A'}
+              </div>
             </div>
           </div>
-          
-          {/* Meaning Info with Warning */}
+
           <div>
             <span className="text-muted-foreground text-[10px]">Meaning:</span>
             {meaningInfo.hasMeaning ? (
@@ -806,15 +804,13 @@ function InspectTabContent({
               </div>
             )}
           </div>
-          
-          {/* DEV-ONLY Editing Actions */}
+
           <div className="border-t pt-2 mt-2 space-y-2">
             <div className="text-[10px] text-muted-foreground font-semibold flex items-center gap-1">
               <Save className="w-3 h-3" />
               DEV Actions (persisted)
             </div>
-            
-            {/* Conditional: Add or Remove Highlight */}
+
             {isCurrentlyHighlighted ? (
               <>
                 <Button
@@ -826,8 +822,7 @@ function InspectTabContent({
                   <Trash2 className="w-3 h-3" />
                   إزالة التلوين من هذه الكلمة
                 </Button>
-                
-                {/* Update Meaning button for highlighted words */}
+
                 <Button
                   size="sm"
                   variant="outline"
@@ -849,21 +844,14 @@ function InspectTabContent({
                 إضافة تلوين لهذه الكلمة
               </Button>
             )}
-            
-            {/* Restore Default (if override exists) */}
+
             {existingHighlightOverride && (
-              <Button
-                size="sm"
-                variant="outline"
-                className="w-full h-7 text-[10px] gap-1"
-                onClick={handleRestoreDefault}
-              >
+              <Button size="sm" variant="outline" className="w-full h-7 text-[10px] gap-1" onClick={handleRestoreDefault}>
                 <RefreshCw className="w-3 h-3" />
                 استعادة الافتراضي
               </Button>
             )}
-            
-            {/* Reassign Meaning (only for highlighted words) */}
+
             {isCurrentlyHighlighted && (
               <div className="space-y-1">
                 <Button
@@ -875,11 +863,13 @@ function InspectTabContent({
                   <ArrowRightLeft className="w-3 h-3" />
                   {reassignMode ? '🎯 في انتظار اختيار الهدف...' : 'نقل المعنى إلى كلمة أخرى'}
                 </Button>
-                
+
                 {pendingReassignTarget && (
                   <div className="flex items-center gap-1 text-[10px]">
                     <span className="text-muted-foreground">الهدف:</span>
-                    <Badge variant="secondary" className="text-[9px]">{pendingReassignTarget}</Badge>
+                    <Badge variant="secondary" className="text-[9px]">
+                      {pendingReassignTarget.uniqueKey}
+                    </Badge>
                     <Button
                       size="sm"
                       variant="default"
@@ -901,8 +891,7 @@ function InspectTabContent({
           <span className="text-[10px]">Click any word in the mushaf (highlighted or not)</span>
         </div>
       )}
-      
-      {/* Meaning Assignment Dialog */}
+
       <MeaningAssignDialog
         open={showMeaningDialog}
         onOpenChange={setShowMeaningDialog}
@@ -925,7 +914,6 @@ function InspectTabContent({
 
 // ============= COMPONENT =============
 
-
 export function DevDebugPanel({
   page,
   pageNumber,
@@ -944,102 +932,104 @@ export function DevDebugPanel({
   const [snapshotTime, setSnapshotTime] = useState<string>(new Date().toLocaleTimeString('ar-EG'));
   const longPressTimer = useRef<NodeJS.Timeout | null>(null);
   const [showGlobalAudit, setShowGlobalAudit] = useState(false);
-  
-  // DEV-only editing state
+
   const [reassignMode, setReassignMode] = useState(false);
-  const [pendingReassignTarget, setPendingReassignTarget] = useState<string | null>(null);
-  
-  // Listen for reassign target selection
+  const [pendingReassignTarget, setPendingReassignTarget] = useState<DevInspectWordDetail | null>(null);
+
   useEffect(() => {
     if (!reassignMode) return;
-    
+
     const handleReassignTarget = (e: CustomEvent<DevInspectWordDetail>) => {
       const detail = e.detail;
-      // If in reassign mode, capture this as the target
-      setPendingReassignTarget(detail.uniqueKey);
+
+      setPendingReassignTarget(detail);
       setReassignMode(false);
+
       toast.info(`اختيار الهدف: ${detail.originalWord}`, {
         description: `المفتاح: ${detail.uniqueKey}`,
       });
     };
-    
+
     window.addEventListener(DEV_INSPECT_WORD_EVENT as any, handleReassignTarget);
     return () => window.removeEventListener(DEV_INSPECT_WORD_EVENT as any, handleReassignTarget);
   }, [reassignMode]);
-  
-  // Analyze page
+
   const analysis = useMemo(() => {
     return analyzePageAssembly(page, ghareebWords, renderedWords);
   }, [page, ghareebWords, renderedWords]);
-  
-  // Helper to find and set inspected word
-  const inspectWordByKey = useCallback((key: string, source: string = 'click') => {
-    const word = ghareebWords.find(w => w.uniqueKey === key) || 
-                 renderedWords.find(w => w.uniqueKey === key);
-    
-    if (word) {
-      const timestamp = new Date().toLocaleTimeString('ar-EG');
-      setLastSelectionEvent(`${source} @ ${timestamp}`);
-      setInspectedWord({
-        originalWord: word.wordText,
-        normalizedWord: normalizeArabic(word.wordText),
-        identityKey: word.uniqueKey,
-        matchedMeaningId: key,
-        meaningPreview: word.meaning?.slice(0, 60) + (word.meaning?.length > 60 ? '...' : '') || 'لا يوجد',
-        surah: word.surahNumber,
-        ayah: word.verseNumber,
-        wordIndex: word.wordIndex,
-        tokenIndex: renderedWords.findIndex(w => w.uniqueKey === key),
-        assemblyId: `block-${word.surahNumber}`,
-      });
-      
-      // Auto-switch to inspect tab
-      if (isOpen) {
-        setActiveTab('inspect');
+
+  const inspectWordByKey = useCallback(
+    (key: string, source: string = 'click') => {
+      const word = ghareebWords.find((w) => w.uniqueKey === key) || renderedWords.find((w) => w.uniqueKey === key);
+
+      if (word) {
+        const timestamp = new Date().toLocaleTimeString('ar-EG');
+        setLastSelectionEvent(`${source} @ ${timestamp}`);
+
+        // NOTE: This path does NOT carry positionKey; editing will be blocked with a helpful toast.
+        setInspectedWord({
+          originalWord: word.wordText,
+          normalizedWord: normalizeArabic(word.wordText),
+          identityKey: word.uniqueKey,
+          matchedMeaningId: key,
+          meaningPreview: (word.meaning?.slice(0, 60) + (word.meaning?.length > 60 ? '...' : '')) || 'لا يوجد',
+          surah: word.surahNumber,
+          ayah: word.verseNumber,
+          wordIndex: word.wordIndex,
+          tokenIndex: renderedWords.findIndex((w) => w.uniqueKey === key),
+          assemblyId: `block-${word.surahNumber}`,
+        });
+
+        if (isOpen) {
+          setActiveTab('inspect');
+        }
+        return true;
       }
-      
-      return true;
-    }
-    return false;
-  }, [ghareebWords, renderedWords, isOpen]);
-  
-  // Handle DOM click with data-ghareeb-key attribute
-  const handleDOMWordClick = useCallback((event: MouseEvent) => {
-    const target = event.target as HTMLElement;
-    const ghareebEl = target.closest('[data-ghareeb-key]') as HTMLElement;
-    
-    if (ghareebEl) {
-      const key = ghareebEl.dataset.ghareebKey || '';
-      if (key) {
-        inspectWordByKey(key, 'click');
+      return false;
+    },
+    [ghareebWords, renderedWords, isOpen]
+  );
+
+  const handleDOMWordClick = useCallback(
+    (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+      const ghareebEl = target.closest('[data-ghareeb-key]') as HTMLElement;
+
+      if (ghareebEl) {
+        const key = ghareebEl.dataset.ghareebKey || '';
+        if (key) {
+          inspectWordByKey(key, 'click');
+        }
       }
-    }
-  }, [inspectWordByKey]);
-  
-  // Handle long-press for mobile
-  const handlePointerDown = useCallback((event: PointerEvent) => {
-    const target = event.target as HTMLElement;
-    const ghareebEl = target.closest('[data-ghareeb-key]') as HTMLElement;
-    
-    if (ghareebEl) {
-      const key = ghareebEl.dataset.ghareebKey || '';
-      if (key) {
-        longPressTimer.current = setTimeout(() => {
-          inspectWordByKey(key, 'long-press');
-        }, 500);
+    },
+    [inspectWordByKey]
+  );
+
+  const handlePointerDown = useCallback(
+    (event: PointerEvent) => {
+      const target = event.target as HTMLElement;
+      const ghareebEl = target.closest('[data-ghareeb-key]') as HTMLElement;
+
+      if (ghareebEl) {
+        const key = ghareebEl.dataset.ghareebKey || '';
+        if (key) {
+          longPressTimer.current = setTimeout(() => {
+            inspectWordByKey(key, 'long-press');
+          }, 500);
+        }
       }
-    }
-  }, [inspectWordByKey]);
-  
+    },
+    [inspectWordByKey]
+  );
+
   const handlePointerUp = useCallback(() => {
     if (longPressTimer.current) {
       clearTimeout(longPressTimer.current);
       longPressTimer.current = null;
     }
   }, []);
-  
-  // Listen for custom inspection events (from global DevDebugOverlay)
-  // IMPORTANT: Listener must be attached ALWAYS, not just when panel is open
+
+  // IMPORTANT: Listener attached ALWAYS
   useEffect(() => {
     const handleCustomInspect = (e: CustomEvent<DevInspectWordDetail>) => {
       const detail = e.detail;
@@ -1050,9 +1040,7 @@ export function DevDebugPanel({
 
       const preview =
         detail.meaningPreview ??
-        (detail.meaning
-          ? detail.meaning.slice(0, 60) + (detail.meaning.length > 60 ? '...' : '')
-          : '');
+        (detail.meaning ? detail.meaning.slice(0, 60) + (detail.meaning.length > 60 ? '...' : '') : '');
 
       setInspectedWord({
         originalWord: detail.originalWord,
@@ -1065,22 +1053,19 @@ export function DevDebugPanel({
         wordIndex: detail.wordIndex,
         tokenIndex: detail.tokenIndex,
         assemblyId: detail.assemblyId ?? 'unknown',
-        // NEW: Position-based fields
         isHighlighted: detail.isHighlighted ?? !!detail.matchedMeaningId,
         positionKey: detail.positionKey,
         lineIndex: detail.lineIndex,
         pageNumber: detail.pageNumber ?? pageNumber,
       });
 
-      // Auto-switch to Inspect tab when a word is selected
       setActiveTab('inspect');
     };
-    
+
     window.addEventListener(DEV_INSPECT_WORD_EVENT as any, handleCustomInspect);
     return () => window.removeEventListener(DEV_INSPECT_WORD_EVENT as any, handleCustomInspect);
-  }, []);
-  
-  // Listen for DOM clicks when panel is open (best-effort; global overlay also emits events)
+  }, [pageNumber]);
+
   useEffect(() => {
     if (isOpen) {
       document.addEventListener('click', handleDOMWordClick, true);
@@ -1096,48 +1081,34 @@ export function DevDebugPanel({
       };
     }
   }, [isOpen, handleDOMWordClick, handlePointerDown, handlePointerUp]);
-  
-  // Cleanup long-press timer
+
   useEffect(() => {
     return () => {
-      if (longPressTimer.current) {
-        clearTimeout(longPressTimer.current);
-      }
+      if (longPressTimer.current) clearTimeout(longPressTimer.current);
     };
   }, []);
-  
-  // Refresh snapshot time
+
   const handleRefresh = useCallback(() => {
     setSnapshotTime(new Date().toLocaleTimeString('ar-EG'));
     onInvalidateCache?.();
   }, [onInvalidateCache]);
-  
-  // Status indicators
-  const hasIssues = analysis.matchingStats.unmatchedCount > 0 || 
-    analysis.assemblies.some(a => a.fallbackReason !== null);
-  
-  // Show in development OR when diagnostic mode is enabled
-  // The parent (DevDebugOverlay) handles the visibility check, 
-  // so we don't need to check here - just render always
-  
+
+  const hasIssues =
+    analysis.matchingStats.unmatchedCount > 0 || analysis.assemblies.some((a) => a.fallbackReason !== null);
+
   return (
     <Collapsible open={isOpen} onOpenChange={setIsOpen}>
       <CollapsibleTrigger asChild>
-        <Button
-          size="sm"
-          variant={hasIssues ? 'destructive' : 'outline'}
-          className="gap-1 font-mono text-xs"
-        >
+        <Button size="sm" variant={hasIssues ? 'destructive' : 'outline'} className="gap-1 font-mono text-xs">
           <Bug className="w-3 h-3" />
           DEV Debug
           {hasIssues && <AlertCircle className="w-3 h-3" />}
           {isOpen ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
         </Button>
       </CollapsibleTrigger>
-      
+
       <CollapsibleContent className="mt-2">
         <div className="border rounded-lg bg-card text-card-foreground p-3 space-y-3 text-xs font-mono" dir="ltr">
-          {/* Header */}
           <div className="flex items-center justify-between border-b pb-2">
             <div className="flex items-center gap-2">
               <Badge variant="outline">Page {pageNumber}</Badge>
@@ -1151,19 +1122,14 @@ export function DevDebugPanel({
                 <RefreshCw className="w-3 h-3" />
               </Button>
               {allPages && ghareebPageMap && (
-                <Button 
-                  size="sm" 
-                  variant="outline" 
-                  onClick={() => setShowGlobalAudit(true)} 
-                  className="h-6 px-2 gap-1"
-                >
+                <Button size="sm" variant="outline" onClick={() => setShowGlobalAudit(true)} className="h-6 px-2 gap-1">
                   <Scan className="w-3 h-3" />
                   Audit
                 </Button>
               )}
             </div>
           </div>
-          
+
           <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as typeof activeTab)}>
             <TabsList className="grid grid-cols-3 h-7">
               <TabsTrigger value="assembly" className="text-xs gap-1 h-6">
@@ -1179,14 +1145,13 @@ export function DevDebugPanel({
                 Inspect
               </TabsTrigger>
             </TabsList>
-            
-            {/* Assembly Tab */}
+
             <TabsContent value="assembly" className="mt-2 space-y-2">
               <div className="flex items-center gap-2 text-muted-foreground">
                 <Database className="w-3 h-3" />
                 <span>Assemblies: {analysis.assemblies.length}</span>
               </div>
-              
+
               <ScrollArea className="h-[150px]">
                 <div className="space-y-2">
                   {analysis.assemblies.map((block) => (
@@ -1199,7 +1164,7 @@ export function DevDebugPanel({
                       <div className="flex items-center justify-between mb-1">
                         <span className="font-semibold">{block.id}</span>
                         <div className="flex gap-1">
-                          <Badge 
+                          <Badge
                             variant={block.rendererType === 'WORD_SPANS' ? 'default' : 'secondary'}
                             className="text-[10px] h-4"
                           >
@@ -1212,14 +1177,16 @@ export function DevDebugPanel({
                           )}
                         </div>
                       </div>
-                      
+
                       <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-[10px] text-muted-foreground">
                         <span>Surah: {block.surahRange}</span>
                         <span>Ayah: {block.ayahRange}</span>
                         <span>Tokens: {block.tokenCount}</span>
-                        <span>Matched: {block.matchedCount}/{block.ghareebInBlock}</span>
+                        <span>
+                          Matched: {block.matchedCount}/{block.ghareebInBlock}
+                        </span>
                       </div>
-                      
+
                       {block.fallbackReason && (
                         <div className="mt-1 text-destructive text-[10px] flex items-center gap-1">
                           <AlertCircle className="w-3 h-3" />
@@ -1231,8 +1198,7 @@ export function DevDebugPanel({
                 </div>
               </ScrollArea>
             </TabsContent>
-            
-            {/* Matching Tab */}
+
             <TabsContent value="matching" className="mt-2 space-y-2">
               <div className="grid grid-cols-4 gap-2">
                 <div className="p-2 rounded bg-muted text-center">
@@ -1240,33 +1206,39 @@ export function DevDebugPanel({
                   <div className="text-[10px] text-muted-foreground">Total Ghareeb</div>
                 </div>
                 <div className="p-2 rounded bg-primary/10 text-center">
-                  <div className="text-lg font-bold text-primary">
-                    {analysis.matchingStats.matchedCount}
-                  </div>
+                  <div className="text-lg font-bold text-primary">{analysis.matchingStats.matchedCount}</div>
                   <div className="text-[10px] text-muted-foreground">Matched</div>
                 </div>
-                <div className={`p-2 rounded text-center ${
-                  analysis.matchingStats.unmatchedCount > 0 ? 'bg-destructive/10' : 'bg-muted'
-                }`}>
-                  <div className={`text-lg font-bold ${
-                    analysis.matchingStats.unmatchedCount > 0 ? 'text-destructive' : ''
-                  }`}>
+                <div
+                  className={`p-2 rounded text-center ${
+                    analysis.matchingStats.unmatchedCount > 0 ? 'bg-destructive/10' : 'bg-muted'
+                  }`}
+                >
+                  <div
+                    className={`text-lg font-bold ${
+                      analysis.matchingStats.unmatchedCount > 0 ? 'text-destructive' : ''
+                    }`}
+                  >
                     {analysis.matchingStats.unmatchedCount}
                   </div>
                   <div className="text-[10px] text-muted-foreground">Unmatched</div>
                 </div>
-                <div className={`p-2 rounded text-center ${
-                  analysis.matchingStats.meaningsMissing > 0 ? 'bg-secondary' : 'bg-muted'
-                }`}>
-                  <div className={`text-lg font-bold ${
-                    analysis.matchingStats.meaningsMissing > 0 ? 'text-secondary-foreground' : ''
-                  }`}>
+                <div
+                  className={`p-2 rounded text-center ${
+                    analysis.matchingStats.meaningsMissing > 0 ? 'bg-secondary' : 'bg-muted'
+                  }`}
+                >
+                  <div
+                    className={`text-lg font-bold ${
+                      analysis.matchingStats.meaningsMissing > 0 ? 'text-secondary-foreground' : ''
+                    }`}
+                  >
                     {analysis.matchingStats.meaningsMissing}
                   </div>
                   <div className="text-[10px] text-muted-foreground">Missing Meaning</div>
                 </div>
               </div>
-              
+
               {analysis.matchingStats.unmatchedList.length > 0 && (
                 <div className="space-y-1">
                   <div className="text-muted-foreground flex items-center gap-1">
@@ -1276,12 +1248,14 @@ export function DevDebugPanel({
                   <ScrollArea className="h-[100px]">
                     <div className="space-y-1">
                       {analysis.matchingStats.unmatchedList.map((item, idx) => (
-                        <div 
-                          key={idx} 
+                        <div
+                          key={idx}
                           className="p-1.5 rounded bg-destructive/5 border border-destructive/20 text-[10px]"
                         >
                           <div className="flex items-center justify-between">
-                            <span className="font-arabic text-sm" dir="rtl">{item.originalWord}</span>
+                            <span className="font-arabic text-sm" dir="rtl">
+                              {item.originalWord}
+                            </span>
                             <Badge variant="destructive" className="text-[8px] h-4">
                               {item.reason}
                             </Badge>
@@ -1295,7 +1269,7 @@ export function DevDebugPanel({
                   </ScrollArea>
                 </div>
               )}
-              
+
               {analysis.matchingStats.unmatchedCount === 0 && (
                 <div className="flex items-center justify-center gap-2 py-4 text-primary">
                   <CheckCircle className="w-4 h-4" />
@@ -1303,8 +1277,7 @@ export function DevDebugPanel({
                 </div>
               )}
             </TabsContent>
-            
-            {/* Inspect Tab */}
+
             <TabsContent value="inspect" className="mt-2">
               <ScrollArea className="h-[400px]">
                 <div className="pr-4 space-y-2">
@@ -1324,26 +1297,17 @@ export function DevDebugPanel({
               </ScrollArea>
             </TabsContent>
           </Tabs>
-          
-          {/* Cache Controls */}
+
           <div className="border-t pt-2 flex items-center justify-between">
-            <span className="text-muted-foreground text-[10px]">
-              Editor snapshot: {snapshotTime}
-            </span>
-            <Button 
-              size="sm" 
-              variant="outline" 
-              onClick={handleRefresh}
-              className="h-6 text-[10px] gap-1"
-            >
+            <span className="text-muted-foreground text-[10px]">Editor snapshot: {snapshotTime}</span>
+            <Button size="sm" variant="outline" onClick={handleRefresh} className="h-6 text-[10px] gap-1">
               <RefreshCw className="w-3 h-3" />
               Invalidate Cache
             </Button>
           </div>
         </div>
       </CollapsibleContent>
-      
-      {/* Global Audit Dialog */}
+
       {allPages && ghareebPageMap && (
         <GlobalAuditDialog
           open={showGlobalAudit}
