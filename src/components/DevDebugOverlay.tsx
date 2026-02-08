@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useDevDebugContextStore } from '@/stores/devDebugContextStore';
-import { DevDebugPanel, dispatchWordInspection } from '@/components/DevDebugPanel';
+import { DevDebugPanel, dispatchWordInspection, DevInspectWordDetail } from '@/components/DevDebugPanel';
 
 function shortHash(input: string): string {
   let hash = 0;
@@ -11,7 +11,11 @@ function shortHash(input: string): string {
   return Math.abs(hash).toString(16).slice(0, 8);
 }
 
-function getClosestGhareebEl(target: EventTarget | null): HTMLElement | null {
+/**
+ * Get closest element with word data - supports BOTH highlighted and non-highlighted words.
+ * Priority: data-ghareeb-key (highlighted) > data-word-inspectable (any word with position)
+ */
+function getClosestWordEl(target: EventTarget | null): HTMLElement | null {
   if (!target) return null;
 
   // event.target can be a Text node.
@@ -23,7 +27,14 @@ function getClosestGhareebEl(target: EventTarget | null): HTMLElement | null {
         : null;
 
   if (!el) return null;
-  return (el.closest?.('[data-ghareeb-key]') as HTMLElement | null) ?? null;
+  
+  // First try highlighted word
+  const ghareebEl = el.closest?.('[data-ghareeb-key]') as HTMLElement | null;
+  if (ghareebEl) return ghareebEl;
+  
+  // Then try any inspectable word (non-highlighted)
+  const inspectableEl = el.closest?.('[data-word-inspectable]') as HTMLElement | null;
+  return inspectableEl;
 }
 
 function toInt(value: string | undefined): number | undefined {
@@ -97,36 +108,60 @@ export function DevDebugOverlay() {
     if (isProd) return;
 
     const dispatchFromEl = (el: HTMLElement, source: string) => {
-      const key = el.dataset.ghareebKey;
-      if (!key) return;
+      // Check for highlighted word first
+      const ghareebKey = el.dataset.ghareebKey;
+      
+      // For non-highlighted words, build a position-based key
+      const pageNum = context?.pageNumber || 0;
+      const lineIdx = toInt(el.dataset.lineIndex) ?? toInt(el.dataset.wordLine) ?? 0;
+      const tokenIdx = toInt(el.dataset.tokenIndex) ?? toInt(el.dataset.wordToken) ?? 0;
+      const positionKey = `${pageNum}_${lineIdx}_${tokenIdx}`;
+      
+      // Determine if this is a highlighted (ghareeb) word
+      const isHighlighted = !!ghareebKey;
+      
+      // Use ghareeb key if available, otherwise position key
+      const key = ghareebKey || positionKey;
 
       // Prevent hover spam
       if (source === 'hover' && lastKeyRef.current === key) return;
       lastKeyRef.current = key;
 
-      const fromMap = wordByKey.get(key);
+      const fromMap = ghareebKey ? wordByKey.get(ghareebKey) : undefined;
       const domWord = (el.textContent || '').trim();
 
       const originalWord = fromMap?.wordText || domWord || key;
       const meaning = fromMap?.meaning || '';
+      
+      // Extract surah/verse info from data attributes or from map
+      const surahNumber = fromMap?.surahNumber ?? toInt(el.dataset.surahNumber) ?? 0;
+      const verseNumber = fromMap?.verseNumber ?? toInt(el.dataset.verse) ?? 0;
+      const wordIndex = fromMap?.wordIndex ?? toInt(el.dataset.wordIndex) ?? 0;
 
-      dispatchWordInspection({
+      const detail: DevInspectWordDetail = {
         uniqueKey: key,
         originalWord,
-        surahNumber: fromMap?.surahNumber ?? toInt(el.dataset.surahNumber) ?? 0,
-        verseNumber: fromMap?.verseNumber ?? toInt(el.dataset.verse) ?? 0,
-        wordIndex: fromMap?.wordIndex ?? toInt(el.dataset.wordIndex) ?? 0,
+        surahNumber,
+        verseNumber,
+        wordIndex,
         meaning,
-        tokenIndex: toInt(el.dataset.ghareebIndex),
+        tokenIndex: toInt(el.dataset.ghareebIndex) ?? tokenIdx,
         assemblyId: el.dataset.assemblyId,
-        matchedMeaningId: key,
+        matchedMeaningId: ghareebKey || null,
         meaningPreview: meaning ? meaning.slice(0, 60) + (meaning.length > 60 ? '...' : '') : '',
         selectionSource: source,
-      });
+        // NEW: Include position data for override system
+        isHighlighted,
+        positionKey,
+        lineIndex: lineIdx,
+        pageNumber: pageNum,
+      };
+      
+      dispatchWordInspection(detail);
     };
 
     const onPointerDown = (e: PointerEvent) => {
-      const el = getClosestGhareebEl(e.target);
+      const el = getClosestWordEl(e.target);
       if (!el) return;
       dispatchFromEl(el, 'pointerdown');
 
@@ -144,7 +179,7 @@ export function DevDebugOverlay() {
     };
 
     const onClick = (e: MouseEvent) => {
-      const el = getClosestGhareebEl(e.target);
+      const el = getClosestWordEl(e.target);
       if (!el) return;
       dispatchFromEl(el, 'click');
     };
@@ -152,7 +187,7 @@ export function DevDebugOverlay() {
     const onPointerOver = (e: PointerEvent) => {
       // Desktop-friendly hover
       if (e.pointerType !== 'mouse') return;
-      const el = getClosestGhareebEl(e.target);
+      const el = getClosestWordEl(e.target);
       if (!el) return;
       dispatchFromEl(el, 'hover');
     };
@@ -171,7 +206,7 @@ export function DevDebugOverlay() {
       document.removeEventListener('click', onClick, true);
       document.removeEventListener('pointerover', onPointerOver, true);
     };
-  }, [isProd, wordByKey]);
+  }, [isProd, wordByKey, context?.pageNumber]);
 
   if (isProd || !context) return null;
 

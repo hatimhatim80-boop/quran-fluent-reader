@@ -29,6 +29,7 @@ import {
 import { QuranPage, GhareebWord } from '@/types/quran';
 import { normalizeArabic } from '@/utils/quranParser';
 import { useDataStore } from '@/stores/dataStore';
+import { useHighlightOverrideStore, makePositionKey, makeIdentityKey } from '@/stores/highlightOverrideStore';
 import { toast } from 'sonner';
 
 // ============= TYPES =============
@@ -90,6 +91,11 @@ export interface InspectedWord {
   wordIndex?: number;
   tokenIndex?: number;
   assemblyId?: string;
+  // NEW: Position-based fields for highlight overrides
+  isHighlighted?: boolean;
+  positionKey?: string;
+  lineIndex?: number;
+  pageNumber?: number;
 }
 
 interface DevDebugPanelProps {
@@ -115,9 +121,14 @@ export interface DevInspectWordDetail {
   meaning: string;
   tokenIndex?: number;
   assemblyId?: string;
-  matchedMeaningId?: string;
+  matchedMeaningId?: string | null;
   meaningPreview?: string;
   selectionSource?: string;
+  // NEW: Position-based data for highlight overrides
+  isHighlighted?: boolean;
+  positionKey?: string;
+  lineIndex?: number;
+  pageNumber?: number;
 }
 
 // Helper to dispatch inspection event from anywhere
@@ -392,34 +403,104 @@ function InspectTabContent({
   onInvalidateCache,
   setInspectedWord,
 }: InspectTabContentProps) {
+  // Use highlight override store (primary for add/remove highlight)
+  const setHighlightOverride = useHighlightOverrideStore((s) => s.setOverride);
+  const removeHighlightOverride = useHighlightOverrideStore((s) => s.removeOverride);
+  const getHighlightOverride = useHighlightOverrideStore((s) => s.getOverride);
+  const highlightVersion = useHighlightOverrideStore((s) => s.version);
+  
+  // Legacy data store (for reassign meaning)
   const addWordOverride = useDataStore((s) => s.addWordOverride);
-  const deleteWordOverride = useDataStore((s) => s.deleteWordOverride);
   const getOverrideByKey = useDataStore((s) => s.getOverrideByKey);
   
-  // Handle: Remove Ghareeb highlight from this word
-  const handleRemoveHighlight = useCallback(() => {
+  // Check existing highlight override for this word
+  const existingHighlightOverride = useMemo(() => {
+    if (!inspectedWord?.positionKey) return undefined;
+    return getHighlightOverride(inspectedWord.positionKey);
+  }, [inspectedWord?.positionKey, getHighlightOverride, highlightVersion]);
+  
+  // Check legacy override
+  const existingDataOverride = inspectedWord ? getOverrideByKey(inspectedWord.identityKey) : undefined;
+  
+  // Determine if word is currently highlighted (considering overrides)
+  const isCurrentlyHighlighted = useMemo(() => {
+    if (existingHighlightOverride) {
+      return existingHighlightOverride.highlight;
+    }
+    return inspectedWord?.isHighlighted ?? false;
+  }, [existingHighlightOverride, inspectedWord?.isHighlighted]);
+  
+  // Handle: Add highlight to this word
+  const handleAddHighlight = useCallback(() => {
     if (!inspectedWord) return;
     
-    // Add a "delete" override for this word
-    addWordOverride({
-      key: inspectedWord.identityKey,
-      pageNumber,
+    const positionKey = inspectedWord.positionKey || 
+      makePositionKey(pageNumber, inspectedWord.lineIndex ?? 0, inspectedWord.tokenIndex ?? 0);
+    const identityKey = inspectedWord.identityKey ||
+      makeIdentityKey(inspectedWord.surah ?? 0, inspectedWord.ayah ?? 0, inspectedWord.wordIndex ?? 0);
+    
+    setHighlightOverride({
+      positionKey,
+      identityKey,
       wordText: inspectedWord.originalWord,
-      meaning: '',
+      highlight: true,
+      meaning: inspectedWord.meaningPreview || '',
       surahNumber: inspectedWord.surah,
       verseNumber: inspectedWord.ayah,
       wordIndex: inspectedWord.wordIndex,
-      operation: 'delete',
+      pageNumber,
+      lineIndex: inspectedWord.lineIndex,
+      tokenIndex: inspectedWord.tokenIndex,
+    });
+    
+    toast.success('تم إضافة التمييز ✨', {
+      description: `الكلمة "${inspectedWord.originalWord}" ستظهر كغريبة الآن`,
+    });
+    
+    // Force refresh
+    onInvalidateCache?.();
+  }, [inspectedWord, pageNumber, setHighlightOverride, onInvalidateCache]);
+  
+  // Handle: Remove highlight from this word
+  const handleRemoveHighlight = useCallback(() => {
+    if (!inspectedWord) return;
+    
+    const positionKey = inspectedWord.positionKey || 
+      makePositionKey(pageNumber, inspectedWord.lineIndex ?? 0, inspectedWord.tokenIndex ?? 0);
+    const identityKey = inspectedWord.identityKey ||
+      makeIdentityKey(inspectedWord.surah ?? 0, inspectedWord.ayah ?? 0, inspectedWord.wordIndex ?? 0);
+    
+    // Set highlight to FALSE (not just remove - we need explicit false)
+    setHighlightOverride({
+      positionKey,
+      identityKey,
+      wordText: inspectedWord.originalWord,
+      highlight: false, // Explicitly hide
+      pageNumber,
+      lineIndex: inspectedWord.lineIndex,
+      tokenIndex: inspectedWord.tokenIndex,
     });
     
     toast.success('تم إزالة التمييز', {
       description: `الكلمة "${inspectedWord.originalWord}" لن تظهر كغريبة`,
     });
     
-    // Refresh view
+    // Force refresh
     onInvalidateCache?.();
-    setInspectedWord(null);
-  }, [inspectedWord, pageNumber, addWordOverride, onInvalidateCache, setInspectedWord]);
+  }, [inspectedWord, pageNumber, setHighlightOverride, onInvalidateCache]);
+  
+  // Handle: Restore to default (remove override)
+  const handleRestoreDefault = useCallback(() => {
+    if (!inspectedWord?.positionKey) return;
+    
+    removeHighlightOverride(inspectedWord.positionKey);
+    
+    toast.success('تمت استعادة الافتراضي', {
+      description: 'الكلمة ستظهر حسب السلوك الافتراضي',
+    });
+    
+    onInvalidateCache?.();
+  }, [inspectedWord?.positionKey, removeHighlightOverride, onInvalidateCache]);
   
   // Handle: Reassign meaning to another word
   const handleReassignMeaning = useCallback(() => {
@@ -437,20 +518,18 @@ function InspectTabContent({
       return;
     }
     
-    // Step 1: Delete the source (remove highlight from "إن")
-    addWordOverride({
-      key: inspectedWord.identityKey,
-      pageNumber,
-      wordText: inspectedWord.originalWord,
-      meaning: '',
-      surahNumber: inspectedWord.surah,
-      verseNumber: inspectedWord.ayah,
-      wordIndex: inspectedWord.wordIndex,
-      operation: 'delete',
-    });
+    // Step 1: Remove highlight from source
+    if (inspectedWord.positionKey) {
+      setHighlightOverride({
+        positionKey: inspectedWord.positionKey,
+        identityKey: inspectedWord.identityKey,
+        wordText: inspectedWord.originalWord,
+        highlight: false,
+        pageNumber,
+      });
+    }
     
-    // Step 2: Add/edit the target word with the meaning
-    // Parse target key to get its position
+    // Step 2: Add highlight + meaning to target
     const targetParts = pendingReassignTarget.split('_');
     const targetSurah = parseInt(targetParts[0]) || targetWord.surahNumber;
     const targetAyah = parseInt(targetParts[1]) || targetWord.verseNumber;
@@ -474,20 +553,18 @@ function InspectTabContent({
     // Refresh view
     onInvalidateCache?.();
     setInspectedWord(null);
-  }, [inspectedWord, pendingReassignTarget, renderedWords, ghareebWords, pageNumber, addWordOverride, onInvalidateCache, setInspectedWord]);
-  
-  // Check if current word has override
-  const existingOverride = inspectedWord ? getOverrideByKey(inspectedWord.identityKey) : undefined;
+    setReassignMode(false);
+  }, [inspectedWord, pendingReassignTarget, renderedWords, ghareebWords, pageNumber, setHighlightOverride, addWordOverride, onInvalidateCache, setInspectedWord, setReassignMode]);
   
   return (
     <>
       <div className="p-2 rounded bg-muted/50 border border-dashed">
-        <div className="flex items-center gap-2 text-muted-foreground">
+        <div className="flex items-center gap-2 text-muted-foreground text-[11px]">
           <MousePointer className="w-3 h-3" />
           <span>
             {reassignMode 
               ? '🎯 وضع النقل: انقر على الكلمة الهدف'
-              : 'Click or long-press any highlighted word to inspect'}
+              : 'انقر على أي كلمة (ملونة أو غير ملونة) لفحصها'}
           </span>
         </div>
       </div>
@@ -503,42 +580,50 @@ function InspectTabContent({
       
       {inspectedWord ? (
         <div className="p-3 rounded border bg-card space-y-2">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-2">
             <span className="font-arabic text-lg" dir="rtl">{inspectedWord.originalWord}</span>
-            <Badge variant="outline" className="text-[9px]">{inspectedWord.identityKey}</Badge>
+            <div className="flex items-center gap-1">
+              <Badge 
+                variant={isCurrentlyHighlighted ? 'default' : 'secondary'} 
+                className="text-[9px]"
+              >
+                {isCurrentlyHighlighted ? '✓ ملونة' : '○ عادية'}
+              </Badge>
+            </div>
           </div>
           
-          {existingOverride && (
+          {/* Show existing overrides */}
+          {existingHighlightOverride && (
+            <Badge variant="outline" className="text-[9px]">
+              ⚙️ تعديل: {existingHighlightOverride.highlight ? 'إضافة تلوين' : 'إزالة تلوين'}
+            </Badge>
+          )}
+          {existingDataOverride && (
             <Badge variant="secondary" className="text-[9px]">
-              ⚠️ يوجد تعديل سابق: {existingOverride.operation}
+              📝 override: {existingDataOverride.operation}
             </Badge>
           )}
           
           <div className="grid grid-cols-2 gap-2 text-[10px]">
             <div>
-              <span className="text-muted-foreground">Normalized:</span>
-              <div className="font-arabic" dir="rtl">{inspectedWord.normalizedWord}</div>
+              <span className="text-muted-foreground">Position Key:</span>
+              <div className="font-mono text-[9px] break-all">{inspectedWord.positionKey || 'N/A'}</div>
             </div>
             <div>
-              <span className="text-muted-foreground">Position:</span>
-              <div>{inspectedWord.surah}:{inspectedWord.ayah}:{inspectedWord.wordIndex}</div>
+              <span className="text-muted-foreground">Identity Key:</span>
+              <div className="font-mono text-[9px] break-all">{inspectedWord.identityKey}</div>
             </div>
           </div>
           
           <div className="grid grid-cols-2 gap-2 text-[10px]">
             <div>
-              <span className="text-muted-foreground">Assembly:</span>
-              <div className="font-mono">{inspectedWord.assemblyId || 'unknown'}</div>
+              <span className="text-muted-foreground">Surah:Ayah:Word:</span>
+              <div>{inspectedWord.surah}:{inspectedWord.ayah}:{inspectedWord.wordIndex}</div>
             </div>
             <div>
-              <span className="text-muted-foreground">Token Index:</span>
-              <div className="font-mono">{inspectedWord.tokenIndex ?? 'N/A'}</div>
+              <span className="text-muted-foreground">Line:Token:</span>
+              <div>{inspectedWord.lineIndex ?? 'N/A'}:{inspectedWord.tokenIndex ?? 'N/A'}</div>
             </div>
-          </div>
-          
-          <div>
-            <span className="text-muted-foreground text-[10px]">Meaning ID:</span>
-            <div className="font-mono text-[10px] break-all">{inspectedWord.matchedMeaningId || 'null'}</div>
           </div>
           
           <div>
@@ -552,54 +637,81 @@ function InspectTabContent({
           <div className="border-t pt-2 mt-2 space-y-2">
             <div className="text-[10px] text-muted-foreground font-semibold flex items-center gap-1">
               <Save className="w-3 h-3" />
-              DEV Actions (persisted to overrides)
+              DEV Actions (persisted)
             </div>
             
-            {/* Action 1: Remove Highlight */}
-            <Button
-              size="sm"
-              variant="destructive"
-              className="w-full h-7 text-[10px] gap-1"
-              onClick={handleRemoveHighlight}
-            >
-              <Trash2 className="w-3 h-3" />
-              إزالة التمييز من هذه الكلمة
-            </Button>
-            
-            {/* Action 2: Reassign Meaning */}
-            <div className="space-y-1">
+            {/* Conditional: Add or Remove Highlight */}
+            {isCurrentlyHighlighted ? (
               <Button
                 size="sm"
-                variant={reassignMode ? 'default' : 'outline'}
+                variant="destructive"
                 className="w-full h-7 text-[10px] gap-1"
-                onClick={() => setReassignMode(!reassignMode)}
+                onClick={handleRemoveHighlight}
               >
-                <ArrowRightLeft className="w-3 h-3" />
-                {reassignMode ? '🎯 في انتظار اختيار الهدف...' : 'نقل المعنى إلى كلمة أخرى'}
+                <Trash2 className="w-3 h-3" />
+                إزالة التلوين من هذه الكلمة
               </Button>
-              
-              {pendingReassignTarget && (
-                <div className="flex items-center gap-1 text-[10px]">
-                  <span className="text-muted-foreground">الهدف:</span>
-                  <Badge variant="secondary" className="text-[9px]">{pendingReassignTarget}</Badge>
-                  <Button
-                    size="sm"
-                    variant="default"
-                    className="h-5 text-[9px] px-2 ml-auto"
-                    onClick={handleReassignMeaning}
-                  >
-                    تأكيد النقل
-                  </Button>
-                </div>
-              )}
-            </div>
+            ) : (
+              <Button
+                size="sm"
+                variant="default"
+                className="w-full h-7 text-[10px] gap-1 bg-yellow-600 hover:bg-yellow-700"
+                onClick={handleAddHighlight}
+              >
+                <CheckCircle className="w-3 h-3" />
+                إضافة تلوين لهذه الكلمة
+              </Button>
+            )}
+            
+            {/* Restore Default (if override exists) */}
+            {existingHighlightOverride && (
+              <Button
+                size="sm"
+                variant="outline"
+                className="w-full h-7 text-[10px] gap-1"
+                onClick={handleRestoreDefault}
+              >
+                <RefreshCw className="w-3 h-3" />
+                استعادة الافتراضي
+              </Button>
+            )}
+            
+            {/* Reassign Meaning (only for highlighted words) */}
+            {isCurrentlyHighlighted && (
+              <div className="space-y-1">
+                <Button
+                  size="sm"
+                  variant={reassignMode ? 'default' : 'outline'}
+                  className="w-full h-7 text-[10px] gap-1"
+                  onClick={() => setReassignMode(!reassignMode)}
+                >
+                  <ArrowRightLeft className="w-3 h-3" />
+                  {reassignMode ? '🎯 في انتظار اختيار الهدف...' : 'نقل المعنى إلى كلمة أخرى'}
+                </Button>
+                
+                {pendingReassignTarget && (
+                  <div className="flex items-center gap-1 text-[10px]">
+                    <span className="text-muted-foreground">الهدف:</span>
+                    <Badge variant="secondary" className="text-[9px]">{pendingReassignTarget}</Badge>
+                    <Button
+                      size="sm"
+                      variant="default"
+                      className="h-5 text-[9px] px-2 ml-auto"
+                      onClick={handleReassignMeaning}
+                    >
+                      تأكيد النقل
+                    </Button>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
       ) : (
         <div className="flex flex-col items-center justify-center gap-2 py-8 text-muted-foreground">
           <Info className="w-4 h-4" />
           <span>لم يتم تحديد كلمة</span>
-          <span className="text-[10px]">Click a highlighted word in the mushaf</span>
+          <span className="text-[10px]">Click any word in the mushaf (highlighted or not)</span>
         </div>
       )}
     </>
@@ -743,6 +855,11 @@ export function DevDebugPanel({
         wordIndex: detail.wordIndex,
         tokenIndex: detail.tokenIndex,
         assemblyId: detail.assemblyId ?? 'unknown',
+        // NEW: Position-based fields
+        isHighlighted: detail.isHighlighted ?? !!detail.matchedMeaningId,
+        positionKey: detail.positionKey,
+        lineIndex: detail.lineIndex,
+        pageNumber: detail.pageNumber ?? pageNumber,
       });
 
       // Auto-switch to Inspect tab when a word is selected
