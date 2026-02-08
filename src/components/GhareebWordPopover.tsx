@@ -17,6 +17,8 @@ interface GhareebWordPopoverProps {
   dataAssemblyId?: string;
   dataLineIndex?: number;
   dataTokenIndex?: number;
+  pageNumber?: number;
+  wasSeen?: boolean; // True if this word was already shown (for color change)
 }
 
 interface PopoverPosition {
@@ -37,6 +39,8 @@ export function GhareebWordPopover({
   dataAssemblyId,
   dataLineIndex,
   dataTokenIndex,
+  pageNumber,
+  wasSeen = false,
 }: GhareebWordPopoverProps) {
   const [isManualOpen, setIsManualOpen] = useState(false);
   const [position, setPosition] = useState<PopoverPosition | null>(null);
@@ -56,13 +60,23 @@ export function GhareebWordPopover({
   
   // Compute effective meaning (check overrides first)
   const effectiveMeaning = useMemo(() => {
-    const posKey = makePositionKey(word.pageNumber, dataLineIndex ?? 0, dataTokenIndex ?? 0);
+    // Use pageNumber prop if available, fallback to word.pageNumber
+    const effectivePageNumber = pageNumber ?? word.pageNumber ?? 0;
+    const posKey = makePositionKey(effectivePageNumber, dataLineIndex ?? 0, dataTokenIndex ?? 0);
     const idKey = word.uniqueKey || makeIdentityKey(word.surahNumber, word.verseNumber, word.wordIndex);
     const defaultMeaning = word.meaning?.trim() || '';
     
+    console.log('[GhareebWordPopover] Meaning lookup:', { 
+      word: word.wordText, 
+      posKey, 
+      idKey, 
+      defaultMeaning: defaultMeaning.slice(0, 30) 
+    });
+    
     const result = getEffectiveMeaning(posKey, idKey, defaultMeaning);
+    console.log('[GhareebWordPopover] Result:', { hasMeaning: result.hasMeaning, meaning: result.meaning?.slice(0, 30) });
     return result.hasMeaning ? result.meaning : 'لا يوجد معنى';
-  }, [word, dataLineIndex, dataTokenIndex, getEffectiveMeaning, highlightVersion]);
+  }, [word, dataLineIndex, dataTokenIndex, pageNumber, getEffectiveMeaning, highlightVersion]);
 
   // Popover is open if forced (auto-play) or manually opened
   const isOpen = forceOpen || isManualOpen;
@@ -255,11 +269,18 @@ export function GhareebWordPopover({
     color: `hsl(${colorSettings.popoverText})`,
   };
 
+  // Build class names
+  const wordClasses = [
+    'ghareeb-word',
+    isHighlighted ? 'ghareeb-word--active' : '',
+    wasSeen && !isHighlighted ? 'ghareeb-word--seen' : '',
+  ].filter(Boolean).join(' ');
+
   return (
     <>
       <span
         ref={wordRef}
-        className={`ghareeb-word ${isHighlighted ? 'ghareeb-word--active' : ''}`}
+        className={wordClasses}
         data-ghareeb-index={index}
         data-ghareeb-key={word.uniqueKey}
         data-surah-number={word.surahNumber}

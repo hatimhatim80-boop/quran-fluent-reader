@@ -485,15 +485,24 @@ export function PageView({
                   dataAssemblyId={assemblyId}
                   dataLineIndex={lineIdx}
                   dataTokenIndex={i}
+                  pageNumber={page.pageNumber}
+                  wasSeen={highlightedWordIndex > sequentialIndex}
                 >
                   {phrase}
                 </GhareebWordPopover>
               );
             } else {
+              // Build class names for non-popover mode
+              const phraseClasses = [
+                'ghareeb-word',
+                isHighlighted ? 'ghareeb-word--active' : '',
+                highlightedWordIndex > sequentialIndex ? 'ghareeb-word--seen' : '',
+              ].filter(Boolean).join(' ');
+              
               lineElements.push(
                 <span
                   key={`${lineIdx}-phrase-${i}`}
-                  className={`ghareeb-word ${isHighlighted ? 'ghareeb-word--active' : ''}`}
+                  className={phraseClasses}
                   data-ghareeb-index={sequentialIndex}
                   data-ghareeb-key={entry.original.uniqueKey}
                   data-surah-number={entry.original.surahNumber}
@@ -524,15 +533,24 @@ export function PageView({
                   dataAssemblyId={assemblyId}
                   dataLineIndex={lineIdx}
                   dataTokenIndex={i}
+                  pageNumber={page.pageNumber}
+                  wasSeen={highlightedWordIndex > sequentialIndex}
                 >
                   {td.token}
                 </GhareebWordPopover>
               );
             } else {
+              // Build class names for non-popover single word
+              const singleWordClasses = [
+                'ghareeb-word',
+                isHighlighted ? 'ghareeb-word--active' : '',
+                highlightedWordIndex > sequentialIndex ? 'ghareeb-word--seen' : '',
+              ].filter(Boolean).join(' ');
+              
               lineElements.push(
                 <span
                   key={`${lineIdx}-${i}`}
-                  className={`ghareeb-word ${isHighlighted ? 'ghareeb-word--active' : ''}`}
+                  className={singleWordClasses}
                   data-ghareeb-index={sequentialIndex}
                   data-ghareeb-key={entry.original.uniqueKey}
                   data-surah-number={entry.original.surahNumber}
