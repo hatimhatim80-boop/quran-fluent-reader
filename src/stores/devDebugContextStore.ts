@@ -11,6 +11,12 @@ export interface DevDebugContext {
   renderedWords: GhareebWord[];
   /** Optional hook to force a refresh/re-render after rebuild-from-source */
   invalidateCache?: () => void;
+  /** All pages for global audit */
+  allPages?: QuranPage[];
+  /** Ghareeb page map for global audit */
+  ghareebPageMap?: Map<number, GhareebWord[]>;
+  /** Navigation callback */
+  onNavigateToPage?: (pageNumber: number) => void;
 }
 
 interface DevDebugContextState {

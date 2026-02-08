@@ -127,5 +127,7 @@ export function useQuranData() {
     goToPage,
     nextPage,
     prevPage,
+    // For global audit
+    ghareebPageMap,
   };
 }

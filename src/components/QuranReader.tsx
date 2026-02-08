@@ -27,6 +27,7 @@ export function QuranReader() {
     goToPage,
     nextPage,
     prevPage,
+    ghareebPageMap,
   } = useQuranData();
 
   // Apply settings to CSS variables in real-time
@@ -55,8 +56,12 @@ export function QuranReader() {
       ghareebWords: pageWords,
       renderedWords,
       invalidateCache: () => window.location.reload(),
+      // Global audit data
+      allPages: pages,
+      ghareebPageMap,
+      onNavigateToPage: goToPage,
     });
-  }, [currentPage, pageData, pageWords, renderedWords, setDevDebugContext, isDiagnosticEnabled, isDev]);
+  }, [currentPage, pageData, pageWords, renderedWords, setDevDebugContext, isDiagnosticEnabled, isDev, pages, ghareebPageMap, goToPage]);
 
   const {
     isPlaying,
