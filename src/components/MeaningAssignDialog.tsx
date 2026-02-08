@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useMemo, useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -6,16 +6,16 @@ import {
   DialogTitle,
   DialogDescription,
   DialogFooter,
-} from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Badge } from '@/components/ui/badge';
-import { Search, PenLine, Link2, X } from 'lucide-react';
-import { GhareebWord } from '@/types/quran';
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
+import { Search, PenLine, Link2, X } from "lucide-react";
+import { GhareebWord } from "@/types/quran";
 
 interface MeaningAssignDialogProps {
   open: boolean;
@@ -30,10 +30,7 @@ interface MeaningAssignDialogProps {
   verseNumber?: number;
   wordIndex?: number;
   ghareebWords: GhareebWord[]; // Available meanings to choose from
-  onAssignMeaning: (params: {
-    meaningText?: string;
-    meaningId?: string;
-  }) => void;
+  onAssignMeaning: (params: { meaningText?: string; meaningId?: string }) => void;
   onCancel: () => void;
 }
 
@@ -48,9 +45,9 @@ export function MeaningAssignDialog({
   onAssignMeaning,
   onCancel,
 }: MeaningAssignDialogProps) {
-  const [activeTab, setActiveTab] = useState<'existing' | 'custom'>('existing');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [customMeaning, setCustomMeaning] = useState('');
+  const [activeTab, setActiveTab] = useState<"existing" | "custom">("existing");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [customMeaning, setCustomMeaning] = useState("");
   const [selectedMeaningId, setSelectedMeaningId] = useState<string | null>(null);
 
   // Filter ghareeb words by search
@@ -58,33 +55,45 @@ export function MeaningAssignDialog({
     if (!searchQuery.trim()) {
       return ghareebWords.slice(0, 50); // Show first 50
     }
-    
+
     const query = searchQuery.toLowerCase();
-    return ghareebWords.filter(
-      (w) =>
-        w.wordText.includes(searchQuery) ||
-        w.meaning?.toLowerCase().includes(query) ||
-        w.surahName.includes(searchQuery)
-    ).slice(0, 50);
+    return ghareebWords
+      .filter(
+        (w) =>
+          w.wordText.includes(searchQuery) ||
+          w.meaning?.toLowerCase().includes(query) ||
+          w.surahName.includes(searchQuery),
+      )
+      .slice(0, 50);
   }, [ghareebWords, searchQuery]);
 
   const handleAssign = () => {
-    if (activeTab === 'custom' && customMeaning.trim()) {
+    if (activeTab === "custom" && customMeaning.trim()) {
+      // ✅ يدوي: أرسل meaningText فقط
       onAssignMeaning({ meaningText: customMeaning.trim() });
-    } else if (activeTab === 'existing' && selectedMeaningId) {
-      onAssignMeaning({ meaningId: selectedMeaningId });
+      return;
+    }
+
+    if (activeTab === "existing" && selectedMeaningId) {
+      // ✅ مرجع: أرسل meaningId + نسخة meaningText أيضًا (حتى لا يضيع المعنى إذا فشل حل المرجع)
+      const resolvedMeaning = ghareebWords.find((w) => w.uniqueKey === selectedMeaningId)?.meaning?.trim() || "";
+
+      onAssignMeaning({
+        meaningId: selectedMeaningId,
+        meaningText: resolvedMeaning || undefined,
+      });
     }
   };
 
   const handleCancel = () => {
-    setSearchQuery('');
-    setCustomMeaning('');
+    setSearchQuery("");
+    setCustomMeaning("");
     setSelectedMeaningId(null);
     onCancel();
   };
 
-  const isValid = (activeTab === 'custom' && customMeaning.trim()) ||
-                  (activeTab === 'existing' && selectedMeaningId);
+  const isValid =
+    (activeTab === "custom" && !!customMeaning.trim()) || (activeTab === "existing" && !!selectedMeaningId);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -95,14 +104,25 @@ export function MeaningAssignDialog({
             إسناد معنى للكلمة
           </DialogTitle>
           <DialogDescription className="text-right">
-            الكلمة:{' '}
-            <span className="font-arabic text-lg text-primary font-bold">
-              {wordText}
-            </span>
+            الكلمة: <span className="font-arabic text-lg text-primary font-bold">{wordText}</span>
           </DialogDescription>
         </DialogHeader>
 
-        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'existing' | 'custom')}>
+        <Tabs
+          value={activeTab}
+          onValueChange={(v) => {
+            const next = v as "existing" | "custom";
+            setActiveTab(next);
+
+            // ✅ تنظيف بسيط لتجنب بقايا اختيار قديم
+            if (next === "custom") {
+              setSelectedMeaningId(null);
+              setSearchQuery("");
+            } else {
+              setCustomMeaning("");
+            }
+          }}
+        >
           <TabsList className="grid grid-cols-2 mb-4">
             <TabsTrigger value="existing" className="gap-1 text-sm">
               <Link2 className="w-4 h-4" />
@@ -129,9 +149,7 @@ export function MeaningAssignDialog({
             <ScrollArea className="h-[250px] border rounded-md">
               <div className="p-2 space-y-1">
                 {filteredWords.length === 0 ? (
-                  <div className="text-center text-muted-foreground py-8">
-                    لا توجد نتائج
-                  </div>
+                  <div className="text-center text-muted-foreground py-8">لا توجد نتائج</div>
                 ) : (
                   filteredWords.map((word) => (
                     <button
@@ -140,8 +158,8 @@ export function MeaningAssignDialog({
                       onClick={() => setSelectedMeaningId(word.uniqueKey)}
                       className={`w-full text-right p-2 rounded-md transition-colors ${
                         selectedMeaningId === word.uniqueKey
-                          ? 'bg-primary/20 border-primary border'
-                          : 'hover:bg-muted border border-transparent'
+                          ? "bg-primary/20 border-primary border"
+                          : "hover:bg-muted border border-transparent"
                       }`}
                     >
                       <div className="flex items-start justify-between gap-2">
@@ -149,11 +167,9 @@ export function MeaningAssignDialog({
                           {word.surahNumber}:{word.verseNumber}
                         </Badge>
                         <div className="flex-1 min-w-0">
-                          <div className="font-arabic text-sm font-bold truncate">
-                            {word.wordText}
-                          </div>
+                          <div className="font-arabic text-sm font-bold truncate">{word.wordText}</div>
                           <div className="font-arabic text-xs text-muted-foreground line-clamp-2">
-                            {word.meaning || 'لا يوجد معنى'}
+                            {word.meaning || "لا يوجد معنى"}
                           </div>
                         </div>
                       </div>
@@ -167,7 +183,7 @@ export function MeaningAssignDialog({
               <div className="p-2 bg-primary/10 rounded-md">
                 <div className="text-xs text-muted-foreground mb-1">المعنى المختار:</div>
                 <div className="font-arabic text-sm">
-                  {ghareebWords.find((w) => w.uniqueKey === selectedMeaningId)?.meaning || '—'}
+                  {ghareebWords.find((w) => w.uniqueKey === selectedMeaningId)?.meaning || "—"}
                 </div>
               </div>
             )}
@@ -196,12 +212,7 @@ export function MeaningAssignDialog({
         </Tabs>
 
         <DialogFooter className="flex gap-2 sm:justify-start">
-          <Button
-            variant="default"
-            onClick={handleAssign}
-            disabled={!isValid}
-            className="gap-1"
-          >
+          <Button variant="default" onClick={handleAssign} disabled={!isValid} className="gap-1">
             <PenLine className="w-4 h-4" />
             إسناد المعنى
           </Button>
