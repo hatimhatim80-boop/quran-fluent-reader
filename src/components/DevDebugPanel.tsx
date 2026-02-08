@@ -27,6 +27,8 @@ import {
   Save,
   PenLine,
   AlertTriangle,
+  Scan,
+  Shield,
 } from 'lucide-react';
 import { QuranPage, GhareebWord } from '@/types/quran';
 import { normalizeArabic } from '@/utils/quranParser';
@@ -34,6 +36,8 @@ import { useDataStore } from '@/stores/dataStore';
 import { useHighlightOverrideStore, makePositionKey, makeIdentityKey } from '@/stores/highlightOverrideStore';
 import { toast } from 'sonner';
 import { MeaningAssignDialog } from './MeaningAssignDialog';
+import { isStopword } from '@/utils/globalAudit';
+import { GlobalAuditDialog } from './GlobalAuditDialog';
 
 // ============= TYPES =============
 
@@ -108,6 +112,10 @@ interface DevDebugPanelProps {
   renderedWords: GhareebWord[];
   onInvalidateCache?: () => void;
   mappingVersionId?: string;
+  // For Global Audit
+  allPages?: QuranPage[];
+  ghareebPageMap?: Map<number, GhareebWord[]>;
+  onNavigateToPage?: (pageNumber: number) => void;
 }
 
 // ============= GLOBAL EVENT FOR WORD SELECTION =============
@@ -462,8 +470,27 @@ function InspectTabContent({
     return info;
   }, [inspectedWord, getEffectiveMeaning, highlightVersion, ghareebWords]);
   
-  // Handle: Add highlight WITH meaning check
+  // Handle: Add highlight WITH meaning check AND stopword guardrail
   const handleAddHighlightClick = useCallback(() => {
+    if (!inspectedWord) return;
+    
+    // GUARDRAIL: Check if word is a stopword
+    if (isStopword(inspectedWord.originalWord)) {
+      toast.warning('هذه الكلمة أداة/حرف', {
+        description: `"${inspectedWord.originalWord}" لا ينبغي تلوينها عادةً. هل تريد المتابعة؟`,
+        action: {
+          label: 'متابعة',
+          onClick: () => proceedWithHighlight(),
+        },
+      });
+      return;
+    }
+    
+    proceedWithHighlight();
+  }, [inspectedWord]);
+  
+  // Proceed with highlight after guardrail check
+  const proceedWithHighlight = useCallback(() => {
     if (!inspectedWord) return;
     
     // Check if word already has a meaning (from ghareeb database)
@@ -702,6 +729,29 @@ function InspectTabContent({
             </Badge>
           )}
           
+          {/* Normalized Word - MUST NOT BE EMPTY */}
+          <div className="p-2 rounded bg-muted/50 border">
+            <div className="flex items-center gap-2 text-[10px]">
+              <span className="text-muted-foreground">Normalized:</span>
+              {inspectedWord.normalizedWord && inspectedWord.normalizedWord.trim() ? (
+                <span className="font-arabic text-sm" dir="rtl">
+                  "{inspectedWord.normalizedWord}"
+                </span>
+              ) : (
+                <span className="text-destructive flex items-center gap-1">
+                  <AlertTriangle className="w-3 h-3" />
+                  EMPTY (integrity failure)
+                </span>
+              )}
+            </div>
+            {isStopword(inspectedWord.originalWord) && (
+              <div className="flex items-center gap-1 mt-1 text-[10px] text-yellow-600">
+                <Shield className="w-3 h-3" />
+                <span>أداة/حرف (stopword) - لا ينبغي تلوينها عادةً</span>
+              </div>
+            )}
+          </div>
+          
           <div className="grid grid-cols-2 gap-2 text-[10px]">
             <div>
               <span className="text-muted-foreground">Position Key:</span>
@@ -883,6 +933,9 @@ export function DevDebugPanel({
   renderedWords,
   onInvalidateCache,
   mappingVersionId,
+  allPages,
+  ghareebPageMap,
+  onNavigateToPage,
 }: DevDebugPanelProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<'assembly' | 'matching' | 'inspect'>('assembly');
@@ -890,6 +943,7 @@ export function DevDebugPanel({
   const [lastSelectionEvent, setLastSelectionEvent] = useState<string | null>(null);
   const [snapshotTime, setSnapshotTime] = useState<string>(new Date().toLocaleTimeString('ar-EG'));
   const longPressTimer = useRef<NodeJS.Timeout | null>(null);
+  const [showGlobalAudit, setShowGlobalAudit] = useState(false);
   
   // DEV-only editing state
   const [reassignMode, setReassignMode] = useState(false);
@@ -1062,10 +1116,9 @@ export function DevDebugPanel({
   const hasIssues = analysis.matchingStats.unmatchedCount > 0 || 
     analysis.assemblies.some(a => a.fallbackReason !== null);
   
-  // Only show in development
-  if (process.env.NODE_ENV === 'production') {
-    return null;
-  }
+  // Show in development OR when diagnostic mode is enabled
+  // The parent (DevDebugOverlay) handles the visibility check, 
+  // so we don't need to check here - just render always
   
   return (
     <Collapsible open={isOpen} onOpenChange={setIsOpen}>
@@ -1097,6 +1150,17 @@ export function DevDebugPanel({
               <Button size="sm" variant="ghost" onClick={handleRefresh} className="h-6 px-2">
                 <RefreshCw className="w-3 h-3" />
               </Button>
+              {allPages && ghareebPageMap && (
+                <Button 
+                  size="sm" 
+                  variant="outline" 
+                  onClick={() => setShowGlobalAudit(true)} 
+                  className="h-6 px-2 gap-1"
+                >
+                  <Scan className="w-3 h-3" />
+                  Audit
+                </Button>
+              )}
             </div>
           </div>
           
@@ -1278,6 +1342,17 @@ export function DevDebugPanel({
           </div>
         </div>
       </CollapsibleContent>
+      
+      {/* Global Audit Dialog */}
+      {allPages && ghareebPageMap && (
+        <GlobalAuditDialog
+          open={showGlobalAudit}
+          onOpenChange={setShowGlobalAudit}
+          pages={allPages}
+          ghareebPageMap={ghareebPageMap}
+          onNavigateToPage={onNavigateToPage}
+        />
+      )}
     </Collapsible>
   );
 }

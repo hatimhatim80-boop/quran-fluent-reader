@@ -224,6 +224,9 @@ export function DevDebugOverlay() {
           renderedWords={context.renderedWords}
           onInvalidateCache={context.invalidateCache}
           mappingVersionId={mappingVersionId}
+          allPages={context.allPages}
+          ghareebPageMap={context.ghareebPageMap}
+          onNavigateToPage={context.onNavigateToPage}
         />
       </div>
     </div>
