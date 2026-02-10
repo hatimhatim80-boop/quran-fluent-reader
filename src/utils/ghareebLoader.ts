@@ -168,16 +168,8 @@ export function findWordsInPageText(
     const normalizedWord = normalizeArabic(word.wordText);
     if (normalizedWord.length < 2) continue;
 
-    // DEBUG: trace all words for page 583 that have surah 78
-    if (pageNumber === 583 && word.surahNumber === 78 && word.verseNumber === 40) {
-      console.log(`[DEBUG-583] Word: "${word.wordText}" normalized: "${normalizedWord}" len=${normalizedWord.length}`);
-      console.log(`[DEBUG-583] normalizedWord codes: ${[...normalizedWord].map(c => c.charCodeAt(0).toString(16)).join(',')}`);
-      console.log(`[DEBUG-583] indexOf result: ${normalizedPageText.indexOf(normalizedWord)}`);
-      // Find similar tokens in page text
-      const pageTokens = normalizedPageText.split(/\s+/);
-      const similar = pageTokens.filter(t => t.length >= 4 && (normalizedWord.includes(t.slice(0,3)) || t.includes(normalizedWord.slice(0,3))));
-      console.log(`[DEBUG-583] Similar page tokens: ${JSON.stringify(similar.slice(0,5))}`);
-    }
+
+
 
     // Check if this word appears in the page text
     const index = normalizedPageText.indexOf(normalizedWord);
