@@ -248,7 +248,7 @@
       0 4px 8px rgba(0, 0, 0, 0.08),
       0 0 0 1px hsl(var(--ornament) / 0.12);
     text-align: center;
-    min-width: 140px;
+    width: fit-content;
   }
 
   .dark .ghareeb-popover__content {

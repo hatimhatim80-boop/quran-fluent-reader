@@ -46,8 +46,10 @@ export function GhareebWordPopover({
   const fontSettings = settings.fonts;
   const colorSettings = settings.colors;
 
-  const popoverWidth = popoverSettings.width || (isMobile ? 220 : 280);
+  const popoverMaxWidth = popoverSettings.width || (isMobile ? 260 : 320);
+  const popoverMinWidth = isMobile ? 120 : 140;
   const [measuredHeight, setMeasuredHeight] = useState<number | null>(null);
+  const [measuredWidth, setMeasuredWidth] = useState<number | null>(null);
 
   // Compute meaning using override store, then fallback to word.meaning
   const effectivePageNumber = pageNumber ?? word.pageNumber ?? 0;
@@ -60,27 +62,28 @@ export function GhareebWordPopover({
 
   const isOpen = forceOpen || isManualOpen;
 
-  const calculatePosition = useCallback((actualHeight?: number) => {
+  const calculatePosition = useCallback((actualHeight?: number, actualWidth?: number) => {
     if (!wordRef.current || !containerRef.current) return null;
     const wordRect = wordRef.current.getBoundingClientRect();
     const containerRect = containerRef.current.getBoundingClientRect();
     const popoverHeight = actualHeight || measuredHeight || 80;
+    const effectiveWidth = actualWidth || measuredWidth || popoverMinWidth;
     const arrowHeight = 10;
     const verticalOffset = 6;
     const padding = 12;
 
     const containerWidth = containerRect.width;
     const wordCenterX = wordRect.left - containerRect.left + wordRect.width / 2;
-    let x = wordCenterX - popoverWidth / 2;
+    let x = wordCenterX - effectiveWidth / 2;
     let y = wordRect.top - containerRect.top - popoverHeight - arrowHeight - verticalOffset;
     let flipped = false;
 
     const minX = padding;
-    const maxX = Math.max(padding, containerWidth - popoverWidth - padding);
+    const maxX = Math.max(padding, containerWidth - effectiveWidth - padding);
     x = Math.max(minX, Math.min(maxX, x));
 
     let arrowX = wordCenterX - x;
-    arrowX = Math.max(20, Math.min(popoverWidth - 20, arrowX));
+    arrowX = Math.max(20, Math.min(effectiveWidth - 20, arrowX));
 
     if (y < padding) {
       y = wordRect.bottom - containerRef.current.getBoundingClientRect().top + arrowHeight + verticalOffset;
@@ -88,7 +91,7 @@ export function GhareebWordPopover({
     }
 
     return { x, y, arrowX, flipped };
-  }, [containerRef, popoverWidth, measuredHeight]);
+  }, [containerRef, popoverMinWidth, measuredHeight, measuredWidth]);
 
   const closePopover = useCallback(() => {
     setIsManualOpen(false);
@@ -103,13 +106,16 @@ export function GhareebWordPopover({
     onSelect(word, index);
   }, [calculatePosition, index, onSelect, word]);
 
-  // Measure actual popover height after render and reposition
+  // Measure actual popover size after render and reposition
   useEffect(() => {
     if (!isOpen || !popoverRef.current) return;
-    const h = popoverRef.current.getBoundingClientRect().height;
-    if (h > 0 && h !== measuredHeight) {
+    const rect = popoverRef.current.getBoundingClientRect();
+    const h = rect.height;
+    const w = rect.width;
+    if (h > 0 && (h !== measuredHeight || w !== measuredWidth)) {
       setMeasuredHeight(h);
-      const pos = calculatePosition(h);
+      setMeasuredWidth(w);
+      const pos = calculatePosition(h, w);
       if (pos) setPosition(pos);
     }
   });
@@ -123,6 +129,7 @@ export function GhareebWordPopover({
     if (!forceOpen && !isManualOpen) {
       setPosition(null);
       setMeasuredHeight(null);
+      setMeasuredWidth(null);
     }
   }, [forceOpen, isManualOpen, calculatePosition, position]);
 
@@ -168,7 +175,9 @@ export function GhareebWordPopover({
   const popoverStyle = {
     left: position?.x,
     top: position?.y,
-    width: popoverWidth,
+    maxWidth: popoverMaxWidth,
+    minWidth: popoverMinWidth,
+    width: 'fit-content',
     "--arrow-x": `${position?.arrowX}px`,
   } as React.CSSProperties;
 
