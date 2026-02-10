@@ -38,6 +38,15 @@ function isBismillah(line: string): boolean {
   return line.includes('بِسمِ اللَّهِ') || line.includes('بِسۡمِ ٱللَّهِ');
 }
 
+// Strict word matching: only allow substring match if lengths are very close
+function isStrictMatch(tokenNorm: string, phraseWord: string): boolean {
+  if (tokenNorm === phraseWord) return true;
+  // Only allow includes-match if length difference ≤ 1 char
+  const lenDiff = Math.abs(tokenNorm.length - phraseWord.length);
+  if (lenDiff > 1) return false;
+  return tokenNorm.includes(phraseWord) || phraseWord.includes(tokenNorm);
+}
+
 interface MatchedWord {
   word: GhareebWord;
   originalIndex: number;
@@ -172,11 +181,7 @@ export function PageView({
             const tokenNorm = tokenData[j].normalized;
             const phraseWord = entry.words[phraseWordIdx];
             
-            const isMatch = tokenNorm === phraseWord || 
-              tokenNorm.includes(phraseWord) || 
-              phraseWord.includes(tokenNorm);
-            
-            if (isMatch) {
+            if (isStrictMatch(tokenNorm, phraseWord)) {
               matchedTokens.push(j);
               phraseWordIdx++;
               j++;
@@ -372,11 +377,7 @@ export function PageView({
             const tokenNorm = tokenData[j].normalized;
             const phraseWord = entry.words[phraseWordIdx];
             
-            const isMatch = tokenNorm === phraseWord || 
-              tokenNorm.includes(phraseWord) || 
-              phraseWord.includes(tokenNorm);
-            
-            if (isMatch) {
+            if (isStrictMatch(tokenNorm, phraseWord)) {
               matchedTokens.push(j);
               phraseWordIdx++;
               j++;
