@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { QuranPage, GhareebWord, SavedProgress } from '@/types/quran';
 import { parseTanzilQuran } from '@/utils/quranParser';
 import { loadGhareebData, getWordsForPage } from '@/utils/ghareebLoader';
+import { useDataStore } from '@/stores/dataStore';
 
 const STORAGE_KEY = 'quran-app-progress';
 
@@ -10,6 +11,10 @@ export function useQuranData() {
   const [ghareebPageMap, setGhareebPageMap] = useState<Map<number, GhareebWord[]>>(new Map());
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  
+  // Get user overrides from dataStore
+  const applyOverrides = useDataStore((s) => s.applyOverrides);
+  const userOverrides = useDataStore((s) => s.userOverrides);
   
   const [currentPage, setCurrentPage] = useState(1);
   const [currentWordIndex, setCurrentWordIndex] = useState(-1);
@@ -77,14 +82,17 @@ export function useQuranData() {
     return pages.find(p => p.pageNumber === currentPage);
   }, [pages, currentPage]);
 
-  // Get ghareeb words for current page using text-based matching
+  // Get ghareeb words for current page using text-based matching + user overrides
   const getPageGhareebWords = useMemo((): GhareebWord[] => {
     const pageData = pages.find(p => p.pageNumber === currentPage);
     if (!pageData) return [];
     
-    // Pass the actual page text for text-based matching
-    return getWordsForPage(ghareebPageMap, currentPage, pageData.text);
-  }, [ghareebPageMap, currentPage, pages]);
+    // Get base words from file
+    const baseWords = getWordsForPage(ghareebPageMap, currentPage, pageData.text);
+    
+    // Apply user overrides (edits, deletions, additions)
+    return applyOverrides(baseWords).filter(w => w.pageNumber === currentPage);
+  }, [ghareebPageMap, currentPage, pages, applyOverrides, userOverrides]);
 
   // Get ALL ghareeb words from all pages (for file editor)
   const allGhareebWords = useMemo((): GhareebWord[] => {
