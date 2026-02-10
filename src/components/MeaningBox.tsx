@@ -1,21 +1,30 @@
 import React from "react";
 import { X, BookOpen } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-
-// ✅ هنا اجلب الخريطة التي تحتوي على المعاني
-import { meaningsMap } from "@/stores/meaningsMap"; // غيّر هذا المسار حسب مكان التخزين الحقيقي
+import { useHighlightOverrideStore } from "@/stores/highlightOverrideStore";
 
 interface MeaningBoxProps {
   positionKey: string | null;
+  identityKey?: string;
+  defaultMeaning?: string;
+  wordText?: string;
+  surahName?: string;
+  verseNumber?: number;
   onClose: () => void;
 }
 
-export function MeaningBox({ positionKey, onClose }: MeaningBoxProps) {
-  const word = positionKey ? meaningsMap[positionKey] : null;
+export function MeaningBox({ positionKey, identityKey, defaultMeaning, wordText, surahName, verseNumber, onClose }: MeaningBoxProps) {
+  const getEffectiveMeaning = useHighlightOverrideStore((s) => s.getEffectiveMeaning);
+
+  const meaningInfo = positionKey
+    ? getEffectiveMeaning(positionKey, identityKey || "", defaultMeaning || "")
+    : null;
+
+  const hasMeaning = meaningInfo && meaningInfo.hasMeaning;
 
   return (
     <AnimatePresence>
-      {word && (
+      {hasMeaning && wordText && (
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -43,23 +52,25 @@ export function MeaningBox({ positionKey, onClose }: MeaningBoxProps) {
 
           {/* Word and Location */}
           <div className="mb-4">
-            <h3 className="text-2xl font-bold font-arabic text-foreground mb-2">{word.wordText}</h3>
-            <div className="inline-flex items-center gap-1.5 bg-primary/8 text-primary px-2.5 py-1 rounded-full text-xs font-arabic">
-              <span>{word.surahName}</span>
-              <span className="opacity-50">•</span>
-              <span>آية {word.verseNumber}</span>
-            </div>
+            <h3 className="text-2xl font-bold font-arabic text-foreground mb-2">{wordText}</h3>
+            {surahName && verseNumber && (
+              <div className="inline-flex items-center gap-1.5 bg-primary/8 text-primary px-2.5 py-1 rounded-full text-xs font-arabic">
+                <span>{surahName}</span>
+                <span className="opacity-50">•</span>
+                <span>آية {verseNumber}</span>
+              </div>
+            )}
           </div>
 
           {/* Meaning */}
           <div className="bg-card rounded-xl p-4 border border-border/50">
-            <p className="font-arabic text-lg text-foreground leading-relaxed">{word.meaning}</p>
+            <p className="font-arabic text-lg text-foreground leading-relaxed">{meaningInfo.meaning}</p>
           </div>
         </motion.div>
       )}
 
       {/* في حال لم يوجد معنى */}
-      {!word && positionKey && (
+      {!hasMeaning && positionKey && (
         <motion.div className="p-5 text-red-600 font-bold text-center">
           ⚠️ لا يوجد معنى للكلمة ذات المفتاح: {positionKey}
         </motion.div>
