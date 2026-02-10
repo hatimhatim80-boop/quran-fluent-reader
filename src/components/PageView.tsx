@@ -38,12 +38,13 @@ function isBismillah(line: string): boolean {
   return line.includes('بِسمِ اللَّهِ') || line.includes('بِسۡمِ ٱللَّهِ');
 }
 
-// Strict word matching: only allow substring match if lengths are very close
+// Strict word matching: only allow substring match if lengths are proportionally close
 function isStrictMatch(tokenNorm: string, phraseWord: string): boolean {
   if (tokenNorm === phraseWord) return true;
-  // Only allow includes-match if length difference ≤ 1 char
-  const lenDiff = Math.abs(tokenNorm.length - phraseWord.length);
-  if (lenDiff > 1) return false;
+  const shorter = Math.min(tokenNorm.length, phraseWord.length);
+  const longer = Math.max(tokenNorm.length, phraseWord.length);
+  // The shorter must be at least 70% of the longer to allow substring match
+  if (shorter / longer < 0.7) return false;
   return tokenNorm.includes(phraseWord) || phraseWord.includes(tokenNorm);
 }
 
