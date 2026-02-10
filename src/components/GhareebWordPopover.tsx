@@ -1,13 +1,10 @@
-import React, { useState, useRef, useEffect, useCallback } from "react";
+import React, { useState, useRef, useCallback } from "react";
 import { GhareebWord } from "@/types/quran";
 import { createPortal } from "react-dom";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useSettingsStore } from "@/stores/settingsStore";
-import { makePositionKey } from "@/stores/highlightOverrideStore";
+import { useHighlightOverrideStore, makePositionKey } from "@/stores/highlightOverrideStore";
 import { dispatchWordInspection } from "./DevDebugPanel";
-
-// ✅ استدعاء meaningsMap مباشرة
-import { meaningsMap } from "@/stores/meaningsMap";
 
 interface GhareebWordPopoverProps {
   word: GhareebWord;
@@ -51,13 +48,14 @@ export function GhareebWordPopover({
 
   const popoverWidth = popoverSettings.width || (isMobile ? 220 : 280);
 
-  // ✅ احسب positionKey
+  // Compute meaning using override store, then fallback to word.meaning
   const effectivePageNumber = pageNumber ?? word.pageNumber ?? 0;
   const posKey = makePositionKey(effectivePageNumber, dataLineIndex ?? 0, dataTokenIndex ?? 0);
+  const identityKey = `${word.surahNumber}_${word.verseNumber}_${word.wordIndex}`;
 
-  // ✅ جلب المعنى مباشرة
-  const meaningEntry = meaningsMap[posKey];
-  const effectiveMeaning = meaningEntry?.meaning || "⚠️ لا يوجد معنى";
+  const getEffectiveMeaning = useHighlightOverrideStore((s) => s.getEffectiveMeaning);
+  const meaningInfo = getEffectiveMeaning(posKey, identityKey, word.meaning || "");
+  const effectiveMeaning = meaningInfo.meaning || word.meaning || "⚠️ لا يوجد معنى";
 
   const isOpen = forceOpen || isManualOpen;
 
@@ -113,7 +111,7 @@ export function GhareebWordPopover({
         surahNumber: word.surahNumber,
         verseNumber: word.verseNumber,
         wordIndex: word.wordIndex,
-        meaning: meaningEntry?.meaning || "",
+        meaning: effectiveMeaning,
         tokenIndex: index,
         assemblyId: dataAssemblyId,
         matchedMeaningId: word.uniqueKey,

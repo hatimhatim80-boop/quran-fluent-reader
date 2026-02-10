@@ -903,7 +903,7 @@ export function DevDebugPanel({
         normalizedWord: normalizeArabic(word.wordText),
         identityKey: word.uniqueKey,
         matchedMeaningId: key,
-        meaningPreview: word.meaning?.slice(0, 60) + (word.meaning?.length > 60 ? "..." : "") || "لا يوجد",
+        meaningPreview: word.meaning ? word.meaning.slice(0, 60) + (word.meaning.length > 60 ? "..." : "") : "لا يوجد",
         surah: word.surahNumber,
         ayah: word.verseNumber,
         wordIndex: word.wordIndex,
