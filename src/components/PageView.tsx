@@ -437,6 +437,8 @@ export function PageView({
           // CHECK OVERRIDE: Should this word be highlighted?
           const shouldShowHighlight = shouldHighlight(positionKey, identityKey, true);
           
+          
+          
           if (!shouldShowHighlight) {
             // Override says: DO NOT highlight this word (render as plain with inspectable data)
             lineElements.push(
