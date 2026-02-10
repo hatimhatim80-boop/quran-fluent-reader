@@ -169,8 +169,6 @@ export function findWordsInPageText(
 
 
     // Check if this word appears in the page text
-
-    // Check if this word appears in the page text
     const index = normalizedPageText.indexOf(normalizedWord);
     if (index !== -1) {
       const key = word.uniqueKey;

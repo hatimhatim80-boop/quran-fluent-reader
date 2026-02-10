@@ -182,8 +182,6 @@ export function PageView({
             const tokenNorm = tokenData[j].normalized;
             const phraseWord = entry.words[phraseWordIdx];
             
-            
-            
             if (isStrictMatch(tokenNorm, phraseWord)) {
               matchedTokens.push(j);
               phraseWordIdx++;
