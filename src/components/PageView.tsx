@@ -217,6 +217,8 @@ export function PageView({
       }
     }
 
+    // Sort by reading order: line index first, then token index within line
+    matched.sort((a, b) => a.lineIdx !== b.lineIdx ? a.lineIdx - b.lineIdx : a.tokenIdx - b.tokenIdx);
     return matched;
   }, [page.text, ghareebWords, surahContextByLine]);
 
