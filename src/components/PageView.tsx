@@ -250,6 +250,7 @@ export function PageView({
   const renderedContent = useMemo(() => {
     if (!page.text) return null;
 
+
     const lines = page.text.split('\n');
     
     // If no ghareeb words, render continuous text
@@ -361,6 +362,8 @@ export function PageView({
           entry.normalizedSurah === normalizedLocalSurah || 
           entry.normalizedSurah.includes(normalizedLocalSurah) || 
           normalizedLocalSurah.includes(entry.normalizedSurah);
+        
+        
         if (!surahMatch) continue;
 
         for (let i = 0; i < tokenData.length; i++) {
@@ -377,6 +380,7 @@ export function PageView({
             
             const tokenNorm = tokenData[j].normalized;
             const phraseWord = entry.words[phraseWordIdx];
+            
             
             if (isStrictMatch(tokenNorm, phraseWord)) {
               matchedTokens.push(j);
