@@ -129,12 +129,12 @@ export function GhareebWordPopover({
 
   const portalTarget = containerRef.current;
 
-  const popoverStyle: React.CSSProperties = {
+  const popoverStyle = {
     left: position?.x,
     top: position?.y,
     width: popoverWidth,
     "--arrow-x": `${position?.arrowX}px`,
-  };
+  } as React.CSSProperties;
 
   const contentStyle: React.CSSProperties = {
     padding: popoverSettings.padding,
