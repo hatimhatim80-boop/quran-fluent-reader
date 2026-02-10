@@ -47,6 +47,7 @@ export function GhareebWordPopover({
   const colorSettings = settings.colors;
 
   const popoverWidth = popoverSettings.width || (isMobile ? 220 : 280);
+  const [measuredHeight, setMeasuredHeight] = useState<number | null>(null);
 
   // Compute meaning using override store, then fallback to word.meaning
   const effectivePageNumber = pageNumber ?? word.pageNumber ?? 0;
@@ -59,13 +60,13 @@ export function GhareebWordPopover({
 
   const isOpen = forceOpen || isManualOpen;
 
-  const calculatePosition = useCallback(() => {
+  const calculatePosition = useCallback((actualHeight?: number) => {
     if (!wordRef.current || !containerRef.current) return null;
     const wordRect = wordRef.current.getBoundingClientRect();
     const containerRect = containerRef.current.getBoundingClientRect();
-    const popoverHeight = 120;
+    const popoverHeight = actualHeight || measuredHeight || 80;
     const arrowHeight = 10;
-    const verticalOffset = 12;
+    const verticalOffset = 6;
     const padding = 12;
 
     const containerWidth = containerRect.width;
@@ -87,7 +88,7 @@ export function GhareebWordPopover({
     }
 
     return { x, y, arrowX, flipped };
-  }, [containerRef, popoverWidth]);
+  }, [containerRef, popoverWidth, measuredHeight]);
 
   const closePopover = useCallback(() => {
     setIsManualOpen(false);
@@ -102,6 +103,17 @@ export function GhareebWordPopover({
     onSelect(word, index);
   }, [calculatePosition, index, onSelect, word]);
 
+  // Measure actual popover height after render and reposition
+  useEffect(() => {
+    if (!isOpen || !popoverRef.current) return;
+    const h = popoverRef.current.getBoundingClientRect().height;
+    if (h > 0 && h !== measuredHeight) {
+      setMeasuredHeight(h);
+      const pos = calculatePosition(h);
+      if (pos) setPosition(pos);
+    }
+  });
+
   // AUTO-PLAY: Calculate position when forceOpen becomes true
   useEffect(() => {
     if (forceOpen && !position) {
@@ -110,6 +122,7 @@ export function GhareebWordPopover({
     }
     if (!forceOpen && !isManualOpen) {
       setPosition(null);
+      setMeasuredHeight(null);
     }
   }, [forceOpen, isManualOpen, calculatePosition, position]);
 
@@ -118,7 +131,8 @@ export function GhareebWordPopover({
     if (!forceOpen) return;
     let rafId: number;
     const updatePos = () => {
-      const pos = calculatePosition();
+      const h = popoverRef.current?.getBoundingClientRect().height;
+      const pos = calculatePosition(h || undefined);
       if (pos) setPosition(pos);
       rafId = requestAnimationFrame(updatePos);
     };
