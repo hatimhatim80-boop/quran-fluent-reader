@@ -167,6 +167,9 @@ export function findWordsInPageText(
     const normalizedWord = normalizeArabic(word.wordText);
     if (normalizedWord.length < 2) continue;
 
+
+    // Check if this word appears in the page text
+
     // Check if this word appears in the page text
     const index = normalizedPageText.indexOf(normalizedWord);
     if (index !== -1) {
