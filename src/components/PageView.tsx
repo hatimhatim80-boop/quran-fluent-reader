@@ -156,7 +156,6 @@ export function PageView({
         };
       });
 
-      // Match phrases
       for (const entry of sortedEntries) {
         if (usedOriginalIndices.has(entry.originalIndex)) continue;
         if (entry.words.length === 0) continue;
@@ -249,6 +248,32 @@ export function PageView({
     return map;
   }, [matchedWordsInOrder]);
 
+  // Build a token-level lookup map from the first pass results
+  // Key: "lineIdx_tokenIdx" → match info
+  const tokenMatchMap = useMemo(() => {
+    const map = new Map<string, {
+      originalIndex: number;
+      word: GhareebWord;
+      sequentialIndex: number;
+      isPartOfPhrase: boolean;
+      phraseStart: boolean;
+      phraseTokens: number[];
+    }>();
+    matchedWordsInOrder.forEach((m, seqIdx) => {
+      m.phraseTokens.forEach((tokIdx, idx) => {
+        map.set(`${m.lineIdx}_${tokIdx}`, {
+          originalIndex: m.originalIndex,
+          word: m.word,
+          sequentialIndex: seqIdx,
+          isPartOfPhrase: m.phraseTokens.length > 1,
+          phraseStart: idx === 0,
+          phraseTokens: m.phraseTokens,
+        });
+      });
+    });
+    return map;
+  }, [matchedWordsInOrder]);
+
   const renderedContent = useMemo(() => {
     if (!page.text) return null;
 
@@ -284,30 +309,11 @@ export function PageView({
       return <div className="inline">{elements}</div>;
     }
 
-    // Prepare ghareeb entries (same as matchedWordsInOrder but we need tokenData for rendering)
-    const ghareebEntries = ghareebWords.map((gw, idx) => {
-      const normalizedFull = normalizeArabic(gw.wordText);
-      const words = normalizedFull.split(/\s+/).filter(w => w.length >= 2);
-      return {
-        original: gw,
-        originalIndex: idx,
-        normalizedFull,
-        words,
-        wordCount: words.length,
-        normalizedSurah: normalizeSurahName(gw.surahName),
-      };
-    });
-
-    const sortedEntries = [...ghareebEntries].sort((a, b) => b.wordCount - a.wordCount);
-    const usedOriginalIndices = new Set<number>();
-
     const allElements: React.ReactNode[] = [];
     let assemblyIndex = -1;
     
     for (let lineIdx = 0; lineIdx < lines.length; lineIdx++) {
       const line = lines[lineIdx];
-      const localSurah = surahContextByLine[lineIdx] || '';
-      const normalizedLocalSurah = normalizeSurahName(localSurah);
 
       // Surah header
       if (isSurahHeader(line)) {
@@ -341,71 +347,18 @@ export function PageView({
         const cleanToken = token.replace(/[﴿﴾()[\]{}۝۞٭؟،۔ۣۖۗۘۙۚۛۜ۟۠ۡۢۤۥۦۧۨ۩۪ۭ۫۬]/g, '').trim();
         const isVerseNumber = !isSpace && /^[٠-٩0-9۰-۹]+$/.test(cleanToken);
         
+        // Use tokenMatchMap from first pass instead of re-running matching
+        const matchInfo = tokenMatchMap.get(`${lineIdx}_${idx}`);
+        
         return {
           token,
           idx,
           isSpace,
           isVerseNumber,
-          normalized: (isSpace || isVerseNumber) ? '' : normalizeArabic(token),
-          matched: false,
-          matchEntry: null as typeof ghareebEntries[0] | null,
-          isPartOfPhrase: false,
-          phraseStart: false,
-          phraseTokens: [] as number[],
+          matched: !!matchInfo,
+          matchInfo: matchInfo || null,
         };
       });
-
-      // Match phrases
-      for (const entry of sortedEntries) {
-        if (usedOriginalIndices.has(entry.originalIndex)) continue;
-        if (entry.words.length === 0) continue;
-
-        const surahMatch = normalizedLocalSurah === '' || 
-          entry.normalizedSurah === normalizedLocalSurah || 
-          entry.normalizedSurah.includes(normalizedLocalSurah) || 
-          normalizedLocalSurah.includes(entry.normalizedSurah);
-        
-        
-        if (!surahMatch) continue;
-
-        for (let i = 0; i < tokenData.length; i++) {
-          if (tokenData[i].isSpace || tokenData[i].isVerseNumber || tokenData[i].matched) continue;
-          
-          let phraseWordIdx = 0;
-          let matchedTokens: number[] = [];
-          let j = i;
-          
-          while (j < tokenData.length && phraseWordIdx < entry.words.length) {
-            if (tokenData[j].isSpace) { j++; continue; }
-            if (tokenData[j].isVerseNumber) { j++; continue; }
-            if (tokenData[j].matched) break;
-            
-            const tokenNorm = tokenData[j].normalized;
-            const phraseWord = entry.words[phraseWordIdx];
-            
-            
-            if (isStrictMatch(tokenNorm, phraseWord)) {
-              matchedTokens.push(j);
-              phraseWordIdx++;
-              j++;
-            } else {
-              break;
-            }
-          }
-          
-          if (phraseWordIdx === entry.words.length && matchedTokens.length > 0) {
-            matchedTokens.forEach((tokenIdx, idx) => {
-              tokenData[tokenIdx].matched = true;
-              tokenData[tokenIdx].matchEntry = entry;
-              tokenData[tokenIdx].isPartOfPhrase = matchedTokens.length > 1;
-              tokenData[tokenIdx].phraseStart = idx === 0;
-              tokenData[tokenIdx].phraseTokens = matchedTokens;
-            });
-            usedOriginalIndices.add(entry.originalIndex);
-            break;
-          }
-        }
-      }
 
       // Build line elements
       const lineElements: React.ReactNode[] = [];
@@ -423,44 +376,41 @@ export function PageView({
         // Generate position key for override lookup
         const positionKey = makePositionKey(page.pageNumber, lineIdx, i);
         
-        if (td.matched && td.matchEntry) {
-          const entry = td.matchEntry;
-          // Use sequential index from the map
-          const sequentialIndex = originalToSequentialIndex.get(entry.originalIndex) ?? -1;
+        if (td.matched && td.matchInfo) {
+          const info = td.matchInfo;
+          const sequentialIndex = info.sequentialIndex;
           const isHighlighted = highlightedWordIndex === sequentialIndex;
           
           // Generate identity key for this matched word
           const identityKey = makeIdentityKey(
-            entry.original.surahNumber,
-            entry.original.verseNumber,
-            entry.original.wordIndex
+            info.word.surahNumber,
+            info.word.verseNumber,
+            info.word.wordIndex
           );
           
           // CHECK OVERRIDE: Should this word be highlighted?
           const shouldShowHighlight = shouldHighlight(positionKey, identityKey, true);
           
-          
           if (!shouldShowHighlight) {
-            // Override says: DO NOT highlight this word (render as plain with inspectable data)
+            // Override says: DO NOT highlight this word
             lineElements.push(
               <span
                 key={`${lineIdx}-${i}`}
                 data-word-inspectable="true"
                 data-line-index={lineIdx}
                 data-token-index={i}
-                data-surah-number={entry.original.surahNumber}
-                data-verse={entry.original.verseNumber}
-                data-word-index={entry.original.wordIndex}
+                data-surah-number={info.word.surahNumber}
+                data-verse={info.word.verseNumber}
+                data-word-index={info.word.wordIndex}
                 data-assembly-id={assemblyId}
               >
-                {td.isPartOfPhrase && td.phraseStart ? (() => {
-                  const phraseTokenIndices = td.phraseTokens;
-                  const lastPhraseTokenIdx = phraseTokenIndices[phraseTokenIndices.length - 1];
+                {info.isPartOfPhrase && info.phraseStart ? (() => {
+                  const lastPhraseTokenIdx = info.phraseTokens[info.phraseTokens.length - 1];
                   const phraseText: string[] = [];
                   for (let k = i; k <= lastPhraseTokenIdx; k++) {
                     phraseText.push(tokenData[k].token);
                   }
-                  i = lastPhraseTokenIdx; // Will be incremented at end
+                  i = lastPhraseTokenIdx;
                   return phraseText.join('');
                 })() : td.token}
               </span>
@@ -470,9 +420,8 @@ export function PageView({
           }
           
           // Normal highlight rendering
-          if (td.isPartOfPhrase && td.phraseStart) {
-            const phraseTokenIndices = td.phraseTokens;
-            const lastPhraseTokenIdx = phraseTokenIndices[phraseTokenIndices.length - 1];
+          if (info.isPartOfPhrase && info.phraseStart) {
+            const lastPhraseTokenIdx = info.phraseTokens[info.phraseTokens.length - 1];
             
             const phraseText: string[] = [];
             for (let k = i; k <= lastPhraseTokenIdx; k++) {
@@ -485,7 +434,7 @@ export function PageView({
               lineElements.push(
                 <GhareebWordPopover
                   key={`${lineIdx}-phrase-${i}`}
-                  word={entry.original}
+                  word={info.word}
                   index={sequentialIndex}
                   isHighlighted={isHighlighted}
                   forceOpen={isPlaying && isHighlighted}
@@ -501,7 +450,6 @@ export function PageView({
                 </GhareebWordPopover>
               );
             } else {
-              // Build class names for non-popover mode
               const phraseClasses = [
                 'ghareeb-word',
                 isHighlighted ? 'ghareeb-word--active' : '',
@@ -513,10 +461,10 @@ export function PageView({
                   key={`${lineIdx}-phrase-${i}`}
                   className={phraseClasses}
                   data-ghareeb-index={sequentialIndex}
-                  data-ghareeb-key={entry.original.uniqueKey}
-                  data-surah-number={entry.original.surahNumber}
-                  data-verse={entry.original.verseNumber}
-                  data-word-index={entry.original.wordIndex}
+                  data-ghareeb-key={info.word.uniqueKey}
+                  data-surah-number={info.word.surahNumber}
+                  data-verse={info.word.verseNumber}
+                  data-word-index={info.word.wordIndex}
                   data-assembly-id={assemblyId}
                   data-line-index={lineIdx}
                   data-token-index={i}
@@ -528,12 +476,12 @@ export function PageView({
             
             i = lastPhraseTokenIdx + 1;
             continue;
-          } else if (!td.isPartOfPhrase) {
+          } else if (!info.isPartOfPhrase) {
             if (meaningEnabled) {
               lineElements.push(
                 <GhareebWordPopover
                   key={`${lineIdx}-${i}`}
-                  word={entry.original}
+                  word={info.word}
                   index={sequentialIndex}
                   isHighlighted={isHighlighted}
                   forceOpen={isPlaying && isHighlighted}
@@ -549,7 +497,6 @@ export function PageView({
                 </GhareebWordPopover>
               );
             } else {
-              // Build class names for non-popover single word
               const singleWordClasses = [
                 'ghareeb-word',
                 isHighlighted ? 'ghareeb-word--active' : '',
@@ -561,10 +508,10 @@ export function PageView({
                   key={`${lineIdx}-${i}`}
                   className={singleWordClasses}
                   data-ghareeb-index={sequentialIndex}
-                  data-ghareeb-key={entry.original.uniqueKey}
-                  data-surah-number={entry.original.surahNumber}
-                  data-verse={entry.original.verseNumber}
-                  data-word-index={entry.original.wordIndex}
+                  data-ghareeb-key={info.word.uniqueKey}
+                  data-surah-number={info.word.surahNumber}
+                  data-verse={info.word.verseNumber}
+                  data-word-index={info.word.wordIndex}
                   data-assembly-id={assemblyId}
                   data-line-index={lineIdx}
                   data-token-index={i}
@@ -627,7 +574,7 @@ export function PageView({
     }
 
     return <div className="inline">{allElements}</div>;
-  }, [page.text, page.pageNumber, ghareebWords, highlightedWordIndex, meaningEnabled, isPlaying, onWordClick, surahContextByLine, originalToSequentialIndex, highlightOverrides, highlightVersion, shouldHighlight]);
+  }, [page.text, page.pageNumber, ghareebWords, highlightedWordIndex, meaningEnabled, isPlaying, onWordClick, surahContextByLine, tokenMatchMap, highlightOverrides, highlightVersion, shouldHighlight]);
 
   return (
     <div ref={containerRef} className="page-frame p-5 sm:p-8">
