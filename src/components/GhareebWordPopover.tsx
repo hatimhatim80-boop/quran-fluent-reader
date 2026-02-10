@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback } from "react";
+import React, { useState, useRef, useCallback, useEffect } from "react";
 import { GhareebWord } from "@/types/quran";
 import { createPortal } from "react-dom";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -101,6 +101,30 @@ export function GhareebWordPopover({
     setIsManualOpen(true);
     onSelect(word, index);
   }, [calculatePosition, index, onSelect, word]);
+
+  // AUTO-PLAY: Calculate position when forceOpen becomes true
+  useEffect(() => {
+    if (forceOpen && !position) {
+      const pos = calculatePosition();
+      if (pos) setPosition(pos);
+    }
+    if (!forceOpen && !isManualOpen) {
+      setPosition(null);
+    }
+  }, [forceOpen, isManualOpen, calculatePosition, position]);
+
+  // Keep position updated during autoplay (word may scroll)
+  useEffect(() => {
+    if (!forceOpen) return;
+    let rafId: number;
+    const updatePos = () => {
+      const pos = calculatePosition();
+      if (pos) setPosition(pos);
+      rafId = requestAnimationFrame(updatePos);
+    };
+    rafId = requestAnimationFrame(updatePos);
+    return () => cancelAnimationFrame(rafId);
+  }, [forceOpen, calculatePosition]);
 
   const handleClick = (e: React.MouseEvent) => {
     e.stopPropagation();
