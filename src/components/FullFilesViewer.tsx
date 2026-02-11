@@ -434,32 +434,32 @@ export function FullFilesViewer({ children, pages, allWords, onRefresh }: FullFi
     mushafOverrides: Object.keys(mushafOverrides).length,
   };
 
-  // ---- Shared Search Bar ----
-  const SearchBar = () => (
-    <div className="space-y-2">
+  // ---- Search Bar JSX (inline, not a component) ----
+  const searchBarJSX = (
+    <div className="space-y-1">
       <div className="flex gap-2 flex-wrap items-center">
-        <div className="relative flex-1 min-w-[160px]">
+        <div className="relative flex-1 min-w-[140px]">
           <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input value={searchQuery} onChange={(e) => handleSearchChange(e.target.value)}
-            placeholder="بحث بالكلمة أو المعنى أو السورة..." className="pr-10 font-arabic" />
+            placeholder="بحث بالكلمة أو المعنى..." className="pr-10 font-arabic h-8 text-sm" />
         </div>
         <Input type="number" min={1} max={604} value={singlePage}
           onChange={e => { setSinglePage(e.target.value); setPageFrom(''); setPageTo(''); setBrowsePage(1); }}
-          placeholder="صفحة" className="w-20 text-center" />
+          placeholder="صفحة" className="w-[70px] text-center h-8 text-sm" />
         <div className="flex gap-1 items-center">
           <Input type="number" min={1} max={604} value={pageFrom}
             onChange={e => { setPageFrom(e.target.value); setSinglePage(''); setBrowsePage(1); }}
-            placeholder="من ص" className="w-20 text-center" />
+            placeholder="من ص" className="w-[70px] text-center h-8 text-sm" />
           <span className="text-muted-foreground text-xs">–</span>
           <Input type="number" min={1} max={604} value={pageTo}
             onChange={e => { setPageTo(e.target.value); setSinglePage(''); setBrowsePage(1); }}
-            placeholder="إلى ص" className="w-20 text-center" />
+            placeholder="إلى ص" className="w-[70px] text-center h-8 text-sm" />
         </div>
-        <Select value={surahFilter} onValueChange={v => { setSurahFilter(v); setBrowsePage(1); }}>
-          <SelectTrigger className="w-36">
+        <Select value={surahFilter} onValueChange={v => { setSurahFilter(v); setVerseFilter(''); setSinglePage(''); setPageFrom(''); setPageTo(''); setBrowsePage(1); }}>
+          <SelectTrigger className="w-36 h-8 text-sm">
             <SelectValue placeholder="السورة" />
           </SelectTrigger>
-          <SelectContent className="max-h-[300px]">
+          <SelectContent className="max-h-[300px] z-[9999] bg-popover">
             <SelectItem value="all">كل السور</SelectItem>
             {Object.entries(surahNumberToName).map(([num, name]) => (
               <SelectItem key={num} value={num}>{num}. {name}</SelectItem>
@@ -468,19 +468,19 @@ export function FullFilesViewer({ children, pages, allWords, onRefresh }: FullFi
         </Select>
         <Input type="number" min={1} max={286} value={verseFilter}
           onChange={e => { setVerseFilter(e.target.value); setBrowsePage(1); }}
-          placeholder="آية" className="w-20 text-center" />
+          placeholder="آية" className="w-[70px] text-center h-8 text-sm" />
+        {hasFilters && (
+          <>
+            <span className="text-xs text-muted-foreground font-arabic">
+              {activeTab === 'meanings' ? `${filteredMeaningsWords.length.toLocaleString()} نتيجة` :
+               activeTab === 'quran' ? `${quranResultCount.toLocaleString()} سطر` : ''}
+            </span>
+            <Button size="sm" variant="ghost" className="h-6 text-xs font-arabic" onClick={clearFilters}>
+              مسح الفلاتر
+            </Button>
+          </>
+        )}
       </div>
-      {hasFilters && (
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-muted-foreground font-arabic">
-            {activeTab === 'meanings' ? `${filteredMeaningsWords.length.toLocaleString()} نتيجة` :
-             activeTab === 'quran' ? `${quranResultCount.toLocaleString()} سطر` : ''}
-          </span>
-          <Button size="sm" variant="ghost" className="h-6 text-xs font-arabic" onClick={clearFilters}>
-            مسح الفلاتر
-          </Button>
-        </div>
-      )}
     </div>
   );
 
@@ -541,13 +541,13 @@ export function FullFilesViewer({ children, pages, allWords, onRefresh }: FullFi
 
           {/* Search Bar (shared across quran & meanings) */}
           {(activeTab === 'quran' || activeTab === 'meanings') && (
-            <div className="mt-3">
-              <SearchBar />
+            <div className="mt-1">
+              {searchBarJSX}
             </div>
           )}
 
           {/* Quran File Tab */}
-          <TabsContent value="quran" className="flex-1 flex flex-col gap-3 mt-3 min-h-0">
+          <TabsContent value="quran" className="flex-1 flex flex-col gap-2 mt-1 min-h-0">
             <div className="flex gap-2 flex-wrap">
               {!editingQuran ? (
                 <>
@@ -590,7 +590,7 @@ export function FullFilesViewer({ children, pages, allWords, onRefresh }: FullFi
           </TabsContent>
 
           {/* Meanings File Tab — structured table with pagination */}
-          <TabsContent value="meanings" className="flex-1 flex flex-col gap-3 mt-3 min-h-0">
+          <TabsContent value="meanings" className="flex-1 flex flex-col gap-2 mt-1 min-h-0">
             <div className="flex gap-2 flex-wrap">
               {!editingMeanings ? (
                 <>
