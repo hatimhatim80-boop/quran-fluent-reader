@@ -12,7 +12,7 @@ import { useSettingsApplier } from '@/hooks/useSettingsApplier';
 import { useDevDebugContextStore } from '@/stores/devDebugContextStore';
 import { useDiagnosticModeStore } from '@/stores/diagnosticModeStore';
 import { useHighlightOverrideStore } from '@/stores/highlightOverrideStore';
-import { Loader2, List } from 'lucide-react';
+import { Loader2, List, SlidersHorizontal } from 'lucide-react';
 
 export function QuranReader() {
   const {
@@ -44,6 +44,7 @@ export function QuranReader() {
   // SINGLE SOURCE OF TRUTH: rendered words from PageView
   const [renderedWords, setRenderedWords] = useState<GhareebWord[]>([]);
   const [showIndex, setShowIndex] = useState(false);
+  const [showControls, setShowControls] = useState(false);
 
   const pageData = getCurrentPageData();
   const pageWords = getPageGhareebWords; // Used as input to PageView matching
@@ -218,32 +219,47 @@ export function QuranReader() {
             />
           )}
 
-          {/* Auto-Play Controls - uses rendered words count */}
-          {renderedWords.length > 0 && (
-            <div className="page-frame p-4">
-              <AutoPlayControls
-                isPlaying={isPlaying}
-                speed={speed}
-                wordsCount={renderedWords.length}
-                currentWordIndex={currentWordIndex}
-                onPlay={play}
-                onPause={pause}
-                onStop={stop}
-                onNext={nextWord}
-                onPrev={prevWord}
-                onSpeedChange={setSpeed}
+          {/* Controls Toggle */}
+          <div className="flex justify-center">
+            <button
+              onClick={() => setShowControls(!showControls)}
+              className={`nav-button px-4 h-8 rounded-full flex items-center justify-center gap-1.5 text-xs font-arabic ${showControls ? 'bg-primary/20 border-primary' : ''}`}
+              title="إظهار/إخفاء أدوات التشغيل"
+            >
+              <SlidersHorizontal className="w-3.5 h-3.5" />
+              <span>{showControls ? 'إخفاء التحكم' : 'أدوات التشغيل'}</span>
+            </button>
+          </div>
+
+          {/* Auto-Play Controls + Navigation - conditionally shown */}
+          {showControls && (
+            <div className="space-y-5 animate-fade-in">
+              {renderedWords.length > 0 && (
+                <div className="page-frame p-4">
+                  <AutoPlayControls
+                    isPlaying={isPlaying}
+                    speed={speed}
+                    wordsCount={renderedWords.length}
+                    currentWordIndex={currentWordIndex}
+                    onPlay={play}
+                    onPause={pause}
+                    onStop={stop}
+                    onNext={nextWord}
+                    onPrev={prevWord}
+                    onSpeedChange={setSpeed}
+                  />
+                </div>
+              )}
+
+              <PageNavigation
+                currentPage={currentPage}
+                totalPages={totalPages}
+                onPrevPage={prevPage}
+                onNextPage={nextPage}
+                onGoToPage={goToPage}
               />
             </div>
           )}
-
-          {/* Navigation */}
-          <PageNavigation
-            currentPage={currentPage}
-            totalPages={totalPages}
-            onPrevPage={prevPage}
-            onNextPage={nextPage}
-            onGoToPage={goToPage}
-          />
 
           {/* Footer - Minimal */}
           <footer className="text-center text-[10px] text-muted-foreground/60 font-arabic pb-4">
