@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -11,6 +11,21 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Input } from '@/components/ui/input';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 import { QuranPage, GhareebWord } from '@/types/quran';
 import { useDataStore } from '@/stores/dataStore';
 import { useCorrectionsStore } from '@/stores/correctionsStore';
@@ -27,11 +42,39 @@ import {
   Save,
   RefreshCw,
   Loader2,
+  Stethoscope,
+  AlertTriangle,
+  CheckCircle2,
+  XCircle,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
-// Key for mushaf overrides
 const MUSHAF_OVERRIDES_KEY = 'quran-mushaf-overrides';
+const ITEMS_PER_PAGE = 50;
+
+const surahNumberToName: Record<number, string> = {
+  1:'الفاتحة',2:'البقرة',3:'آل عمران',4:'النساء',5:'المائدة',6:'الأنعام',7:'الأعراف',8:'الأنفال',9:'التوبة',10:'يونس',
+  11:'هود',12:'يوسف',13:'الرعد',14:'إبراهيم',15:'الحجر',16:'النحل',17:'الإسراء',18:'الكهف',19:'مريم',20:'طه',
+  21:'الأنبياء',22:'الحج',23:'المؤمنون',24:'النور',25:'الفرقان',26:'الشعراء',27:'النمل',28:'القصص',29:'العنكبوت',30:'الروم',
+  31:'لقمان',32:'السجدة',33:'الأحزاب',34:'سبإ',35:'فاطر',36:'يس',37:'الصافات',38:'ص',39:'الزمر',40:'غافر',
+  41:'فصلت',42:'الشورى',43:'الزخرف',44:'الدخان',45:'الجاثية',46:'الأحقاف',47:'محمد',48:'الفتح',49:'الحجرات',50:'ق',
+  51:'الذاريات',52:'الطور',53:'النجم',54:'القمر',55:'الرحمن',56:'الواقعة',57:'الحديد',58:'المجادلة',59:'الحشر',60:'الممتحنة',
+  61:'الصف',62:'الجمعة',63:'المنافقون',64:'التغابن',65:'الطلاق',66:'التحريم',67:'الملك',68:'القلم',69:'الحاقة',70:'المعارج',
+  71:'نوح',72:'الجن',73:'المزمل',74:'المدثر',75:'القيامة',76:'الإنسان',77:'المرسلات',78:'النبإ',79:'النازعات',80:'عبس',
+  81:'التكوير',82:'الانفطار',83:'المطففين',84:'الانشقاق',85:'البروج',86:'الطارق',87:'الأعلى',88:'الغاشية',89:'الفجر',90:'البلد',
+  91:'الشمس',92:'الليل',93:'الضحى',94:'الشرح',95:'التين',96:'العلق',97:'القدر',98:'البينة',99:'الزلزلة',100:'العاديات',
+  101:'القارعة',102:'التكاثر',103:'العصر',104:'الهمزة',105:'الفيل',106:'قريش',107:'الماعون',108:'الكوثر',109:'الكافرون',110:'النصر',
+  111:'المسد',112:'الإخلاص',113:'الفلق',114:'الناس',
+};
+
+interface DiagnosticIssue {
+  type: 'missing_meaning' | 'duplicate' | 'empty_word' | 'invalid_surah' | 'invalid_page' | 'short_meaning';
+  severity: 'error' | 'warning';
+  word: GhareebWord;
+  message: string;
+}
 
 interface FullFilesViewerProps {
   children: React.ReactNode;
@@ -43,150 +86,204 @@ interface FullFilesViewerProps {
 export function FullFilesViewer({ children, pages, allWords, onRefresh }: FullFilesViewerProps) {
   const [open, setOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('quran');
+
+  // Search state
   const [searchQuery, setSearchQuery] = useState('');
+  const [pageFrom, setPageFrom] = useState('');
+  const [pageTo, setPageTo] = useState('');
+  const [surahFilter, setSurahFilter] = useState<string>('all');
+  const [browsePage, setBrowsePage] = useState(1);
   const [copied, setCopied] = useState(false);
-  
+
   // Editing states
   const [editingQuran, setEditingQuran] = useState(false);
   const [quranFullText, setQuranFullText] = useState('');
-  
   const [editingMeanings, setEditingMeanings] = useState(false);
   const [meaningsFullText, setMeaningsFullText] = useState('');
 
-  // Loading state for raw file
+  // Raw file
   const [rawMeaningsFile, setRawMeaningsFile] = useState<string>('');
   const [isLoadingRaw, setIsLoadingRaw] = useState(false);
 
-  const { userOverrides, exportOverrides, importOverrides, resetAll } = useDataStore();
+  // Diagnostics
+  const [diagRunning, setDiagRunning] = useState(false);
+  const [diagFilter, setDiagFilter] = useState<string>('all');
+
+  const { userOverrides, addWordOverride, exportOverrides, resetAll } = useDataStore();
   const { corrections, exportCorrections } = useCorrectionsStore();
 
-  // Load raw ghareeb file directly when dialog opens
   useEffect(() => {
     if (open && !rawMeaningsFile) {
       setIsLoadingRaw(true);
       fetch('/data/ghareeb-words.txt')
         .then(res => res.text())
-        .then(text => {
-          setRawMeaningsFile(text);
-          setIsLoadingRaw(false);
-        })
-        .catch(err => {
-          console.error('Failed to load ghareeb file:', err);
-          setIsLoadingRaw(false);
-        });
+        .then(text => { setRawMeaningsFile(text); setIsLoadingRaw(false); })
+        .catch(() => setIsLoadingRaw(false));
     }
   }, [open, rawMeaningsFile]);
 
-  // Load mushaf overrides from localStorage
   const mushafOverrides = useMemo(() => {
     try {
       const stored = localStorage.getItem(MUSHAF_OVERRIDES_KEY);
       return stored ? JSON.parse(stored) : {};
-    } catch {
-      return {};
-    }
+    } catch { return {}; }
   }, [open]);
 
-  // Generate full Quran text (all pages)
+  // ---- Full texts ----
   const fullQuranText = useMemo(() => {
     const lines: string[] = [];
-    
     for (let pageNum = 1; pageNum <= 604; pageNum++) {
       const pageData = pages.find(p => p.pageNumber === pageNum);
-      const overrideText = mushafOverrides[pageNum];
-      const text = overrideText || pageData?.text || '';
-      
+      const text = mushafOverrides[pageNum] || pageData?.text || '';
       lines.push(`=== صفحة ${pageNum} ===`);
-      if (pageData?.surahName) {
-        lines.push(`[${pageData.surahName}]`);
-      }
+      if (pageData?.surahName) lines.push(`[${pageData.surahName}]`);
       lines.push(text);
       lines.push('');
     }
-    
     return lines.join('\n');
   }, [pages, mushafOverrides]);
 
-  // Use raw file content if available, otherwise generate from parsed data
   const fullMeaningsText = useMemo(() => {
-    // Prefer raw file content (complete source)
-    if (rawMeaningsFile) {
-      return rawMeaningsFile;
-    }
-    
-    // Fallback to parsed data
-    if (allWords.length === 0) {
-      return 'جاري تحميل الملف...';
-    }
-    
+    if (rawMeaningsFile) return rawMeaningsFile;
+    if (allWords.length === 0) return 'جاري تحميل الملف...';
     const lines: string[] = [];
     let currentPage = 0;
-    
-    // Sort by page number
-    const sorted = [...allWords].sort((a, b) => {
-      if (a.pageNumber !== b.pageNumber) return a.pageNumber - b.pageNumber;
-      return a.order - b.order;
-    });
-    
+    const sorted = [...allWords].sort((a, b) => a.pageNumber !== b.pageNumber ? a.pageNumber - b.pageNumber : a.order - b.order);
     for (const word of sorted) {
-      if (word.pageNumber !== currentPage) {
-        currentPage = word.pageNumber;
-        lines.push('');
-        lines.push(`=== صفحة ${currentPage} ===`);
-      }
-      
+      if (word.pageNumber !== currentPage) { currentPage = word.pageNumber; lines.push('', `=== صفحة ${currentPage} ===`); }
       lines.push(`${word.wordText} | ${word.meaning} | ${word.surahNumber}:${word.verseNumber}:${word.wordIndex}`);
     }
-    
     return lines.join('\n');
   }, [allWords, rawMeaningsFile]);
 
-  // Generate overrides text
-  const overridesText = useMemo(() => {
-    return JSON.stringify({
-      userOverrides,
-      corrections,
-      mushafOverrides,
-    }, null, 2);
-  }, [userOverrides, corrections, mushafOverrides]);
+  const overridesText = useMemo(() => JSON.stringify({ userOverrides, corrections, mushafOverrides }, null, 2), [userOverrides, corrections, mushafOverrides]);
 
-  // Filter content based on search
-  const filteredQuranText = useMemo(() => {
-    if (!searchQuery.trim()) return fullQuranText;
-    
-    const query = searchQuery.trim();
+  // ---- Flexible search for Quran text (page-based) ----
+  const filteredQuranLines = useMemo(() => {
     const lines = fullQuranText.split('\n');
+    const pFrom = pageFrom ? parseInt(pageFrom) : null;
+    const pTo = pageTo ? parseInt(pageTo) : null;
+    const query = searchQuery.trim();
+
+    if (!pFrom && !pTo && !query && surahFilter === 'all') return lines;
+
     const filtered: string[] = [];
-    let includeNextLines = false;
-    
+    let currentPageNum = 0;
+    let includeCurrentPage = false;
+
     for (const line of lines) {
-      if (line.startsWith('=== صفحة')) {
-        includeNextLines = false;
+      const pageMatch = line.match(/^=== صفحة (\d+) ===$/);
+      if (pageMatch) {
+        currentPageNum = parseInt(pageMatch[1]);
+        let pageInRange = true;
+        if (pFrom && pTo) pageInRange = currentPageNum >= pFrom && currentPageNum <= pTo;
+        else if (pFrom) pageInRange = currentPageNum === pFrom;
+        else if (pTo) pageInRange = currentPageNum <= pTo;
+
+        includeCurrentPage = pageInRange;
+        if (includeCurrentPage && !query) { filtered.push(line); }
+        continue;
       }
-      if (line.includes(query)) {
-        includeNextLines = true;
-      }
-      if (includeNextLines || line.includes(query)) {
+
+      if (!includeCurrentPage) continue;
+      if (query) {
+        if (line.includes(query)) filtered.push(`=== صفحة ${currentPageNum} ===`, line);
+      } else {
         filtered.push(line);
       }
     }
-    
-    return filtered.join('\n');
-  }, [fullQuranText, searchQuery]);
+    return filtered;
+  }, [fullQuranText, pageFrom, pageTo, searchQuery, surahFilter]);
 
-  const filteredMeaningsText = useMemo(() => {
-    const textToFilter = rawMeaningsFile || fullMeaningsText;
-    
-    if (!searchQuery.trim()) return textToFilter;
-    
-    const query = searchQuery.trim();
-    return textToFilter
-      .split('\n')
-      .filter(line => line.includes(query))
-      .join('\n');
-  }, [fullMeaningsText, rawMeaningsFile, searchQuery]);
+  const quranResultCount = useMemo(() => {
+    return filteredQuranLines.filter(l => !l.startsWith('=== صفحة') && l.trim()).length;
+  }, [filteredQuranLines]);
 
-  // Copy to clipboard
+  // ---- Flexible search for meanings (structured) ----
+  const filteredMeaningsWords = useMemo(() => {
+    let result = [...allWords];
+    const pFrom = pageFrom ? parseInt(pageFrom) : null;
+    const pTo = pageTo ? parseInt(pageTo) : null;
+
+    if (pFrom && pTo) result = result.filter(w => w.pageNumber >= pFrom && w.pageNumber <= pTo);
+    else if (pFrom) result = result.filter(w => w.pageNumber === pFrom);
+    else if (pTo) result = result.filter(w => w.pageNumber <= pTo);
+
+    if (surahFilter !== 'all') {
+      const sNum = parseInt(surahFilter);
+      result = result.filter(w => w.surahNumber === sNum);
+    }
+
+    if (searchQuery.trim()) {
+      const q = searchQuery.trim();
+      result = result.filter(w =>
+        w.wordText.includes(q) || w.meaning.includes(q) || w.surahName.includes(q) || `${w.surahNumber}:${w.verseNumber}`.includes(q)
+      );
+    }
+
+    return result.sort((a, b) => a.pageNumber !== b.pageNumber ? a.pageNumber - b.pageNumber : a.order - b.order);
+  }, [allWords, pageFrom, pageTo, surahFilter, searchQuery]);
+
+  const totalMeaningsPages = Math.max(1, Math.ceil(filteredMeaningsWords.length / ITEMS_PER_PAGE));
+  const paginatedMeaningsWords = useMemo(() => {
+    const start = (browsePage - 1) * ITEMS_PER_PAGE;
+    return filteredMeaningsWords.slice(start, start + ITEMS_PER_PAGE);
+  }, [filteredMeaningsWords, browsePage]);
+
+  const handleSearchChange = useCallback((val: string) => { setSearchQuery(val); setBrowsePage(1); }, []);
+  const clearFilters = useCallback(() => { setSearchQuery(''); setPageFrom(''); setPageTo(''); setSurahFilter('all'); setBrowsePage(1); }, []);
+
+  // ---- Diagnostics ----
+  const diagnosticIssues = useMemo((): DiagnosticIssue[] => {
+    if (!diagRunning) return [];
+    const issues: DiagnosticIssue[] = [];
+    const seenKeys = new Map<string, GhareebWord>();
+    for (const word of allWords) {
+      if (!word.meaning || word.meaning.trim().length === 0)
+        issues.push({ type: 'missing_meaning', severity: 'error', word, message: `كلمة "${word.wordText}" بدون معنى` });
+      if (word.meaning && word.meaning.trim().length > 0 && word.meaning.trim().length < 3)
+        issues.push({ type: 'short_meaning', severity: 'warning', word, message: `معنى قصير جداً: "${word.meaning}"` });
+      if (!word.wordText || word.wordText.trim().length === 0)
+        issues.push({ type: 'empty_word', severity: 'error', word, message: `نص الكلمة فارغ (${word.uniqueKey})` });
+      if (word.surahNumber < 1 || word.surahNumber > 114)
+        issues.push({ type: 'invalid_surah', severity: 'error', word, message: `رقم سورة غير صحيح: ${word.surahNumber}` });
+      if (word.pageNumber < 1 || word.pageNumber > 604)
+        issues.push({ type: 'invalid_page', severity: 'error', word, message: `رقم صفحة غير صحيح: ${word.pageNumber}` });
+      const dupKey = `${word.surahNumber}_${word.verseNumber}_${word.wordText}`;
+      if (seenKeys.has(dupKey)) {
+        const existing = seenKeys.get(dupKey)!;
+        if (existing.uniqueKey !== word.uniqueKey)
+          issues.push({ type: 'duplicate', severity: 'warning', word, message: `تكرار: "${word.wordText}" في ${word.surahNumber}:${word.verseNumber}` });
+      } else { seenKeys.set(dupKey, word); }
+    }
+    return issues;
+  }, [allWords, diagRunning]);
+
+  const filteredDiagIssues = useMemo(() => diagFilter === 'all' ? diagnosticIssues : diagnosticIssues.filter(i => i.type === diagFilter), [diagnosticIssues, diagFilter]);
+
+  const diagStats = useMemo(() => ({
+    total: diagnosticIssues.length,
+    errors: diagnosticIssues.filter(i => i.severity === 'error').length,
+    warnings: diagnosticIssues.filter(i => i.severity === 'warning').length,
+    missingMeaning: diagnosticIssues.filter(i => i.type === 'missing_meaning').length,
+    duplicates: diagnosticIssues.filter(i => i.type === 'duplicate').length,
+    emptyWords: diagnosticIssues.filter(i => i.type === 'empty_word').length,
+    invalidSurah: diagnosticIssues.filter(i => i.type === 'invalid_surah').length,
+    invalidPage: diagnosticIssues.filter(i => i.type === 'invalid_page').length,
+    shortMeaning: diagnosticIssues.filter(i => i.type === 'short_meaning').length,
+  }), [diagnosticIssues]);
+
+  const handleFixIssue = (issue: DiagnosticIssue) => {
+    addWordOverride({
+      key: issue.word.uniqueKey, operation: 'edit', pageNumber: issue.word.pageNumber,
+      wordText: issue.word.wordText, meaning: issue.word.meaning,
+      surahNumber: issue.word.surahNumber, verseNumber: issue.word.verseNumber,
+      wordIndex: issue.word.wordIndex, surahName: issue.word.surahName,
+    });
+    toast.info('تم إنشاء تعديل — يمكنك تحريره من تبويب التعديلات في مدير البيانات');
+  };
+
+  // ---- Handlers ----
   const handleCopy = (text: string, label: string) => {
     navigator.clipboard.writeText(text);
     setCopied(true);
@@ -194,134 +291,69 @@ export function FullFilesViewer({ children, pages, allWords, onRefresh }: FullFi
     setTimeout(() => setCopied(false), 2000);
   };
 
-  // Export file
   const handleExport = (content: string, filename: string) => {
     const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
-    a.href = url;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    a.href = url; a.download = filename;
+    document.body.appendChild(a); a.click();
+    document.body.removeChild(a); URL.revokeObjectURL(url);
     toast.success(`تم تصدير ${filename}`);
   };
 
-  // Start editing Quran
-  const handleStartEditQuran = () => {
-    setQuranFullText(fullQuranText);
-    setEditingQuran(true);
-  };
+  const handleStartEditQuran = () => { setQuranFullText(fullQuranText); setEditingQuran(true); };
 
-  // Save Quran edits
   const handleSaveQuranEdits = () => {
     try {
       const newOverrides: Record<number, string> = {};
       const sections = quranFullText.split(/=== صفحة (\d+) ===/);
-      
       for (let i = 1; i < sections.length; i += 2) {
         const pageNum = parseInt(sections[i]);
         let text = sections[i + 1] || '';
-        
-        // Remove surah name line if exists
         text = text.replace(/^\s*\[[^\]]+\]\s*\n/, '').trim();
-        
-        // Only save if different from original
         const originalPage = pages.find(p => p.pageNumber === pageNum);
-        if (text && text !== originalPage?.text) {
-          newOverrides[pageNum] = text;
-        }
+        if (text && text !== originalPage?.text) newOverrides[pageNum] = text;
       }
-      
-      // Merge with existing overrides
       const existing = { ...mushafOverrides, ...newOverrides };
       localStorage.setItem(MUSHAF_OVERRIDES_KEY, JSON.stringify(existing));
-      
       toast.success(`تم حفظ التعديلات (${Object.keys(newOverrides).length} صفحة)`);
       setEditingQuran(false);
-      
-      // Refresh the app
-      if (onRefresh) {
-        setTimeout(onRefresh, 500);
-      }
-    } catch (err) {
-      console.error('Save error:', err);
-      toast.error('خطأ في الحفظ');
-    }
+      if (onRefresh) setTimeout(onRefresh, 500);
+    } catch (err) { console.error('Save error:', err); toast.error('خطأ في الحفظ'); }
   };
 
-  // Start editing meanings
-  const handleStartEditMeanings = () => {
-    setMeaningsFullText(fullMeaningsText);
-    setEditingMeanings(true);
-  };
+  const handleStartEditMeanings = () => { setMeaningsFullText(fullMeaningsText); setEditingMeanings(true); };
 
-  // Save meanings edits
   const handleSaveMeaningsEdits = () => {
     try {
       const lines = meaningsFullText.split('\n').filter(l => l.trim() && !l.startsWith('==='));
-      let currentPage = 1;
       let added = 0;
-      
       for (const line of lines) {
-        // Parse: word | meaning | surah:ayah:wordIndex
         const parts = line.split('|').map(p => p.trim());
         if (parts.length >= 2) {
-          const wordText = parts[0];
-          const meaning = parts[1];
+          const wordText = parts[0], meaning = parts[1];
           let surahNumber = 1, verseNumber = 1, wordIndex = 0;
-          
-          if (parts[2]) {
-            const location = parts[2].split(':').map(n => parseInt(n) || 1);
-            surahNumber = location[0] || 1;
-            verseNumber = location[1] || 1;
-            wordIndex = location[2] || 0;
-          }
-          
-          // Add as override
-          const key = `${surahNumber}_${verseNumber}_${wordIndex}`;
-          useDataStore.getState().addWordOverride({
-            key,
-            operation: 'add',
-            pageNumber: currentPage,
-            wordText,
-            meaning,
-            surahNumber,
-            verseNumber,
-            wordIndex,
-            surahName: '',
-          });
+          if (parts[2]) { const loc = parts[2].split(':').map(n => parseInt(n) || 1); surahNumber = loc[0] || 1; verseNumber = loc[1] || 1; wordIndex = loc[2] || 0; }
+          useDataStore.getState().addWordOverride({ key: `${surahNumber}_${verseNumber}_${wordIndex}`, operation: 'add', pageNumber: 1, wordText, meaning, surahNumber, verseNumber, wordIndex, surahName: '' });
           added++;
         }
       }
-      
       toast.success(`تم استيراد ${added} كلمة`);
       setEditingMeanings(false);
-    } catch (err) {
-      console.error('Import error:', err);
-      toast.error('خطأ في الاستيراد');
-    }
+    } catch { toast.error('خطأ في الاستيراد'); }
   };
 
-  // Import from file
   const handleImportFile = (type: 'quran' | 'meanings') => {
     const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = '.txt,.json,.csv';
+    input.type = 'file'; input.accept = '.txt,.json,.csv';
     input.onchange = (e) => {
       const file = (e.target as HTMLInputElement).files?.[0];
       if (file) {
         const reader = new FileReader();
         reader.onload = (ev) => {
           const content = ev.target?.result as string;
-          if (type === 'quran') {
-            setQuranFullText(content);
-            setEditingQuran(true);
-          } else {
-            setMeaningsFullText(content);
-            setEditingMeanings(true);
-          }
+          if (type === 'quran') { setQuranFullText(content); setEditingQuran(true); }
+          else { setMeaningsFullText(content); setEditingMeanings(true); }
           toast.success(`تم تحميل ${file.name}`);
         };
         reader.readAsText(file);
@@ -330,15 +362,75 @@ export function FullFilesViewer({ children, pages, allWords, onRefresh }: FullFi
     input.click();
   };
 
-  // Stats - count lines from raw file
+  const hasFilters = searchQuery || pageFrom || pageTo || surahFilter !== 'all';
   const rawLinesCount = rawMeaningsFile ? rawMeaningsFile.split('\n').filter(l => l.trim() && !l.startsWith('#')).length : 0;
-  
+
   const stats = {
     totalPages: pages.length || 604,
     totalWords: rawLinesCount || allWords.length,
     totalOverrides: userOverrides.length,
     totalCorrections: corrections.length,
     mushafOverrides: Object.keys(mushafOverrides).length,
+  };
+
+  // ---- Shared Search Bar ----
+  const SearchBar = () => (
+    <div className="space-y-2">
+      <div className="flex gap-2 flex-wrap">
+        <div className="relative flex-1 min-w-[160px]">
+          <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Input value={searchQuery} onChange={(e) => handleSearchChange(e.target.value)}
+            placeholder="بحث بالكلمة أو المعنى أو السورة..." className="pr-10 font-arabic" />
+        </div>
+        <div className="flex gap-1 items-center">
+          <Input type="number" min={1} max={604} value={pageFrom}
+            onChange={e => { setPageFrom(e.target.value); setBrowsePage(1); }}
+            placeholder="من ص" className="w-20 text-center" />
+          <span className="text-muted-foreground text-xs">–</span>
+          <Input type="number" min={1} max={604} value={pageTo}
+            onChange={e => { setPageTo(e.target.value); setBrowsePage(1); }}
+            placeholder="إلى ص" className="w-20 text-center" />
+        </div>
+        <Select value={surahFilter} onValueChange={v => { setSurahFilter(v); setBrowsePage(1); }}>
+          <SelectTrigger className="w-36">
+            <SelectValue placeholder="السورة" />
+          </SelectTrigger>
+          <SelectContent className="max-h-[300px]">
+            <SelectItem value="all">كل السور</SelectItem>
+            {Object.entries(surahNumberToName).map(([num, name]) => (
+              <SelectItem key={num} value={num}>{num}. {name}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+      {hasFilters && (
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-muted-foreground font-arabic">
+            {activeTab === 'meanings' ? `${filteredMeaningsWords.length.toLocaleString()} نتيجة` :
+             activeTab === 'quran' ? `${quranResultCount.toLocaleString()} سطر` : ''}
+          </span>
+          <Button size="sm" variant="ghost" className="h-6 text-xs font-arabic" onClick={clearFilters}>
+            مسح الفلاتر
+          </Button>
+        </div>
+      )}
+    </div>
+  );
+
+  // ---- Pagination ----
+  const PaginationBar = ({ current, total, onChange }: { current: number; total: number; onChange: (p: number) => void }) => {
+    if (total <= 1) return null;
+    return (
+      <div className="flex items-center justify-center gap-2">
+        <Button size="icon" variant="ghost" className="h-7 w-7" disabled={current <= 1} onClick={() => onChange(current - 1)}>
+          <ChevronRight className="w-4 h-4" />
+        </Button>
+        <span className="text-xs font-arabic text-muted-foreground">{current} / {total}</span>
+        <Button size="icon" variant="ghost" className="h-7 w-7" disabled={current >= total} onClick={() => onChange(current + 1)}>
+          <ChevronLeft className="w-4 h-4" />
+        </Button>
+      </div>
+    );
   };
 
   return (
@@ -361,33 +453,31 @@ export function FullFilesViewer({ children, pages, allWords, onRefresh }: FullFi
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="quran" className="font-arabic text-xs gap-1">
               <BookOpen className="w-3 h-3" />
-              ملف القرآن الكامل
+              ملف القرآن
             </TabsTrigger>
             <TabsTrigger value="meanings" className="font-arabic text-xs gap-1">
               <FileText className="w-3 h-3" />
-              ملف المعاني الكامل
+              ملف المعاني
             </TabsTrigger>
             <TabsTrigger value="overrides" className="font-arabic text-xs gap-1">
               <Layers className="w-3 h-3" />
-              ملف التعديلات
+              التعديلات
+            </TabsTrigger>
+            <TabsTrigger value="diagnostics" className="font-arabic text-xs gap-1">
+              <Stethoscope className="w-3 h-3" />
+              تشخيص
             </TabsTrigger>
           </TabsList>
 
-          {/* Search Bar */}
-          <div className="flex gap-2 mt-3">
-            <div className="relative flex-1">
-              <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <Input
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="بحث في الملف..."
-                className="pr-10 font-arabic"
-              />
+          {/* Search Bar (shared across quran & meanings) */}
+          {(activeTab === 'quran' || activeTab === 'meanings') && (
+            <div className="mt-3">
+              <SearchBar />
             </div>
-          </div>
+          )}
 
           {/* Quran File Tab */}
           <TabsContent value="quran" className="flex-1 flex flex-col gap-3 mt-3 min-h-0">
@@ -395,159 +485,250 @@ export function FullFilesViewer({ children, pages, allWords, onRefresh }: FullFi
               {!editingQuran ? (
                 <>
                   <Button onClick={handleStartEditQuran} variant="outline" size="sm" className="font-arabic gap-1">
-                    <FileText className="w-3 h-3" />
-                    تحرير الملف
+                    <FileText className="w-3 h-3" /> تحرير الملف
                   </Button>
                   <Button onClick={() => handleImportFile('quran')} variant="outline" size="sm" className="font-arabic gap-1">
-                    <Upload className="w-3 h-3" />
-                    استيراد
+                    <Upload className="w-3 h-3" /> استيراد
                   </Button>
                   <Button onClick={() => handleExport(fullQuranText, 'quran-full.txt')} variant="outline" size="sm" className="font-arabic gap-1">
-                    <Download className="w-3 h-3" />
-                    تصدير
+                    <Download className="w-3 h-3" /> تصدير
                   </Button>
                   <Button onClick={() => handleCopy(fullQuranText, 'ملف القرآن')} variant="outline" size="sm" className="font-arabic gap-1">
-                    {copied ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
-                    نسخ
+                    {copied ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />} نسخ
                   </Button>
                 </>
               ) : (
                 <>
                   <Button onClick={handleSaveQuranEdits} size="sm" className="font-arabic gap-1">
-                    <Save className="w-3 h-3" />
-                    حفظ التعديلات
+                    <Save className="w-3 h-3" /> حفظ التعديلات
                   </Button>
-                  <Button onClick={() => setEditingQuran(false)} variant="outline" size="sm" className="font-arabic gap-1">
-                    إلغاء
-                  </Button>
+                  <Button onClick={() => setEditingQuran(false)} variant="outline" size="sm" className="font-arabic gap-1">إلغاء</Button>
                 </>
               )}
             </div>
-            
             <ScrollArea className="flex-1 border rounded-lg min-h-[400px]">
               {editingQuran ? (
-                <Textarea
-                  value={quranFullText}
-                  onChange={(e) => setQuranFullText(e.target.value)}
-                  className="min-h-[500px] font-arabic text-lg leading-loose p-4 border-0 resize-none"
-                  dir="rtl"
-                />
+                <Textarea value={quranFullText} onChange={(e) => setQuranFullText(e.target.value)}
+                  className="min-h-[500px] font-arabic text-lg leading-loose p-4 border-0 resize-none" dir="rtl" />
               ) : (
                 <pre className="p-4 font-arabic text-lg leading-loose whitespace-pre-wrap" dir="rtl">
-                  {filteredQuranText || 'لا توجد بيانات'}
+                  {filteredQuranLines.join('\n') || 'لا توجد بيانات'}
                 </pre>
               )}
             </ScrollArea>
-            
             <div className="text-xs text-muted-foreground font-arabic">
-              {editingQuran 
-                ? '💡 عدّل النص ثم اضغط "حفظ التعديلات". التنسيق: === صفحة X === ثم النص'
-                : `إجمالي: ${fullQuranText.split('\n').length.toLocaleString()} سطر`
-              }
+              {editingQuran ? '💡 عدّل النص ثم اضغط "حفظ التعديلات". التنسيق: === صفحة X === ثم النص'
+                : `إجمالي: ${fullQuranText.split('\n').length.toLocaleString()} سطر`}
             </div>
           </TabsContent>
 
-          {/* Meanings File Tab */}
+          {/* Meanings File Tab — structured table with pagination */}
           <TabsContent value="meanings" className="flex-1 flex flex-col gap-3 mt-3 min-h-0">
             <div className="flex gap-2 flex-wrap">
               {!editingMeanings ? (
                 <>
                   <Button onClick={handleStartEditMeanings} variant="outline" size="sm" className="font-arabic gap-1">
-                    <FileText className="w-3 h-3" />
-                    تحرير الملف
+                    <FileText className="w-3 h-3" /> تحرير الملف
                   </Button>
                   <Button onClick={() => handleImportFile('meanings')} variant="outline" size="sm" className="font-arabic gap-1">
-                    <Upload className="w-3 h-3" />
-                    استيراد
+                    <Upload className="w-3 h-3" /> استيراد
                   </Button>
                   <Button onClick={() => handleExport(fullMeaningsText, 'meanings-full.txt')} variant="outline" size="sm" className="font-arabic gap-1">
-                    <Download className="w-3 h-3" />
-                    تصدير
+                    <Download className="w-3 h-3" /> تصدير
                   </Button>
                   <Button onClick={() => handleCopy(fullMeaningsText, 'ملف المعاني')} variant="outline" size="sm" className="font-arabic gap-1">
-                    {copied ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
-                    نسخ
+                    {copied ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />} نسخ
                   </Button>
                 </>
               ) : (
                 <>
                   <Button onClick={handleSaveMeaningsEdits} size="sm" className="font-arabic gap-1">
-                    <Save className="w-3 h-3" />
-                    حفظ التعديلات
+                    <Save className="w-3 h-3" /> حفظ التعديلات
                   </Button>
-                  <Button onClick={() => setEditingMeanings(false)} variant="outline" size="sm" className="font-arabic gap-1">
-                    إلغاء
-                  </Button>
+                  <Button onClick={() => setEditingMeanings(false)} variant="outline" size="sm" className="font-arabic gap-1">إلغاء</Button>
                 </>
               )}
             </div>
-            
-            <ScrollArea className="flex-1 border rounded-lg min-h-[400px]">
-              {isLoadingRaw ? (
-                <div className="flex items-center justify-center h-[400px]">
-                  <Loader2 className="w-8 h-8 animate-spin text-primary" />
-                  <span className="mr-2 font-arabic">جاري تحميل الملف...</span>
-                </div>
-              ) : editingMeanings ? (
-                <Textarea
-                  value={meaningsFullText}
-                  onChange={(e) => setMeaningsFullText(e.target.value)}
-                  className="min-h-[500px] font-arabic text-sm leading-relaxed p-4 border-0 resize-none"
-                  dir="rtl"
-                />
-              ) : (
-                <pre className="p-4 font-arabic text-sm leading-relaxed whitespace-pre-wrap" dir="rtl">
-                  {filteredMeaningsText || 'لا توجد بيانات'}
-                </pre>
-              )}
-            </ScrollArea>
-            
+
+            {editingMeanings ? (
+              <ScrollArea className="flex-1 border rounded-lg min-h-[400px]">
+                <Textarea value={meaningsFullText} onChange={(e) => setMeaningsFullText(e.target.value)}
+                  className="min-h-[500px] font-arabic text-sm leading-relaxed p-4 border-0 resize-none" dir="rtl" />
+              </ScrollArea>
+            ) : isLoadingRaw ? (
+              <div className="flex items-center justify-center h-[400px]">
+                <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                <span className="mr-2 font-arabic">جاري تحميل الملف...</span>
+              </div>
+            ) : (
+              <>
+                <ScrollArea className="flex-1 border rounded-lg min-h-[300px]">
+                  <Table>
+                    <TableHeader className="sticky top-0 bg-background z-10">
+                      <TableRow>
+                        <TableHead className="font-arabic text-right w-14">ص</TableHead>
+                        <TableHead className="font-arabic text-right">الكلمة</TableHead>
+                        <TableHead className="font-arabic text-right">المعنى</TableHead>
+                        <TableHead className="font-arabic text-right w-20">الموقع</TableHead>
+                        <TableHead className="font-arabic text-right w-24">السورة</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {paginatedMeaningsWords.map((word, idx) => (
+                        <TableRow key={`${word.uniqueKey}-${idx}`}>
+                          <TableCell className="text-sm">{word.pageNumber}</TableCell>
+                          <TableCell className="font-arabic font-semibold">{word.wordText}</TableCell>
+                          <TableCell className="font-arabic text-sm max-w-[200px] truncate">{word.meaning}</TableCell>
+                          <TableCell className="text-xs text-muted-foreground">{word.surahNumber}:{word.verseNumber}</TableCell>
+                          <TableCell className="font-arabic text-xs text-muted-foreground">{word.surahName}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </ScrollArea>
+                <PaginationBar current={browsePage} total={totalMeaningsPages} onChange={setBrowsePage} />
+              </>
+            )}
+
             <div className="text-xs text-muted-foreground font-arabic">
-              {editingMeanings 
-                ? '💡 التنسيق: ﴿الكلمة﴾ TAB السورة TAB الآية TAB المعنى'
-                : `إجمالي: ${stats.totalWords.toLocaleString()} كلمة`
-              }
+              {editingMeanings ? '💡 التنسيق: ﴿الكلمة﴾ TAB السورة TAB الآية TAB المعنى'
+                : `إجمالي: ${filteredMeaningsWords.length.toLocaleString()} كلمة`}
             </div>
           </TabsContent>
 
-          {/* Overrides File Tab */}
+          {/* Overrides Tab */}
           <TabsContent value="overrides" className="flex-1 flex flex-col gap-3 mt-3 min-h-0">
             <div className="flex gap-2 flex-wrap">
               <Button onClick={() => handleExport(overridesText, 'overrides-full.json')} variant="outline" size="sm" className="font-arabic gap-1">
-                <Download className="w-3 h-3" />
-                تصدير JSON
+                <Download className="w-3 h-3" /> تصدير JSON
               </Button>
               <Button onClick={() => handleCopy(overridesText, 'ملف التعديلات')} variant="outline" size="sm" className="font-arabic gap-1">
-                {copied ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
-                نسخ
+                {copied ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />} نسخ
               </Button>
-              <Button 
-                onClick={() => {
-                  if (confirm('هل تريد حذف جميع التعديلات؟')) {
-                    resetAll();
-                    localStorage.removeItem(MUSHAF_OVERRIDES_KEY);
-                    toast.success('تم إعادة التعيين');
-                    if (onRefresh) setTimeout(onRefresh, 500);
-                  }
-                }} 
-                variant="destructive" 
-                size="sm" 
-                className="font-arabic gap-1"
-              >
-                <RefreshCw className="w-3 h-3" />
-                إعادة تعيين الكل
+              <Button onClick={() => {
+                if (confirm('هل تريد حذف جميع التعديلات؟')) {
+                  resetAll(); localStorage.removeItem(MUSHAF_OVERRIDES_KEY);
+                  toast.success('تم إعادة التعيين');
+                  if (onRefresh) setTimeout(onRefresh, 500);
+                }
+              }} variant="destructive" size="sm" className="font-arabic gap-1">
+                <RefreshCw className="w-3 h-3" /> إعادة تعيين الكل
               </Button>
             </div>
-            
             <ScrollArea className="flex-1 border rounded-lg min-h-[400px]">
-              <pre className="p-4 font-mono text-xs leading-relaxed whitespace-pre-wrap" dir="ltr">
-                {overridesText}
-              </pre>
+              <pre className="p-4 font-mono text-xs leading-relaxed whitespace-pre-wrap" dir="ltr">{overridesText}</pre>
             </ScrollArea>
-            
             <div className="text-xs text-muted-foreground font-arabic">
               إجمالي: {stats.totalOverrides} تعديل كلمات + {stats.mushafOverrides} صفحة معدلة + {stats.totalCorrections} تصحيح
             </div>
+          </TabsContent>
+
+          {/* Diagnostics Tab */}
+          <TabsContent value="diagnostics" className="flex-1 flex flex-col gap-3 mt-3 min-h-0">
+            {!diagRunning ? (
+              <div className="text-center py-8 space-y-4">
+                <Stethoscope className="w-16 h-16 mx-auto text-muted-foreground/40" />
+                <h3 className="font-arabic font-bold text-lg">فحص تشخيصي شامل للملفات</h3>
+                <p className="font-arabic text-sm text-muted-foreground max-w-md mx-auto">
+                  يفحص جميع الكلمات ({allWords.length.toLocaleString()}) للكشف عن: كلمات بدون معنى، تكرارات، نصوص فارغة، أرقام سور أو صفحات خاطئة، معانٍ قصيرة.
+                </p>
+                <Button onClick={() => setDiagRunning(true)} className="font-arabic gap-2">
+                  <Stethoscope className="w-4 h-4" /> بدء الفحص
+                </Button>
+              </div>
+            ) : (
+              <>
+                {/* Summary Cards */}
+                <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
+                  <button onClick={() => setDiagFilter('all')}
+                    className={`p-2 border rounded-lg text-center cursor-pointer transition-colors ${diagFilter === 'all' ? 'border-primary bg-primary/5' : ''}`}>
+                    <div className={`text-lg font-bold ${diagStats.total === 0 ? 'text-green-600' : 'text-amber-600'}`}>{diagStats.total}</div>
+                    <div className="text-[10px] font-arabic text-muted-foreground">الكل</div>
+                  </button>
+                  <button onClick={() => setDiagFilter('missing_meaning')}
+                    className={`p-2 border rounded-lg text-center cursor-pointer transition-colors ${diagFilter === 'missing_meaning' ? 'border-red-500 bg-red-50 dark:bg-red-950' : ''}`}>
+                    <div className="text-lg font-bold text-red-600">{diagStats.missingMeaning}</div>
+                    <div className="text-[10px] font-arabic text-muted-foreground">بدون معنى</div>
+                  </button>
+                  <button onClick={() => setDiagFilter('duplicate')}
+                    className={`p-2 border rounded-lg text-center cursor-pointer transition-colors ${diagFilter === 'duplicate' ? 'border-amber-500 bg-amber-50 dark:bg-amber-950' : ''}`}>
+                    <div className="text-lg font-bold text-amber-600">{diagStats.duplicates}</div>
+                    <div className="text-[10px] font-arabic text-muted-foreground">مكررة</div>
+                  </button>
+                  <button onClick={() => setDiagFilter('empty_word')}
+                    className={`p-2 border rounded-lg text-center cursor-pointer transition-colors ${diagFilter === 'empty_word' ? 'border-red-500 bg-red-50 dark:bg-red-950' : ''}`}>
+                    <div className="text-lg font-bold text-red-600">{diagStats.emptyWords}</div>
+                    <div className="text-[10px] font-arabic text-muted-foreground">نص فارغ</div>
+                  </button>
+                  <button onClick={() => setDiagFilter('invalid_page')}
+                    className={`p-2 border rounded-lg text-center cursor-pointer transition-colors ${diagFilter === 'invalid_page' ? 'border-red-500 bg-red-50 dark:bg-red-950' : ''}`}>
+                    <div className="text-lg font-bold text-red-600">{diagStats.invalidPage + diagStats.invalidSurah}</div>
+                    <div className="text-[10px] font-arabic text-muted-foreground">بيانات خاطئة</div>
+                  </button>
+                  <button onClick={() => setDiagFilter('short_meaning')}
+                    className={`p-2 border rounded-lg text-center cursor-pointer transition-colors ${diagFilter === 'short_meaning' ? 'border-amber-500 bg-amber-50 dark:bg-amber-950' : ''}`}>
+                    <div className="text-lg font-bold text-amber-600">{diagStats.shortMeaning}</div>
+                    <div className="text-[10px] font-arabic text-muted-foreground">معنى قصير</div>
+                  </button>
+                </div>
+
+                {/* Health Score */}
+                <div className={`p-3 border rounded-lg flex items-center gap-3 ${
+                  diagStats.total === 0 ? 'border-green-300 bg-green-50 dark:bg-green-950'
+                  : diagStats.errors > 0 ? 'border-red-300 bg-red-50 dark:bg-red-950'
+                  : 'border-amber-300 bg-amber-50 dark:bg-amber-950'
+                }`}>
+                  {diagStats.total === 0 ? <CheckCircle2 className="w-5 h-5 text-green-600" />
+                    : diagStats.errors > 0 ? <XCircle className="w-5 h-5 text-red-600" />
+                    : <AlertTriangle className="w-5 h-5 text-amber-600" />}
+                  <span className="font-arabic text-sm">
+                    {diagStats.total === 0 ? 'لا توجد مشكلات! البيانات سليمة ✓'
+                      : `${diagStats.errors} خطأ و ${diagStats.warnings} تحذير من أصل ${allWords.length.toLocaleString()} كلمة`}
+                  </span>
+                  <Button size="sm" variant="ghost" className="mr-auto font-arabic text-xs"
+                    onClick={() => { setDiagRunning(false); setDiagFilter('all'); }}>
+                    إعادة الفحص
+                  </Button>
+                </div>
+
+                {/* Issues List */}
+                {filteredDiagIssues.length > 0 && (
+                  <ScrollArea className="flex-1 border rounded-lg min-h-[280px]">
+                    <Table>
+                      <TableHeader className="sticky top-0 bg-background z-10">
+                        <TableRow>
+                          <TableHead className="font-arabic text-right w-14">النوع</TableHead>
+                          <TableHead className="font-arabic text-right">الوصف</TableHead>
+                          <TableHead className="font-arabic text-right w-14">ص</TableHead>
+                          <TableHead className="w-16"></TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {filteredDiagIssues.slice(0, 200).map((issue, idx) => (
+                          <TableRow key={idx}>
+                            <TableCell>
+                              {issue.severity === 'error' ? <XCircle className="w-4 h-4 text-red-500" /> : <AlertTriangle className="w-4 h-4 text-amber-500" />}
+                            </TableCell>
+                            <TableCell className="font-arabic text-sm">{issue.message}</TableCell>
+                            <TableCell className="text-sm">{issue.word.pageNumber}</TableCell>
+                            <TableCell>
+                              <Button size="sm" variant="ghost" className="h-7 text-xs font-arabic" onClick={() => handleFixIssue(issue)}>
+                                إصلاح
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                    {filteredDiagIssues.length > 200 && (
+                      <p className="text-xs text-muted-foreground text-center py-2 font-arabic">
+                        يُعرض أول 200 مشكلة من {filteredDiagIssues.length}
+                      </p>
+                    )}
+                  </ScrollArea>
+                )}
+              </>
+            )}
           </TabsContent>
         </Tabs>
       </DialogContent>
