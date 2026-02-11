@@ -377,6 +377,71 @@ export function PageView({
         // Generate position key for override lookup
         const positionKey = makePositionKey(page.pageNumber, lineIdx, i);
         
+        // ✅ CHECK FORCE-HIGHLIGHT OVERRIDE FIRST (takes priority over automatic matching)
+        const forceHighlightOverride = !td.isVerseNumber ? highlightOverrides.find(
+          o => o.positionKey === positionKey && o.highlight === true
+        ) : null;
+        
+        if (forceHighlightOverride) {
+          // Resolve meaning: prefer meaningText, then resolve meaningId from ghareeb data
+          let resolvedMeaning = forceHighlightOverride.meaningText || forceHighlightOverride.meaning || '';
+          if (!resolvedMeaning && forceHighlightOverride.meaningId) {
+            const refWord = ghareebWords.find(w => w.uniqueKey === forceHighlightOverride.meaningId);
+            resolvedMeaning = refWord?.meaning || '';
+          }
+          
+          const overrideWord: GhareebWord = {
+            pageNumber: page.pageNumber,
+            wordText: td.token,
+            meaning: resolvedMeaning,
+            surahName: forceHighlightOverride.surahName || '',
+            surahNumber: forceHighlightOverride.surahNumber || 0,
+            verseNumber: forceHighlightOverride.verseNumber || 0,
+            wordIndex: forceHighlightOverride.wordIndex || 0,
+            order: 0,
+            uniqueKey: forceHighlightOverride.identityKey || `override_${lineIdx}_${i}`,
+          };
+
+          if (meaningEnabled) {
+            lineElements.push(
+              <GhareebWordPopover
+                key={`${lineIdx}-${i}-override`}
+                word={overrideWord}
+                index={-1}
+                isHighlighted={false}
+                forceOpen={false}
+                onSelect={onWordClick}
+                containerRef={containerRef}
+                dataAssemblyId={assemblyId}
+                dataLineIndex={lineIdx}
+                dataTokenIndex={i}
+                pageNumber={page.pageNumber}
+              >
+                {td.token}
+              </GhareebWordPopover>
+            );
+          } else {
+            lineElements.push(
+              <span
+                key={`${lineIdx}-${i}`}
+                className="ghareeb-word"
+                data-ghareeb-key={forceHighlightOverride.identityKey}
+                data-word-inspectable="true"
+                data-line-index={lineIdx}
+                data-token-index={i}
+                data-surah-number={forceHighlightOverride.surahNumber}
+                data-verse={forceHighlightOverride.verseNumber}
+                data-word-index={forceHighlightOverride.wordIndex}
+                data-assembly-id={assemblyId}
+              >
+                {td.token}
+              </span>
+            );
+          }
+          i++;
+          continue;
+        }
+        
         if (td.matched && td.matchInfo) {
           const info = td.matchInfo;
           const sequentialIndex = info.sequentialIndex;
@@ -526,81 +591,18 @@ export function PageView({
           }
         }
         
-        // Non-matched word: check if there's an override to FORCE highlight
-        const forceHighlightOverride = highlightOverrides.find(
-          o => o.positionKey === positionKey && o.highlight === true
+        // Normal non-matched word (no override either)
+        lineElements.push(
+          <span 
+            key={`${lineIdx}-${i}`}
+            data-word-inspectable="true"
+            data-line-index={lineIdx}
+            data-token-index={i}
+            data-assembly-id={assemblyId}
+          >
+            {td.token}
+          </span>
         );
-        
-        if (forceHighlightOverride && !td.isVerseNumber) {
-          // Resolve meaning: prefer meaningText, then resolve meaningId from ghareeb data
-          let resolvedMeaning = forceHighlightOverride.meaningText || forceHighlightOverride.meaning || '';
-          if (!resolvedMeaning && forceHighlightOverride.meaningId) {
-            const refWord = ghareebWords.find(w => w.uniqueKey === forceHighlightOverride.meaningId);
-            resolvedMeaning = refWord?.meaning || '';
-          }
-          
-          const overrideWord: GhareebWord = {
-            pageNumber: page.pageNumber,
-            wordText: td.token,
-            meaning: resolvedMeaning,
-            surahName: forceHighlightOverride.surahName || '',
-            surahNumber: forceHighlightOverride.surahNumber || 0,
-            verseNumber: forceHighlightOverride.verseNumber || 0,
-            wordIndex: forceHighlightOverride.wordIndex || 0,
-            order: 0,
-            uniqueKey: forceHighlightOverride.identityKey || `override_${lineIdx}_${i}`,
-          };
-
-          if (meaningEnabled) {
-            lineElements.push(
-              <GhareebWordPopover
-                key={`${lineIdx}-${i}-override`}
-                word={overrideWord}
-                index={-1}
-                isHighlighted={false}
-                forceOpen={false}
-                onSelect={onWordClick}
-                containerRef={containerRef}
-                dataAssemblyId={assemblyId}
-                dataLineIndex={lineIdx}
-                dataTokenIndex={i}
-                pageNumber={page.pageNumber}
-              >
-                {td.token}
-              </GhareebWordPopover>
-            );
-          } else {
-            lineElements.push(
-              <span
-                key={`${lineIdx}-${i}`}
-                className="ghareeb-word"
-                data-ghareeb-key={forceHighlightOverride.identityKey}
-                data-word-inspectable="true"
-                data-line-index={lineIdx}
-                data-token-index={i}
-                data-surah-number={forceHighlightOverride.surahNumber}
-                data-verse={forceHighlightOverride.verseNumber}
-                data-word-index={forceHighlightOverride.wordIndex}
-                data-assembly-id={assemblyId}
-              >
-                {td.token}
-              </span>
-            );
-          }
-        } else {
-          // Normal non-matched word: make it inspectable (DEV only) but not highlighted
-          lineElements.push(
-            <span 
-              key={`${lineIdx}-${i}`}
-              data-word-inspectable="true"
-              data-line-index={lineIdx}
-              data-token-index={i}
-              data-assembly-id={assemblyId}
-            >
-              {td.token}
-            </span>
-          );
-        }
         i++;
       }
 
