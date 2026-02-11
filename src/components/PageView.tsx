@@ -391,8 +391,7 @@ export function PageView({
             
             const phrase = phraseText.join('');
 
-            if (meaningEnabled) {
-              lineElements.push(
+            lineElements.push(
                 <GhareebWordPopover
                   key={`${lineIdx}-phrase-${i}`}
                   word={info.word}
@@ -410,36 +409,11 @@ export function PageView({
                   {phrase}
                 </GhareebWordPopover>
               );
-            } else {
-              const phraseClasses = [
-                'ghareeb-word',
-                isHighlighted ? 'ghareeb-word--active' : '',
-                highlightedWordIndex > sequentialIndex ? 'ghareeb-word--seen' : '',
-              ].filter(Boolean).join(' ');
-              
-              lineElements.push(
-                <span
-                  key={`${lineIdx}-phrase-${i}`}
-                  className={phraseClasses}
-                  data-ghareeb-index={sequentialIndex}
-                  data-ghareeb-key={info.word.uniqueKey}
-                  data-surah-number={info.word.surahNumber}
-                  data-verse={info.word.verseNumber}
-                  data-word-index={info.word.wordIndex}
-                  data-assembly-id={assemblyId}
-                  data-line-index={lineIdx}
-                  data-token-index={i}
-                >
-                  {phrase}
-                </span>
-              );
-            }
             
             i = lastPhraseTokenIdx + 1;
             continue;
           } else if (!info.isPartOfPhrase) {
-            if (meaningEnabled) {
-              lineElements.push(
+            lineElements.push(
                 <GhareebWordPopover
                   key={`${lineIdx}-${i}`}
                   word={info.word}
@@ -457,30 +431,6 @@ export function PageView({
                   {td.token}
                 </GhareebWordPopover>
               );
-            } else {
-              const singleWordClasses = [
-                'ghareeb-word',
-                isHighlighted ? 'ghareeb-word--active' : '',
-                highlightedWordIndex > sequentialIndex ? 'ghareeb-word--seen' : '',
-              ].filter(Boolean).join(' ');
-              
-              lineElements.push(
-                <span
-                  key={`${lineIdx}-${i}`}
-                  className={singleWordClasses}
-                  data-ghareeb-index={sequentialIndex}
-                  data-ghareeb-key={info.word.uniqueKey}
-                  data-surah-number={info.word.surahNumber}
-                  data-verse={info.word.verseNumber}
-                  data-word-index={info.word.wordIndex}
-                  data-assembly-id={assemblyId}
-                  data-line-index={lineIdx}
-                  data-token-index={i}
-                >
-                  {td.token}
-                </span>
-              );
-            }
             i++;
             continue;
           }
@@ -510,7 +460,7 @@ export function PageView({
     }
 
     return <div className="inline">{allElements}</div>;
-  }, [page.text, page.pageNumber, ghareebWords, highlightedWordIndex, meaningEnabled, isPlaying, onWordClick, surahContextByLine, tokenMatchMap, highlightVersion]);
+  }, [page.text, page.pageNumber, ghareebWords, highlightedWordIndex, isPlaying, onWordClick, surahContextByLine, tokenMatchMap, highlightVersion]);
 
   return (
     <div ref={containerRef} className="page-frame p-5 sm:p-8">
