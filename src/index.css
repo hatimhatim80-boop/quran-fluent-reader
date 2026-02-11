@@ -114,12 +114,12 @@
   .arabic-text {
     font-family: var(--quran-font-family, 'Amiri', 'Noto Naskh Arabic', serif);
     direction: rtl;
-    text-align: justify;
+    text-align: right;
     line-height: var(--quran-line-height, 1.9);
     font-size: var(--quran-font-size, 1.75rem);
     font-weight: var(--quran-font-weight, 400);
     letter-spacing: 0;
-    word-spacing: 0.1em;
+    word-spacing: 0.05em;
     color: hsl(25 40% 8%);
   }
 
@@ -136,8 +136,7 @@
 
   .quran-page {
     @apply arabic-text;
-    text-align: justify;
-    text-justify: inter-word;
+    text-align: right;
   }
 
   /* 15-line Madina Mushaf style */
@@ -147,16 +146,10 @@
   }
 
   .quran-line {
-    text-align: justify;
-    text-align-last: justify;
-    text-justify: inter-word;
+    text-align: right;
     direction: rtl;
     min-height: 1.5em;
     line-height: var(--quran-line-height, 1.9);
-  }
-
-  .quran-line:last-child {
-    text-align-last: right;
   }
 
   /* Verse number styling */
