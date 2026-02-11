@@ -42,6 +42,7 @@ export function useSettingsApplier() {
     root.style.setProperty('--popover-bg-custom', settings.colors.popoverBackground);
     root.style.setProperty('--popover-text-custom', settings.colors.popoverText);
     root.style.setProperty('--popover-border-custom', settings.colors.popoverBorder);
+    root.style.setProperty('--popover-text-resolved', `hsl(${settings.colors.popoverText})`);
 
     // === POPOVER STYLE SETTINGS ===
     root.style.setProperty('--popover-width', `${settings.popover.width}px`);
