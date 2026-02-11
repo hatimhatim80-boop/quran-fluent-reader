@@ -63,7 +63,7 @@ interface TahfeezState {
   // Quiz settings
   quizSource: 'custom' | 'auto';
   setQuizSource: (src: 'custom' | 'auto') => void;
-  autoBlankMode: 'beginning' | 'middle' | 'end' | 'full-ayah' | 'full-page' | 'ayah-count';
+  autoBlankMode: 'beginning' | 'middle' | 'end' | 'beginning-middle' | 'middle-end' | 'beginning-end' | 'full-ayah' | 'full-page' | 'ayah-count';
   setAutoBlankMode: (mode: TahfeezState['autoBlankMode']) => void;
   blankCount: number;
   setBlankCount: (n: number) => void;

@@ -8,7 +8,7 @@ interface TahfeezQuizViewProps {
   page: QuranPage;
   quizSource: 'custom' | 'auto';
   storedItems: TahfeezItem[];
-  autoBlankMode: 'beginning' | 'middle' | 'end' | 'full-ayah' | 'full-page' | 'ayah-count';
+  autoBlankMode: 'beginning' | 'middle' | 'end' | 'beginning-middle' | 'middle-end' | 'beginning-end' | 'full-ayah' | 'full-page' | 'ayah-count';
   blankCount: number;
   ayahCount: number;
   activeBlankKey: string | null;       // Currently active blank (highlighted)
@@ -137,14 +137,39 @@ export function TahfeezQuizView({
           for (const group of ayahGroups) {
             const wc = group.length;
             const isFullAyah = autoBlankMode === 'full-ayah';
-            const n = isFullAyah ? wc : Math.min(blankCount, wc);
-            let start = 0;
-            if (autoBlankMode === 'beginning') start = 0;
-            else if (autoBlankMode === 'end') start = wc - n;
-            else if (autoBlankMode === 'middle') start = Math.max(0, Math.floor(wc / 2) - Math.floor(n / 2));
-            else if (autoBlankMode === 'full-ayah') start = 0;
-            for (let i = start; i < start + n && i < wc; i++) {
-              keys.add(group[i].key);
+
+            if (isFullAyah) {
+              group.forEach(t => keys.add(t.key));
+            } else if (autoBlankMode === 'beginning' || autoBlankMode === 'middle' || autoBlankMode === 'end') {
+              const n = Math.min(blankCount, wc);
+              let start = 0;
+              if (autoBlankMode === 'beginning') start = 0;
+              else if (autoBlankMode === 'end') start = wc - n;
+              else if (autoBlankMode === 'middle') start = Math.max(0, Math.floor(wc / 2) - Math.floor(n / 2));
+              for (let i = start; i < start + n && i < wc; i++) {
+                keys.add(group[i].key);
+              }
+            } else {
+              // Combined modes: beginning-middle, middle-end, beginning-end
+              const n = Math.min(blankCount, Math.floor(wc / 2));
+              if (autoBlankMode === 'beginning-middle') {
+                // Beginning
+                for (let i = 0; i < n && i < wc; i++) keys.add(group[i].key);
+                // Middle
+                const midStart = Math.max(0, Math.floor(wc / 2) - Math.floor(n / 2));
+                for (let i = midStart; i < midStart + n && i < wc; i++) keys.add(group[i].key);
+              } else if (autoBlankMode === 'middle-end') {
+                // Middle
+                const midStart = Math.max(0, Math.floor(wc / 2) - Math.floor(n / 2));
+                for (let i = midStart; i < midStart + n && i < wc; i++) keys.add(group[i].key);
+                // End
+                for (let i = Math.max(0, wc - n); i < wc; i++) keys.add(group[i].key);
+              } else if (autoBlankMode === 'beginning-end') {
+                // Beginning
+                for (let i = 0; i < n && i < wc; i++) keys.add(group[i].key);
+                // End
+                for (let i = Math.max(0, wc - n); i < wc; i++) keys.add(group[i].key);
+              }
             }
           }
         }
@@ -155,15 +180,75 @@ export function TahfeezQuizView({
 
   // Export blanked keys list (ordered) for parent to use in sequencing
   // This is used by the parent component via a ref or callback
-  const blankedKeysList = useMemo(() => {
-    return allWordTokens.filter(t => blankedKeys.has(t.key)).map(t => t.key);
-  }, [allWordTokens, blankedKeys]);
+  // Compute first keys per ayah group (for per-ayah first-word timer)
+  const { blankedKeysList, firstKeysSet } = useMemo(() => {
+    const orderedKeys = allWordTokens.filter(t => blankedKeys.has(t.key)).map(t => t.key);
+    
+    // Find first blanked key per ayah group
+    const firstKeys = new Set<string>();
+    if (quizSource === 'custom') {
+      // For custom: first key of each stored item
+      for (const item of storedItems) {
+        if (item.data.page !== page.pageNumber) continue;
+        if (item.type === 'word') {
+          const sw = item.data;
+          for (const tok of allWordTokens) {
+            if (tok.tokenIdx === sw.wordIndex && blankedKeys.has(tok.key)) {
+              firstKeys.add(tok.key);
+              break;
+            }
+          }
+        } else {
+          const p = item.data;
+          for (const tok of allWordTokens) {
+            if (tok.lineIdx === p.lineIdx && tok.tokenIdx >= p.startWordIndex && tok.tokenIdx <= p.endWordIndex && blankedKeys.has(tok.key)) {
+              firstKeys.add(tok.key);
+              break;
+            }
+          }
+        }
+      }
+    } else {
+      // For auto: find first blanked key per ayah group
+      const rawLines = page.text.split('\n');
+      let currentGroup: TokenInfo[] = [];
+      const groups: TokenInfo[][] = [];
+      for (let lineIdx = 0; lineIdx < rawLines.length; lineIdx++) {
+        const line = rawLines[lineIdx];
+        if (isSurahHeader(line) || isBismillah(line)) continue;
+        const tokens = line.split(/(\s+)/);
+        for (let tokenIdx = 0; tokenIdx < tokens.length; tokenIdx++) {
+          const t = tokens[tokenIdx];
+          const isSpace = /^\s+$/.test(t);
+          const clean = t.replace(/[﴿﴾()[\]{}۝۞٭؟،۔ۣۖۗۘۙۚۛۜ۟۠ۡۢۤۥۦۧۨ۩۪ۭ۫۬]/g, '').trim();
+          const isVerseNumber = !isSpace && /^[٠-٩0-9۰-۹]+$/.test(clean);
+          if (isSpace) continue;
+          if (isVerseNumber) {
+            if (currentGroup.length > 0) { groups.push(currentGroup); currentGroup = []; }
+          } else {
+            currentGroup.push({ text: t, lineIdx, tokenIdx, key: `${lineIdx}_${tokenIdx}` });
+          }
+        }
+      }
+      if (currentGroup.length > 0) groups.push(currentGroup);
+      
+      for (const group of groups) {
+        const firstBlanked = group.find(t => blankedKeys.has(t.key));
+        if (firstBlanked) firstKeys.add(firstBlanked.key);
+      }
+    }
+    
+    return { blankedKeysList: orderedKeys, firstKeysSet: firstKeys };
+  }, [allWordTokens, blankedKeys, quizSource, storedItems, page.pageNumber, page.text]);
 
   // Attach to DOM for parent to read
   React.useEffect(() => {
     const el = document.getElementById('tahfeez-blanked-keys');
-    if (el) el.setAttribute('data-keys', JSON.stringify(blankedKeysList));
-  }, [blankedKeysList]);
+    if (el) {
+      el.setAttribute('data-keys', JSON.stringify(blankedKeysList));
+      el.setAttribute('data-first-keys', JSON.stringify([...firstKeysSet]));
+    }
+  }, [blankedKeysList, firstKeysSet]);
 
   // Render
   const renderedContent = useMemo(() => {
