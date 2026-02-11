@@ -71,6 +71,8 @@ interface TahfeezState {
   setAyahCount: (n: number) => void;
   timerSeconds: number;
   setTimerSeconds: (s: number) => void;
+  firstWordTimerSeconds: number;
+  setFirstWordTimerSeconds: (s: number) => void;
   revealMode: 'all' | 'gradual';
   setRevealMode: (m: 'all' | 'gradual') => void;
 
@@ -147,6 +149,8 @@ export const useTahfeezStore = create<TahfeezState>()(
       setAyahCount: (n) => set({ ayahCount: n }),
       timerSeconds: 10,
       setTimerSeconds: (s) => set({ timerSeconds: s }),
+      firstWordTimerSeconds: 15,
+      setFirstWordTimerSeconds: (s) => set({ firstWordTimerSeconds: s }),
       revealMode: 'all',
       setRevealMode: (m) => set({ revealMode: m }),
 
@@ -162,6 +166,7 @@ export const useTahfeezStore = create<TahfeezState>()(
         blankCount: state.blankCount,
         ayahCount: state.ayahCount,
         timerSeconds: state.timerSeconds,
+        firstWordTimerSeconds: state.firstWordTimerSeconds,
         revealMode: state.revealMode,
         activeTab: state.activeTab,
       }),
