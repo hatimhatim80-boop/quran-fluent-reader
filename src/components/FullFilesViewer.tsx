@@ -69,6 +69,36 @@ const surahNumberToName: Record<number, string> = {
   111:'المسد',112:'الإخلاص',113:'الفلق',114:'الناس',
 };
 
+// Surah start pages for filtering Quran text by surah
+const surahStartPage: Record<number, number> = {
+  1:1,2:2,3:50,4:77,5:106,6:128,7:151,8:177,9:187,10:208,
+  11:221,12:235,13:249,14:255,15:262,16:267,17:282,18:293,19:305,20:312,
+  21:322,22:332,23:342,24:350,25:359,26:367,27:377,28:385,29:396,30:404,
+  31:411,32:415,33:418,34:428,35:434,36:440,37:446,38:453,39:458,40:467,
+  41:477,42:483,43:489,44:496,45:499,46:502,47:507,48:511,49:515,50:518,
+  51:520,52:523,53:526,54:528,55:531,56:534,57:537,58:542,59:545,60:549,
+  61:551,62:553,63:554,64:556,65:558,66:560,67:562,68:564,69:566,70:568,
+  71:570,72:572,73:574,74:575,75:577,76:578,77:580,78:582,79:583,80:585,
+  81:586,82:587,83:587,84:589,85:590,86:591,87:591,88:592,89:593,90:594,
+  91:595,92:595,93:596,94:596,95:597,96:597,97:598,98:598,99:599,100:599,
+  101:600,102:600,103:601,104:601,105:601,106:602,107:602,108:602,109:603,110:603,
+  111:603,112:604,113:604,114:604,
+};
+const surahEndPage: Record<number, number> = {
+  1:1,2:49,3:76,4:106,5:127,6:150,7:176,8:186,9:207,10:221,
+  11:235,12:248,13:255,14:261,15:267,16:281,17:293,18:304,19:312,20:321,
+  21:331,22:341,23:349,24:359,25:366,26:376,27:385,28:396,29:404,30:410,
+  31:414,32:417,33:427,34:434,35:440,36:445,37:452,38:458,39:467,40:476,
+  41:482,42:489,43:495,44:498,45:502,46:506,47:510,48:515,49:517,50:520,
+  51:523,52:525,53:528,54:531,55:534,56:537,57:541,58:545,59:549,60:551,
+  61:552,62:554,63:556,64:558,65:559,66:561,67:564,68:566,69:568,70:570,
+  71:571,72:573,73:575,74:577,75:578,76:580,77:581,78:583,79:584,80:585,
+  81:586,82:587,83:589,84:589,85:590,86:591,87:591,88:592,89:594,90:594,
+  91:595,92:596,93:596,94:596,95:597,96:597,97:598,98:599,99:599,100:600,
+  101:600,102:600,103:601,104:601,105:601,106:602,107:602,108:602,109:603,110:603,
+  111:603,112:604,113:604,114:604,
+};
+
 interface DiagnosticIssue {
   type: 'missing_meaning' | 'duplicate' | 'empty_word' | 'invalid_surah' | 'invalid_page' | 'short_meaning';
   severity: 'error' | 'warning';
@@ -161,11 +191,22 @@ export function FullFilesViewer({ children, pages, allWords, onRefresh }: FullFi
   // ---- Flexible search for Quran text (page-based) ----
   const filteredQuranLines = useMemo(() => {
     const lines = fullQuranText.split('\n');
-    const pFrom = pageFrom ? parseInt(pageFrom) : null;
-    const pTo = pageTo ? parseInt(pageTo) : null;
+    let pFrom = pageFrom ? parseInt(pageFrom) : null;
+    let pTo = pageTo ? parseInt(pageTo) : null;
     const query = searchQuery.trim();
 
-    if (!pFrom && !pTo && !query && surahFilter === 'all') return lines;
+    // Apply surah filter by mapping to page range
+    if (surahFilter !== 'all') {
+      const sNum = parseInt(surahFilter);
+      const sStart = surahStartPage[sNum];
+      const sEnd = surahEndPage[sNum];
+      if (sStart && sEnd) {
+        pFrom = pFrom ? Math.max(pFrom, sStart) : sStart;
+        pTo = pTo ? Math.min(pTo, sEnd) : sEnd;
+      }
+    }
+
+    if (!pFrom && !pTo && !query) return lines;
 
     const filtered: string[] = [];
     let currentPageNum = 0;
@@ -576,11 +617,26 @@ export function FullFilesViewer({ children, pages, allWords, onRefresh }: FullFi
                     <TableBody>
                       {paginatedMeaningsWords.map((word, idx) => (
                         <TableRow key={`${word.uniqueKey}-${idx}`}>
-                          <TableCell className="text-sm">{word.pageNumber}</TableCell>
+                          <TableCell>
+                            <button className="text-sm text-primary hover:underline cursor-pointer"
+                              onClick={() => { setPageFrom(String(word.pageNumber)); setPageTo(String(word.pageNumber)); setBrowsePage(1); }}>
+                              {word.pageNumber}
+                            </button>
+                          </TableCell>
                           <TableCell className="font-arabic font-semibold">{word.wordText}</TableCell>
                           <TableCell className="font-arabic text-sm max-w-[200px] truncate">{word.meaning}</TableCell>
-                          <TableCell className="text-xs text-muted-foreground">{word.surahNumber}:{word.verseNumber}</TableCell>
-                          <TableCell className="font-arabic text-xs text-muted-foreground">{word.surahName}</TableCell>
+                          <TableCell>
+                            <button className="text-xs text-primary hover:underline cursor-pointer"
+                              onClick={() => { setPageFrom(String(word.pageNumber)); setPageTo(String(word.pageNumber)); setSearchQuery(`${word.verseNumber}﴾`); setBrowsePage(1); setActiveTab('quran'); }}>
+                              {word.surahNumber}:{word.verseNumber}
+                            </button>
+                          </TableCell>
+                          <TableCell>
+                            <button className="font-arabic text-xs text-primary hover:underline cursor-pointer"
+                              onClick={() => { setSurahFilter(String(word.surahNumber)); setBrowsePage(1); }}>
+                              {word.surahName}
+                            </button>
+                          </TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
