@@ -525,12 +525,29 @@
 
   /* Tahfeez word selection border */
   .tahfeez-selected {
-    outline: 2px dashed hsl(var(--primary));
+    background: hsl(var(--primary) / 0.15);
+    outline: 2px solid hsl(var(--primary) / 0.6);
+    outline-offset: 1px;
+    border-radius: 4px;
+  }
+
+  .tahfeez-range-anchor {
+    background: hsl(var(--accent) / 0.25);
+    outline: 2px dashed hsl(var(--accent));
     outline-offset: 1px;
     border-radius: 4px;
   }
 
   .tahfeez-selectable {
     cursor: crosshair;
+  }
+
+  /* Fixed-width blank placeholder */
+  .tahfeez-blank {
+    display: inline-block;
+    border-bottom: 2px dotted hsl(var(--primary) / 0.5);
+    transform: translateY(-1px);
+    color: transparent;
+    user-select: none;
   }
 }

@@ -76,6 +76,11 @@ export function PageView({
   const tahfeezMode = useTahfeezStore((s) => s.selectionMode);
   const toggleTahfeezWord = useTahfeezStore((s) => s.toggleWord);
   const isTahfeezSelected = useTahfeezStore((s) => s.isSelected);
+  const rangeAnchor = useTahfeezStore((s) => s.rangeAnchor);
+  const setRangeAnchor = useTahfeezStore((s) => s.setRangeAnchor);
+  const addItem = useTahfeezStore((s) => s.addItem);
+  const storedItems = useTahfeezStore((s) => s.storedItems);
+  const getItemKey = useTahfeezStore((s) => s.getItemKey);
   // Subscribe to highlight overrides for reactivity (read-only, no editing)
   const highlightVersion = useHighlightOverrideStore((s) => s.version);
 
@@ -415,6 +420,40 @@ export function PageView({
           // In tahfeez mode: render as plain spans (no ghareeb color) with selection border only
           if (tahfeezMode) {
             const isTSelected = isTahfeezSelected(info.word.surahNumber, info.word.verseNumber, info.word.wordIndex, page.pageNumber);
+            const isAnchor = rangeAnchor && rangeAnchor.lineIdx === lineIdx && rangeAnchor.tokenIdx === i;
+
+            const handleTahfeezClick = (e: React.MouseEvent, tokenIndex: number) => {
+              e.stopPropagation();
+              if (rangeAnchor && rangeAnchor.lineIdx === lineIdx && rangeAnchor.page === page.pageNumber) {
+                // Second click: create phrase from anchor to here
+                const startIdx = Math.min(rangeAnchor.tokenIdx, tokenIndex);
+                const endIdx = Math.max(rangeAnchor.tokenIdx, tokenIndex);
+                if (startIdx === endIdx) {
+                  // Same token, just toggle word
+                  toggleTahfeezWord({
+                    surahNumber: info.word.surahNumber, ayahNumber: info.word.verseNumber,
+                    wordIndex: info.word.wordIndex, originalWord: info.word.wordText, page: page.pageNumber,
+                  });
+                } else {
+                  // Collect text for the phrase
+                  const phraseTokens = tokens.slice(startIdx, endIdx + 1);
+                  const phraseText = phraseTokens.join('');
+                  addItem({
+                    type: 'phrase',
+                    data: {
+                      surahNumber: info.word.surahNumber, ayahNumber: info.word.verseNumber,
+                      startWordIndex: startIdx, endWordIndex: endIdx,
+                      originalText: phraseText, page: page.pageNumber, lineIdx,
+                    },
+                  });
+                }
+                setRangeAnchor(null);
+              } else {
+                // First click: set anchor
+                setRangeAnchor({ lineIdx, tokenIdx: tokenIndex, surahNumber: info.word.surahNumber, ayahNumber: info.word.verseNumber, page: page.pageNumber });
+              }
+            };
+
             if (info.isPartOfPhrase && info.phraseStart) {
               const lastPhraseTokenIdx = info.phraseTokens[info.phraseTokens.length - 1];
               const phraseText: string[] = [];
@@ -424,17 +463,8 @@ export function PageView({
               lineElements.push(
                 <span
                   key={`${lineIdx}-phrase-${i}`}
-                  className={`tahfeez-selectable ${isTSelected ? 'tahfeez-selected' : ''}`}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    toggleTahfeezWord({
-                      surahNumber: info.word.surahNumber,
-                      ayahNumber: info.word.verseNumber,
-                      wordIndex: info.word.wordIndex,
-                      originalWord: info.word.wordText,
-                      page: page.pageNumber,
-                    });
-                  }}
+                  className={`tahfeez-selectable ${isTSelected ? 'tahfeez-selected' : ''} ${isAnchor ? 'tahfeez-range-anchor' : ''}`}
+                  onClick={(e) => handleTahfeezClick(e, i)}
                 >
                   {phraseText.join('')}
                 </span>
@@ -445,17 +475,8 @@ export function PageView({
               lineElements.push(
                 <span
                   key={`${lineIdx}-${i}`}
-                  className={`tahfeez-selectable ${isTSelected ? 'tahfeez-selected' : ''}`}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    toggleTahfeezWord({
-                      surahNumber: info.word.surahNumber,
-                      ayahNumber: info.word.verseNumber,
-                      wordIndex: info.word.wordIndex,
-                      originalWord: info.word.wordText,
-                      page: page.pageNumber,
-                    });
-                  }}
+                  className={`tahfeez-selectable ${isTSelected ? 'tahfeez-selected' : ''} ${isAnchor ? 'tahfeez-range-anchor' : ''}`}
+                  onClick={(e) => handleTahfeezClick(e, i)}
                 >
                   {td.token}
                 </span>
@@ -523,6 +544,7 @@ export function PageView({
         
         // Normal non-matched word (no override either)
         const isNonMatchSelected = tahfeezMode && isTahfeezSelected(0, 0, i, page.pageNumber);
+        const isNonMatchAnchor = tahfeezMode && rangeAnchor && rangeAnchor.lineIdx === lineIdx && rangeAnchor.tokenIdx === i;
         lineElements.push(
           <span 
             key={`${lineIdx}-${i}`}
@@ -530,16 +552,25 @@ export function PageView({
             data-line-index={lineIdx}
             data-token-index={i}
             data-assembly-id={assemblyId}
-            className={`${tahfeezMode ? 'tahfeez-selectable' : ''} ${isNonMatchSelected ? 'tahfeez-selected' : ''}`}
+            className={`${tahfeezMode ? 'tahfeez-selectable' : ''} ${isNonMatchSelected ? 'tahfeez-selected' : ''} ${isNonMatchAnchor ? 'tahfeez-range-anchor' : ''}`}
             onClick={tahfeezMode && !td.isVerseNumber ? (e) => {
               e.stopPropagation();
-              toggleTahfeezWord({
-                surahNumber: 0,
-                ayahNumber: 0,
-                wordIndex: i,
-                originalWord: td.token,
-                page: page.pageNumber,
-              });
+              if (rangeAnchor && rangeAnchor.lineIdx === lineIdx && rangeAnchor.page === page.pageNumber) {
+                const startIdx = Math.min(rangeAnchor.tokenIdx, i);
+                const endIdx = Math.max(rangeAnchor.tokenIdx, i);
+                if (startIdx === endIdx) {
+                  toggleTahfeezWord({ surahNumber: 0, ayahNumber: 0, wordIndex: i, originalWord: td.token, page: page.pageNumber });
+                } else {
+                  const phraseTokens = tokens.slice(startIdx, endIdx + 1);
+                  addItem({
+                    type: 'phrase',
+                    data: { surahNumber: 0, ayahNumber: 0, startWordIndex: startIdx, endWordIndex: endIdx, originalText: phraseTokens.join(''), page: page.pageNumber, lineIdx },
+                  });
+                }
+                setRangeAnchor(null);
+              } else {
+                setRangeAnchor({ lineIdx, tokenIdx: i, surahNumber: 0, ayahNumber: 0, page: page.pageNumber });
+              }
             } : undefined}
           >
             {td.token}
@@ -565,7 +596,7 @@ export function PageView({
     }
 
     return <div className={isLines15 ? 'quran-lines-container' : 'inline'}>{allElements}</div>;
-  }, [page.text, page.pageNumber, ghareebWords, highlightedWordIndex, isPlaying, onWordClick, surahContextByLine, tokenMatchMap, highlightVersion, displayMode, tahfeezMode, toggleTahfeezWord, isTahfeezSelected]);
+  }, [page.text, page.pageNumber, ghareebWords, highlightedWordIndex, isPlaying, onWordClick, surahContextByLine, tokenMatchMap, highlightVersion, displayMode, tahfeezMode, toggleTahfeezWord, isTahfeezSelected, rangeAnchor, setRangeAnchor, addItem, storedItems]);
 
   return (
     <div ref={containerRef} className="page-frame p-5 sm:p-8">
