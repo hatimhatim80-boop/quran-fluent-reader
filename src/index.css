@@ -522,4 +522,15 @@
       box-shadow: 0 0 16px 6px hsl(var(--primary) / 0.6);
     }
   }
+
+  /* Tahfeez word selection border */
+  .tahfeez-selected {
+    outline: 2px dashed hsl(var(--primary));
+    outline-offset: 1px;
+    border-radius: 4px;
+  }
+
+  .tahfeez-selectable {
+    cursor: crosshair;
+  }
 }

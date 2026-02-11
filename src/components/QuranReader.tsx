@@ -12,7 +12,9 @@ import { useSettingsApplier } from '@/hooks/useSettingsApplier';
 import { useDevDebugContextStore } from '@/stores/devDebugContextStore';
 import { useDiagnosticModeStore } from '@/stores/diagnosticModeStore';
 import { useHighlightOverrideStore } from '@/stores/highlightOverrideStore';
-import { Loader2, List, SlidersHorizontal, ChevronRight, ChevronLeft, Maximize2, Minimize2 } from 'lucide-react';
+import { useTahfeezStore } from '@/stores/tahfeezStore';
+import { Loader2, List, SlidersHorizontal, ChevronRight, ChevronLeft, Maximize2, Minimize2, GraduationCap, Save, X } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 export function QuranReader() {
   const {
@@ -29,6 +31,11 @@ export function QuranReader() {
   const [showIndex, setShowIndex] = useState(false);
   const [showControls, setShowControls] = useState(false);
   const [fullscreen, setFullscreen] = useState(false);
+  const navigate = useNavigate();
+  const tahfeezMode = useTahfeezStore((s) => s.selectionMode);
+  const setTahfeezMode = useTahfeezStore((s) => s.setSelectionMode);
+  const tahfeezSelectedCount = useTahfeezStore((s) => s.selectedWords.length);
+  const clearTahfeezSelection = useTahfeezStore((s) => s.clearSelection);
 
   const pageData = getCurrentPageData();
   const pageWords = getPageGhareebWords;
@@ -187,6 +194,22 @@ export function QuranReader() {
                   <SlidersHorizontal className="w-3.5 h-3.5" />
                 </button>
 
+                {/* Tahfeez mode toggle */}
+                <button
+                  onClick={() => setTahfeezMode(!tahfeezMode)}
+                  className={`w-8 h-8 rounded-full flex items-center justify-center transition-all relative ${
+                    tahfeezMode ? 'bg-primary text-primary-foreground' : 'nav-button'
+                  }`}
+                  title="وضع التحفيظ"
+                >
+                  <GraduationCap className="w-3.5 h-3.5" />
+                  {tahfeezSelectedCount > 0 && (
+                    <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-destructive text-destructive-foreground text-[8px] flex items-center justify-center font-bold">
+                      {tahfeezSelectedCount > 99 ? '99+' : tahfeezSelectedCount}
+                    </span>
+                  )}
+                </button>
+
                 {/* Page indicator */}
                 <div className="bg-card border border-border rounded-full px-3 py-1 flex items-center gap-1">
                   <span className="font-arabic text-sm font-bold text-foreground">{currentPage}</span>
@@ -230,6 +253,32 @@ export function QuranReader() {
                   onPrev={prevWord}
                   onSpeedChange={setSpeed}
                 />
+              </div>
+            )}
+
+            {/* Tahfeez selection bar */}
+            {tahfeezMode && (
+              <div className="mt-2 pt-2 border-t border-border/50 animate-fade-in flex items-center justify-between gap-2">
+                <span className="text-xs font-arabic text-primary font-bold">
+                  وضع التحفيظ ({tahfeezSelectedCount} كلمة)
+                </span>
+                <div className="flex items-center gap-1.5">
+                  <button
+                    onClick={clearTahfeezSelection}
+                    className="nav-button h-7 px-2 rounded-full flex items-center gap-1 text-xs font-arabic"
+                    disabled={tahfeezSelectedCount === 0}
+                  >
+                    <X className="w-3 h-3" />
+                    مسح
+                  </button>
+                  <button
+                    onClick={() => navigate('/tahfeez')}
+                    className="control-button h-7 px-3 rounded-full flex items-center gap-1 text-xs font-arabic"
+                  >
+                    <GraduationCap className="w-3 h-3" />
+                    بوابة التحفيظ
+                  </button>
+                </div>
               </div>
             )}
           </div>

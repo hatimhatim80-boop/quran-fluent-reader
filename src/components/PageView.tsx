@@ -4,6 +4,7 @@ import { normalizeArabic } from '@/utils/quranParser';
 import { GhareebWordPopover } from './GhareebWordPopover';
 import { useHighlightOverrideStore } from '@/stores/highlightOverrideStore';
 import { useSettingsStore } from '@/stores/settingsStore';
+import { useTahfeezStore } from '@/stores/tahfeezStore';
 
 interface PageViewProps {
   page: QuranPage;
@@ -72,7 +73,9 @@ export function PageView({
   const containerRef = useRef<HTMLDivElement>(null);
   const lastRenderedKeysRef = useRef<string>('');
   const displayMode = useSettingsStore((s) => s.settings.display?.mode || 'lines15');
-  
+  const tahfeezMode = useTahfeezStore((s) => s.selectionMode);
+  const toggleTahfeezWord = useTahfeezStore((s) => s.toggleWord);
+  const isTahfeezSelected = useTahfeezStore((s) => s.isSelected);
   // Subscribe to highlight overrides for reactivity (read-only, no editing)
   const highlightVersion = useHighlightOverrideStore((s) => s.version);
 
@@ -421,13 +424,14 @@ export function PageView({
             
             const phrase = phraseText.join('');
 
+            const isTSelected = tahfeezMode && isTahfeezSelected(info.word.surahNumber, info.word.verseNumber, info.word.wordIndex, page.pageNumber);
             lineElements.push(
                 <GhareebWordPopover
                   key={`${lineIdx}-phrase-${i}`}
                   word={info.word}
                   index={sequentialIndex}
                   isHighlighted={isHighlighted}
-                  forceOpen={isPlaying && isHighlighted}
+                  forceOpen={!tahfeezMode && isPlaying && isHighlighted}
                   onSelect={onWordClick}
                   containerRef={containerRef}
                   dataAssemblyId={assemblyId}
@@ -435,6 +439,17 @@ export function PageView({
                   dataTokenIndex={i}
                   pageNumber={page.pageNumber}
                   wasSeen={highlightedWordIndex > sequentialIndex}
+                  extraClassName={`${tahfeezMode ? 'tahfeez-selectable' : ''} ${isTSelected ? 'tahfeez-selected' : ''}`}
+                  onExtraClick={tahfeezMode ? (e) => {
+                    e.stopPropagation();
+                    toggleTahfeezWord({
+                      surahNumber: info.word.surahNumber,
+                      ayahNumber: info.word.verseNumber,
+                      wordIndex: info.word.wordIndex,
+                      originalWord: info.word.wordText,
+                      page: page.pageNumber,
+                    });
+                  } : undefined}
                 >
                   {phrase}
                 </GhareebWordPopover>
@@ -443,13 +458,14 @@ export function PageView({
             i = lastPhraseTokenIdx + 1;
             continue;
           } else if (!info.isPartOfPhrase) {
+            const isTSelected2 = tahfeezMode && isTahfeezSelected(info.word.surahNumber, info.word.verseNumber, info.word.wordIndex, page.pageNumber);
             lineElements.push(
                 <GhareebWordPopover
                   key={`${lineIdx}-${i}`}
                   word={info.word}
                   index={sequentialIndex}
                   isHighlighted={isHighlighted}
-                  forceOpen={isPlaying && isHighlighted}
+                  forceOpen={!tahfeezMode && isPlaying && isHighlighted}
                   onSelect={onWordClick}
                   containerRef={containerRef}
                   dataAssemblyId={assemblyId}
@@ -457,6 +473,17 @@ export function PageView({
                   dataTokenIndex={i}
                   pageNumber={page.pageNumber}
                   wasSeen={highlightedWordIndex > sequentialIndex}
+                  extraClassName={`${tahfeezMode ? 'tahfeez-selectable' : ''} ${isTSelected2 ? 'tahfeez-selected' : ''}`}
+                  onExtraClick={tahfeezMode ? (e) => {
+                    e.stopPropagation();
+                    toggleTahfeezWord({
+                      surahNumber: info.word.surahNumber,
+                      ayahNumber: info.word.verseNumber,
+                      wordIndex: info.word.wordIndex,
+                      originalWord: info.word.wordText,
+                      page: page.pageNumber,
+                    });
+                  } : undefined}
                 >
                   {td.token}
                 </GhareebWordPopover>
@@ -467,6 +494,7 @@ export function PageView({
         }
         
         // Normal non-matched word (no override either)
+        const isNonMatchSelected = tahfeezMode && isTahfeezSelected(0, 0, i, page.pageNumber);
         lineElements.push(
           <span 
             key={`${lineIdx}-${i}`}
@@ -474,6 +502,17 @@ export function PageView({
             data-line-index={lineIdx}
             data-token-index={i}
             data-assembly-id={assemblyId}
+            className={`${tahfeezMode ? 'tahfeez-selectable' : ''} ${isNonMatchSelected ? 'tahfeez-selected' : ''}`}
+            onClick={tahfeezMode && !td.isVerseNumber ? (e) => {
+              e.stopPropagation();
+              toggleTahfeezWord({
+                surahNumber: 0,
+                ayahNumber: 0,
+                wordIndex: i,
+                originalWord: td.token,
+                page: page.pageNumber,
+              });
+            } : undefined}
           >
             {td.token}
           </span>
@@ -498,7 +537,7 @@ export function PageView({
     }
 
     return <div className={isLines15 ? 'quran-lines-container' : 'inline'}>{allElements}</div>;
-  }, [page.text, page.pageNumber, ghareebWords, highlightedWordIndex, isPlaying, onWordClick, surahContextByLine, tokenMatchMap, highlightVersion, displayMode]);
+  }, [page.text, page.pageNumber, ghareebWords, highlightedWordIndex, isPlaying, onWordClick, surahContextByLine, tokenMatchMap, highlightVersion, displayMode, tahfeezMode, toggleTahfeezWord, isTahfeezSelected]);
 
   return (
     <div ref={containerRef} className="page-frame p-5 sm:p-8">
