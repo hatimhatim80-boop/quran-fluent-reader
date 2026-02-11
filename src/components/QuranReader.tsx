@@ -10,6 +10,7 @@ import { DiagnosticModeBadge } from './DiagnosticModeActivator';
 import { useSettingsApplier } from '@/hooks/useSettingsApplier';
 import { useDevDebugContextStore } from '@/stores/devDebugContextStore';
 import { useDiagnosticModeStore } from '@/stores/diagnosticModeStore';
+import { useHighlightOverrideStore } from '@/stores/highlightOverrideStore';
 import { Loader2 } from 'lucide-react';
 
 export function QuranReader() {
@@ -32,6 +33,12 @@ export function QuranReader() {
 
   // Apply settings to CSS variables in real-time
   const settings = useSettingsApplier();
+
+  // Clear all highlight overrides on startup (remove old dev debug edits)
+  const clearAllOverrides = useHighlightOverrideStore((s) => s.clearAllOverrides);
+  useEffect(() => {
+    clearAllOverrides();
+  }, [clearAllOverrides]);
 
   // SINGLE SOURCE OF TRUTH: rendered words from PageView
   const [renderedWords, setRenderedWords] = useState<GhareebWord[]>([]);
