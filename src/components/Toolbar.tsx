@@ -1,26 +1,21 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { 
   BookOpen, 
   Rocket, 
   Play,
   Pause,
   Settings2,
-  ArrowDownUp,
   FileText,
-  Wrench,
   Database,
   FolderOpen,
-  Stethoscope,
+  MoreHorizontal,
 } from 'lucide-react';
-import { Link } from 'react-router-dom';
 import { SettingsDialog } from './SettingsDialog';
 import { BuildCenterDialog } from './BuildCenterDialog';
-import { OrderFixerDialog } from './OrderFixerDialog';
 import { FullPageEditorDialog } from './FullPageEditorDialog';
 import { WorkingDataManager } from './WorkingDataManager';
 import { FullFilesViewer } from './FullFilesViewer';
-import { DiagnosticModeActivator, DiagnosticModeOnly } from './DiagnosticModeActivator';
-import { DiagnosticPanel } from './DiagnosticPanel';
+import { DiagnosticModeActivator } from './DiagnosticModeActivator';
 import { GhareebWord, QuranPage } from '@/types/quran';
 
 interface ToolbarProps {
@@ -54,13 +49,11 @@ export function Toolbar({
   onRefreshData,
   onForceRebuild,
 }: ToolbarProps) {
-  const currentPageData = pages.find(p => p.pageNumber === currentPage);
-  const currentPageGhareeb = allWords.filter(w => w.pageNumber === currentPage);
-  const currentRenderedWords = renderedWords.filter(w => w.pageNumber === currentPage);
+  const [showAdminTools, setShowAdminTools] = useState(false);
 
   return (
     <header className="text-center pb-2">
-      {/* Logo & Title - with hidden gesture activation */}
+      {/* Logo & Title */}
       <DiagnosticModeActivator>
         <div className="flex items-center justify-center gap-2 mb-2">
           <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
@@ -76,7 +69,7 @@ export function Toolbar({
         الميسر في غريب القرآن
       </p>
 
-      {/* Single Row Toolbar Icons */}
+      {/* Toolbar Icons */}
       <div className="flex items-center justify-center gap-1 flex-wrap">
         {/* Play/Pause Button */}
         <button
@@ -103,11 +96,11 @@ export function Toolbar({
         {/* Separator */}
         <div className="w-px h-6 bg-border mx-1" />
 
-        {/* Settings (unified - includes fonts, colors, popover) */}
+        {/* Settings */}
         <SettingsDialog>
           <button
             className="nav-button w-9 h-9 rounded-lg flex items-center justify-center"
-            title="الإعدادات (الخطوط، الألوان، النوافذ)"
+            title="الإعدادات"
           >
             <Settings2 className="w-4 h-4" />
           </button>
@@ -116,100 +109,72 @@ export function Toolbar({
         {/* Separator */}
         <div className="w-px h-6 bg-border mx-1" />
 
-        {/* Validation Report / Fix Mismatches */}
-        <Link
-          to="/validation"
-          className="nav-button w-9 h-9 rounded-lg flex items-center justify-center"
-          title="تقرير المطابقة وإصلاح المشاكل"
+        {/* Admin tools toggle */}
+        <button
+          onClick={() => setShowAdminTools(!showAdminTools)}
+          className={`nav-button w-9 h-9 rounded-lg flex items-center justify-center ${showAdminTools ? 'bg-primary/20 border-primary' : ''}`}
+          title="أدوات الإدارة"
         >
-          <Wrench className="w-4 h-4" />
-        </Link>
+          <MoreHorizontal className="w-4 h-4" />
+        </button>
 
-        {/* Full Files Viewer - Shows complete files */}
-        <FullFilesViewer 
-          pages={pages} 
-          allWords={allWords}
-          onRefresh={onRefreshData}
-        >
-          <button
-            className="nav-button w-9 h-9 rounded-lg flex items-center justify-center"
-            title="عرض الملفات الكاملة (القرآن + المعاني)"
-          >
-            <FolderOpen className="w-4 h-4" />
-          </button>
-        </FullFilesViewer>
+        {/* Admin tools - conditionally shown */}
+        {showAdminTools && (
+          <>
+            {/* Full Files Viewer */}
+            <FullFilesViewer 
+              pages={pages} 
+              allWords={allWords}
+              onRefresh={onRefreshData}
+            >
+              <button
+                className="nav-button w-9 h-9 rounded-lg flex items-center justify-center"
+                title="عرض الملفات الكاملة"
+              >
+                <FolderOpen className="w-4 h-4" />
+              </button>
+            </FullFilesViewer>
 
-        {/* Data Manager - For editing overrides */}
-        <WorkingDataManager allWords={allWords}>
-          <button
-            className="nav-button w-9 h-9 rounded-lg flex items-center justify-center"
-            title="مدير التعديلات"
-          >
-            <Database className="w-4 h-4" />
-          </button>
-        </WorkingDataManager>
+            {/* Data Manager */}
+            <WorkingDataManager allWords={allWords}>
+              <button
+                className="nav-button w-9 h-9 rounded-lg flex items-center justify-center"
+                title="مدير التعديلات"
+              >
+                <Database className="w-4 h-4" />
+              </button>
+            </WorkingDataManager>
 
-        {/* Full Page Editor */}
-        <FullPageEditorDialog
-          currentPage={currentPage}
-          pages={pages}
-          pageWords={pageWords}
-          allWords={allWords}
-          renderedWords={renderedWords}
-          onNavigateToPage={onNavigateToPage}
-          onHighlightWord={onHighlightWord}
-          onRefreshData={onRefreshData}
-        >
-          <button
-            className="nav-button w-9 h-9 rounded-lg flex items-center justify-center"
-            title="محرر الصفحات الكامل"
-          >
-            <FileText className="w-4 h-4" />
-          </button>
-        </FullPageEditorDialog>
+            {/* Full Page Editor */}
+            <FullPageEditorDialog
+              currentPage={currentPage}
+              pages={pages}
+              pageWords={pageWords}
+              allWords={allWords}
+              renderedWords={renderedWords}
+              onNavigateToPage={onNavigateToPage}
+              onHighlightWord={onHighlightWord}
+              onRefreshData={onRefreshData}
+            >
+              <button
+                className="nav-button w-9 h-9 rounded-lg flex items-center justify-center"
+                title="محرر الصفحات الكامل"
+              >
+                <FileText className="w-4 h-4" />
+              </button>
+            </FullPageEditorDialog>
 
-        {/* Order Fixer */}
-        <OrderFixerDialog
-          currentPage={currentPage}
-          onNavigateToPage={onNavigateToPage}
-        >
-          <button
-            className="nav-button w-9 h-9 rounded-lg flex items-center justify-center"
-            title="مصحح الترتيب"
-          >
-            <ArrowDownUp className="w-4 h-4" />
-          </button>
-        </OrderFixerDialog>
-
-        {/* Separator */}
-        <div className="w-px h-6 bg-border mx-1" />
-
-        {/* Build Center */}
-        <BuildCenterDialog>
-          <button
-            className="nav-button w-9 h-9 rounded-lg flex items-center justify-center"
-            title="مركز البناء"
-          >
-            <Rocket className="w-4 h-4" />
-          </button>
-        </BuildCenterDialog>
-
-        {/* Diagnostic Panel - Only visible in Diagnostic Mode */}
-        <DiagnosticModeOnly>
-          {currentPageData && (
-            <>
-              <div className="w-px h-6 bg-border mx-1" />
-              <DiagnosticPanel
-                page={currentPageData}
-                pageNumber={currentPage}
-                ghareebWords={currentPageGhareeb}
-                renderedWords={currentRenderedWords}
-                onInvalidateCache={onRefreshData}
-                onForceRebuild={onForceRebuild}
-              />
-            </>
-          )}
-        </DiagnosticModeOnly>
+            {/* Build Center */}
+            <BuildCenterDialog>
+              <button
+                className="nav-button w-9 h-9 rounded-lg flex items-center justify-center"
+                title="مركز البناء"
+              >
+                <Rocket className="w-4 h-4" />
+              </button>
+            </BuildCenterDialog>
+          </>
+        )}
       </div>
     </header>
   );
