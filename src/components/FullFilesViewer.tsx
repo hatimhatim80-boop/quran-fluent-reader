@@ -140,6 +140,7 @@ export function FullFilesViewer({ children, pages, allWords, onRefresh }: FullFi
   // Diagnostics
   const [diagRunning, setDiagRunning] = useState(false);
   const [diagFilter, setDiagFilter] = useState<string>('all');
+  const [diagPage, setDiagPage] = useState(1);
 
   const { userOverrides, addWordOverride, exportOverrides, resetAll } = useDataStore();
   const { corrections, exportCorrections } = useCorrectionsStore();
@@ -260,14 +261,15 @@ export function FullFilesViewer({ children, pages, allWords, onRefresh }: FullFi
       if (sp >= 1 && sp <= 604) { pFrom = sp; pTo = sp; }
     }
 
-    if (pFrom && pTo) result = result.filter(w => w.pageNumber >= pFrom! && w.pageNumber <= pTo!);
-    else if (pFrom) result = result.filter(w => w.pageNumber === pFrom);
-    else if (pTo) result = result.filter(w => w.pageNumber <= pTo!);
-
+    // Surah filter: use surah number directly on words (not page range)
     if (surahFilter !== 'all') {
       const sNum = parseInt(surahFilter);
       result = result.filter(w => w.surahNumber === sNum);
     }
+
+    if (pFrom && pTo) result = result.filter(w => w.pageNumber >= pFrom! && w.pageNumber <= pTo!);
+    else if (pFrom) result = result.filter(w => w.pageNumber === pFrom);
+    else if (pTo) result = result.filter(w => w.pageNumber <= pTo!);
 
     // Verse filter (works with or without surah)
     if (verseFilter.trim()) {
@@ -320,7 +322,16 @@ export function FullFilesViewer({ children, pages, allWords, onRefresh }: FullFi
     return issues;
   }, [allWords, diagRunning]);
 
-  const filteredDiagIssues = useMemo(() => diagFilter === 'all' ? diagnosticIssues : diagnosticIssues.filter(i => i.type === diagFilter), [diagnosticIssues, diagFilter]);
+  const filteredDiagIssues = useMemo(() => {
+    const filtered = diagFilter === 'all' ? diagnosticIssues : diagnosticIssues.filter(i => i.type === diagFilter);
+    return filtered;
+  }, [diagnosticIssues, diagFilter]);
+
+  const totalDiagPages = Math.max(1, Math.ceil(filteredDiagIssues.length / ITEMS_PER_PAGE));
+  const paginatedDiagIssues = useMemo(() => {
+    const start = (diagPage - 1) * ITEMS_PER_PAGE;
+    return filteredDiagIssues.slice(start, start + ITEMS_PER_PAGE);
+  }, [filteredDiagIssues, diagPage]);
 
   const diagStats = useMemo(() => ({
     total: diagnosticIssues.length,
@@ -503,7 +514,7 @@ export function FullFilesViewer({ children, pages, allWords, onRefresh }: FullFi
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>{children}</DialogTrigger>
-      <DialogContent className="max-w-[95vw] w-[95vw] max-h-[95vh] overflow-hidden" dir="rtl">
+      <DialogContent className="max-w-[95vw] w-[95vw] max-h-[95vh] overflow-y-auto" dir="rtl">
         <DialogHeader>
           <DialogTitle className="font-arabic text-xl flex items-center gap-2">
             <Database className="w-5 h-5" />
@@ -706,48 +717,48 @@ export function FullFilesViewer({ children, pages, allWords, onRefresh }: FullFi
           </TabsContent>
 
           {/* Diagnostics Tab */}
-          <TabsContent value="diagnostics" className="flex-1 flex flex-col gap-3 mt-3 min-h-0">
+          <TabsContent value="diagnostics" className="flex-1 flex flex-col gap-2 mt-1 min-h-0">
             {!diagRunning ? (
-              <div className="text-center py-8 space-y-4">
-                <Stethoscope className="w-16 h-16 mx-auto text-muted-foreground/40" />
+              <div className="text-center py-6 space-y-3">
+                <Stethoscope className="w-12 h-12 mx-auto text-muted-foreground/40" />
                 <h3 className="font-arabic font-bold text-lg">فحص تشخيصي شامل للملفات</h3>
                 <p className="font-arabic text-sm text-muted-foreground max-w-md mx-auto">
                   يفحص جميع الكلمات ({allWords.length.toLocaleString()}) للكشف عن: كلمات بدون معنى، تكرارات، نصوص فارغة، أرقام سور أو صفحات خاطئة، معانٍ قصيرة.
                 </p>
-                <Button onClick={() => setDiagRunning(true)} className="font-arabic gap-2">
-                  <Stethoscope className="w-4 h-4" /> بدء الفحص
+                <Button onClick={() => { setDiagRunning(true); setDiagPage(1); setDiagFilter('all'); }} size="lg" className="font-arabic gap-2">
+                  <Stethoscope className="w-5 h-5" /> بدء الفحص
                 </Button>
               </div>
             ) : (
               <>
                 {/* Summary Cards */}
                 <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
-                  <button onClick={() => setDiagFilter('all')}
+                  <button onClick={() => { setDiagFilter('all'); setDiagPage(1); }}
                     className={`p-2 border rounded-lg text-center cursor-pointer transition-colors ${diagFilter === 'all' ? 'border-primary bg-primary/5' : ''}`}>
                     <div className={`text-lg font-bold ${diagStats.total === 0 ? 'text-green-600' : 'text-amber-600'}`}>{diagStats.total}</div>
                     <div className="text-[10px] font-arabic text-muted-foreground">الكل</div>
                   </button>
-                  <button onClick={() => setDiagFilter('missing_meaning')}
+                  <button onClick={() => { setDiagFilter('missing_meaning'); setDiagPage(1); }}
                     className={`p-2 border rounded-lg text-center cursor-pointer transition-colors ${diagFilter === 'missing_meaning' ? 'border-red-500 bg-red-50 dark:bg-red-950' : ''}`}>
                     <div className="text-lg font-bold text-red-600">{diagStats.missingMeaning}</div>
                     <div className="text-[10px] font-arabic text-muted-foreground">بدون معنى</div>
                   </button>
-                  <button onClick={() => setDiagFilter('duplicate')}
+                  <button onClick={() => { setDiagFilter('duplicate'); setDiagPage(1); }}
                     className={`p-2 border rounded-lg text-center cursor-pointer transition-colors ${diagFilter === 'duplicate' ? 'border-amber-500 bg-amber-50 dark:bg-amber-950' : ''}`}>
                     <div className="text-lg font-bold text-amber-600">{diagStats.duplicates}</div>
                     <div className="text-[10px] font-arabic text-muted-foreground">مكررة</div>
                   </button>
-                  <button onClick={() => setDiagFilter('empty_word')}
+                  <button onClick={() => { setDiagFilter('empty_word'); setDiagPage(1); }}
                     className={`p-2 border rounded-lg text-center cursor-pointer transition-colors ${diagFilter === 'empty_word' ? 'border-red-500 bg-red-50 dark:bg-red-950' : ''}`}>
                     <div className="text-lg font-bold text-red-600">{diagStats.emptyWords}</div>
                     <div className="text-[10px] font-arabic text-muted-foreground">نص فارغ</div>
                   </button>
-                  <button onClick={() => setDiagFilter('invalid_page')}
+                  <button onClick={() => { setDiagFilter('invalid_page'); setDiagPage(1); }}
                     className={`p-2 border rounded-lg text-center cursor-pointer transition-colors ${diagFilter === 'invalid_page' ? 'border-red-500 bg-red-50 dark:bg-red-950' : ''}`}>
                     <div className="text-lg font-bold text-red-600">{diagStats.invalidPage + diagStats.invalidSurah}</div>
                     <div className="text-[10px] font-arabic text-muted-foreground">بيانات خاطئة</div>
                   </button>
-                  <button onClick={() => setDiagFilter('short_meaning')}
+                  <button onClick={() => { setDiagFilter('short_meaning'); setDiagPage(1); }}
                     className={`p-2 border rounded-lg text-center cursor-pointer transition-colors ${diagFilter === 'short_meaning' ? 'border-amber-500 bg-amber-50 dark:bg-amber-950' : ''}`}>
                     <div className="text-lg font-bold text-amber-600">{diagStats.shortMeaning}</div>
                     <div className="text-[10px] font-arabic text-muted-foreground">معنى قصير</div>
@@ -755,7 +766,7 @@ export function FullFilesViewer({ children, pages, allWords, onRefresh }: FullFi
                 </div>
 
                 {/* Health Score */}
-                <div className={`p-3 border rounded-lg flex items-center gap-3 ${
+                <div className={`p-2 border rounded-lg flex items-center gap-3 ${
                   diagStats.total === 0 ? 'border-green-300 bg-green-50 dark:bg-green-950'
                   : diagStats.errors > 0 ? 'border-red-300 bg-red-50 dark:bg-red-950'
                   : 'border-amber-300 bg-amber-50 dark:bg-amber-950'
@@ -768,46 +779,51 @@ export function FullFilesViewer({ children, pages, allWords, onRefresh }: FullFi
                       : `${diagStats.errors} خطأ و ${diagStats.warnings} تحذير من أصل ${allWords.length.toLocaleString()} كلمة`}
                   </span>
                   <Button size="sm" variant="ghost" className="mr-auto font-arabic text-xs"
-                    onClick={() => { setDiagRunning(false); setDiagFilter('all'); }}>
+                    onClick={() => { setDiagRunning(false); setDiagFilter('all'); setDiagPage(1); }}>
                     إعادة الفحص
                   </Button>
                 </div>
 
-                {/* Issues List */}
-                {filteredDiagIssues.length > 0 && (
-                  <ScrollArea className="flex-1 border rounded-lg min-h-[280px]">
-                    <Table>
-                      <TableHeader className="sticky top-0 bg-background z-10">
-                        <TableRow>
-                          <TableHead className="font-arabic text-right w-14">النوع</TableHead>
-                          <TableHead className="font-arabic text-right">الوصف</TableHead>
-                          <TableHead className="font-arabic text-right w-14">ص</TableHead>
-                          <TableHead className="w-16"></TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {filteredDiagIssues.slice(0, 200).map((issue, idx) => (
-                          <TableRow key={idx}>
-                            <TableCell>
-                              {issue.severity === 'error' ? <XCircle className="w-4 h-4 text-red-500" /> : <AlertTriangle className="w-4 h-4 text-amber-500" />}
-                            </TableCell>
-                            <TableCell className="font-arabic text-sm">{issue.message}</TableCell>
-                            <TableCell className="text-sm">{issue.word.pageNumber}</TableCell>
-                            <TableCell>
-                              <Button size="sm" variant="ghost" className="h-7 text-xs font-arabic" onClick={() => handleFixIssue(issue)}>
-                                إصلاح
-                              </Button>
-                            </TableCell>
+                {/* Issues List with Pagination */}
+                {filteredDiagIssues.length > 0 ? (
+                  <>
+                    <ScrollArea className="flex-1 border rounded-lg min-h-[300px]">
+                      <Table>
+                        <TableHeader className="sticky top-0 bg-background z-10">
+                          <TableRow>
+                            <TableHead className="font-arabic text-right w-14">النوع</TableHead>
+                            <TableHead className="font-arabic text-right">الوصف</TableHead>
+                            <TableHead className="font-arabic text-right w-14">ص</TableHead>
+                            <TableHead className="w-16"></TableHead>
                           </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                    {filteredDiagIssues.length > 200 && (
-                      <p className="text-xs text-muted-foreground text-center py-2 font-arabic">
-                        يُعرض أول 200 مشكلة من {filteredDiagIssues.length}
-                      </p>
-                    )}
-                  </ScrollArea>
+                        </TableHeader>
+                        <TableBody>
+                          {paginatedDiagIssues.map((issue, idx) => (
+                            <TableRow key={`diag-${diagPage}-${idx}`}>
+                              <TableCell>
+                                {issue.severity === 'error' ? <XCircle className="w-4 h-4 text-red-500" /> : <AlertTriangle className="w-4 h-4 text-amber-500" />}
+                              </TableCell>
+                              <TableCell className="font-arabic text-sm">{issue.message}</TableCell>
+                              <TableCell className="text-sm">{issue.word.pageNumber}</TableCell>
+                              <TableCell>
+                                <Button size="sm" variant="ghost" className="h-7 text-xs font-arabic" onClick={() => handleFixIssue(issue)}>
+                                  إصلاح
+                                </Button>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </ScrollArea>
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-muted-foreground font-arabic">
+                        {filteredDiagIssues.length.toLocaleString()} نتيجة
+                      </span>
+                      <PaginationBar current={diagPage} total={totalDiagPages} onChange={setDiagPage} />
+                    </div>
+                  </>
+                ) : (
+                  <p className="text-center text-sm text-muted-foreground font-arabic py-4">لا توجد مشكلات من هذا النوع</p>
                 )}
               </>
             )}
