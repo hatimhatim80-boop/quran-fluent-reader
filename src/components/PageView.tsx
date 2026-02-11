@@ -125,68 +125,86 @@ export function PageView({
 
     // Sort by word count descending for greedy matching
     const sortedEntries = [...ghareebEntries].sort((a, b) => b.wordCount - a.wordCount);
+
+    // We must run matching passes across the WHOLE page (all lines)
+    // so an earlier loose match can't steal an entry that has a later exact match.
+    // Example: "وَسَعَىٰ" (2:114) contains "وسع" as a substring, but "وَٰسِعٌ" (2:115)
+    // is the true exact match we want to prefer.
     const usedOriginalIndices = new Set<number>();
+    const matchedTokenKeys = new Set<string>(); // `${lineIdx}_${tokenIdx}`
 
-    for (let lineIdx = 0; lineIdx < lines.length; lineIdx++) {
-      const line = lines[lineIdx];
-      if (isSurahHeader(line) || isBismillah(line)) continue;
+    const runMatchPass = (matchPass: 'exact' | 'loose') => {
+      for (let lineIdx = 0; lineIdx < lines.length; lineIdx++) {
+        const line = lines[lineIdx];
+        if (isSurahHeader(line) || isBismillah(line)) continue;
 
-      const localSurah = surahContextByLine[lineIdx] || '';
-      const normalizedLocalSurah = normalizeSurahName(localSurah);
+        const localSurah = surahContextByLine[lineIdx] || '';
+        const normalizedLocalSurah = normalizeSurahName(localSurah);
 
-      // Split line into tokens
-      const tokens = line.split(/(\s+)/);
-      const tokenData = tokens.map((token, idx) => {
-        const isSpace = /^\s+$/.test(token);
-        const cleanToken = token.replace(/[﴿﴾()[\]{}۝۞٭؟،۔ۣۖۗۘۙۚۛۜ۟۠ۡۢۤۥۦۧۨ۩۪ۭ۫۬]/g, '').trim();
-        const isVerseNumber = !isSpace && /^[٠-٩0-9۰-۹]+$/.test(cleanToken);
-        
-        return {
-          token,
-          idx,
-          isSpace,
-          isVerseNumber,
-          normalized: (isSpace || isVerseNumber) ? '' : normalizeArabic(token),
-          matched: false,
-          matchEntry: null as typeof ghareebEntries[0] | null,
-          isPartOfPhrase: false,
-          phraseStart: false,
-          phraseTokens: [] as number[],
-        };
-      });
+        // Split line into tokens
+        const tokens = line.split(/(\s+)/);
+        const tokenData = tokens.map((token, idx) => {
+          const isSpace = /^\s+$/.test(token);
+          const cleanToken = token
+            .replace(/[﴿﴾()[\]{}۝۞٭؟،۔ۣۖۗۘۙۚۛۜ۟۠ۡۢۤۥۦۧۨ۩۪ۭ۫۬]/g, '')
+            .trim();
+          const isVerseNumber = !isSpace && /^[٠-٩0-9۰-۹]+$/.test(cleanToken);
 
-      // Two-pass matching: exact matches first, then loose matches
-      // This prevents "وسعى" from stealing the match meant for "واسع"
-      for (const matchPass of ['exact', 'loose'] as const) {
+          return {
+            token,
+            idx,
+            isSpace,
+            isVerseNumber,
+            normalized: isSpace || isVerseNumber ? '' : normalizeArabic(token),
+          };
+        });
+
         for (const entry of sortedEntries) {
           if (usedOriginalIndices.has(entry.originalIndex)) continue;
           if (entry.words.length === 0) continue;
 
-          const surahMatch = normalizedLocalSurah === '' || 
-            entry.normalizedSurah === normalizedLocalSurah || 
-            entry.normalizedSurah.includes(normalizedLocalSurah) || 
+          const surahMatch =
+            normalizedLocalSurah === '' ||
+            entry.normalizedSurah === normalizedLocalSurah ||
+            entry.normalizedSurah.includes(normalizedLocalSurah) ||
             normalizedLocalSurah.includes(entry.normalizedSurah);
           if (!surahMatch) continue;
 
           for (let i = 0; i < tokenData.length; i++) {
-            if (tokenData[i].isSpace || tokenData[i].isVerseNumber || tokenData[i].matched) continue;
-            
+            const startKey = `${lineIdx}_${i}`;
+            if (
+              tokenData[i].isSpace ||
+              tokenData[i].isVerseNumber ||
+              matchedTokenKeys.has(startKey)
+            ) {
+              continue;
+            }
+
             let phraseWordIdx = 0;
-            let matchedTokens: number[] = [];
+            const matchedTokens: number[] = [];
             let j = i;
-            
+
             while (j < tokenData.length && phraseWordIdx < entry.words.length) {
-              if (tokenData[j].isSpace) { j++; continue; }
-              if (tokenData[j].isVerseNumber) { j++; continue; }
-              if (tokenData[j].matched) break;
-              
+              const key = `${lineIdx}_${j}`;
+
+              if (tokenData[j].isSpace) {
+                j++;
+                continue;
+              }
+              if (tokenData[j].isVerseNumber) {
+                j++;
+                continue;
+              }
+              if (matchedTokenKeys.has(key)) break;
+
               const tokenNorm = tokenData[j].normalized;
               const phraseWord = entry.words[phraseWordIdx];
-              
+
               const isExact = tokenNorm === phraseWord;
               const isLoose = !isExact && isStrictMatch(tokenNorm, phraseWord);
-              
-              if (matchPass === 'exact' ? isExact : (isExact || isLoose)) {
+
+              const ok = matchPass === 'exact' ? isExact : isExact || isLoose;
+              if (ok) {
                 matchedTokens.push(j);
                 phraseWordIdx++;
                 j++;
@@ -194,17 +212,12 @@ export function PageView({
                 break;
               }
             }
-            
+
             if (phraseWordIdx === entry.words.length && matchedTokens.length > 0) {
-              matchedTokens.forEach((tokenIdx, idx) => {
-                tokenData[tokenIdx].matched = true;
-                tokenData[tokenIdx].matchEntry = entry;
-                tokenData[tokenIdx].isPartOfPhrase = matchedTokens.length > 1;
-                tokenData[tokenIdx].phraseStart = idx === 0;
-                tokenData[tokenIdx].phraseTokens = matchedTokens;
-              });
+              // Reserve tokens globally so later passes/lines can't reuse them
+              matchedTokens.forEach((tokIdx) => matchedTokenKeys.add(`${lineIdx}_${tokIdx}`));
               usedOriginalIndices.add(entry.originalIndex);
-              
+
               matched.push({
                 word: entry.original,
                 originalIndex: entry.originalIndex,
@@ -219,7 +232,12 @@ export function PageView({
           }
         }
       }
-    }
+    };
+
+    // Pass 1: exact matches across whole page
+    runMatchPass('exact');
+    // Pass 2: loose matches for remaining entries
+    runMatchPass('loose');
 
     // Sort by reading order: line index first, then token index within line
     matched.sort((a, b) => a.lineIdx !== b.lineIdx ? a.lineIdx - b.lineIdx : a.tokenIdx - b.tokenIdx);
