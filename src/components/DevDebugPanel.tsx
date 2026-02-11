@@ -380,6 +380,16 @@ function InspectTabContent({
 }: InspectTabContentProps) {
   const [showMeaningDialog, setShowMeaningDialog] = useState(false);
 
+  // Combine all ghareeb words from all pages for the meaning assign dialog
+  const allGhareebWords = useMemo(() => {
+    if (!ghareebPageMap || ghareebPageMap.size === 0) return ghareebWords;
+    const all: GhareebWord[] = [];
+    for (const words of ghareebPageMap.values()) {
+      all.push(...words);
+    }
+    return all.length > 0 ? all : ghareebWords;
+  }, [ghareebPageMap, ghareebWords]);
+
   const setHighlightOverride = useHighlightOverrideStore((s) => s.setOverride);
   const removeHighlightOverride = useHighlightOverrideStore((s) => s.removeOverride);
   const getHighlightOverride = useHighlightOverrideStore((s) => s.getOverride);
@@ -834,7 +844,7 @@ function InspectTabContent({
         surahNumber={inspectedWord?.surah}
         verseNumber={inspectedWord?.ayah}
         wordIndex={inspectedWord?.wordIndex}
-        ghareebWords={ghareebWords}
+        ghareebWords={allGhareebWords}
         onAssignMeaning={isCurrentlyHighlighted ? handleUpdateMeaning : handleMeaningAssign}
         onCancel={() => setShowMeaningDialog(false)}
       />
