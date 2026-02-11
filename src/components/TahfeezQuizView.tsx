@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useEffect, useState } from 'react';
+import React, { useMemo } from 'react';
 import { QuranPage } from '@/types/quran';
 import { normalizeArabic } from '@/utils/quranParser';
 import { useSettingsStore } from '@/stores/settingsStore';
@@ -11,9 +11,9 @@ interface TahfeezQuizViewProps {
   autoBlankMode: 'beginning' | 'middle' | 'end' | 'full-ayah' | 'full-page' | 'ayah-count';
   blankCount: number;
   ayahCount: number;
-  revealedIndices: Set<string>;
-  timerDone: boolean;
-  revealMode: 'all' | 'gradual';
+  activeBlankKey: string | null;       // Currently active blank (highlighted)
+  revealedKeys: Set<string>;           // Already revealed keys
+  showAll: boolean;                     // Show all at once
 }
 
 function isSurahHeader(line: string): boolean {
@@ -26,8 +26,6 @@ function isBismillah(line: string): boolean {
 
 interface TokenInfo {
   text: string;
-  isSpace: boolean;
-  isVerseNumber: boolean;
   lineIdx: number;
   tokenIdx: number;
   key: string;
@@ -40,17 +38,14 @@ export function TahfeezQuizView({
   autoBlankMode,
   blankCount,
   ayahCount,
-  revealedIndices,
-  timerDone,
-  revealMode,
+  activeBlankKey,
+  revealedKeys,
+  showAll,
 }: TahfeezQuizViewProps) {
   const displayMode = useSettingsStore((s) => s.settings.display?.mode || 'lines15');
   const isLines15 = displayMode === 'lines15';
-  const containerRef = useRef<HTMLDivElement>(null);
-  const [measuredWidths, setMeasuredWidths] = useState<Map<string, number>>(new Map());
-  const measurePhase = useRef(true);
 
-  // Parse all tokens
+  // Parse all word tokens (excluding headers, bismillah, spaces, verse numbers)
   const { lines, allWordTokens } = useMemo(() => {
     const lines = page.text.split('\n');
     const allWordTokens: TokenInfo[] = [];
@@ -65,8 +60,9 @@ export function TahfeezQuizView({
         const isVerseNumber = !isSpace && /^[٠-٩0-9۰-۹]+$/.test(clean);
         if (!isSpace && !isVerseNumber) {
           allWordTokens.push({
-            text: t, isSpace: false, isVerseNumber: false,
-            lineIdx, tokenIdx,
+            text: t,
+            lineIdx,
+            tokenIdx,
             key: `${lineIdx}_${tokenIdx}`,
           });
         }
@@ -75,12 +71,11 @@ export function TahfeezQuizView({
     return { lines, allWordTokens };
   }, [page.text]);
 
-  // Determine blanked keys
+  // Determine which keys should be blanked
   const blankedKeys = useMemo((): Set<string> => {
     const keys = new Set<string>();
 
     if (quizSource === 'custom') {
-      // Match stored items by page
       for (const item of storedItems) {
         if (item.data.page !== page.pageNumber) continue;
         if (item.type === 'word') {
@@ -92,7 +87,6 @@ export function TahfeezQuizView({
             }
           }
         } else {
-          // Phrase: blank all tokens in range on same line
           const p = item.data;
           for (const tok of allWordTokens) {
             if (tok.lineIdx === p.lineIdx && tok.tokenIdx >= p.startWordIndex && tok.tokenIdx <= p.endWordIndex) {
@@ -106,7 +100,7 @@ export function TahfeezQuizView({
       if (autoBlankMode === 'full-page') {
         allWordTokens.forEach(t => keys.add(t.key));
       } else {
-        // Group tokens into ayahs
+        // Group tokens into ayahs by verse numbers
         const ayahGroups: TokenInfo[][] = [];
         let currentGroup: TokenInfo[] = [];
         const rawLines = page.text.split('\n');
@@ -127,8 +121,7 @@ export function TahfeezQuizView({
               }
             } else {
               currentGroup.push({
-                text: t, isSpace: false, isVerseNumber: false,
-                lineIdx, tokenIdx, key: `${lineIdx}_${tokenIdx}`,
+                text: t, lineIdx, tokenIdx, key: `${lineIdx}_${tokenIdx}`,
               });
             }
           }
@@ -136,7 +129,6 @@ export function TahfeezQuizView({
         if (currentGroup.length > 0) ayahGroups.push(currentGroup);
 
         if (autoBlankMode === 'ayah-count') {
-          // Blank N full ayahs
           const count = Math.min(ayahCount, ayahGroups.length);
           for (let a = 0; a < count; a++) {
             ayahGroups[a].forEach(t => keys.add(t.key));
@@ -161,23 +153,17 @@ export function TahfeezQuizView({
     return keys;
   }, [quizSource, storedItems, autoBlankMode, blankCount, ayahCount, page.pageNumber, allWordTokens, page.text]);
 
-  // Measure word widths on first render, then switch to blank mode
-  useEffect(() => {
-    if (!containerRef.current || blankedKeys.size === 0) return;
-    measurePhase.current = true;
-    // Use rAF to measure after paint
-    requestAnimationFrame(() => {
-      const widths = new Map<string, number>();
-      containerRef.current?.querySelectorAll<HTMLElement>('[data-tahfeez-key]').forEach(el => {
-        const key = el.getAttribute('data-tahfeez-key')!;
-        if (blankedKeys.has(key)) {
-          widths.set(key, el.offsetWidth);
-        }
-      });
-      setMeasuredWidths(widths);
-      measurePhase.current = false;
-    });
-  }, [blankedKeys, page.text]);
+  // Export blanked keys list (ordered) for parent to use in sequencing
+  // This is used by the parent component via a ref or callback
+  const blankedKeysList = useMemo(() => {
+    return allWordTokens.filter(t => blankedKeys.has(t.key)).map(t => t.key);
+  }, [allWordTokens, blankedKeys]);
+
+  // Attach to DOM for parent to read
+  React.useEffect(() => {
+    const el = document.getElementById('tahfeez-blanked-keys');
+    if (el) el.setAttribute('data-keys', JSON.stringify(blankedKeysList));
+  }, [blankedKeysList]);
 
   // Render
   const renderedContent = useMemo(() => {
@@ -220,32 +206,41 @@ export function TahfeezQuizView({
 
         const key = `${lineIdx}_${tokenIdx}`;
         const isBlanked = blankedKeys.has(key);
-        const isRevealed = revealedIndices.has(key);
-        const showBlank = isBlanked && !isRevealed && !timerDone;
-        const showRevealedStyle = isBlanked && (isRevealed || (timerDone && revealMode === 'all'));
-        const measuredWidth = measuredWidths.get(key);
+        const isActive = activeBlankKey === key;
+        const isRevealed = revealedKeys.has(key);
 
-        lineElements.push(
-          <span
-            key={`${lineIdx}-${tokenIdx}`}
-            data-tahfeez-key={key}
-            className="inline-block"
-            style={showBlank && measuredWidth ? { width: `${measuredWidth}px` } : undefined}
-          >
-            {showBlank ? (
-              <span
-                className="tahfeez-blank"
-                style={{ width: measuredWidth ? `${measuredWidth}px` : `${Math.max(t.length * 0.7, 2)}em` }}
-              >
-                {t}
-              </span>
-            ) : (
-              <span className={showRevealedStyle ? 'text-primary font-bold transition-colors duration-500' : ''}>
-                {t}
-              </span>
-            )}
-          </span>
-        );
+        // Determine display state
+        const shouldHide = isBlanked && !isRevealed && !showAll && !isActive;
+        const shouldShowAsActive = isBlanked && isActive && !isRevealed && !showAll;
+        const shouldShowAsRevealed = isBlanked && (isRevealed || showAll);
+
+        if (shouldHide) {
+          // Hidden: show dotted blank placeholder
+          lineElements.push(
+            <span key={`${lineIdx}-${tokenIdx}`} className="inline-block">
+              <span className="tahfeez-blank">{t}</span>
+            </span>
+          );
+        } else if (shouldShowAsActive) {
+          // Active: about to be revealed, highlight with accent color
+          lineElements.push(
+            <span key={`${lineIdx}-${tokenIdx}`} className="inline-block">
+              <span className="tahfeez-active-blank">{t}</span>
+            </span>
+          );
+        } else if (shouldShowAsRevealed) {
+          // Revealed: show with success color
+          lineElements.push(
+            <span key={`${lineIdx}-${tokenIdx}`} className="inline-block">
+              <span className="tahfeez-revealed">{t}</span>
+            </span>
+          );
+        } else {
+          // Normal (not blanked)
+          lineElements.push(
+            <span key={`${lineIdx}-${tokenIdx}`}>{t}</span>
+          );
+        }
       }
 
       if (isLines15) {
@@ -256,10 +251,11 @@ export function TahfeezQuizView({
     }
 
     return <div className={isLines15 ? 'quran-lines-container' : 'inline'}>{elements}</div>;
-  }, [lines, blankedKeys, revealedIndices, timerDone, revealMode, isLines15, measuredWidths]);
+  }, [lines, blankedKeys, activeBlankKey, revealedKeys, showAll, isLines15]);
 
   return (
-    <div className="page-frame p-5 sm:p-8" ref={containerRef}>
+    <div className="page-frame p-5 sm:p-8">
+      <div id="tahfeez-blanked-keys" className="hidden" />
       <div className="flex justify-center mb-5">
         <span className="bg-secondary/80 text-secondary-foreground px-4 py-1.5 rounded-full text-sm font-arabic shadow-sm">
           صفحة {page.pageNumber}
