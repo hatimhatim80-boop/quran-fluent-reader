@@ -96,7 +96,7 @@ export function QuranIndex({ currentPage, onNavigateToPage, onClose }: QuranInde
   }, [currentPage]);
 
   return (
-    <div className="h-full flex flex-col bg-card" dir="rtl">
+    <div className="flex flex-col h-full bg-card" dir="rtl">
       {/* Header */}
       <div className="p-3 border-b border-border flex items-center justify-between">
         <h2 className="font-arabic font-bold text-foreground text-sm">فهرس المصحف</h2>
@@ -167,7 +167,7 @@ export function QuranIndex({ currentPage, onNavigateToPage, onClose }: QuranInde
 
         {/* Juz Tab */}
         <TabsContent value="juz" className="flex-1 min-h-0 mt-0 px-3 pb-2">
-          <ScrollArea className="h-full mt-2">
+          <ScrollArea className="h-full">
             <div className="space-y-0.5">
               {JUZ_DATA.map(juz => (
                 <button
@@ -198,7 +198,7 @@ export function QuranIndex({ currentPage, onNavigateToPage, onClose }: QuranInde
 
         {/* Hizb Tab */}
         <TabsContent value="hizb" className="flex-1 min-h-0 mt-0 px-3 pb-2">
-          <ScrollArea className="h-full mt-2">
+          <ScrollArea className="h-full">
             <div className="space-y-0.5">
               {HIZB_DATA.map(hizb => (
                 <button

@@ -2,7 +2,7 @@
 @tailwind components;
 @tailwind utilities;
 
-@import url('https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Noto+Naskh+Arabic:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Noto+Naskh+Arabic:wght@400;500;600;700&family=Scheherazade+New:wght@400;500;600;700&display=swap');
 
 @layer base {
   :root {
@@ -224,7 +224,7 @@
     z-index: 9999;
     animation: popover-in 0.18s ease-out;
     transform-origin: bottom center;
-    font-family: 'Amiri', 'Noto Naskh Arabic', serif;
+    font-family: var(--quran-font-family, 'Amiri', 'Noto Naskh Arabic', serif);
     direction: rtl;
     pointer-events: auto;
   }
@@ -267,7 +267,7 @@
     color: hsl(var(--foreground));
     line-height: 1.4;
     margin-bottom: 10px;
-    font-family: 'Amiri', 'Noto Naskh Arabic', serif;
+    font-family: var(--quran-font-family, 'Amiri', 'Noto Naskh Arabic', serif);
   }
 
   /* Meaning display - single instance, readable */
@@ -281,7 +281,8 @@
     white-space: normal;
     overflow: visible;
     text-overflow: unset;
-    font-family: 'Amiri', 'Noto Naskh Arabic', serif;
+    font-family: var(--quran-font-family, 'Amiri', 'Noto Naskh Arabic', serif);
+    font-size: var(--meaning-font-size, 1.15rem);
     opacity: 0.95;
   }
 

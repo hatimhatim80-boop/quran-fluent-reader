@@ -236,6 +236,59 @@ export function SettingsDialog({ children }: SettingsDialogProps) {
                 كلمة عادية <span className="ghareeb-word ghareeb-word--active">الرَّحْمَٰنِ</span> كلمة عادية
               </div>
             </div>
+
+            {/* Popover Color Presets */}
+            <div className="space-y-3">
+              <Label className="font-arabic font-bold">لون إطار المعنى</Label>
+              <div className="grid grid-cols-3 gap-2">
+                {[
+                  { label: 'كريمي', bg: '38 50% 97%', text: '25 30% 18%', border: '35 25% 88%' },
+                  { label: 'أبيض', bg: '0 0% 100%', text: '0 0% 15%', border: '0 0% 88%' },
+                  { label: 'ذهبي', bg: '42 60% 94%', text: '30 40% 15%', border: '40 40% 78%' },
+                  { label: 'أزرق فاتح', bg: '210 40% 96%', text: '210 30% 18%', border: '210 25% 85%' },
+                  { label: 'أخضر فاتح', bg: '140 30% 96%', text: '140 25% 18%', border: '140 20% 85%' },
+                  { label: 'داكن', bg: '25 18% 12%', text: '38 30% 90%', border: '25 15% 25%' },
+                ].map((preset) => (
+                  <button
+                    key={preset.label}
+                    onClick={() => setColors({ 
+                      popoverBackground: preset.bg, 
+                      popoverText: preset.text,
+                      popoverBorder: preset.border 
+                    })}
+                    className={`p-2 rounded-lg border transition-all ${
+                      settings.colors.popoverBackground === preset.bg
+                        ? 'border-primary ring-2 ring-primary/20'
+                        : 'border-border hover:border-muted-foreground/50'
+                    }`}
+                  >
+                    <div 
+                      className="w-full h-8 rounded-md mb-1.5 border"
+                      style={{ 
+                        background: `hsl(${preset.bg})`,
+                        borderColor: `hsl(${preset.border})`,
+                      }} 
+                    />
+                    <span className="font-arabic text-[11px]">{preset.label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Live Popover Preview */}
+            <div className="relative p-6 rounded-lg border bg-muted/30">
+              <div 
+                className="mx-auto border rounded-lg text-center p-3"
+                style={{
+                  background: `hsl(${settings.colors.popoverBackground})`,
+                  borderColor: `hsl(${settings.colors.popoverBorder})`,
+                  maxWidth: 200,
+                }}
+              >
+                <div className="font-arabic text-lg font-bold" style={{ color: `hsl(${settings.colors.popoverText})` }}>وَقَارًا</div>
+                <div className="font-arabic text-sm mt-1" style={{ color: `hsl(${settings.colors.popoverText})`, opacity: 0.85 }}>عَظَمَةً وَهَيْبَةً</div>
+              </div>
+            </div>
             
             <div className="p-3 rounded-lg bg-muted/30 text-sm font-arabic text-muted-foreground">
               <Check className="w-4 h-4 inline ml-1 text-green-600" />
