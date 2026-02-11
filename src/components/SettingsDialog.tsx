@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Type, Palette, LayoutGrid, Settings2, RotateCcw, Download, Upload, Zap, Bug, Check } from 'lucide-react';
+import { Type, Palette, LayoutGrid, Settings2, RotateCcw, Download, Upload, Zap, Bug, Check, Rows3 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Slider } from '@/components/ui/slider';
@@ -15,10 +15,12 @@ interface SettingsDialogProps {
 }
 
 const FONT_OPTIONS = [
-  { value: 'amiri', label: 'Amiri', preview: 'الرَّحْمَٰنِ' },
-  { value: 'notoNaskh', label: 'Noto Naskh Arabic', preview: 'الرَّحْمَٰنِ' },
-  { value: 'scheherazade', label: 'Scheherazade New', preview: 'الرَّحْمَٰنِ' },
-  { value: 'uthman', label: 'KFGQPC Uthmanic', preview: 'الرَّحْمَٰنِ' },
+  { value: 'uthman', label: 'خط حفص العثماني', preview: 'بِسۡمِ ٱللَّهِ', family: "'KFGQPC HAFS Uthmanic Script', serif" },
+  { value: 'uthmanicHafs', label: 'خط حفص الذكي', preview: 'بِسۡمِ ٱللَّهِ', family: "'UthmanicHafs', serif" },
+  { value: 'amiriQuran', label: 'Amiri Quran', preview: 'بِسۡمِ ٱللَّهِ', family: "'Amiri Quran', serif" },
+  { value: 'amiri', label: 'Amiri', preview: 'بِسۡمِ ٱللَّهِ', family: "'Amiri', serif" },
+  { value: 'scheherazade', label: 'Scheherazade New', preview: 'بِسۡمِ ٱللَّهِ', family: "'Scheherazade New', serif" },
+  { value: 'notoNaskh', label: 'Noto Naskh Arabic', preview: 'بِسۡمِ ٱللَّهِ', family: "'Noto Naskh Arabic', serif" },
 ];
 
 const INTENSITY_OPTIONS = [
@@ -41,6 +43,7 @@ export function SettingsDialog({ children }: SettingsDialogProps) {
     setColors, 
     setPopover, 
     setAutoplay, 
+    setDisplay,
     setDebugMode,
     resetSettings, 
     exportSettings, 
@@ -101,10 +104,14 @@ export function SettingsDialog({ children }: SettingsDialogProps) {
         </DialogHeader>
 
         <Tabs defaultValue="fonts" className="mt-4">
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-5">
             <TabsTrigger value="fonts" className="gap-1 text-xs">
               <Type className="w-4 h-4" />
               الخطوط
+            </TabsTrigger>
+            <TabsTrigger value="display" className="gap-1 text-xs">
+              <Rows3 className="w-4 h-4" />
+              العرض
             </TabsTrigger>
             <TabsTrigger value="colors" className="gap-1 text-xs">
               <Palette className="w-4 h-4" />
@@ -136,7 +143,7 @@ export function SettingsDialog({ children }: SettingsDialogProps) {
                     }`}
                   >
                     <span className="text-xs text-muted-foreground">{opt.label}</span>
-                    <span className="block text-xl font-arabic mt-1">{opt.preview}</span>
+                    <span className="block text-xl mt-1" style={{ fontFamily: opt.family }}>{opt.preview}</span>
                   </button>
                 ))}
               </div>
@@ -204,6 +211,44 @@ export function SettingsDialog({ children }: SettingsDialogProps) {
               }}
             >
               <p className="text-center">بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ</p>
+            </div>
+          </TabsContent>
+
+          {/* Display Tab */}
+          <TabsContent value="display" className="space-y-5 mt-4">
+            <div className="space-y-3">
+              <Label className="font-arabic font-bold">نمط عرض الصفحة</Label>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  onClick={() => setDisplay({ mode: 'lines15' })}
+                  className={`p-4 rounded-lg border text-center transition-all ${
+                    settings.display?.mode === 'lines15'
+                      ? 'border-primary bg-primary/10 ring-2 ring-primary/20'
+                      : 'border-border hover:border-muted-foreground/50'
+                  }`}
+                >
+                  <Rows3 className="w-6 h-6 mx-auto mb-2 text-primary" />
+                  <span className="font-arabic text-sm font-bold block">مصحف المدينة</span>
+                  <span className="font-arabic text-[10px] text-muted-foreground">15 سطراً في الصفحة</span>
+                </button>
+                <button
+                  onClick={() => setDisplay({ mode: 'continuous' })}
+                  className={`p-4 rounded-lg border text-center transition-all ${
+                    settings.display?.mode === 'continuous'
+                      ? 'border-primary bg-primary/10 ring-2 ring-primary/20'
+                      : 'border-border hover:border-muted-foreground/50'
+                  }`}
+                >
+                  <Type className="w-6 h-6 mx-auto mb-2 text-primary" />
+                  <span className="font-arabic text-sm font-bold block">تدفق مستمر</span>
+                  <span className="font-arabic text-[10px] text-muted-foreground">نص متصل بدون فواصل</span>
+                </button>
+              </div>
+            </div>
+            
+            <div className="p-3 rounded-lg bg-muted/30 text-sm font-arabic text-muted-foreground">
+              <Check className="w-4 h-4 inline ml-1 text-green-600" />
+              وضع &quot;مصحف المدينة&quot; يعرض كل سطر منفصلاً بمحاذاة مطابقة للمصحف المطبوع
             </div>
           </TabsContent>
 
