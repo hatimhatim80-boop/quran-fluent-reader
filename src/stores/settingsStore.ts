@@ -3,11 +3,16 @@ import { persist } from 'zustand/middleware';
 
 // Font settings
 export interface FontSettings {
-  fontFamily: 'amiri' | 'notoNaskh' | 'scheherazade' | 'uthman';
+  fontFamily: 'amiri' | 'amiriQuran' | 'notoNaskh' | 'scheherazade' | 'uthman' | 'uthmanicHafs';
   quranFontSize: number; // rem
   meaningFontSize: number; // rem
   lineHeight: number;
   fontWeight: 400 | 500 | 600 | 700;
+}
+
+// Display settings
+export interface DisplaySettings {
+  mode: 'continuous' | 'lines15'; // continuous flow or 15-line Madina style
 }
 
 // Color settings
@@ -43,13 +48,14 @@ export interface AppSettings {
   colors: ColorSettings;
   popover: PopoverSettings;
   autoplay: AutoplaySettings;
+  display: DisplaySettings;
   debugMode: boolean;
 }
 
 // Default settings
 const defaultSettings: AppSettings = {
   fonts: {
-    fontFamily: 'amiri',
+    fontFamily: 'uthman',
     quranFontSize: 1.75,
     meaningFontSize: 1.15,
     lineHeight: 1.9,
@@ -76,6 +82,9 @@ const defaultSettings: AppSettings = {
     autoAdvancePage: false,
     pauseOnMissingMeaning: false,
   },
+  display: {
+    mode: 'lines15',
+  },
   debugMode: false,
 };
 
@@ -85,6 +94,7 @@ interface SettingsState {
   setColors: (colors: Partial<ColorSettings>) => void;
   setPopover: (popover: Partial<PopoverSettings>) => void;
   setAutoplay: (autoplay: Partial<AutoplaySettings>) => void;
+  setDisplay: (display: Partial<DisplaySettings>) => void;
   setDebugMode: (enabled: boolean) => void;
   resetSettings: () => void;
   exportSettings: () => string;
@@ -125,6 +135,14 @@ export const useSettingsStore = create<SettingsState>()(
           settings: {
             ...state.settings,
             autoplay: { ...state.settings.autoplay, ...autoplay },
+          },
+        })),
+
+      setDisplay: (display) =>
+        set((state) => ({
+          settings: {
+            ...state.settings,
+            display: { ...state.settings.display, ...display },
           },
         })),
 

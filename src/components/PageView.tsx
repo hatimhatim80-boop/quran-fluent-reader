@@ -3,6 +3,7 @@ import { QuranPage, GhareebWord } from '@/types/quran';
 import { normalizeArabic } from '@/utils/quranParser';
 import { GhareebWordPopover } from './GhareebWordPopover';
 import { useHighlightOverrideStore } from '@/stores/highlightOverrideStore';
+import { useSettingsStore } from '@/stores/settingsStore';
 
 interface PageViewProps {
   page: QuranPage;
@@ -70,6 +71,7 @@ export function PageView({
 }: PageViewProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const lastRenderedKeysRef = useRef<string>('');
+  const displayMode = useSettingsStore((s) => s.settings.display?.mode || 'lines15');
   
   // Subscribe to highlight overrides for reactivity (read-only, no editing)
   const highlightVersion = useHighlightOverrideStore((s) => s.version);
@@ -300,10 +302,10 @@ export function PageView({
   const renderedContent = useMemo(() => {
     if (!page.text) return null;
 
-
+    const isLines15 = displayMode === 'lines15';
     const lines = page.text.split('\n');
     
-    // If no ghareeb words, render continuous text
+    // If no ghareeb words, render text
     if (ghareebWords.length === 0) {
       const elements: React.ReactNode[] = [];
       
@@ -324,12 +326,17 @@ export function PageView({
               {line}
             </div>
           );
+        } else if (isLines15) {
+          // Line-by-line mode
+          if (line.trim()) {
+            elements.push(<div key={idx} className="quran-line">{line}</div>);
+          }
         } else {
           elements.push(<span key={idx}>{line} </span>);
         }
       }
       
-      return <div className="inline">{elements}</div>;
+      return <div className={isLines15 ? 'quran-lines-container' : 'inline'}>{elements}</div>;
     }
 
     const allElements: React.ReactNode[] = [];
@@ -474,16 +481,24 @@ export function PageView({
         i++;
       }
 
-      // Add line elements as inline span (continuous text flow)
-      allElements.push(
-        <span key={`line-${lineIdx}`}>
-          {lineElements}{' '}
-        </span>
-      );
+      // Add line elements - block for lines15 mode, inline for continuous
+      if (isLines15) {
+        allElements.push(
+          <div key={`line-${lineIdx}`} className="quran-line">
+            {lineElements}
+          </div>
+        );
+      } else {
+        allElements.push(
+          <span key={`line-${lineIdx}`}>
+            {lineElements}{' '}
+          </span>
+        );
+      }
     }
 
-    return <div className="inline">{allElements}</div>;
-  }, [page.text, page.pageNumber, ghareebWords, highlightedWordIndex, isPlaying, onWordClick, surahContextByLine, tokenMatchMap, highlightVersion]);
+    return <div className={isLines15 ? 'quran-lines-container' : 'inline'}>{allElements}</div>;
+  }, [page.text, page.pageNumber, ghareebWords, highlightedWordIndex, isPlaying, onWordClick, surahContextByLine, tokenMatchMap, highlightVersion, displayMode]);
 
   return (
     <div ref={containerRef} className="page-frame p-5 sm:p-8">

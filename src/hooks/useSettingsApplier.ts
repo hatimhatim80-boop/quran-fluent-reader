@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { useSettingsStore } from '@/stores/settingsStore';
+import '@fontsource/amiri-quran/400.css';
 
 /**
  * Hook that applies settings to CSS custom properties in real-time.
@@ -14,12 +15,14 @@ export function useSettingsApplier() {
     // === FONT SETTINGS ===
     const fontMap: Record<string, string> = {
       amiri: "'Amiri', 'Noto Naskh Arabic', serif",
+      amiriQuran: "'Amiri Quran', 'Amiri', serif",
       notoNaskh: "'Noto Naskh Arabic', 'Amiri', serif",
       scheherazade: "'Scheherazade New', 'Amiri', serif",
-      uthman: "'KFGQPC Uthmanic Script HAFS', 'Amiri', serif",
+      uthman: "'KFGQPC HAFS Uthmanic Script', 'Amiri', serif",
+      uthmanicHafs: "'UthmanicHafs', 'KFGQPC HAFS Uthmanic Script', 'Amiri', serif",
     };
 
-    root.style.setProperty('--quran-font-family', fontMap[settings.fonts.fontFamily] || fontMap.amiri);
+    root.style.setProperty('--quran-font-family', fontMap[settings.fonts.fontFamily] || fontMap.uthman);
     root.style.setProperty('--quran-font-size', `${settings.fonts.quranFontSize}rem`);
     root.style.setProperty('--meaning-font-size', `${settings.fonts.meaningFontSize}rem`);
     root.style.setProperty('--quran-line-height', String(settings.fonts.lineHeight));
