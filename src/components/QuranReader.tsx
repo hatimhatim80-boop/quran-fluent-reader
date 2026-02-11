@@ -12,7 +12,7 @@ import { useSettingsApplier } from '@/hooks/useSettingsApplier';
 import { useDevDebugContextStore } from '@/stores/devDebugContextStore';
 import { useDiagnosticModeStore } from '@/stores/diagnosticModeStore';
 import { useHighlightOverrideStore } from '@/stores/highlightOverrideStore';
-import { Loader2, List, SlidersHorizontal, ChevronRight, ChevronLeft } from 'lucide-react';
+import { Loader2, List, SlidersHorizontal, ChevronRight, ChevronLeft, Maximize2, Minimize2 } from 'lucide-react';
 
 export function QuranReader() {
   const {
@@ -28,6 +28,7 @@ export function QuranReader() {
   const [renderedWords, setRenderedWords] = useState<GhareebWord[]>([]);
   const [showIndex, setShowIndex] = useState(false);
   const [showControls, setShowControls] = useState(false);
+  const [fullscreen, setFullscreen] = useState(false);
 
   const pageData = getCurrentPageData();
   const pageWords = getPageGhareebWords;
@@ -106,40 +107,27 @@ export function QuranReader() {
       {/* Main Content */}
       <div className="flex-1 min-w-0 flex flex-col">
         {/* Top Bar */}
-        <div className="sticky top-0 z-30 bg-background/95 backdrop-blur-md border-b border-border/50">
-          <div className="max-w-2xl mx-auto px-3 py-2">
-            <div className="flex items-center gap-2">
-              {/* Index toggle */}
-              <button
-                onClick={() => setShowIndex(!showIndex)}
-                className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 transition-all ${
-                  showIndex ? 'bg-primary text-primary-foreground' : 'nav-button'
-                }`}
-                title="فهرس المصحف"
-              >
-                <List className="w-4 h-4" />
-              </button>
-
-              <div className="flex-1">
-                <Toolbar
-                  isPlaying={isPlaying}
-                  onPlayPause={handlePlayPause}
-                  wordsCount={renderedWords.length}
-                  currentWordIndex={currentWordIndex}
-                  currentPage={currentPage}
-                  pages={pages}
-                  pageWords={renderedWords}
-                  allWords={allGhareebWords}
-                  renderedWords={renderedWords}
-                  onNavigateToPage={goToPage}
-                  onHighlightWord={jumpTo}
-                  onRefreshData={() => window.location.reload()}
-                  onForceRebuild={() => window.location.reload()}
-                />
-              </div>
+        {!fullscreen && (
+          <div className="sticky top-0 z-30 bg-background/95 backdrop-blur-md border-b border-border/50">
+            <div className="max-w-2xl mx-auto px-3 py-2">
+              <Toolbar
+                isPlaying={isPlaying}
+                onPlayPause={handlePlayPause}
+                wordsCount={renderedWords.length}
+                currentWordIndex={currentWordIndex}
+                currentPage={currentPage}
+                pages={pages}
+                pageWords={renderedWords}
+                allWords={allGhareebWords}
+                renderedWords={renderedWords}
+                onNavigateToPage={goToPage}
+                onHighlightWord={jumpTo}
+                onRefreshData={() => window.location.reload()}
+                onForceRebuild={() => window.location.reload()}
+              />
             </div>
           </div>
-        </div>
+        )}
 
         {/* Page Content */}
         <div className="flex-1 max-w-2xl mx-auto w-full px-3 py-4 sm:py-6">
@@ -163,10 +151,10 @@ export function QuranReader() {
         </div>
 
         {/* Bottom Navigation Bar */}
-        <div className="sticky bottom-0 z-30 bg-background/95 backdrop-blur-md border-t border-border/50">
+        <div className={`sticky bottom-0 z-30 bg-background/95 backdrop-blur-md border-t border-border/50 transition-all ${fullscreen ? 'opacity-0 hover:opacity-100 focus-within:opacity-100' : ''}`}>
           <div className="max-w-2xl mx-auto px-3 py-2">
             {/* Page navigation - always visible */}
-            <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center justify-between gap-1">
               <button
                 onClick={prevPage}
                 disabled={currentPage <= 1}
@@ -176,7 +164,18 @@ export function QuranReader() {
                 <ChevronRight className="w-5 h-5" />
               </button>
 
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5">
+                {/* Index toggle */}
+                <button
+                  onClick={() => setShowIndex(!showIndex)}
+                  className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${
+                    showIndex ? 'bg-primary text-primary-foreground' : 'nav-button'
+                  }`}
+                  title="فهرس المصحف"
+                >
+                  <List className="w-3.5 h-3.5" />
+                </button>
+
                 {/* Controls toggle */}
                 <button
                   onClick={() => setShowControls(!showControls)}
@@ -193,6 +192,17 @@ export function QuranReader() {
                   <span className="font-arabic text-sm font-bold text-foreground">{currentPage}</span>
                   <span className="text-muted-foreground text-[10px] font-arabic">/ {totalPages}</span>
                 </div>
+
+                {/* Fullscreen toggle */}
+                <button
+                  onClick={() => setFullscreen(!fullscreen)}
+                  className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${
+                    fullscreen ? 'bg-primary text-primary-foreground' : 'nav-button'
+                  }`}
+                  title={fullscreen ? 'إظهار الأشرطة' : 'وضع القراءة'}
+                >
+                  {fullscreen ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
+                </button>
               </div>
 
               <button
@@ -226,9 +236,11 @@ export function QuranReader() {
         </div>
 
         {/* Footer */}
-        <div className="text-center text-[9px] text-muted-foreground/50 font-arabic py-1">
-          يُحفظ تقدمك تلقائياً
-        </div>
+        {!fullscreen && (
+          <div className="text-center text-[9px] text-muted-foreground/50 font-arabic py-1">
+            يُحفظ تقدمك تلقائياً
+          </div>
+        )}
       </div>
     </div>
   );
