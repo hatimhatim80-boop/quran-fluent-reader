@@ -121,6 +121,8 @@ export function FullFilesViewer({ children, pages, allWords, onRefresh }: FullFi
   const [searchQuery, setSearchQuery] = useState('');
   const [pageFrom, setPageFrom] = useState('');
   const [pageTo, setPageTo] = useState('');
+  const [singlePage, setSinglePage] = useState('');
+  const [verseFilter, setVerseFilter] = useState('');
   const [surahFilter, setSurahFilter] = useState<string>('all');
   const [browsePage, setBrowsePage] = useState(1);
   const [copied, setCopied] = useState(false);
@@ -195,6 +197,12 @@ export function FullFilesViewer({ children, pages, allWords, onRefresh }: FullFi
     let pTo = pageTo ? parseInt(pageTo) : null;
     const query = searchQuery.trim();
 
+    // Single page takes priority
+    if (singlePage) {
+      const sp = parseInt(singlePage);
+      if (sp >= 1 && sp <= 604) { pFrom = sp; pTo = sp; }
+    }
+
     // Apply surah filter by mapping to page range
     if (surahFilter !== 'all') {
       const sNum = parseInt(surahFilter);
@@ -234,7 +242,7 @@ export function FullFilesViewer({ children, pages, allWords, onRefresh }: FullFi
       }
     }
     return filtered;
-  }, [fullQuranText, pageFrom, pageTo, searchQuery, surahFilter]);
+  }, [fullQuranText, pageFrom, pageTo, singlePage, searchQuery, surahFilter]);
 
   const quranResultCount = useMemo(() => {
     return filteredQuranLines.filter(l => !l.startsWith('=== صفحة') && l.trim()).length;
@@ -243,16 +251,28 @@ export function FullFilesViewer({ children, pages, allWords, onRefresh }: FullFi
   // ---- Flexible search for meanings (structured) ----
   const filteredMeaningsWords = useMemo(() => {
     let result = [...allWords];
-    const pFrom = pageFrom ? parseInt(pageFrom) : null;
-    const pTo = pageTo ? parseInt(pageTo) : null;
+    let pFrom = pageFrom ? parseInt(pageFrom) : null;
+    let pTo = pageTo ? parseInt(pageTo) : null;
 
-    if (pFrom && pTo) result = result.filter(w => w.pageNumber >= pFrom && w.pageNumber <= pTo);
+    // Single page takes priority
+    if (singlePage) {
+      const sp = parseInt(singlePage);
+      if (sp >= 1 && sp <= 604) { pFrom = sp; pTo = sp; }
+    }
+
+    if (pFrom && pTo) result = result.filter(w => w.pageNumber >= pFrom! && w.pageNumber <= pTo!);
     else if (pFrom) result = result.filter(w => w.pageNumber === pFrom);
-    else if (pTo) result = result.filter(w => w.pageNumber <= pTo);
+    else if (pTo) result = result.filter(w => w.pageNumber <= pTo!);
 
     if (surahFilter !== 'all') {
       const sNum = parseInt(surahFilter);
       result = result.filter(w => w.surahNumber === sNum);
+    }
+
+    // Verse filter (works with or without surah)
+    if (verseFilter.trim()) {
+      const vNum = parseInt(verseFilter);
+      if (!isNaN(vNum)) result = result.filter(w => w.verseNumber === vNum);
     }
 
     if (searchQuery.trim()) {
@@ -263,7 +283,7 @@ export function FullFilesViewer({ children, pages, allWords, onRefresh }: FullFi
     }
 
     return result.sort((a, b) => a.pageNumber !== b.pageNumber ? a.pageNumber - b.pageNumber : a.order - b.order);
-  }, [allWords, pageFrom, pageTo, surahFilter, searchQuery]);
+  }, [allWords, pageFrom, pageTo, singlePage, surahFilter, verseFilter, searchQuery]);
 
   const totalMeaningsPages = Math.max(1, Math.ceil(filteredMeaningsWords.length / ITEMS_PER_PAGE));
   const paginatedMeaningsWords = useMemo(() => {
@@ -272,7 +292,7 @@ export function FullFilesViewer({ children, pages, allWords, onRefresh }: FullFi
   }, [filteredMeaningsWords, browsePage]);
 
   const handleSearchChange = useCallback((val: string) => { setSearchQuery(val); setBrowsePage(1); }, []);
-  const clearFilters = useCallback(() => { setSearchQuery(''); setPageFrom(''); setPageTo(''); setSurahFilter('all'); setBrowsePage(1); }, []);
+  const clearFilters = useCallback(() => { setSearchQuery(''); setPageFrom(''); setPageTo(''); setSinglePage(''); setVerseFilter(''); setSurahFilter('all'); setBrowsePage(1); }, []);
 
   // ---- Diagnostics ----
   const diagnosticIssues = useMemo((): DiagnosticIssue[] => {
@@ -403,7 +423,7 @@ export function FullFilesViewer({ children, pages, allWords, onRefresh }: FullFi
     input.click();
   };
 
-  const hasFilters = searchQuery || pageFrom || pageTo || surahFilter !== 'all';
+  const hasFilters = searchQuery || pageFrom || pageTo || singlePage || verseFilter || surahFilter !== 'all';
   const rawLinesCount = rawMeaningsFile ? rawMeaningsFile.split('\n').filter(l => l.trim() && !l.startsWith('#')).length : 0;
 
   const stats = {
@@ -417,19 +437,22 @@ export function FullFilesViewer({ children, pages, allWords, onRefresh }: FullFi
   // ---- Shared Search Bar ----
   const SearchBar = () => (
     <div className="space-y-2">
-      <div className="flex gap-2 flex-wrap">
+      <div className="flex gap-2 flex-wrap items-center">
         <div className="relative flex-1 min-w-[160px]">
           <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input value={searchQuery} onChange={(e) => handleSearchChange(e.target.value)}
             placeholder="بحث بالكلمة أو المعنى أو السورة..." className="pr-10 font-arabic" />
         </div>
+        <Input type="number" min={1} max={604} value={singlePage}
+          onChange={e => { setSinglePage(e.target.value); setPageFrom(''); setPageTo(''); setBrowsePage(1); }}
+          placeholder="صفحة" className="w-20 text-center" />
         <div className="flex gap-1 items-center">
           <Input type="number" min={1} max={604} value={pageFrom}
-            onChange={e => { setPageFrom(e.target.value); setBrowsePage(1); }}
+            onChange={e => { setPageFrom(e.target.value); setSinglePage(''); setBrowsePage(1); }}
             placeholder="من ص" className="w-20 text-center" />
           <span className="text-muted-foreground text-xs">–</span>
           <Input type="number" min={1} max={604} value={pageTo}
-            onChange={e => { setPageTo(e.target.value); setBrowsePage(1); }}
+            onChange={e => { setPageTo(e.target.value); setSinglePage(''); setBrowsePage(1); }}
             placeholder="إلى ص" className="w-20 text-center" />
         </div>
         <Select value={surahFilter} onValueChange={v => { setSurahFilter(v); setBrowsePage(1); }}>
@@ -443,6 +466,9 @@ export function FullFilesViewer({ children, pages, allWords, onRefresh }: FullFi
             ))}
           </SelectContent>
         </Select>
+        <Input type="number" min={1} max={286} value={verseFilter}
+          onChange={e => { setVerseFilter(e.target.value); setBrowsePage(1); }}
+          placeholder="آية" className="w-20 text-center" />
       </div>
       {hasFilters && (
         <div className="flex items-center gap-2">
@@ -477,7 +503,7 @@ export function FullFilesViewer({ children, pages, allWords, onRefresh }: FullFi
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>{children}</DialogTrigger>
-      <DialogContent className="max-w-6xl max-h-[95vh] overflow-hidden" dir="rtl">
+      <DialogContent className="max-w-[95vw] w-[95vw] max-h-[95vh] overflow-hidden" dir="rtl">
         <DialogHeader>
           <DialogTitle className="font-arabic text-xl flex items-center gap-2">
             <Database className="w-5 h-5" />
@@ -547,12 +573,12 @@ export function FullFilesViewer({ children, pages, allWords, onRefresh }: FullFi
                 </>
               )}
             </div>
-            <ScrollArea className="flex-1 border rounded-lg min-h-[400px]">
+            <ScrollArea className="flex-1 border rounded-lg min-h-[500px]">
               {editingQuran ? (
                 <Textarea value={quranFullText} onChange={(e) => setQuranFullText(e.target.value)}
-                  className="min-h-[500px] font-arabic text-lg leading-loose p-4 border-0 resize-none" dir="rtl" />
+                  className="min-h-[600px] w-full font-arabic text-lg leading-loose p-6 border-0 resize-y" dir="rtl" />
               ) : (
-                <pre className="p-4 font-arabic text-lg leading-loose whitespace-pre-wrap" dir="rtl">
+                <pre className="p-6 font-arabic text-lg leading-loose whitespace-pre-wrap" dir="rtl">
                   {filteredQuranLines.join('\n') || 'لا توجد بيانات'}
                 </pre>
               )}
@@ -592,9 +618,9 @@ export function FullFilesViewer({ children, pages, allWords, onRefresh }: FullFi
             </div>
 
             {editingMeanings ? (
-              <ScrollArea className="flex-1 border rounded-lg min-h-[400px]">
+              <ScrollArea className="flex-1 border rounded-lg min-h-[500px]">
                 <Textarea value={meaningsFullText} onChange={(e) => setMeaningsFullText(e.target.value)}
-                  className="min-h-[500px] font-arabic text-sm leading-relaxed p-4 border-0 resize-none" dir="rtl" />
+                  className="min-h-[600px] w-full font-arabic text-sm leading-relaxed p-6 border-0 resize-y" dir="rtl" />
               </ScrollArea>
             ) : isLoadingRaw ? (
               <div className="flex items-center justify-center h-[400px]">
@@ -603,13 +629,13 @@ export function FullFilesViewer({ children, pages, allWords, onRefresh }: FullFi
               </div>
             ) : (
               <>
-                <ScrollArea className="flex-1 border rounded-lg min-h-[300px]">
+                <ScrollArea className="flex-1 border rounded-lg min-h-[400px]">
                   <Table>
                     <TableHeader className="sticky top-0 bg-background z-10">
                       <TableRow>
                         <TableHead className="font-arabic text-right w-14">ص</TableHead>
                         <TableHead className="font-arabic text-right">الكلمة</TableHead>
-                        <TableHead className="font-arabic text-right">المعنى</TableHead>
+                        <TableHead className="font-arabic text-right min-w-[250px]">المعنى</TableHead>
                         <TableHead className="font-arabic text-right w-20">الموقع</TableHead>
                         <TableHead className="font-arabic text-right w-24">السورة</TableHead>
                       </TableRow>
@@ -619,21 +645,21 @@ export function FullFilesViewer({ children, pages, allWords, onRefresh }: FullFi
                         <TableRow key={`${word.uniqueKey}-${idx}`}>
                           <TableCell>
                             <button className="text-sm text-primary hover:underline cursor-pointer"
-                              onClick={() => { setPageFrom(String(word.pageNumber)); setPageTo(String(word.pageNumber)); setBrowsePage(1); }}>
+                              onClick={() => { setSinglePage(String(word.pageNumber)); setPageFrom(''); setPageTo(''); setBrowsePage(1); }}>
                               {word.pageNumber}
                             </button>
                           </TableCell>
                           <TableCell className="font-arabic font-semibold">{word.wordText}</TableCell>
-                          <TableCell className="font-arabic text-sm max-w-[200px] truncate">{word.meaning}</TableCell>
+                          <TableCell className="font-arabic text-sm">{word.meaning}</TableCell>
                           <TableCell>
                             <button className="text-xs text-primary hover:underline cursor-pointer"
-                              onClick={() => { setPageFrom(String(word.pageNumber)); setPageTo(String(word.pageNumber)); setSearchQuery(`${word.verseNumber}﴾`); setBrowsePage(1); setActiveTab('quran'); }}>
+                              onClick={() => { setSurahFilter(String(word.surahNumber)); setVerseFilter(String(word.verseNumber)); setSinglePage(''); setPageFrom(''); setPageTo(''); setBrowsePage(1); }}>
                               {word.surahNumber}:{word.verseNumber}
                             </button>
                           </TableCell>
                           <TableCell>
                             <button className="font-arabic text-xs text-primary hover:underline cursor-pointer"
-                              onClick={() => { setSurahFilter(String(word.surahNumber)); setBrowsePage(1); }}>
+                              onClick={() => { setSurahFilter(String(word.surahNumber)); setVerseFilter(''); setSinglePage(''); setPageFrom(''); setPageTo(''); setSearchQuery(''); setBrowsePage(1); }}>
                               {word.surahName}
                             </button>
                           </TableCell>
