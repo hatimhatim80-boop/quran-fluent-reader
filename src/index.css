@@ -146,10 +146,16 @@
   }
 
   .quran-line {
-    text-align: right;
+    text-align: justify;
+    text-align-last: justify;
+    text-justify: inter-word;
     direction: rtl;
     min-height: 1.5em;
     line-height: var(--quran-line-height, 1.9);
+  }
+
+  .quran-line:last-child {
+    text-align-last: right;
   }
 
   /* Verse number styling */
