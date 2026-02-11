@@ -19,6 +19,8 @@ interface GhareebWordPopoverProps {
   dataTokenIndex?: number;
   pageNumber?: number;
   wasSeen?: boolean;
+  extraClassName?: string;
+  onExtraClick?: (e: React.MouseEvent) => void;
 }
 
 export function GhareebWordPopover({
@@ -34,6 +36,8 @@ export function GhareebWordPopover({
   dataTokenIndex,
   pageNumber,
   wasSeen = false,
+  extraClassName,
+  onExtraClick,
 }: GhareebWordPopoverProps) {
   const [isManualOpen, setIsManualOpen] = useState(false);
   const [position, setPosition] = useState(null);
@@ -220,6 +224,7 @@ export function GhareebWordPopover({
     "ghareeb-word",
     isHighlighted ? "ghareeb-word--active" : "",
     wasSeen && !isHighlighted ? "ghareeb-word--seen" : "",
+    extraClassName || "",
   ]
     .filter(Boolean)
     .join(" ");
@@ -237,7 +242,7 @@ export function GhareebWordPopover({
         data-assembly-id={dataAssemblyId}
         data-line-index={dataLineIndex}
         data-token-index={dataTokenIndex}
-        onClick={handleClick}
+        onClick={onExtraClick || handleClick}
       >
         {children}
       </span>
