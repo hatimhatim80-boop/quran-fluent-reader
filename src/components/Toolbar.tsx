@@ -52,100 +52,80 @@ export function Toolbar({
   const [showAdminTools, setShowAdminTools] = useState(false);
 
   return (
-    <header className="text-center pb-2">
-      {/* Logo & Title */}
+    <header className="pb-1">
+      {/* Title */}
       <DiagnosticModeActivator>
-        <div className="flex items-center justify-center gap-2 mb-2">
-          <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
-            <BookOpen className="w-4 h-4 text-primary" />
+        <div className="flex items-center justify-center gap-2 mb-1">
+          <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center">
+            <BookOpen className="w-3.5 h-3.5 text-primary" />
           </div>
-          <h1 className="text-xl sm:text-2xl font-bold font-arabic text-foreground">
+          <h1 className="text-lg font-bold font-arabic text-foreground">
             القرآن الكريم
           </h1>
         </div>
       </DiagnosticModeActivator>
       
-      <p className="text-xs text-muted-foreground font-arabic mb-3">
+      <p className="text-[11px] text-muted-foreground font-arabic mb-2 text-center">
         الميسر في غريب القرآن
       </p>
 
-      {/* Toolbar Icons */}
-      <div className="flex items-center justify-center gap-1 flex-wrap">
-        {/* Play/Pause Button */}
+      {/* Compact toolbar row */}
+      <div className="flex items-center justify-center gap-1.5">
+        {/* Play/Pause */}
         <button
           type="button"
-          className={`nav-button w-9 h-9 rounded-lg ${isPlaying ? 'bg-primary/20 border-primary' : ''}`}
-          aria-pressed={isPlaying}
+          className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${
+            isPlaying 
+              ? 'bg-primary text-primary-foreground shadow-md' 
+              : 'nav-button'
+          }`}
           onClick={onPlayPause}
           title={isPlaying ? 'إيقاف مؤقت' : 'تشغيل'}
         >
-          {isPlaying ? (
-            <Pause className="w-4 h-4" />
-          ) : (
-            <Play className="w-4 h-4 mr-[-2px]" />
-          )}
+          {isPlaying ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5 mr-[-1px]" />}
         </button>
 
-        {/* Status badge */}
+        {/* Word counter */}
         {(isPlaying || currentWordIndex >= 0) && wordsCount > 0 && (
-          <span className="text-xs font-arabic text-muted-foreground bg-muted/50 px-2 py-1 rounded-md whitespace-nowrap">
-            {currentWordIndex + 1} / {wordsCount}
+          <span className="text-[10px] font-arabic text-muted-foreground bg-muted/60 px-2 py-0.5 rounded-full">
+            {currentWordIndex + 1}/{wordsCount}
           </span>
         )}
 
-        {/* Separator */}
-        <div className="w-px h-6 bg-border mx-1" />
+        <div className="w-px h-5 bg-border mx-0.5" />
 
         {/* Settings */}
         <SettingsDialog>
-          <button
-            className="nav-button w-9 h-9 rounded-lg flex items-center justify-center"
-            title="الإعدادات"
-          >
-            <Settings2 className="w-4 h-4" />
+          <button className="nav-button w-8 h-8 rounded-full flex items-center justify-center" title="الإعدادات">
+            <Settings2 className="w-3.5 h-3.5" />
           </button>
         </SettingsDialog>
 
-        {/* Separator */}
-        <div className="w-px h-6 bg-border mx-1" />
-
-        {/* Admin tools toggle */}
+        {/* Admin toggle */}
         <button
           onClick={() => setShowAdminTools(!showAdminTools)}
-          className={`nav-button w-9 h-9 rounded-lg flex items-center justify-center ${showAdminTools ? 'bg-primary/20 border-primary' : ''}`}
+          className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${
+            showAdminTools ? 'bg-primary/15 border border-primary/30' : 'nav-button'
+          }`}
           title="أدوات الإدارة"
         >
-          <MoreHorizontal className="w-4 h-4" />
+          <MoreHorizontal className="w-3.5 h-3.5" />
         </button>
 
-        {/* Admin tools - conditionally shown */}
         {showAdminTools && (
           <>
-            {/* Full Files Viewer */}
-            <FullFilesViewer 
-              pages={pages} 
-              allWords={allWords}
-              onRefresh={onRefreshData}
-            >
-              <button
-                className="nav-button w-9 h-9 rounded-lg flex items-center justify-center"
-                title="عرض الملفات الكاملة"
-              >
-                <FolderOpen className="w-4 h-4" />
+            <FullFilesViewer pages={pages} allWords={allWords} onRefresh={onRefreshData}>
+              <button className="nav-button w-8 h-8 rounded-full flex items-center justify-center" title="عرض الملفات">
+                <FolderOpen className="w-3.5 h-3.5" />
               </button>
             </FullFilesViewer>
 
-            {/* Data Manager */}
             <WorkingDataManager allWords={allWords}>
-              <button
-                className="nav-button w-9 h-9 rounded-lg flex items-center justify-center"
-                title="مدير التعديلات"
-              >
-                <Database className="w-4 h-4" />
+              <button className="nav-button w-8 h-8 rounded-full flex items-center justify-center" title="مدير التعديلات">
+                <Database className="w-3.5 h-3.5" />
               </button>
             </WorkingDataManager>
 
-            {/* Full Page Editor */}
             <FullPageEditorDialog
               currentPage={currentPage}
               pages={pages}
@@ -156,21 +136,14 @@ export function Toolbar({
               onHighlightWord={onHighlightWord}
               onRefreshData={onRefreshData}
             >
-              <button
-                className="nav-button w-9 h-9 rounded-lg flex items-center justify-center"
-                title="محرر الصفحات الكامل"
-              >
-                <FileText className="w-4 h-4" />
+              <button className="nav-button w-8 h-8 rounded-full flex items-center justify-center" title="محرر الصفحات">
+                <FileText className="w-3.5 h-3.5" />
               </button>
             </FullPageEditorDialog>
 
-            {/* Build Center */}
             <BuildCenterDialog>
-              <button
-                className="nav-button w-9 h-9 rounded-lg flex items-center justify-center"
-                title="مركز البناء"
-              >
-                <Rocket className="w-4 h-4" />
+              <button className="nav-button w-8 h-8 rounded-full flex items-center justify-center" title="مركز البناء">
+                <Rocket className="w-3.5 h-3.5" />
               </button>
             </BuildCenterDialog>
           </>
