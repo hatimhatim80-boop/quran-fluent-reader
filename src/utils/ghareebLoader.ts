@@ -2,44 +2,6 @@ import { GhareebWord } from '@/types/quran';
 import { normalizeArabic } from './quranParser';
 import { loadTanzilPageIndex, getPageForAyah } from './tanzilPageIndex';
 
-// Map of surah names to numbers
-const surahNameToNumber: Record<string, number> = {
-  'الفاتحة': 1, 'البقرة': 2, 'آل عمران': 3, 'النساء': 4, 'المائدة': 5,
-  'الأنعام': 6, 'الأعراف': 7, 'الأنفال': 8, 'التوبة': 9, 'يونس': 10,
-  'هود': 11, 'يوسف': 12, 'الرعد': 13, 'إبراهيم': 14, 'الحجر': 15,
-  'النحل': 16, 'الإسراء': 17, 'الكهف': 18, 'مريم': 19, 'طه': 20,
-  'الأنبياء': 21, 'الحج': 22, 'المؤمنون': 23, 'النور': 24, 'الفرقان': 25,
-  'الشعراء': 26, 'النمل': 27, 'القصص': 28, 'العنكبوت': 29, 'الروم': 30,
-  'لقمان': 31, 'السجدة': 32, 'الأحزاب': 33, 'سبإ': 34, 'فاطر': 35,
-  'يس': 36, 'الصافات': 37, 'ص': 38, 'الزمر': 39, 'غافر': 40,
-  'فصلت': 41, 'الشورى': 42, 'الزخرف': 43, 'الدخان': 44, 'الجاثية': 45,
-  'الأحقاف': 46, 'محمد': 47, 'الفتح': 48, 'الحجرات': 49, 'ق': 50,
-  'الذاريات': 51, 'الطور': 52, 'النجم': 53, 'القمر': 54, 'الرحمن': 55,
-  'الواقعة': 56, 'الحديد': 57, 'المجادلة': 58, 'الحشر': 59, 'الممتحنة': 60,
-  'الصف': 61, 'الجمعة': 62, 'المنافقون': 63, 'التغابن': 64, 'الطلاق': 65,
-  'التحريم': 66, 'الملك': 67, 'القلم': 68, 'الحاقة': 69, 'المعارج': 70,
-  'نوح': 71, 'الجن': 72, 'المزمل': 73, 'المدثر': 74, 'القيامة': 75,
-  'الإنسان': 76, 'المرسلات': 77,
-  // dataset variant spelling
-  'النبأ': 78, 'النبإ': 78,
-  'النازعات': 79, 'عبس': 80,
-  'التكوير': 81, 'الانفطار': 82, 'المطففين': 83, 'الانشقاق': 84, 'البروج': 85,
-  'الطارق': 86, 'الأعلى': 87, 'الغاشية': 88, 'الفجر': 89, 'البلد': 90,
-  'الشمس': 91, 'الليل': 92, 'الضحى': 93, 'الشرح': 94, 'التين': 95,
-  'العلق': 96, 'القدر': 97, 'البينة': 98, 'الزلزلة': 99, 'العاديات': 100,
-  'القارعة': 101, 'التكاثر': 102, 'العصر': 103, 'الهمزة': 104, 'الفيل': 105,
-  'قريش': 106, 'الماعون': 107, 'الكوثر': 108, 'الكافرون': 109, 'النصر': 110,
-  'المسد': 111, 'الإخلاص': 112, 'الفلق': 113, 'الناس': 114,
-};
-
-/**
- * Extract the word from brackets ﴿...﴾
- */
-function extractWordFromBrackets(text: string): string {
-  const match = text.match(/﴿([^﴾]+)﴾/);
-  return match?.[1]?.trim() || '';
-}
-
 /**
  * Convert Arabic numerals to JavaScript numbers
  */
@@ -52,92 +14,106 @@ function parseArabicNumber(str: string): number {
   return parseInt(converted, 10);
 }
 
-// Store all ghareeb words indexed by Tanzil page number
-let ghareebByTanzilPage: Map<number, GhareebWord[]> = new Map();
-
 /**
- * Load ghareeb words from the new TXT file format
- * Format: ﴿word﴾ TAB surahName TAB verseNumber TAB meaning TAB tags
+ * Load ghareeb words from the website TXT format.
+ * 
+ * Format:
+ * - Surah headers: سورة NAME (NUMBER) ﴿verse text﴾ [ref] N- ﴿word﴾: meaning
+ * - Verse blocks: ﴿verse text﴾ [ref] N- ﴿word﴾: meaning
+ * - Word defs with verse: N- ﴿word﴾: meaning
+ * - Word defs without verse: ﴿word﴾: meaning (inherits previous verse)
+ * - Page numbers: standalone Arabic numeral
  */
 export async function loadGhareebData(): Promise<Map<number, GhareebWord[]>> {
-  // Load page index first
   const pageIndex = await loadTanzilPageIndex();
-  
+
   const response = await fetch('/data/ghareeb-words.txt');
   const text = await response.text();
-  
-  ghareebByTanzilPage = new Map();
+
+  const result = new Map<number, GhareebWord[]>();
+  let currentSurah = '';
+  let currentSurahNumber = 0;
+  let currentVerse = 0;
   let totalWords = 0;
-  
-  // Track word indices within (surah, ayah) for unique keys
   const wordIndexCounters = new Map<string, number>();
-  
+
   const lines = text.split('\n');
-  
+
   for (const line of lines) {
-    // Skip empty lines and metadata lines starting with #
-    if (!line.trim() || line.startsWith('#')) continue;
-    
-    // Split by tab
-    const parts = line.split('\t');
-    if (parts.length < 4) continue;
-    
-    const rawWord = parts[0];
-    const surahName = parts[1]?.trim() || '';
-    const verseStr = parts[2]?.trim() || '';
-    const meaning = parts[3]?.trim() || '';
-    
-    // Extract word from brackets
-    const wordText = extractWordFromBrackets(rawWord);
-    if (!wordText) continue;
-    
-    // Get surah number
-    const surahNumber = surahNameToNumber[surahName];
-    if (!surahNumber) {
-      console.warn(`Unknown surah: ${surahName}`);
-      continue;
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+
+    // Page number: standalone Arabic numeral — skip
+    if (/^[٠-٩]+$/.test(trimmed)) continue;
+
+    // Surah header: سورة NAME (NUMBER)
+    const surahMatch = trimmed.match(/^سورة\s+(.+?)\s*\(([٠-٩]+)\)/);
+    if (surahMatch) {
+      currentSurah = surahMatch[1].trim();
+      currentSurahNumber = parseArabicNumber(surahMatch[2]);
     }
-    
-    // Parse verse number (Arabic numerals)
-    const verseNumber = parseArabicNumber(verseStr);
-    if (isNaN(verseNumber)) continue;
-    
-    // Calculate the correct page using Tanzil's page index
-    const correctPage = getPageForAyah(surahNumber, verseNumber, pageIndex);
-    
-    
-    // Stable wordIndex within (surah, ayah)
-    const counterKey = `${surahNumber}_${verseNumber}`;
-    const wordIndex = (wordIndexCounters.get(counterKey) ?? 0) + 1;
-    wordIndexCounters.set(counterKey, wordIndex);
-    
-    // Stable unique key
-    const uniqueKey = `${surahNumber}_${verseNumber}_${wordIndex}`;
-    
-    const ghareebWord: GhareebWord = {
-      pageNumber: correctPage,
-      wordText,
-      meaning,
-      surahName,
-      surahNumber,
-      verseNumber,
-      wordIndex,
-      order: 0,
-      uniqueKey,
-    };
-    
-    // Add to the correct page
-    if (!ghareebByTanzilPage.has(correctPage)) {
-      ghareebByTanzilPage.set(correctPage, []);
+
+    // Determine the part of the line that may contain word definitions.
+    // If the line contains a verse reference block like [البقرة: ١-٧],
+    // word definitions appear AFTER the closing ']'.
+    let searchText = trimmed;
+    const refMatch = trimmed.match(/\]\s*/);
+    if (refMatch && trimmed.includes('[')) {
+      const refEnd = trimmed.indexOf(']');
+      // Only strip if the ﴿ for verse text appears BEFORE the ]
+      // (i.e., this line has a verse block, not just a word def with ] in meaning)
+      const firstOrnament = trimmed.indexOf('﴿');
+      if (firstOrnament < refEnd) {
+        searchText = trimmed.substring(refEnd + 1).trim();
+      }
     }
-    const pageWords = ghareebByTanzilPage.get(correctPage)!;
-    ghareebWord.order = pageWords.length;
-    pageWords.push(ghareebWord);
-    totalWords++;
+
+    // Check for verse number prefix: N- ﴿
+    const versePrefix = searchText.match(/^([٠-٩]+)-\s*/);
+    if (versePrefix) {
+      currentVerse = parseArabicNumber(versePrefix[1]);
+      searchText = searchText.substring(versePrefix[0].length);
+    }
+
+    // Extract word definition: ﴿word﴾: meaning  OR  ﴿word﴾: meaning
+    const wordMatch = searchText.match(/^﴿([^﴾]+)﴾[:\s]\s*(.+)/);
+    if (wordMatch && currentSurahNumber > 0 && currentVerse > 0) {
+      const wordText = wordMatch[1].trim();
+      const meaning = wordMatch[2].trim();
+
+      if (!meaning || meaning.length < 2) continue;
+
+      const correctPage = getPageForAyah(currentSurahNumber, currentVerse, pageIndex);
+
+      const counterKey = `${currentSurahNumber}_${currentVerse}`;
+      const wordIndex = (wordIndexCounters.get(counterKey) ?? 0) + 1;
+      wordIndexCounters.set(counterKey, wordIndex);
+      const uniqueKey = `${currentSurahNumber}_${currentVerse}_${wordIndex}`;
+
+      const ghareebWord: GhareebWord = {
+        pageNumber: correctPage,
+        wordText,
+        meaning,
+        surahName: currentSurah,
+        surahNumber: currentSurahNumber,
+        verseNumber: currentVerse,
+        wordIndex,
+        order: 0,
+        uniqueKey,
+      };
+
+      if (!result.has(correctPage)) {
+        result.set(correctPage, []);
+      }
+      const pageWords = result.get(correctPage)!;
+      ghareebWord.order = pageWords.length;
+      pageWords.push(ghareebWord);
+      totalWords++;
+    }
   }
-  
-  console.log(`Loaded ${totalWords} ghareeb words across ${ghareebByTanzilPage.size} pages`);
-  return ghareebByTanzilPage;
+
+  console.log(`Loaded ${totalWords} ghareeb words across ${result.size} pages`);
+  return result;
 }
 
 /**
@@ -156,7 +132,7 @@ export function findWordsInPageText(
   // Get words from this page and adjacent pages (±2 for tolerance)
   const pagesToCheck = [pageNumber, pageNumber - 1, pageNumber + 1, pageNumber - 2, pageNumber + 2];
   const candidateWords: GhareebWord[] = [];
-  
+
   for (const p of pagesToCheck) {
     const pageWords = pageMap.get(p);
     if (pageWords) {
@@ -168,10 +144,6 @@ export function findWordsInPageText(
     const normalizedWord = normalizeArabic(word.wordText);
     if (normalizedWord.length < 2) continue;
 
-
-
-
-    // Check if this word appears in the page text
     const index = normalizedPageText.indexOf(normalizedWord);
     if (index !== -1) {
       const key = word.uniqueKey;
@@ -184,7 +156,7 @@ export function findWordsInPageText(
 
   // Sort by first occurrence in text
   foundWords.sort((a, b) => a.firstIndex - b.firstIndex);
-  
+
   return foundWords.map((fw, idx) => ({
     ...fw.word,
     order: idx,
