@@ -1,83 +1,12 @@
-import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react';
-import { useTahfeezStore, TahfeezWord } from '@/stores/tahfeezStore';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { useTahfeezStore } from '@/stores/tahfeezStore';
 import { useQuranData } from '@/hooks/useQuranData';
 import { Link } from 'react-router-dom';
-import { BookOpen, Play, Pause, Eye, SkipForward, ArrowRight, Settings2 } from 'lucide-react';
+import { BookOpen, Play, Pause, Eye, ArrowRight, Settings2 } from 'lucide-react';
 import { Slider } from '@/components/ui/slider';
 import { Switch } from '@/components/ui/switch';
 import { Button } from '@/components/ui/button';
-import { normalizeArabic } from '@/utils/quranParser';
-
-// Helpers for parsing page text into ayahs
-function isSurahHeader(line: string): boolean {
-  return line.startsWith('سُورَةُ') || line.startsWith('سورة ');
-}
-function isBismillah(line: string): boolean {
-  return line.includes('بِسمِ اللَّهِ') || line.includes('بِسۡمِ ٱللَّهِ');
-}
-
-interface AyahData {
-  surahNumber: number;
-  ayahNumber: number;
-  tokens: { text: string; wordIndex: number; isVerseNum: boolean }[];
-  fullText: string;
-  page: number;
-}
-
-function tokenizePageIntoAyahs(pageText: string, pageNumber: number): AyahData[] {
-  // Simple ayah extraction: split by verse numbers
-  const lines = pageText.split('\n');
-  const allTokens: { text: string; isSpace: boolean; isVerseNum: boolean; lineIdx: number; tokenIdx: number }[] = [];
-  
-  for (let li = 0; li < lines.length; li++) {
-    const line = lines[li];
-    if (isSurahHeader(line) || isBismillah(line)) continue;
-    const parts = line.split(/(\s+)/);
-    for (let ti = 0; ti < parts.length; ti++) {
-      const t = parts[ti];
-      const isSpace = /^\s+$/.test(t);
-      const clean = t.replace(/[﴿﴾()[\]{}۝۞٭؟،۔ۣۖۗۘۙۚۛۜ۟۠ۡۢۤۥۦۧۨ۩۪ۭ۫۬]/g, '').trim();
-      const isVerseNum = !isSpace && /^[٠-٩0-9۰-۹]+$/.test(clean);
-      allTokens.push({ text: t, isSpace, isVerseNum, lineIdx: li, tokenIdx: ti });
-    }
-    // Add newline separator
-    allTokens.push({ text: ' ', isSpace: true, isVerseNum: false, lineIdx: li, tokenIdx: -1 });
-  }
-
-  // Group into ayahs by splitting at verse numbers
-  const ayahs: AyahData[] = [];
-  let currentTokens: { text: string; wordIndex: number; isVerseNum: boolean }[] = [];
-  let wordIdx = 0;
-
-  for (const tok of allTokens) {
-    if (tok.isSpace) continue;
-    if (tok.isVerseNum) {
-      if (currentTokens.length > 0) {
-        ayahs.push({
-          surahNumber: 0, ayahNumber: ayahs.length + 1,
-          tokens: currentTokens,
-          fullText: currentTokens.map(t => t.text).join(' '),
-          page: pageNumber,
-        });
-        currentTokens = [];
-        wordIdx = 0;
-      }
-    } else {
-      currentTokens.push({ text: tok.text, wordIndex: wordIdx, isVerseNum: false });
-      wordIdx++;
-    }
-  }
-  if (currentTokens.length > 0) {
-    ayahs.push({
-      surahNumber: 0, ayahNumber: ayahs.length + 1,
-      tokens: currentTokens,
-      fullText: currentTokens.map(t => t.text).join(' '),
-      page: pageNumber,
-    });
-  }
-
-  return ayahs;
-}
+import { TahfeezQuizView } from '@/components/TahfeezQuizView';
 
 export default function TahfeezPage() {
   const {
@@ -88,66 +17,16 @@ export default function TahfeezPage() {
     revealMode, setRevealMode,
   } = useTahfeezStore();
 
-  const { pages, currentPage, getCurrentPageData } = useQuranData();
+  const { currentPage, getCurrentPageData } = useQuranData();
   const pageData = getCurrentPageData();
 
   const [quizStarted, setQuizStarted] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
-  const [currentAyahIdx, setCurrentAyahIdx] = useState(0);
-  const [revealedIndices, setRevealedIndices] = useState<Set<number>>(new Set());
+  const [revealedIndices, setRevealedIndices] = useState<Set<string>>(new Set());
   const [timeLeft, setTimeLeft] = useState(timerSeconds);
   const [timerDone, setTimerDone] = useState(false);
   const [showSettings, setShowSettings] = useState(true);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-
-  // Build ayahs from current page
-  const ayahs = useMemo(() => {
-    if (!pageData?.text) return [];
-    return tokenizePageIntoAyahs(pageData.text, currentPage);
-  }, [pageData, currentPage]);
-
-  const currentAyah = ayahs[currentAyahIdx];
-
-  // Determine which word indices to blank
-  const blankedIndices = useMemo((): Set<number> => {
-    if (!currentAyah) return new Set();
-    const wordCount = currentAyah.tokens.length;
-    const indices = new Set<number>();
-
-    if (quizSource === 'custom') {
-      // Use selected words
-      for (const sw of selectedWords) {
-        if (sw.page === currentAyah.page) {
-          const matchIdx = currentAyah.tokens.findIndex(t => 
-            t.wordIndex === sw.wordIndex && normalizeArabic(t.text) === normalizeArabic(sw.originalWord)
-          );
-          if (matchIdx >= 0) indices.add(matchIdx);
-        }
-      }
-    } else {
-      // Auto blanking
-      const n = Math.min(blankCount, wordCount);
-      switch (autoBlankMode) {
-        case 'beginning':
-          for (let i = 0; i < n; i++) indices.add(i);
-          break;
-        case 'end':
-          for (let i = wordCount - n; i < wordCount; i++) indices.add(i);
-          break;
-        case 'middle': {
-          const center = Math.floor(wordCount / 2);
-          const start = Math.max(0, center - Math.floor(n / 2));
-          for (let i = start; i < start + n && i < wordCount; i++) indices.add(i);
-          break;
-        }
-        case 'full-ayah':
-        case 'full-page':
-          for (let i = 0; i < wordCount; i++) indices.add(i);
-          break;
-      }
-    }
-    return indices;
-  }, [currentAyah, quizSource, selectedWords, autoBlankMode, blankCount]);
 
   // Timer logic
   useEffect(() => {
@@ -164,30 +43,49 @@ export default function TahfeezPage() {
       });
     }, 1000);
     return () => { if (timerRef.current) clearInterval(timerRef.current); };
-  }, [quizStarted, isPaused, timerDone, currentAyahIdx, timerSeconds]);
+  }, [quizStarted, isPaused, timerDone, timerSeconds]);
+
+  // Compute blanked keys for gradual reveal
+  const blankedKeys = useMemo((): string[] => {
+    if (!pageData?.text) return [];
+    // Build same keys as TahfeezQuizView would
+    const lines = pageData.text.split('\n');
+    const keys: string[] = [];
+    for (let li = 0; li < lines.length; li++) {
+      const line = lines[li];
+      if (line.startsWith('سُورَةُ') || line.startsWith('سورة ') || line.includes('بِسمِ اللَّهِ') || line.includes('بِسۡمِ ٱللَّهِ')) continue;
+      const tokens = line.split(/(\s+)/);
+      for (let ti = 0; ti < tokens.length; ti++) {
+        const t = tokens[ti];
+        if (/^\s+$/.test(t)) continue;
+        const clean = t.replace(/[﴿﴾()[\]{}۝۞٭؟،۔ۣۖۗۘۙۚۛۜ۟۠ۡۢۤۥۦۧۨ۩۪ۭ۫۬]/g, '').trim();
+        if (/^[٠-٩0-9۰-۹]+$/.test(clean)) continue;
+        keys.push(`${li}_${ti}`);
+      }
+    }
+    return keys;
+  }, [pageData?.text]);
 
   // Gradual reveal after timer
   useEffect(() => {
     if (!timerDone || revealMode !== 'gradual') return;
-    const blankedArr = Array.from(blankedIndices);
     let revIdx = 0;
     const interval = setInterval(() => {
-      if (revIdx >= blankedArr.length) {
+      if (revIdx >= blankedKeys.length) {
         clearInterval(interval);
         return;
       }
-      setRevealedIndices(prev => new Set([...prev, blankedArr[revIdx]]));
+      setRevealedIndices(prev => new Set([...prev, blankedKeys[revIdx]]));
       revIdx++;
     }, 500);
     return () => clearInterval(interval);
-  }, [timerDone, revealMode, blankedIndices]);
+  }, [timerDone, revealMode, blankedKeys]);
 
   const handleStart = () => {
     setQuizStarted(true);
     setIsPaused(false);
     setTimerDone(false);
     setRevealedIndices(new Set());
-    setCurrentAyahIdx(0);
     setShowSettings(false);
   };
 
@@ -202,15 +100,7 @@ export default function TahfeezPage() {
 
   const handleRevealAll = () => {
     setTimerDone(true);
-    setRevealedIndices(new Set(blankedIndices));
-  };
-
-  const handleNextAyah = () => {
-    if (currentAyahIdx < ayahs.length - 1) {
-      setCurrentAyahIdx(prev => prev + 1);
-      setRevealedIndices(new Set());
-      setTimerDone(false);
-    }
+    setRevealedIndices(new Set(blankedKeys));
   };
 
   return (
@@ -291,7 +181,6 @@ export default function TahfeezPage() {
                   ))}
                 </div>
 
-                {/* Word count slider */}
                 {autoBlankMode !== 'full-ayah' && autoBlankMode !== 'full-page' && (
                   <div className="space-y-1">
                     <label className="text-xs font-arabic text-muted-foreground">عدد الكلمات: {blankCount}</label>
@@ -325,7 +214,7 @@ export default function TahfeezPage() {
             </div>
 
             {/* Start */}
-            <Button onClick={handleStart} className="w-full font-arabic" disabled={ayahs.length === 0}>
+            <Button onClick={handleStart} className="w-full font-arabic" disabled={!pageData}>
               <Play className="w-4 h-4 ml-2" />
               ابدأ الاختبار (صفحة {currentPage})
             </Button>
@@ -338,13 +227,13 @@ export default function TahfeezPage() {
           </div>
         )}
 
-        {/* Quiz area */}
-        {quizStarted && currentAyah && (
-          <div className="page-frame p-5 sm:p-8 space-y-6 animate-fade-in">
+        {/* Full page quiz view */}
+        {quizStarted && pageData && (
+          <div className="space-y-4 animate-fade-in">
             {/* Timer bar */}
-            <div className="flex items-center justify-between">
+            <div className="page-frame p-3 flex items-center justify-between">
               <span className="text-sm font-arabic text-muted-foreground">
-                الآية {currentAyahIdx + 1} / {ayahs.length}
+                صفحة {currentPage}
               </span>
               <span className={`text-lg font-bold font-arabic ${timeLeft <= 3 && !timerDone ? 'text-destructive' : 'text-foreground'}`}>
                 {timerDone ? '✓' : `${timeLeft}s`}
@@ -359,29 +248,17 @@ export default function TahfeezPage() {
               />
             </div>
 
-            {/* Ayah display */}
-            <div className="quran-page text-center leading-[2.5] min-h-[100px]">
-              {currentAyah.tokens.map((token, idx) => {
-                const isBlanked = blankedIndices.has(idx);
-                const isRevealed = revealedIndices.has(idx);
-                const showBlank = isBlanked && !isRevealed && !timerDone;
-                const showRevealedStyle = isBlanked && (isRevealed || (timerDone && revealMode === 'all'));
-
-                return (
-                  <span key={idx} className="inline-block mx-0.5" style={{ minWidth: showBlank ? `${token.text.length * 0.8}em` : undefined }}>
-                    {showBlank ? (
-                      <span className="inline-block border-b-2 border-dashed border-primary/50 text-transparent select-none" style={{ minWidth: `${Math.max(token.text.length * 0.7, 2)}em` }}>
-                        {token.text}
-                      </span>
-                    ) : (
-                      <span className={showRevealedStyle ? 'text-primary font-bold transition-colors duration-500' : ''}>
-                        {token.text}
-                      </span>
-                    )}
-                  </span>
-                );
-              })}
-            </div>
+            {/* Full Quran page with blanking */}
+            <TahfeezQuizView
+              page={pageData}
+              quizSource={quizSource}
+              selectedWords={selectedWords}
+              autoBlankMode={autoBlankMode}
+              blankCount={blankCount}
+              revealedIndices={revealedIndices}
+              timerDone={timerDone}
+              revealMode={revealMode}
+            />
 
             {/* Controls */}
             <div className="flex items-center justify-center gap-2 flex-wrap">
@@ -392,10 +269,6 @@ export default function TahfeezPage() {
               <Button variant="outline" size="sm" onClick={handleRevealAll} className="font-arabic" disabled={timerDone && revealMode === 'all'}>
                 <Eye className="w-4 h-4 ml-1" />
                 كشف الآن
-              </Button>
-              <Button variant="outline" size="sm" onClick={handleNextAyah} className="font-arabic" disabled={currentAyahIdx >= ayahs.length - 1}>
-                <SkipForward className="w-4 h-4 ml-1" />
-                الآية التالية
               </Button>
             </div>
           </div>
