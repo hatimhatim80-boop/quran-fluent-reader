@@ -155,62 +155,67 @@ export function PageView({
         };
       });
 
-      for (const entry of sortedEntries) {
-        if (usedOriginalIndices.has(entry.originalIndex)) continue;
-        if (entry.words.length === 0) continue;
+      // Two-pass matching: exact matches first, then loose matches
+      // This prevents "وسعى" from stealing the match meant for "واسع"
+      for (const matchPass of ['exact', 'loose'] as const) {
+        for (const entry of sortedEntries) {
+          if (usedOriginalIndices.has(entry.originalIndex)) continue;
+          if (entry.words.length === 0) continue;
 
-        const surahMatch = normalizedLocalSurah === '' || 
-          entry.normalizedSurah === normalizedLocalSurah || 
-          entry.normalizedSurah.includes(normalizedLocalSurah) || 
-          normalizedLocalSurah.includes(entry.normalizedSurah);
-        if (!surahMatch) continue;
+          const surahMatch = normalizedLocalSurah === '' || 
+            entry.normalizedSurah === normalizedLocalSurah || 
+            entry.normalizedSurah.includes(normalizedLocalSurah) || 
+            normalizedLocalSurah.includes(entry.normalizedSurah);
+          if (!surahMatch) continue;
 
-        for (let i = 0; i < tokenData.length; i++) {
-          if (tokenData[i].isSpace || tokenData[i].isVerseNumber || tokenData[i].matched) continue;
-          
-          let phraseWordIdx = 0;
-          let matchedTokens: number[] = [];
-          let j = i;
-          
-          
-          while (j < tokenData.length && phraseWordIdx < entry.words.length) {
-            if (tokenData[j].isSpace) { j++; continue; }
-            if (tokenData[j].isVerseNumber) { j++; continue; }
-            if (tokenData[j].matched) break;
+          for (let i = 0; i < tokenData.length; i++) {
+            if (tokenData[i].isSpace || tokenData[i].isVerseNumber || tokenData[i].matched) continue;
             
-            const tokenNorm = tokenData[j].normalized;
-            const phraseWord = entry.words[phraseWordIdx];
+            let phraseWordIdx = 0;
+            let matchedTokens: number[] = [];
+            let j = i;
             
-            if (isStrictMatch(tokenNorm, phraseWord)) {
-              matchedTokens.push(j);
-              phraseWordIdx++;
-              j++;
-            } else {
+            while (j < tokenData.length && phraseWordIdx < entry.words.length) {
+              if (tokenData[j].isSpace) { j++; continue; }
+              if (tokenData[j].isVerseNumber) { j++; continue; }
+              if (tokenData[j].matched) break;
+              
+              const tokenNorm = tokenData[j].normalized;
+              const phraseWord = entry.words[phraseWordIdx];
+              
+              const isExact = tokenNorm === phraseWord;
+              const isLoose = !isExact && isStrictMatch(tokenNorm, phraseWord);
+              
+              if (matchPass === 'exact' ? isExact : (isExact || isLoose)) {
+                matchedTokens.push(j);
+                phraseWordIdx++;
+                j++;
+              } else {
+                break;
+              }
+            }
+            
+            if (phraseWordIdx === entry.words.length && matchedTokens.length > 0) {
+              matchedTokens.forEach((tokenIdx, idx) => {
+                tokenData[tokenIdx].matched = true;
+                tokenData[tokenIdx].matchEntry = entry;
+                tokenData[tokenIdx].isPartOfPhrase = matchedTokens.length > 1;
+                tokenData[tokenIdx].phraseStart = idx === 0;
+                tokenData[tokenIdx].phraseTokens = matchedTokens;
+              });
+              usedOriginalIndices.add(entry.originalIndex);
+              
+              matched.push({
+                word: entry.original,
+                originalIndex: entry.originalIndex,
+                lineIdx,
+                tokenIdx: matchedTokens[0],
+                isPartOfPhrase: matchedTokens.length > 1,
+                phraseStart: true,
+                phraseTokens: matchedTokens,
+              });
               break;
             }
-          }
-          
-          if (phraseWordIdx === entry.words.length && matchedTokens.length > 0) {
-            matchedTokens.forEach((tokenIdx, idx) => {
-              tokenData[tokenIdx].matched = true;
-              tokenData[tokenIdx].matchEntry = entry;
-              tokenData[tokenIdx].isPartOfPhrase = matchedTokens.length > 1;
-              tokenData[tokenIdx].phraseStart = idx === 0;
-              tokenData[tokenIdx].phraseTokens = matchedTokens;
-            });
-            usedOriginalIndices.add(entry.originalIndex);
-            
-            // Record this match in render order
-            matched.push({
-              word: entry.original,
-              originalIndex: entry.originalIndex,
-              lineIdx,
-              tokenIdx: matchedTokens[0],
-              isPartOfPhrase: matchedTokens.length > 1,
-              phraseStart: true,
-              phraseTokens: matchedTokens,
-            });
-            break;
           }
         }
       }
