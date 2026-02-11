@@ -249,6 +249,7 @@
       0 0 0 1px hsl(var(--ornament) / 0.12);
     text-align: center;
     width: fit-content;
+    overflow: visible;
   }
 
   .dark .ghareeb-popover__content {
@@ -276,6 +277,10 @@
     color: hsl(var(--accent-foreground));
     line-height: 1.7;
     word-wrap: break-word;
+    overflow-wrap: break-word;
+    white-space: normal;
+    overflow: visible;
+    text-overflow: unset;
     font-family: 'Amiri', 'Noto Naskh Arabic', serif;
     opacity: 0.95;
   }
