@@ -391,7 +391,10 @@ export function FullFilesViewer({ children, pages, allWords, onRefresh }: FullFi
     toast.success(`تم تصدير ${filename}`);
   };
 
-  const handleStartEditQuran = () => { setQuranFullText(fullQuranText); setEditingQuran(true); };
+  const handleStartEditQuran = () => { 
+    setQuranFullText(hasFilters ? filteredQuranLines.join('\n') : fullQuranText); 
+    setEditingQuran(true); 
+  };
 
   const handleSaveQuranEdits = () => {
     try {
@@ -412,7 +415,15 @@ export function FullFilesViewer({ children, pages, allWords, onRefresh }: FullFi
     } catch (err) { console.error('Save error:', err); toast.error('خطأ في الحفظ'); }
   };
 
-  const handleStartEditMeanings = () => { setMeaningsFullText(fullMeaningsText); setEditingMeanings(true); };
+  const handleStartEditMeanings = () => { 
+    if (hasFilters && filteredMeaningsWords.length > 0) {
+      const lines = filteredMeaningsWords.map(w => `${w.wordText} | ${w.meaning} | ${w.surahNumber}:${w.verseNumber}:${w.wordIndex}`);
+      setMeaningsFullText(lines.join('\n'));
+    } else {
+      setMeaningsFullText(fullMeaningsText); 
+    }
+    setEditingMeanings(true); 
+  };
 
   const handleSaveMeaningsEdits = () => {
     try {
@@ -613,7 +624,7 @@ export function FullFilesViewer({ children, pages, allWords, onRefresh }: FullFi
               )}
             </ScrollArea>
             <div className="text-xs text-muted-foreground font-arabic">
-              {editingQuran ? '💡 عدّل النص ثم اضغط "حفظ التعديلات". التنسيق: === صفحة X === ثم النص'
+              {editingQuran ? (hasFilters ? '💡 يتم عرض المحتوى المفلتر فقط — عدّل ثم اضغط "حفظ التعديلات"' : '💡 عدّل النص ثم اضغط "حفظ التعديلات". التنسيق: === صفحة X === ثم النص')
                 : `إجمالي: ${fullQuranText.split('\n').length.toLocaleString()} سطر`}
             </div>
           </TabsContent>
