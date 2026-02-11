@@ -3,7 +3,6 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import { DevDebugOverlay } from "@/components/DevDebugOverlay";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import ValidationReport from "./pages/ValidationReport";
@@ -16,7 +15,6 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
-        <DevDebugOverlay />
         <Routes>
           <Route path="/" element={<Index />} />
           <Route path="/validation" element={<ValidationReport />} />
@@ -29,3 +27,4 @@ const App = () => (
 );
 
 export default App;
+

@@ -1,13 +1,7 @@
 @tailwind base;
-
-/* Fix Radix Tabs Content flex layout */
-[data-radix-tabs-content] {
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
-}
 @tailwind components;
 @tailwind utilities;
+
 
 @import url('https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Noto+Naskh+Arabic:wght@400;500;600;700&family=Scheherazade+New:wght@400;500;600;700&display=swap');
 

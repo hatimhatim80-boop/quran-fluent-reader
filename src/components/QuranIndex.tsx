@@ -149,7 +149,7 @@ export function QuranIndex({ currentPage, onNavigateToPage, onClose }: QuranInde
         </TabsList>
 
         {/* Surahs Tab */}
-        <TabsContent value="surahs" className="flex-1 flex flex-col overflow-hidden px-3 py-3">
+        <TabsContent value="surahs" className="mt-0 flex-1 flex flex-col overflow-hidden px-3 pt-3 pb-3">
           <div className="relative my-1.5 shrink-0">
             <Search className="absolute right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
             <Input
@@ -159,7 +159,7 @@ export function QuranIndex({ currentPage, onNavigateToPage, onClose }: QuranInde
               className="h-8 text-xs font-arabic pr-8"
             />
           </div>
-          <div className="flex-1 overflow-y-auto pb-2 space-y-0.5">
+          <div className="flex-1 min-h-0 overflow-y-auto pb-2 space-y-0.5">
             {filteredSurahs.map(surah => (
               <IndexItem
                 key={surah.number}
@@ -174,7 +174,7 @@ export function QuranIndex({ currentPage, onNavigateToPage, onClose }: QuranInde
         </TabsContent>
 
         {/* Juz Tab */}
-        <TabsContent value="juz" className="flex-1 flex flex-col px-3 py-3 min-h-0 -mt-2">
+        <TabsContent value="juz" className="mt-0 flex-1 flex flex-col overflow-hidden px-3 pt-3 pb-3">
           <div className="flex-1 min-h-0 overflow-y-auto pb-2 space-y-0.5">
             {JUZ_DATA.map(juz => (
               <IndexItem
@@ -191,7 +191,7 @@ export function QuranIndex({ currentPage, onNavigateToPage, onClose }: QuranInde
         </TabsContent>
 
         {/* Hizb Tab */}
-        <TabsContent value="hizb" className="flex-1 flex flex-col px-3 py-3 min-h-0 -mt-2">
+        <TabsContent value="hizb" className="mt-0 flex-1 flex flex-col overflow-hidden px-3 pt-3 pb-3">
           <div className="flex-1 min-h-0 overflow-y-auto pb-2 space-y-0.5">
             {HIZB_DATA.map(hizb => (
               <IndexItem
