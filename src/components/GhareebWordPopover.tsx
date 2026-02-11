@@ -58,7 +58,14 @@ export function GhareebWordPopover({
 
   const getEffectiveMeaning = useHighlightOverrideStore((s) => s.getEffectiveMeaning);
   const meaningInfo = getEffectiveMeaning(posKey, identityKey, word.meaning || "");
-  const effectiveMeaning = meaningInfo.meaning || word.meaning || "⚠️ لا يوجد معنى";
+  
+  // Resolve meaningId references: if source is 'override-ref', the meaning field contains
+  // a uniqueKey that needs to be resolved. Use word.meaning as final fallback.
+  let effectiveMeaning = meaningInfo.meaning || word.meaning || "⚠️ لا يوجد معنى";
+  if (meaningInfo.source === 'override-ref' && meaningInfo.meaning) {
+    // meaningId was returned as-is; use word.meaning which was pre-resolved in PageView
+    effectiveMeaning = word.meaning || meaningInfo.meaning || "⚠️ لا يوجد معنى";
+  }
 
   const isOpen = forceOpen || isManualOpen;
 

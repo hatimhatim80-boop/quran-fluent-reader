@@ -38,13 +38,14 @@ function isBismillah(line: string): boolean {
   return line.includes('بِسمِ اللَّهِ') || line.includes('بِسۡمِ ٱللَّهِ');
 }
 
-// Strict word matching: require exact match or very close substring with same root structure
+// Strict word matching: require exact match or close substring (max 2 chars difference)
 function isStrictMatch(tokenNorm: string, phraseWord: string): boolean {
   if (tokenNorm === phraseWord) return true;
-  // Only allow substring match if one fully contains the other
-  // AND lengths differ by at most 1 character (e.g. prefix alef difference)
   const lenDiff = Math.abs(tokenNorm.length - phraseWord.length);
-  if (lenDiff > 1) return false;
+  if (lenDiff > 2) return false;
+  // Must also share at least 80% of the shorter length
+  const shorter = Math.min(tokenNorm.length, phraseWord.length);
+  if (shorter < 3) return false; // Don't allow substring match for very short words
   return tokenNorm.includes(phraseWord) || phraseWord.includes(tokenNorm);
 }
 
@@ -531,11 +532,17 @@ export function PageView({
         );
         
         if (forceHighlightOverride && !td.isVerseNumber) {
-          // Force highlight this word via override - use popover when meaning enabled
+          // Resolve meaning: prefer meaningText, then resolve meaningId from ghareeb data
+          let resolvedMeaning = forceHighlightOverride.meaningText || forceHighlightOverride.meaning || '';
+          if (!resolvedMeaning && forceHighlightOverride.meaningId) {
+            const refWord = ghareebWords.find(w => w.uniqueKey === forceHighlightOverride.meaningId);
+            resolvedMeaning = refWord?.meaning || '';
+          }
+          
           const overrideWord: GhareebWord = {
             pageNumber: page.pageNumber,
             wordText: td.token,
-            meaning: forceHighlightOverride.meaningText || forceHighlightOverride.meaning || '',
+            meaning: resolvedMeaning,
             surahName: forceHighlightOverride.surahName || '',
             surahNumber: forceHighlightOverride.surahNumber || 0,
             verseNumber: forceHighlightOverride.verseNumber || 0,
