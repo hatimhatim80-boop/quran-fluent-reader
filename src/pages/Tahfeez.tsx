@@ -60,6 +60,7 @@ export default function TahfeezPage() {
   const [activeBlankKey, setActiveBlankKey] = useState<string | null>(null);
   const [revealedKeys, setRevealedKeys] = useState<Set<string>>(new Set());
   const [blankedKeysList, setBlankedKeysList] = useState<string[]>([]);
+  const [firstKeysSet, setFirstKeysSet] = useState<Set<string>>(new Set());
   const [currentRevealIdx, setCurrentRevealIdx] = useState(-1);
   const revealTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [showIndex, setShowIndex] = useState(false);
@@ -74,8 +75,10 @@ export default function TahfeezPage() {
       if (el) {
         try {
           const keys = JSON.parse(el.getAttribute('data-keys') || '[]');
+          const fKeys = JSON.parse(el.getAttribute('data-first-keys') || '[]');
           if (keys.length > 0 && JSON.stringify(keys) !== JSON.stringify(blankedKeysList)) {
             setBlankedKeysList(keys);
+            setFirstKeysSet(new Set(fKeys));
           }
         } catch {}
       }
@@ -98,7 +101,7 @@ export default function TahfeezPage() {
       setActiveBlankKey(key);
       setCurrentRevealIdx(idx);
 
-      const duration = idx === 0 ? firstWordTimerSeconds : timerSeconds;
+      const duration = firstKeysSet.has(key) ? firstWordTimerSeconds : timerSeconds;
 
       revealTimerRef.current = setTimeout(() => {
         setRevealedKeys(prev => new Set([...prev, key]));
@@ -117,7 +120,7 @@ export default function TahfeezPage() {
     return () => {
       if (revealTimerRef.current) clearTimeout(revealTimerRef.current);
     };
-  }, [quizStarted, isPaused, showAll, blankedKeysList, timerSeconds, firstWordTimerSeconds]);
+  }, [quizStarted, isPaused, showAll, blankedKeysList, timerSeconds, firstWordTimerSeconds, firstKeysSet]);
 
   const handleStart = () => {
     setQuizStarted(true);
@@ -389,6 +392,9 @@ export default function TahfeezPage() {
                   { value: 'beginning' as const, label: 'أول الآية' },
                   { value: 'middle' as const, label: 'وسط الآية' },
                   { value: 'end' as const, label: 'آخر الآية' },
+                  { value: 'beginning-middle' as const, label: 'أول + وسط' },
+                  { value: 'middle-end' as const, label: 'وسط + آخر' },
+                  { value: 'beginning-end' as const, label: 'أول + آخر' },
                   { value: 'full-ayah' as const, label: 'آية كاملة' },
                   { value: 'ayah-count' as const, label: 'عدد آيات' },
                   { value: 'full-page' as const, label: 'صفحة كاملة' },
@@ -405,7 +411,7 @@ export default function TahfeezPage() {
                 ))}
               </div>
 
-              {(autoBlankMode === 'beginning' || autoBlankMode === 'middle' || autoBlankMode === 'end') && (
+              {(['beginning', 'middle', 'end', 'beginning-middle', 'middle-end', 'beginning-end'] as const).includes(autoBlankMode as any) && (
                 <div className="space-y-1">
                   <label className="text-xs font-arabic text-muted-foreground">عدد الكلمات: {blankCount}</label>
                   <Slider value={[blankCount]} onValueChange={([v]) => setBlankCount(v)} min={1} max={10} step={1} />
