@@ -2,7 +2,6 @@ import React, { useState, useMemo } from 'react';
 import { Book, Layers, Hash, Search, X, ChevronLeft } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { SURAH_INFO, SURAH_NAMES } from '@/utils/quranPageIndex';
 
 interface QuranIndexProps {
@@ -63,6 +62,31 @@ const HIZB_DATA = JUZ_DATA.flatMap((juz, idx) => {
   ];
 });
 
+function IndexItem({ active, onClick, number, label, subtitle, page }: {
+  active: boolean; onClick: () => void; number: number; label: string; subtitle?: string; page: number;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-xs font-arabic transition-colors ${
+        active ? 'bg-primary/15 text-primary font-bold' : 'hover:bg-muted/60 text-foreground'
+      }`}
+    >
+      <div className="flex items-center gap-2">
+        <span className="w-7 h-7 rounded-full bg-muted/80 flex items-center justify-center text-[10px] text-muted-foreground font-mono shrink-0">
+          {number}
+        </span>
+        <span>{label}</span>
+        {subtitle && <span className="text-muted-foreground text-[10px]">({subtitle})</span>}
+      </div>
+      <div className="flex items-center gap-1 text-muted-foreground">
+        <span className="text-[10px]">ص {page}</span>
+        <ChevronLeft className="w-3 h-3" />
+      </div>
+    </button>
+  );
+}
+
 export function QuranIndex({ currentPage, onNavigateToPage, onClose }: QuranIndexProps) {
   const [search, setSearch] = useState('');
   const [activeTab, setActiveTab] = useState('surahs');
@@ -80,7 +104,6 @@ export function QuranIndex({ currentPage, onNavigateToPage, onClose }: QuranInde
     onClose();
   };
 
-  // Find which surah the current page belongs to
   const currentSurah = useMemo(() => {
     for (let i = SURAHS.length - 1; i >= 0; i--) {
       if (currentPage >= SURAHS[i].startPage) return SURAHS[i].number;
@@ -98,7 +121,7 @@ export function QuranIndex({ currentPage, onNavigateToPage, onClose }: QuranInde
   return (
     <div className="flex flex-col h-full bg-card" dir="rtl">
       {/* Header */}
-      <div className="p-3 border-b border-border flex items-center justify-between">
+      <div className="p-3 border-b border-border flex items-center justify-between shrink-0">
         <h2 className="font-arabic font-bold text-foreground text-sm">فهرس المصحف</h2>
         <button
           onClick={onClose}
@@ -109,8 +132,8 @@ export function QuranIndex({ currentPage, onNavigateToPage, onClose }: QuranInde
       </div>
 
       {/* Tabs */}
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col min-h-0">
-        <TabsList className="mx-3 mt-2 grid grid-cols-3 h-9">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col overflow-hidden">
+        <TabsList className="mx-3 mt-2 mb-1 grid grid-cols-3 h-9 shrink-0">
           <TabsTrigger value="surahs" className="text-xs font-arabic gap-1">
             <Book className="w-3 h-3" />
             السور
@@ -126,8 +149,8 @@ export function QuranIndex({ currentPage, onNavigateToPage, onClose }: QuranInde
         </TabsList>
 
         {/* Surahs Tab */}
-        <TabsContent value="surahs" className="flex-1 flex flex-col min-h-0 mt-0 px-3 pb-2">
-          <div className="relative my-2">
+        <TabsContent value="surahs" className="flex-1 flex flex-col overflow-hidden mt-0 px-3">
+          <div className="relative my-1.5 shrink-0">
             <Search className="absolute right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
             <Input
               value={search}
@@ -136,95 +159,48 @@ export function QuranIndex({ currentPage, onNavigateToPage, onClose }: QuranInde
               className="h-8 text-xs font-arabic pr-8"
             />
           </div>
-          <ScrollArea className="flex-1">
-            <div className="space-y-0.5">
-              {filteredSurahs.map(surah => (
-                <button
-                  key={surah.number}
-                  onClick={() => handleNavigate(surah.startPage)}
-                  className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-arabic transition-colors ${
-                    currentSurah === surah.number
-                      ? 'bg-primary/15 text-primary font-bold'
-                      : 'hover:bg-muted/60 text-foreground'
-                  }`}
-                >
-                  <div className="flex items-center gap-2">
-                    <span className="w-7 h-7 rounded-full bg-muted/80 flex items-center justify-center text-[10px] text-muted-foreground font-mono">
-                      {surah.number}
-                    </span>
-                    <span>{surah.name}</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-muted-foreground">
-                    <span className="text-[10px]">{surah.verses} آية</span>
-                    <span className="text-[10px]">ص {surah.startPage}</span>
-                    <ChevronLeft className="w-3 h-3" />
-                  </div>
-                </button>
-              ))}
-            </div>
-          </ScrollArea>
+          <div className="flex-1 overflow-y-auto pb-2 space-y-0.5">
+            {filteredSurahs.map(surah => (
+              <IndexItem
+                key={surah.number}
+                active={currentSurah === surah.number}
+                onClick={() => handleNavigate(surah.startPage)}
+                number={surah.number}
+                label={surah.name}
+                page={surah.startPage}
+              />
+            ))}
+          </div>
         </TabsContent>
 
         {/* Juz Tab */}
-        <TabsContent value="juz" className="flex-1 flex flex-col min-h-0 mt-0 px-3 pb-2 pt-2">
-          <ScrollArea className="flex-1">
-            <div className="space-y-0.5">
-              {JUZ_DATA.map(juz => (
-                <button
-                  key={juz.number}
-                  onClick={() => handleNavigate(juz.page)}
-                  className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-xs font-arabic transition-colors ${
-                    currentJuz === juz.number
-                      ? 'bg-primary/15 text-primary font-bold'
-                      : 'hover:bg-muted/60 text-foreground'
-                  }`}
-                >
-                  <div className="flex items-center gap-2">
-                    <span className="w-7 h-7 rounded-full bg-muted/80 flex items-center justify-center text-[10px] text-muted-foreground font-mono">
-                      {juz.number}
-                    </span>
-                    <span>الجزء {juz.number}</span>
-                    <span className="text-muted-foreground text-[10px]">({juz.name})</span>
-                  </div>
-                  <div className="flex items-center gap-1 text-muted-foreground">
-                    <span className="text-[10px]">ص {juz.page}</span>
-                    <ChevronLeft className="w-3 h-3" />
-                  </div>
-                </button>
-              ))}
-            </div>
-          </ScrollArea>
+        <TabsContent value="juz" className="flex-1 overflow-y-auto mt-0 px-3 pb-2 pt-1 space-y-0.5">
+          {JUZ_DATA.map(juz => (
+            <IndexItem
+              key={juz.number}
+              active={currentJuz === juz.number}
+              onClick={() => handleNavigate(juz.page)}
+              number={juz.number}
+              label={`الجزء ${juz.number}`}
+              subtitle={juz.name}
+              page={juz.page}
+            />
+          ))}
         </TabsContent>
 
         {/* Hizb Tab */}
-        <TabsContent value="hizb" className="flex-1 flex flex-col min-h-0 mt-0 px-3 pb-2 pt-2">
-          <ScrollArea className="flex-1">
-            <div className="space-y-0.5">
-              {HIZB_DATA.map(hizb => (
-                <button
-                  key={hizb.number}
-                  onClick={() => handleNavigate(hizb.page)}
-                  className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-arabic transition-colors ${
-                    currentPage >= hizb.page && (hizb.number === HIZB_DATA.length || currentPage < HIZB_DATA[hizb.number]?.page)
-                      ? 'bg-primary/15 text-primary font-bold'
-                      : 'hover:bg-muted/60 text-foreground'
-                  }`}
-                >
-                  <div className="flex items-center gap-2">
-                    <span className="w-7 h-7 rounded-full bg-muted/80 flex items-center justify-center text-[10px] text-muted-foreground font-mono">
-                      {hizb.number}
-                    </span>
-                    <span>الحزب {hizb.number}</span>
-                    <span className="text-muted-foreground text-[10px]">(الجزء {hizb.juz} - {hizb.half === 1 ? 'النصف الأول' : 'النصف الثاني'})</span>
-                  </div>
-                  <div className="flex items-center gap-1 text-muted-foreground">
-                    <span className="text-[10px]">ص {hizb.page}</span>
-                    <ChevronLeft className="w-3 h-3" />
-                  </div>
-                </button>
-              ))}
-            </div>
-          </ScrollArea>
+        <TabsContent value="hizb" className="flex-1 overflow-y-auto mt-0 px-3 pb-2 pt-1 space-y-0.5">
+          {HIZB_DATA.map(hizb => (
+            <IndexItem
+              key={hizb.number}
+              active={currentPage >= hizb.page && (hizb.number === HIZB_DATA.length || currentPage < HIZB_DATA[hizb.number]?.page)}
+              onClick={() => handleNavigate(hizb.page)}
+              number={hizb.number}
+              label={`الحزب ${hizb.number}`}
+              subtitle={`الجزء ${hizb.juz} - ${hizb.half === 1 ? 'النصف الأول' : 'النصف الثاني'}`}
+              page={hizb.page}
+            />
+          ))}
         </TabsContent>
       </Tabs>
     </div>
