@@ -514,7 +514,7 @@ export function FullFilesViewer({ children, pages, allWords, onRefresh }: FullFi
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>{children}</DialogTrigger>
-      <DialogContent className="max-w-[95vw] w-[95vw] max-h-[95vh] overflow-y-auto" dir="rtl">
+      <DialogContent className="max-w-[95vw] w-[95vw] !top-[2vh] !translate-y-0 max-h-[96vh] flex flex-col overflow-hidden p-4" dir="rtl">
         <DialogHeader>
           <DialogTitle className="font-arabic text-xl flex items-center gap-2">
             <Database className="w-5 h-5" />
@@ -530,7 +530,7 @@ export function FullFilesViewer({ children, pages, allWords, onRefresh }: FullFi
           <span>🔧 {stats.mushafOverrides} صفحة معدلة</span>
         </div>
 
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col min-h-0 overflow-hidden">
           <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="quran" className="font-arabic text-xs gap-1">
               <BookOpen className="w-3 h-3" />
@@ -558,7 +558,7 @@ export function FullFilesViewer({ children, pages, allWords, onRefresh }: FullFi
           )}
 
           {/* Quran File Tab */}
-          <TabsContent value="quran" className="flex-1 flex flex-col gap-2 mt-1 min-h-0">
+          <TabsContent value="quran" className="flex-1 flex flex-col gap-2 mt-1 min-h-0 overflow-auto">
             <div className="flex gap-2 flex-wrap">
               {!editingQuran ? (
                 <>
@@ -601,7 +601,7 @@ export function FullFilesViewer({ children, pages, allWords, onRefresh }: FullFi
           </TabsContent>
 
           {/* Meanings File Tab — structured table with pagination */}
-          <TabsContent value="meanings" className="flex-1 flex flex-col gap-2 mt-1 min-h-0">
+          <TabsContent value="meanings" className="flex-1 flex flex-col gap-2 mt-1 min-h-0 overflow-auto">
             <div className="flex gap-2 flex-wrap">
               {!editingMeanings ? (
                 <>
@@ -690,7 +690,7 @@ export function FullFilesViewer({ children, pages, allWords, onRefresh }: FullFi
           </TabsContent>
 
           {/* Overrides Tab */}
-          <TabsContent value="overrides" className="flex-1 flex flex-col gap-3 mt-3 min-h-0">
+          <TabsContent value="overrides" className="flex-1 flex flex-col gap-2 mt-1 min-h-0 overflow-auto">
             <div className="flex gap-2 flex-wrap">
               <Button onClick={() => handleExport(overridesText, 'overrides-full.json')} variant="outline" size="sm" className="font-arabic gap-1">
                 <Download className="w-3 h-3" /> تصدير JSON
@@ -717,7 +717,7 @@ export function FullFilesViewer({ children, pages, allWords, onRefresh }: FullFi
           </TabsContent>
 
           {/* Diagnostics Tab */}
-          <TabsContent value="diagnostics" className="flex-1 flex flex-col gap-2 mt-1 min-h-0">
+          <TabsContent value="diagnostics" className="flex-1 flex flex-col gap-2 mt-1 min-h-0 overflow-auto">
             {!diagRunning ? (
               <div className="text-center py-6 space-y-3">
                 <Stethoscope className="w-12 h-12 mx-auto text-muted-foreground/40" />
