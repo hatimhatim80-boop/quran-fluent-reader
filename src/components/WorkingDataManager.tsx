@@ -54,6 +54,7 @@ import {
   XCircle,
   ChevronLeft,
   ChevronRight,
+  FolderOpen,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -678,6 +679,16 @@ export function WorkingDataManager({ children, allWords = [] }: WorkingDataManag
                           </Button>
                           <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => handleDuplicateWord(word)} title="نسخ">
                             <Copy className="w-3 h-3" />
+                          </Button>
+                          <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => {
+                            setOpen(false);
+                            setTimeout(() => {
+                              window.dispatchEvent(new CustomEvent('navigate-to-full-viewer', {
+                                detail: { tab: 'meanings', page: word.pageNumber, surah: word.surahNumber, verse: word.verseNumber, search: word.wordText }
+                              }));
+                            }, 300);
+                          }} title="عرض في الملف الكامل">
+                            <FolderOpen className="w-3 h-3" />
                           </Button>
                           <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" onClick={() => handleDeleteBaseWord(word)} title="حذف">
                             <Trash2 className="w-3 h-3" />

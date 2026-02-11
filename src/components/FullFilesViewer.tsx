@@ -145,6 +145,24 @@ export function FullFilesViewer({ children, pages, allWords, onRefresh }: FullFi
   const { userOverrides, addWordOverride, exportOverrides, resetAll } = useDataStore();
   const { corrections, exportCorrections } = useCorrectionsStore();
 
+  // Listen for cross-dialog navigation events
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      if (detail) {
+        setOpen(true);
+        if (detail.tab) setActiveTab(detail.tab);
+        if (detail.search) { setSearchQuery(detail.search); }
+        if (detail.surah) { setSurahFilter(String(detail.surah)); }
+        if (detail.verse) { setVerseFilter(String(detail.verse)); }
+        if (detail.page) { setSinglePage(String(detail.page)); setPageFrom(''); setPageTo(''); }
+        setBrowsePage(1);
+      }
+    };
+    window.addEventListener('navigate-to-full-viewer', handler);
+    return () => window.removeEventListener('navigate-to-full-viewer', handler);
+  }, []);
+
   useEffect(() => {
     if (open && !rawMeaningsFile) {
       setIsLoadingRaw(true);
