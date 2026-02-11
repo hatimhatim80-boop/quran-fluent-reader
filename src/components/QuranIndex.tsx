@@ -174,33 +174,37 @@ export function QuranIndex({ currentPage, onNavigateToPage, onClose }: QuranInde
         </TabsContent>
 
         {/* Juz Tab */}
-        <TabsContent value="juz" className="flex-1 overflow-y-auto mt-0 px-3 pb-2 pt-1 space-y-0.5">
-          {JUZ_DATA.map(juz => (
-            <IndexItem
-              key={juz.number}
-              active={currentJuz === juz.number}
-              onClick={() => handleNavigate(juz.page)}
-              number={juz.number}
-              label={`الجزء ${juz.number}`}
-              subtitle={juz.name}
-              page={juz.page}
-            />
-          ))}
+        <TabsContent value="juz" className="flex-1 flex flex-col overflow-hidden mt-0 px-3">
+          <div className="flex-1 overflow-y-auto pb-2 space-y-0.5">
+            {JUZ_DATA.map(juz => (
+              <IndexItem
+                key={juz.number}
+                active={currentJuz === juz.number}
+                onClick={() => handleNavigate(juz.page)}
+                number={juz.number}
+                label={`الجزء ${juz.number}`}
+                subtitle={juz.name}
+                page={juz.page}
+              />
+            ))}
+          </div>
         </TabsContent>
 
         {/* Hizb Tab */}
-        <TabsContent value="hizb" className="flex-1 overflow-y-auto mt-0 px-3 pb-2 pt-1 space-y-0.5">
-          {HIZB_DATA.map(hizb => (
-            <IndexItem
-              key={hizb.number}
-              active={currentPage >= hizb.page && (hizb.number === HIZB_DATA.length || currentPage < HIZB_DATA[hizb.number]?.page)}
-              onClick={() => handleNavigate(hizb.page)}
-              number={hizb.number}
-              label={`الحزب ${hizb.number}`}
-              subtitle={`الجزء ${hizb.juz} - ${hizb.half === 1 ? 'النصف الأول' : 'النصف الثاني'}`}
-              page={hizb.page}
-            />
-          ))}
+        <TabsContent value="hizb" className="flex-1 flex flex-col overflow-hidden mt-0 px-3">
+          <div className="flex-1 overflow-y-auto pb-2 space-y-0.5">
+            {HIZB_DATA.map(hizb => (
+              <IndexItem
+                key={hizb.number}
+                active={currentPage >= hizb.page && (hizb.number === HIZB_DATA.length || currentPage < HIZB_DATA[hizb.number]?.page)}
+                onClick={() => handleNavigate(hizb.page)}
+                number={hizb.number}
+                label={`الحزب ${hizb.number}`}
+                subtitle={`الجزء ${hizb.juz} - ${hizb.half === 1 ? 'النصف الأول' : 'النصف الثاني'}`}
+                page={hizb.page}
+              />
+            ))}
+          </div>
         </TabsContent>
       </Tabs>
     </div>
