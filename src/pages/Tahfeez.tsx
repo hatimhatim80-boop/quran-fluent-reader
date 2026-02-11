@@ -8,6 +8,7 @@ import { Switch } from '@/components/ui/switch';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { TahfeezQuizView } from '@/components/TahfeezQuizView';
+import { TahfeezSelectionView } from '@/components/TahfeezSelectionView';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { SURAH_INFO, SURAH_NAMES } from '@/utils/quranPageIndex';
 
@@ -37,15 +38,17 @@ const JUZ_DATA = [
 
 export default function TahfeezPage() {
   const {
-    storedItems, clearAllItems,
+    storedItems, clearAllItems, addItem, removeItem, getItemKey,
     quizSource, setQuizSource,
     autoBlankMode, setAutoBlankMode,
     blankCount, setBlankCount,
     ayahCount, setAyahCount,
     timerSeconds, setTimerSeconds,
+    firstWordTimerSeconds, setFirstWordTimerSeconds,
     revealMode, setRevealMode,
     activeTab, setActiveTab,
     selectionMode, setSelectionMode,
+    rangeAnchor, setRangeAnchor,
   } = useTahfeezStore();
 
   const { currentPage, getCurrentPageData, goToPage, totalPages } = useQuranData();
@@ -95,19 +98,18 @@ export default function TahfeezPage() {
       setActiveBlankKey(key);
       setCurrentRevealIdx(idx);
 
+      const duration = idx === 0 ? firstWordTimerSeconds : timerSeconds;
+
       revealTimerRef.current = setTimeout(() => {
         setRevealedKeys(prev => new Set([...prev, key]));
         setActiveBlankKey(null);
-        // Small gap before next
         revealTimerRef.current = setTimeout(() => {
           revealNext(idx + 1);
         }, 300);
-      }, timerSeconds * 1000);
+      }, duration * 1000);
     };
 
-    // Start from where we left off
     const startIdx = currentRevealIdx < 0 ? 0 : currentRevealIdx;
-    // Only start if not already past all
     if (startIdx < blankedKeysList.length && !revealedKeys.has(blankedKeysList[startIdx])) {
       revealNext(startIdx);
     }
@@ -115,7 +117,7 @@ export default function TahfeezPage() {
     return () => {
       if (revealTimerRef.current) clearTimeout(revealTimerRef.current);
     };
-  }, [quizStarted, isPaused, showAll, blankedKeysList, timerSeconds]);
+  }, [quizStarted, isPaused, showAll, blankedKeysList, timerSeconds, firstWordTimerSeconds]);
 
   const handleStart = () => {
     setQuizStarted(true);
@@ -316,18 +318,9 @@ export default function TahfeezPage() {
         {/* Tab 1: Store words */}
         {!quizStarted && activeTab === 'store' && (
           <div className="space-y-4 animate-fade-in">
-            <div className="page-frame p-5 space-y-4">
-              <h2 className="font-arabic font-bold text-foreground">تخزين الكلمات والجمل</h2>
-              <p className="text-xs font-arabic text-muted-foreground leading-relaxed">
-                اذهب إلى المصحف وفعّل وضع التحديد لاختيار الكلمات أو الجمل التي تريد حفظها.
-              </p>
-              <Link to="/mushaf">
-                <Button onClick={handleGoToMushaf} className="w-full font-arabic">
-                  <BookOpen className="w-4 h-4 ml-2" />
-                  الذهاب للمصحف لتحديد الكلمات
-                </Button>
-              </Link>
-            </div>
+            {pageData && (
+              <TahfeezSelectionView page={pageData} />
+            )}
 
             {storedItems.length > 0 && (
               <div className="page-frame p-4 space-y-3">
@@ -366,7 +359,12 @@ export default function TahfeezPage() {
                 </p>
 
                 <div className="space-y-1">
-                  <label className="text-xs font-arabic text-muted-foreground">مدة ظهور كل كلمة: {timerSeconds} ثانية</label>
+                  <label className="text-xs font-arabic text-muted-foreground">مدة الكلمة الأولى: {firstWordTimerSeconds} ثانية</label>
+                  <Slider value={[firstWordTimerSeconds]} onValueChange={([v]) => setFirstWordTimerSeconds(v)} min={1} max={30} step={1} />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs font-arabic text-muted-foreground">مدة باقي الكلمات: {timerSeconds} ثانية</label>
                   <Slider value={[timerSeconds]} onValueChange={([v]) => setTimerSeconds(v)} min={1} max={10} step={1} />
                 </div>
 
@@ -423,7 +421,12 @@ export default function TahfeezPage() {
             </div>
 
             <div className="space-y-1">
-              <label className="text-xs font-arabic text-muted-foreground">مدة ظهور كل كلمة: {timerSeconds} ثانية</label>
+              <label className="text-xs font-arabic text-muted-foreground">مدة الكلمة الأولى: {firstWordTimerSeconds} ثانية</label>
+              <Slider value={[firstWordTimerSeconds]} onValueChange={([v]) => setFirstWordTimerSeconds(v)} min={1} max={30} step={1} />
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-xs font-arabic text-muted-foreground">مدة باقي الكلمات: {timerSeconds} ثانية</label>
               <Slider value={[timerSeconds]} onValueChange={([v]) => setTimerSeconds(v)} min={1} max={10} step={1} />
             </div>
 
