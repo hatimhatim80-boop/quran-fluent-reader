@@ -38,13 +38,13 @@ function isBismillah(line: string): boolean {
   return line.includes('بِسمِ اللَّهِ') || line.includes('بِسۡمِ ٱللَّهِ');
 }
 
-// Strict word matching: only allow substring match if lengths are proportionally close
+// Strict word matching: require exact match or very close substring with same root structure
 function isStrictMatch(tokenNorm: string, phraseWord: string): boolean {
   if (tokenNorm === phraseWord) return true;
-  const shorter = Math.min(tokenNorm.length, phraseWord.length);
-  const longer = Math.max(tokenNorm.length, phraseWord.length);
-  // The shorter must be at least 70% of the longer to allow substring match
-  if (shorter / longer < 0.7) return false;
+  // Only allow substring match if one fully contains the other
+  // AND lengths differ by at most 1 character (e.g. prefix alef difference)
+  const lenDiff = Math.abs(tokenNorm.length - phraseWord.length);
+  if (lenDiff > 1) return false;
   return tokenNorm.includes(phraseWord) || phraseWord.includes(tokenNorm);
 }
 
@@ -531,23 +531,55 @@ export function PageView({
         );
         
         if (forceHighlightOverride && !td.isVerseNumber) {
-          // Force highlight this word via override
-          lineElements.push(
-            <span
-              key={`${lineIdx}-${i}`}
-              className="ghareeb-word"
-              data-ghareeb-key={forceHighlightOverride.identityKey}
-              data-word-inspectable="true"
-              data-line-index={lineIdx}
-              data-token-index={i}
-              data-surah-number={forceHighlightOverride.surahNumber}
-              data-verse={forceHighlightOverride.verseNumber}
-              data-word-index={forceHighlightOverride.wordIndex}
-              data-assembly-id={assemblyId}
-            >
-              {td.token}
-            </span>
-          );
+          // Force highlight this word via override - use popover when meaning enabled
+          const overrideWord: GhareebWord = {
+            pageNumber: page.pageNumber,
+            wordText: td.token,
+            meaning: forceHighlightOverride.meaningText || forceHighlightOverride.meaning || '',
+            surahName: forceHighlightOverride.surahName || '',
+            surahNumber: forceHighlightOverride.surahNumber || 0,
+            verseNumber: forceHighlightOverride.verseNumber || 0,
+            wordIndex: forceHighlightOverride.wordIndex || 0,
+            order: 0,
+            uniqueKey: forceHighlightOverride.identityKey || `override_${lineIdx}_${i}`,
+          };
+
+          if (meaningEnabled) {
+            lineElements.push(
+              <GhareebWordPopover
+                key={`${lineIdx}-${i}-override`}
+                word={overrideWord}
+                index={-1}
+                isHighlighted={false}
+                forceOpen={false}
+                onSelect={onWordClick}
+                containerRef={containerRef}
+                dataAssemblyId={assemblyId}
+                dataLineIndex={lineIdx}
+                dataTokenIndex={i}
+                pageNumber={page.pageNumber}
+              >
+                {td.token}
+              </GhareebWordPopover>
+            );
+          } else {
+            lineElements.push(
+              <span
+                key={`${lineIdx}-${i}`}
+                className="ghareeb-word"
+                data-ghareeb-key={forceHighlightOverride.identityKey}
+                data-word-inspectable="true"
+                data-line-index={lineIdx}
+                data-token-index={i}
+                data-surah-number={forceHighlightOverride.surahNumber}
+                data-verse={forceHighlightOverride.verseNumber}
+                data-word-index={forceHighlightOverride.wordIndex}
+                data-assembly-id={assemblyId}
+              >
+                {td.token}
+              </span>
+            );
+          }
         } else {
           // Normal non-matched word: make it inspectable (DEV only) but not highlighted
           lineElements.push(
