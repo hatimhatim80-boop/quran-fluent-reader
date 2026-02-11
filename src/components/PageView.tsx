@@ -455,7 +455,10 @@ export function PageView({
           );
           
           // CHECK OVERRIDE: Should this word be highlighted?
-          const shouldShowHighlight = shouldHighlight(positionKey, identityKey, true);
+          // For auto-matched words, only check positionKey overrides (not identityKey)
+          // to prevent cross-page overrides from hiding valid matches
+          const posOverride = highlightOverrides.find(o => o.positionKey === positionKey);
+          const shouldShowHighlight = posOverride ? posOverride.highlight : true;
           
           if (!shouldShowHighlight) {
             // Override says: DO NOT highlight this word
