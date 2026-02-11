@@ -6,12 +6,13 @@ import { PageView } from './PageView';
 import { PageNavigation } from './PageNavigation';
 import { AutoPlayControls } from './AutoPlayControls';
 import { Toolbar } from './Toolbar';
+import { QuranIndex } from './QuranIndex';
 import { DiagnosticModeBadge } from './DiagnosticModeActivator';
 import { useSettingsApplier } from '@/hooks/useSettingsApplier';
 import { useDevDebugContextStore } from '@/stores/devDebugContextStore';
 import { useDiagnosticModeStore } from '@/stores/diagnosticModeStore';
 import { useHighlightOverrideStore } from '@/stores/highlightOverrideStore';
-import { Loader2 } from 'lucide-react';
+import { Loader2, List } from 'lucide-react';
 
 export function QuranReader() {
   const {
@@ -42,6 +43,7 @@ export function QuranReader() {
 
   // SINGLE SOURCE OF TRUTH: rendered words from PageView
   const [renderedWords, setRenderedWords] = useState<GhareebWord[]>([]);
+  const [showIndex, setShowIndex] = useState(false);
 
   const pageData = getCurrentPageData();
   const pageWords = getPageGhareebWords; // Used as input to PageView matching
@@ -142,85 +144,112 @@ export function QuranReader() {
   const meaningActive = isPlaying || currentWordIndex >= 0;
 
   return (
-    <div className="min-h-screen bg-background" dir="rtl">
+    <div className="min-h-screen bg-background flex" dir="rtl">
       {/* Diagnostic Mode Badge - fixed position */}
       <DiagnosticModeBadge />
-      
-      <div className="max-w-2xl mx-auto px-4 py-6 sm:py-8 space-y-5">
-        {/* Toolbar */}
-        <Toolbar
-          isPlaying={isPlaying}
-          onPlayPause={handlePlayPause}
-          wordsCount={renderedWords.length}
-          currentWordIndex={currentWordIndex}
-          currentPage={currentPage}
-          pages={pages}
-          pageWords={renderedWords}
-          allWords={allGhareebWords}
-          renderedWords={renderedWords}
-          onNavigateToPage={goToPage}
-          onHighlightWord={jumpTo}
-          onRefreshData={() => {
-            // Force re-render by triggering page reload
-            window.location.reload();
-          }}
-          onForceRebuild={() => {
-            // Force rebuild from Tanzil source
-            window.location.reload();
-          }}
-        />
 
-        {/* Debug display when enabled */}
-        {settings.debugMode && isPlaying && (
-          <div className="fixed top-4 left-4 z-50 bg-black/80 text-white text-xs px-3 py-2 rounded-lg font-mono">
-            Running {currentWordIndex + 1} / {renderedWords.length}
-          </div>
-        )}
-
-        {/* Page View */}
-        {pageData && (
-          <PageView
-            page={pageData}
-            ghareebWords={pageWords}
-            highlightedWordIndex={currentWordIndex}
-            meaningEnabled={meaningActive}
-            isPlaying={isPlaying}
-            onWordClick={handleWordClick}
-            onRenderedWordsChange={handleRenderedWordsChange}
-          />
-        )}
-
-        {/* Auto-Play Controls - uses rendered words count */}
-        {renderedWords.length > 0 && (
-          <div className="page-frame p-4">
-            <AutoPlayControls
-              isPlaying={isPlaying}
-              speed={speed}
-              wordsCount={renderedWords.length}
-              currentWordIndex={currentWordIndex}
-              onPlay={play}
-              onPause={pause}
-              onStop={stop}
-              onNext={nextWord}
-              onPrev={prevWord}
-              onSpeedChange={setSpeed}
+      {/* Index Sidebar */}
+      {showIndex && (
+        <div className="fixed inset-0 z-40 flex sm:relative sm:inset-auto">
+          {/* Backdrop on mobile */}
+          <div className="fixed inset-0 bg-black/30 sm:hidden" onClick={() => setShowIndex(false)} />
+          <div className="relative z-50 w-72 sm:w-64 h-screen shrink-0 border-l border-border shadow-lg sm:shadow-none bg-card">
+            <QuranIndex
+              currentPage={currentPage}
+              onNavigateToPage={goToPage}
+              onClose={() => setShowIndex(false)}
             />
           </div>
-        )}
+        </div>
+      )}
 
-        {/* Navigation */}
-        <PageNavigation
-          currentPage={currentPage}
-          totalPages={totalPages}
-          onPrevPage={prevPage}
-          onNextPage={nextPage}
-          onGoToPage={goToPage}
-        />
+      {/* Main Content */}
+      <div className="flex-1 min-w-0">
+        <div className="max-w-2xl mx-auto px-4 py-6 sm:py-8 space-y-5">
+          {/* Index Toggle + Toolbar */}
+          <div className="flex items-start gap-2">
+            <button
+              onClick={() => setShowIndex(!showIndex)}
+              className={`nav-button w-9 h-9 rounded-lg flex items-center justify-center shrink-0 mt-[2px] ${showIndex ? 'bg-primary/20 border-primary' : ''}`}
+              title="فهرس المصحف"
+            >
+              <List className="w-4 h-4" />
+            </button>
+            <div className="flex-1">
+              <Toolbar
+                isPlaying={isPlaying}
+                onPlayPause={handlePlayPause}
+                wordsCount={renderedWords.length}
+                currentWordIndex={currentWordIndex}
+                currentPage={currentPage}
+                pages={pages}
+                pageWords={renderedWords}
+                allWords={allGhareebWords}
+                renderedWords={renderedWords}
+                onNavigateToPage={goToPage}
+                onHighlightWord={jumpTo}
+                onRefreshData={() => {
+                  window.location.reload();
+                }}
+                onForceRebuild={() => {
+                  window.location.reload();
+                }}
+              />
+            </div>
+          </div>
 
-        {/* Footer - Minimal */}
-        <footer className="text-center text-[10px] text-muted-foreground/60 font-arabic pb-4">
-          يُحفظ تقدمك تلقائياً
-        </footer>
+          {/* Debug display when enabled */}
+          {settings.debugMode && isPlaying && (
+            <div className="fixed top-4 left-4 z-50 bg-black/80 text-white text-xs px-3 py-2 rounded-lg font-mono">
+              Running {currentWordIndex + 1} / {renderedWords.length}
+            </div>
+          )}
+
+          {/* Page View */}
+          {pageData && (
+            <PageView
+              page={pageData}
+              ghareebWords={pageWords}
+              highlightedWordIndex={currentWordIndex}
+              meaningEnabled={meaningActive}
+              isPlaying={isPlaying}
+              onWordClick={handleWordClick}
+              onRenderedWordsChange={handleRenderedWordsChange}
+            />
+          )}
+
+          {/* Auto-Play Controls - uses rendered words count */}
+          {renderedWords.length > 0 && (
+            <div className="page-frame p-4">
+              <AutoPlayControls
+                isPlaying={isPlaying}
+                speed={speed}
+                wordsCount={renderedWords.length}
+                currentWordIndex={currentWordIndex}
+                onPlay={play}
+                onPause={pause}
+                onStop={stop}
+                onNext={nextWord}
+                onPrev={prevWord}
+                onSpeedChange={setSpeed}
+              />
+            </div>
+          )}
+
+          {/* Navigation */}
+          <PageNavigation
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPrevPage={prevPage}
+            onNextPage={nextPage}
+            onGoToPage={goToPage}
+          />
+
+          {/* Footer - Minimal */}
+          <footer className="text-center text-[10px] text-muted-foreground/60 font-arabic pb-4">
+            يُحفظ تقدمك تلقائياً
+          </footer>
+        </div>
       </div>
     </div>
   );

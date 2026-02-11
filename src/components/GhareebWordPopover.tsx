@@ -67,6 +67,16 @@ export function GhareebWordPopover({
     effectiveMeaning = word.meaning || meaningInfo.meaning || "⚠️ لا يوجد معنى";
   }
 
+  // Close manual popover when another word is selected (isHighlighted becomes false)
+  useEffect(() => {
+    if (!isHighlighted && isManualOpen) {
+      setIsManualOpen(false);
+      setPosition(null);
+      setMeasuredHeight(null);
+      setMeasuredWidth(null);
+    }
+  }, [isHighlighted, isManualOpen]);
+
   const isOpen = forceOpen || isManualOpen;
 
   const calculatePosition = useCallback((actualHeight?: number, actualWidth?: number) => {
