@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { QuranPage, GhareebWord, SavedProgress } from '@/types/quran';
-import { parseTanzilQuran } from '@/utils/quranParser';
+import { parseMushafText } from '@/utils/quranParser';
 import { loadGhareebData, getWordsForPage } from '@/utils/ghareebLoader';
 import { useDataStore } from '@/stores/dataStore';
 
@@ -26,14 +26,14 @@ export function useQuranData() {
       setError(null);
       
       try {
-        // Load Tanzil Quran text and ghareeb JSON in parallel
-        const [tanzilResponse, ghareebMap] = await Promise.all([
-          fetch('/data/quran-tanzil.txt'),
+        // Load Mushaf text (15-line Madina layout) and ghareeb data in parallel
+        const [mushafResponse, ghareebMap] = await Promise.all([
+          fetch('/data/mushaf.txt'),
           loadGhareebData(),
         ]);
         
-        const tanzilText = await tanzilResponse.text();
-        const loadedPages = await parseTanzilQuran(tanzilText);
+        const mushafText = await mushafResponse.text();
+        const loadedPages = parseMushafText(mushafText);
         
         if (loadedPages.length === 0) {
           setError('لم يتم العثور على بيانات القرآن');
