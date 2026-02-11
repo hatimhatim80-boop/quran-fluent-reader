@@ -141,6 +141,7 @@ export function FullFilesViewer({ children, pages, allWords, onRefresh }: FullFi
   const [diagRunning, setDiagRunning] = useState(false);
   const [diagFilter, setDiagFilter] = useState<string>('all');
   const [diagPage, setDiagPage] = useState(1);
+  const [importedDiagData, setImportedDiagData] = useState<any>(null);
 
   const { userOverrides, addWordOverride, exportOverrides, resetAll } = useDataStore();
   const { corrections, exportCorrections } = useCorrectionsStore();
@@ -807,11 +808,70 @@ export function FullFilesViewer({ children, pages, allWords, onRefresh }: FullFi
                     {diagStats.total === 0 ? 'لا توجد مشكلات! البيانات سليمة ✓'
                       : `${diagStats.errors} خطأ و ${diagStats.warnings} تحذير من أصل ${allWords.length.toLocaleString()} كلمة`}
                   </span>
-                  <Button size="sm" variant="ghost" className="mr-auto font-arabic text-xs"
-                    onClick={() => { setDiagRunning(false); setDiagFilter('all'); setDiagPage(1); }}>
-                    إعادة الفحص
-                  </Button>
+                  <div className="mr-auto flex gap-1">
+                    <Button size="sm" variant="ghost" className="font-arabic text-xs"
+                      onClick={() => { setDiagRunning(false); setDiagFilter('all'); setDiagPage(1); }}>
+                      إعادة الفحص
+                    </Button>
+                    <Button size="sm" variant="outline" className="font-arabic text-xs gap-1"
+                      onClick={() => {
+                        const exportData = {
+                          version: '1.0',
+                          type: 'diagnostics-report',
+                          timestamp: new Date().toISOString(),
+                          totalWords: allWords.length,
+                          stats: diagStats,
+                          issues: diagnosticIssues.map(i => ({
+                            type: i.type, severity: i.severity, message: i.message,
+                            page: i.word.pageNumber, surah: i.word.surahNumber,
+                            verse: i.word.verseNumber, word: i.word.wordText,
+                            meaning: i.word.meaning, uniqueKey: i.word.uniqueKey,
+                          })),
+                        };
+                        handleExport(JSON.stringify(exportData, null, 2), `diagnostics-${Date.now()}.json`);
+                      }}>
+                      <Download className="w-3 h-3" /> تصدير
+                    </Button>
+                    <Button size="sm" variant="outline" className="font-arabic text-xs gap-1"
+                      onClick={() => {
+                        const input = document.createElement('input');
+                        input.type = 'file'; input.accept = '.json';
+                        input.onchange = (e) => {
+                          const file = (e.target as HTMLInputElement).files?.[0];
+                          if (!file) return;
+                          const reader = new FileReader();
+                          reader.onload = (ev) => {
+                            try {
+                              const data = JSON.parse(ev.target?.result as string);
+                              if (data.type !== 'diagnostics-report' || !data.issues) {
+                                toast.error('ملف غير صالح — يجب أن يكون تقرير تشخيص');
+                                return;
+                              }
+                              setImportedDiagData(data);
+                              toast.success(`تم استيراد ${data.issues.length} مشكلة من التقرير`);
+                            } catch { toast.error('خطأ في قراءة الملف'); }
+                          };
+                          reader.readAsText(file);
+                        };
+                        input.click();
+                      }}>
+                      <Upload className="w-3 h-3" /> استيراد
+                    </Button>
+                  </div>
                 </div>
+
+                {/* Imported report view */}
+                {importedDiagData && (
+                  <div className="p-2 border rounded-lg border-blue-300 bg-blue-50 dark:bg-blue-950 flex items-center gap-2">
+                    <Database className="w-4 h-4 text-blue-600" />
+                    <span className="font-arabic text-xs flex-1">
+                      تقرير مستورد: {importedDiagData.issues.length} مشكلة — {new Date(importedDiagData.timestamp).toLocaleString('ar')}
+                    </span>
+                    <Button size="sm" variant="ghost" className="font-arabic text-xs h-6" onClick={() => setImportedDiagData(null)}>
+                      إغلاق
+                    </Button>
+                  </div>
+                )}
 
                 {/* Issues List with Pagination */}
                 {filteredDiagIssues.length > 0 ? (
