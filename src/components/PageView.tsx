@@ -2,7 +2,7 @@ import React, { useMemo, useEffect, useRef } from 'react';
 import { QuranPage, GhareebWord } from '@/types/quran';
 import { normalizeArabic } from '@/utils/quranParser';
 import { GhareebWordPopover } from './GhareebWordPopover';
-import { useHighlightOverrideStore, makePositionKey, makeIdentityKey } from '@/stores/highlightOverrideStore';
+import { useHighlightOverrideStore } from '@/stores/highlightOverrideStore';
 
 interface PageViewProps {
   page: QuranPage;
@@ -71,10 +71,8 @@ export function PageView({
   const containerRef = useRef<HTMLDivElement>(null);
   const lastRenderedKeysRef = useRef<string>('');
   
-  // Subscribe to highlight overrides for reactivity
-  const highlightOverrides = useHighlightOverrideStore((s) => s.overrides);
+  // Subscribe to highlight overrides for reactivity (read-only, no editing)
   const highlightVersion = useHighlightOverrideStore((s) => s.version);
-  const shouldHighlight = useHighlightOverrideStore((s) => s.shouldHighlight);
 
   useEffect(() => {
     if (highlightedWordIndex < 0) return;
@@ -173,6 +171,7 @@ export function PageView({
           let phraseWordIdx = 0;
           let matchedTokens: number[] = [];
           let j = i;
+          
           
           while (j < tokenData.length && phraseWordIdx < entry.words.length) {
             if (tokenData[j].isSpace) { j++; continue; }
@@ -374,119 +373,12 @@ export function PageView({
           continue;
         }
         
-        // Generate position key for override lookup
-        const positionKey = makePositionKey(page.pageNumber, lineIdx, i);
-        
-        // ✅ CHECK FORCE-HIGHLIGHT OVERRIDE FIRST (takes priority over automatic matching)
-        const forceHighlightOverride = !td.isVerseNumber ? highlightOverrides.find(
-          o => o.positionKey === positionKey && o.highlight === true
-        ) : null;
-        
-        if (forceHighlightOverride) {
-          // Resolve meaning: prefer meaningText, then resolve meaningId from ghareeb data
-          let resolvedMeaning = forceHighlightOverride.meaningText || forceHighlightOverride.meaning || '';
-          if (!resolvedMeaning && forceHighlightOverride.meaningId) {
-            const refWord = ghareebWords.find(w => w.uniqueKey === forceHighlightOverride.meaningId);
-            resolvedMeaning = refWord?.meaning || '';
-          }
-          
-          const overrideWord: GhareebWord = {
-            pageNumber: page.pageNumber,
-            wordText: td.token,
-            meaning: resolvedMeaning,
-            surahName: forceHighlightOverride.surahName || '',
-            surahNumber: forceHighlightOverride.surahNumber || 0,
-            verseNumber: forceHighlightOverride.verseNumber || 0,
-            wordIndex: forceHighlightOverride.wordIndex || 0,
-            order: 0,
-            uniqueKey: forceHighlightOverride.identityKey || `override_${lineIdx}_${i}`,
-          };
-
-          if (meaningEnabled) {
-            lineElements.push(
-              <GhareebWordPopover
-                key={`${lineIdx}-${i}-override`}
-                word={overrideWord}
-                index={-1}
-                isHighlighted={false}
-                forceOpen={false}
-                onSelect={onWordClick}
-                containerRef={containerRef}
-                dataAssemblyId={assemblyId}
-                dataLineIndex={lineIdx}
-                dataTokenIndex={i}
-                pageNumber={page.pageNumber}
-              >
-                {td.token}
-              </GhareebWordPopover>
-            );
-          } else {
-            lineElements.push(
-              <span
-                key={`${lineIdx}-${i}`}
-                className="ghareeb-word"
-                data-ghareeb-key={forceHighlightOverride.identityKey}
-                data-word-inspectable="true"
-                data-line-index={lineIdx}
-                data-token-index={i}
-                data-surah-number={forceHighlightOverride.surahNumber}
-                data-verse={forceHighlightOverride.verseNumber}
-                data-word-index={forceHighlightOverride.wordIndex}
-                data-assembly-id={assemblyId}
-              >
-                {td.token}
-              </span>
-            );
-          }
-          i++;
-          continue;
-        }
         
         if (td.matched && td.matchInfo) {
           const info = td.matchInfo;
           const sequentialIndex = info.sequentialIndex;
           const isHighlighted = highlightedWordIndex === sequentialIndex;
           
-          // Generate identity key for this matched word
-          const identityKey = makeIdentityKey(
-            info.word.surahNumber,
-            info.word.verseNumber,
-            info.word.wordIndex
-          );
-          
-          // CHECK OVERRIDE: Should this word be highlighted?
-          // For auto-matched words, only check positionKey overrides (not identityKey)
-          // to prevent cross-page overrides from hiding valid matches
-          const posOverride = highlightOverrides.find(o => o.positionKey === positionKey);
-          const shouldShowHighlight = posOverride ? posOverride.highlight : true;
-          
-          if (!shouldShowHighlight) {
-            // Override says: DO NOT highlight this word
-            lineElements.push(
-              <span
-                key={`${lineIdx}-${i}`}
-                data-word-inspectable="true"
-                data-line-index={lineIdx}
-                data-token-index={i}
-                data-surah-number={info.word.surahNumber}
-                data-verse={info.word.verseNumber}
-                data-word-index={info.word.wordIndex}
-                data-assembly-id={assemblyId}
-              >
-                {info.isPartOfPhrase && info.phraseStart ? (() => {
-                  const lastPhraseTokenIdx = info.phraseTokens[info.phraseTokens.length - 1];
-                  const phraseText: string[] = [];
-                  for (let k = i; k <= lastPhraseTokenIdx; k++) {
-                    phraseText.push(tokenData[k].token);
-                  }
-                  i = lastPhraseTokenIdx;
-                  return phraseText.join('');
-                })() : td.token}
-              </span>
-            );
-            i++;
-            continue;
-          }
           
           // Normal highlight rendering
           if (info.isPartOfPhrase && info.phraseStart) {
@@ -618,7 +510,7 @@ export function PageView({
     }
 
     return <div className="inline">{allElements}</div>;
-  }, [page.text, page.pageNumber, ghareebWords, highlightedWordIndex, meaningEnabled, isPlaying, onWordClick, surahContextByLine, tokenMatchMap, highlightOverrides, highlightVersion, shouldHighlight]);
+  }, [page.text, page.pageNumber, ghareebWords, highlightedWordIndex, meaningEnabled, isPlaying, onWordClick, surahContextByLine, tokenMatchMap, highlightVersion]);
 
   return (
     <div ref={containerRef} className="page-frame p-5 sm:p-8">

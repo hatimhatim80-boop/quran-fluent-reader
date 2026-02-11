@@ -650,9 +650,7 @@ function InspectTabContent({
       <div className="p-2 rounded bg-muted/50 border border-dashed">
         <div className="flex items-center gap-2 text-muted-foreground text-[11px]">
           <MousePointer className="w-3 h-3" />
-          <span>
-            {reassignMode ? "🎯 وضع النقل: انقر على الكلمة الهدف" : "انقر على أي كلمة (ملونة أو غير ملونة) لفحصها"}
-          </span>
+          <span>انقر على أي كلمة (ملونة أو غير ملونة) لفحصها (للقراءة فقط)</span>
         </div>
       </div>
 
@@ -675,17 +673,6 @@ function InspectTabContent({
             </Badge>
           </div>
 
-          {existingHighlightOverride && (
-            <Badge variant="outline" className="text-[9px]">
-              ⚙️ تعديل: {existingHighlightOverride.highlight ? "إضافة تلوين" : "إزالة تلوين"}
-            </Badge>
-          )}
-          {existingDataOverride && (
-            <Badge variant="secondary" className="text-[9px]">
-              📝 legacy override: {existingDataOverride.operation}
-            </Badge>
-          )}
-
           <div className="p-2 rounded bg-muted/50 border">
             <div className="flex items-center gap-2 text-[10px]">
               <span className="text-muted-foreground">Normalized:</span>
@@ -700,12 +687,6 @@ function InspectTabContent({
                 </span>
               )}
             </div>
-            {isStopword(inspectedWord.originalWord) && (
-              <div className="flex items-center gap-1 mt-1 text-[10px] text-yellow-600">
-                <Shield className="w-3 h-3" />
-                <span>أداة/حرف (stopword) - لا ينبغي تلوينها عادةً</span>
-              </div>
-            )}
           </div>
 
           <div className="grid grid-cols-2 gap-2 text-[10px]">
@@ -724,11 +705,6 @@ function InspectTabContent({
             {meaningInfo.hasMeaning ? (
               <div className="font-arabic text-sm p-1.5 bg-muted rounded" dir="rtl">
                 {meaningInfo.meaning}
-                {meaningInfo.source !== "default" && (
-                  <Badge variant="outline" className="text-[8px] mr-2">
-                    {meaningInfo.source === "override-text" ? "معنى يدوي" : "مرجع"}
-                  </Badge>
-                )}
               </div>
             ) : (
               <div className="p-2 rounded bg-destructive/10 border border-destructive/30">
@@ -736,90 +712,6 @@ function InspectTabContent({
                   <AlertTriangle className="w-4 h-4" />
                   <span className="font-arabic">المعنى غير موجود!</span>
                 </div>
-              </div>
-            )}
-          </div>
-
-          <div className="border-t pt-2 mt-2 space-y-2">
-            <div className="text-[10px] text-muted-foreground font-semibold flex items-center gap-1">
-              <Save className="w-3 h-3" />
-              DEV Actions (persisted)
-            </div>
-
-            {isCurrentlyHighlighted ? (
-              <>
-                <Button
-                  size="sm"
-                  variant="destructive"
-                  className="w-full h-7 text-[10px] gap-1"
-                  onClick={handleRemoveHighlight}
-                >
-                  <Trash2 className="w-3 h-3" />
-                  إزالة التلوين من هذه الكلمة
-                </Button>
-
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="w-full h-7 text-[10px] gap-1"
-                  onClick={() => setShowMeaningDialog(true)}
-                >
-                  <PenLine className="w-3 h-3" />
-                  تعديل المعنى
-                </Button>
-              </>
-            ) : (
-              <Button
-                size="sm"
-                variant="default"
-                className="w-full h-7 text-[10px] gap-1 bg-accent text-accent-foreground hover:bg-accent/80"
-                onClick={handleAddHighlightClick}
-              >
-                <CheckCircle className="w-3 h-3" />
-                إضافة تلوين لهذه الكلمة
-              </Button>
-            )}
-
-            {existingHighlightOverride && (
-              <Button
-                size="sm"
-                variant="outline"
-                className="w-full h-7 text-[10px] gap-1"
-                onClick={handleRestoreDefault}
-              >
-                <RefreshCw className="w-3 h-3" />
-                استعادة الافتراضي
-              </Button>
-            )}
-
-            {isCurrentlyHighlighted && (
-              <div className="space-y-1">
-                <Button
-                  size="sm"
-                  variant={reassignMode ? "default" : "outline"}
-                  className="w-full h-7 text-[10px] gap-1"
-                  onClick={() => setReassignMode(!reassignMode)}
-                >
-                  <ArrowRightLeft className="w-3 h-3" />
-                  {reassignMode ? "🎯 في انتظار اختيار الهدف..." : "نقل المعنى إلى كلمة أخرى"}
-                </Button>
-
-                {pendingReassignTarget && (
-                  <div className="flex items-center gap-1 text-[10px]">
-                    <span className="text-muted-foreground">الهدف:</span>
-                    <Badge variant="secondary" className="text-[9px]">
-                      {pendingReassignTarget.uniqueKey}
-                    </Badge>
-                    <Button
-                      size="sm"
-                      variant="default"
-                      className="h-5 text-[9px] px-2 ml-auto"
-                      onClick={handleReassignMeaning}
-                    >
-                      تأكيد النقل
-                    </Button>
-                  </div>
-                )}
               </div>
             )}
           </div>
@@ -831,23 +723,7 @@ function InspectTabContent({
           <span className="text-[10px]">Click any word in the mushaf (highlighted or not)</span>
         </div>
       )}
-
-      <MeaningAssignDialog
-        open={showMeaningDialog}
-        onOpenChange={setShowMeaningDialog}
-        wordText={inspectedWord?.originalWord || ""}
-        positionKey={inspectedWord?.positionKey || ""}
-        identityKey={inspectedWord?.identityKey || ""}
-        pageNumber={pageNumber}
-        lineIndex={inspectedWord?.lineIndex}
-        tokenIndex={inspectedWord?.tokenIndex}
-        surahNumber={inspectedWord?.surah}
-        verseNumber={inspectedWord?.ayah}
-        wordIndex={inspectedWord?.wordIndex}
-        ghareebWords={allGhareebWords}
-        onAssignMeaning={isCurrentlyHighlighted ? handleUpdateMeaning : handleMeaningAssign}
-        onCancel={() => setShowMeaningDialog(false)}
-      />
+    
     </>
   );
 }
