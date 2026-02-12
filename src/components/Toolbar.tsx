@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { 
   BookOpen, 
   Rocket, 
@@ -9,7 +9,12 @@ import {
   Database,
   FolderOpen,
   MoreHorizontal,
+  RefreshCw,
+  Loader2,
 } from 'lucide-react';
+import { toast } from 'sonner';
+import { checkAndUpdate } from '@/services/updateService';
+import { useSettingsStore } from '@/stores/settingsStore';
 import { SettingsDialog } from './SettingsDialog';
 import { BuildCenterDialog } from './BuildCenterDialog';
 import { FullPageEditorDialog } from './FullPageEditorDialog';
@@ -50,6 +55,29 @@ export function Toolbar({
   onForceRebuild,
 }: ToolbarProps) {
   const [showAdminTools, setShowAdminTools] = useState(false);
+  const [isUpdating, setIsUpdating] = useState(false);
+  const { settings } = useSettingsStore();
+
+  const handleUpdate = useCallback(async () => {
+    if (isUpdating) return;
+    setIsUpdating(true);
+
+    try {
+      const updated = await checkAndUpdate(
+        settings.update?.manifestUrl || '/updates/manifest.json',
+      );
+
+      if (updated) {
+        toast.success('تم تحديث البيانات بنجاح!');
+      } else {
+        toast.info('البيانات محدّثة بالفعل');
+      }
+    } catch {
+      toast.error('فشل التحديث. تحقق من اتصال الإنترنت.');
+    } finally {
+      setIsUpdating(false);
+    }
+  }, [isUpdating, settings.update?.manifestUrl]);
 
   return (
     <header className="pb-1">
@@ -91,6 +119,27 @@ export function Toolbar({
             {currentWordIndex + 1}/{wordsCount}
           </span>
         )}
+
+        <div className="w-px h-5 bg-border mx-0.5" />
+
+        {/* Update button */}
+        <button
+          type="button"
+          onClick={handleUpdate}
+          disabled={isUpdating}
+          className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${
+            isUpdating 
+              ? 'bg-primary/10 text-primary' 
+              : 'nav-button'
+          }`}
+          title="تحديث البيانات"
+        >
+          {isUpdating ? (
+            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+          ) : (
+            <RefreshCw className="w-3.5 h-3.5" />
+          )}
+        </button>
 
         <div className="w-px h-5 bg-border mx-0.5" />
 
