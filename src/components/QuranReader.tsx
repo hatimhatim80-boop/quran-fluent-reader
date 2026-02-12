@@ -194,13 +194,11 @@ export function QuranReader() {
                   <SlidersHorizontal className="w-3.5 h-3.5" />
                 </button>
 
-                {/* Tahfeez mode toggle */}
+                {/* Tahfeez mode - navigate to /tahfeez */}
                 <button
-                  onClick={() => setTahfeezMode(!tahfeezMode)}
-                  className={`w-8 h-8 rounded-full flex items-center justify-center transition-all relative ${
-                    tahfeezMode ? 'bg-primary text-primary-foreground' : 'nav-button'
-                  }`}
-                  title="وضع التحفيظ"
+                  onClick={() => navigate('/tahfeez')}
+                  className={`w-8 h-8 rounded-full flex items-center justify-center transition-all relative nav-button`}
+                  title="بوابة التحفيظ"
                 >
                   <GraduationCap className="w-3.5 h-3.5" />
                   {tahfeezSelectedCount > 0 && (

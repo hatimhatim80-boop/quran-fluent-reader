@@ -210,21 +210,24 @@
     transition: all 0.2s ease;
   }
 
-  /* Background highlight style (default) */
+  /* Background highlight style (default) - bold & visible */
   .ghareeb-word:not(.ghareeb-word--text-only) {
-    background-color: hsl(var(--highlight-color, 48 80% 90%) / var(--highlight-opacity, 0.6));
-    border-radius: 3px;
-    padding: 0 2px;
+    background-color: hsl(var(--highlight-color, 48 80% 70%) / var(--highlight-opacity, 0.55));
+    border: 1px solid hsl(var(--highlight-color, 48 80% 50%) / 0.55);
+    border-radius: 6px;
+    padding: 1px 4px;
     margin: 0 -2px;
   }
 
   .ghareeb-word:not(.ghareeb-word--text-only):hover {
-    background-color: hsl(var(--highlight-color, 48 80% 85%) / calc(var(--highlight-opacity, 0.6) + 0.2));
+    background-color: hsl(var(--highlight-color, 48 80% 65%) / calc(var(--highlight-opacity, 0.55) + 0.2));
+    border-color: hsl(var(--highlight-color, 48 80% 45%) / 0.7);
   }
 
   .ghareeb-word--active:not(.ghareeb-word--text-only) {
-    background-color: hsl(var(--highlight-color, 48 85% 75%) / calc(var(--highlight-opacity, 0.6) + 0.3));
-    box-shadow: 0 0 8px 2px hsl(var(--highlight-color, 48 80% 70%) / 0.4);
+    background-color: hsl(200 70% 80% / 0.45);
+    border-color: hsl(200 70% 50% / 0.6);
+    box-shadow: 0 0 10px 3px hsl(200 70% 60% / 0.35);
   }
 
   /* Text-only highlight style */
@@ -257,16 +260,19 @@
   }
 
   .dark .ghareeb-word:not(.ghareeb-word--text-only) {
-    background-color: hsl(48 60% 30% / 0.4);
+    background-color: hsl(48 60% 30% / 0.45);
+    border-color: hsl(48 60% 40% / 0.5);
   }
 
   .dark .ghareeb-word:not(.ghareeb-word--text-only):hover {
-    background-color: hsl(48 60% 35% / 0.5);
+    background-color: hsl(48 60% 35% / 0.55);
+    border-color: hsl(48 60% 45% / 0.6);
   }
 
   .dark .ghareeb-word--active:not(.ghareeb-word--text-only) {
-    background-color: hsl(48 65% 40% / 0.6);
-    box-shadow: 0 0 8px 2px hsl(48 60% 35% / 0.4);
+    background-color: hsl(200 50% 35% / 0.5);
+    border-color: hsl(200 50% 50% / 0.6);
+    box-shadow: 0 0 10px 3px hsl(200 50% 40% / 0.4);
   }
 
   .dark .ghareeb-word--text-only {
