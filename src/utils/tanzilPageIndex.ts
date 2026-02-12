@@ -118,8 +118,8 @@ export async function loadTanzilPageIndex(): Promise<[number, number][]> {
   if (fullPageIndex) return fullPageIndex;
   
   try {
-    const response = await fetch('/data/tanzil-metadata.xml');
-    const xmlText = await response.text();
+    const { getData } = await import('@/services/dataSource');
+    const xmlText = await getData('tanzil-metadata');
     
     const parser = new DOMParser();
     const doc = parser.parseFromString(xmlText, 'text/xml');

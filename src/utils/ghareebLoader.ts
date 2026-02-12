@@ -1,6 +1,7 @@
 import { GhareebWord } from '@/types/quran';
 import { normalizeArabic } from './quranParser';
 import { loadTanzilPageIndex, getPageForAyah } from './tanzilPageIndex';
+import { getData } from '@/services/dataSource';
 
 /**
  * Convert Arabic numerals to JavaScript numbers
@@ -27,8 +28,7 @@ function parseArabicNumber(str: string): number {
 export async function loadGhareebData(): Promise<Map<number, GhareebWord[]>> {
   const pageIndex = await loadTanzilPageIndex();
 
-  const response = await fetch('/data/ghareeb-words.txt');
-  const text = await response.text();
+  const text = await getData('ghareeb');
 
   const result = new Map<number, GhareebWord[]>();
   let currentSurah = '';
