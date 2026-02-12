@@ -4,23 +4,23 @@ import { persist } from 'zustand/middleware';
 // Font settings
 export interface FontSettings {
   fontFamily: 'amiri' | 'amiriQuran' | 'notoNaskh' | 'scheherazade' | 'uthman' | 'uthmanicHafs';
-  quranFontSize: number; // rem
-  meaningFontSize: number; // rem
+  quranFontSize: number;
+  meaningFontSize: number;
   lineHeight: number;
   fontWeight: 400 | 500 | 600 | 700;
 }
 
 // Display settings
 export interface DisplaySettings {
-  mode: 'continuous' | 'lines15'; // continuous flow or 15-line Madina style
+  mode: 'continuous' | 'lines15';
 }
 
 // Color settings
 export interface ColorSettings {
-  highlightColor: string; // HSL values
+  highlightColor: string;
   highlightIntensity: 'soft' | 'medium' | 'strong';
-  highlightStyle: 'background' | 'text-only'; // background highlight or text color only
-  pageBackgroundColor: string; // HSL values for page background
+  highlightStyle: 'background' | 'text-only';
+  pageBackgroundColor: string;
   popoverBackground: string;
   popoverText: string;
   popoverBorder: string;
@@ -28,20 +28,26 @@ export interface ColorSettings {
 
 // Popover style settings
 export interface PopoverSettings {
-  width: number; // px
-  padding: number; // px
-  borderRadius: number; // px
+  width: number;
+  padding: number;
+  borderRadius: number;
   shadow: 'none' | 'soft' | 'medium' | 'strong';
   showArrow: boolean;
-  opacity: number; // 0-100
+  opacity: number;
 }
 
 // Autoplay settings
 export interface AutoplaySettings {
-  speed: number; // seconds per word
-  thinkingGap: number; // ms before showing meaning
+  speed: number;
+  thinkingGap: number;
   autoAdvancePage: boolean;
   pauseOnMissingMeaning: boolean;
+}
+
+// Update settings
+export interface UpdateSettings {
+  manifestUrl: string;
+  autoUpdate: boolean;
 }
 
 // Complete app settings
@@ -51,6 +57,7 @@ export interface AppSettings {
   popover: PopoverSettings;
   autoplay: AutoplaySettings;
   display: DisplaySettings;
+  update: UpdateSettings;
   debugMode: boolean;
 }
 
@@ -89,6 +96,10 @@ const defaultSettings: AppSettings = {
   display: {
     mode: 'lines15',
   },
+  update: {
+    manifestUrl: '/updates/manifest.json',
+    autoUpdate: false,
+  },
   debugMode: false,
 };
 
@@ -99,6 +110,7 @@ interface SettingsState {
   setPopover: (popover: Partial<PopoverSettings>) => void;
   setAutoplay: (autoplay: Partial<AutoplaySettings>) => void;
   setDisplay: (display: Partial<DisplaySettings>) => void;
+  setUpdate: (update: Partial<UpdateSettings>) => void;
   setDebugMode: (enabled: boolean) => void;
   resetSettings: () => void;
   exportSettings: () => string;
@@ -147,6 +159,14 @@ export const useSettingsStore = create<SettingsState>()(
           settings: {
             ...state.settings,
             display: { ...state.settings.display, ...display },
+          },
+        })),
+
+      setUpdate: (update) =>
+        set((state) => ({
+          settings: {
+            ...state.settings,
+            update: { ...state.settings.update, ...update },
           },
         })),
 

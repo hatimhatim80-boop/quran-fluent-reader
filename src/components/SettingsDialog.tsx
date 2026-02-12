@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Type, Palette, LayoutGrid, Settings2, RotateCcw, Download, Upload, Zap, Bug, Check, Rows3 } from 'lucide-react';
+import { Type, Palette, LayoutGrid, Settings2, RotateCcw, Download, Upload, Zap, Bug, Check, Rows3, RefreshCw } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Slider } from '@/components/ui/slider';
@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Switch } from '@/components/ui/switch';
 import { useSettingsStore, FontSettings, ColorSettings, PopoverSettings } from '@/stores/settingsStore';
 import { toast } from 'sonner';
+import { DataUpdatePanel } from './DataUpdatePanel';
 
 interface SettingsDialogProps {
   children: React.ReactNode;
@@ -104,7 +105,7 @@ export function SettingsDialog({ children }: SettingsDialogProps) {
         </DialogHeader>
 
         <Tabs defaultValue="fonts" className="mt-4">
-          <TabsList className="grid w-full grid-cols-5">
+          <TabsList className="grid w-full grid-cols-6">
             <TabsTrigger value="fonts" className="gap-1 text-xs">
               <Type className="w-4 h-4" />
               الخطوط
@@ -124,6 +125,10 @@ export function SettingsDialog({ children }: SettingsDialogProps) {
             <TabsTrigger value="autoplay" className="gap-1 text-xs">
               <Zap className="w-4 h-4" />
               التشغيل
+            </TabsTrigger>
+            <TabsTrigger value="update" className="gap-1 text-xs">
+              <RefreshCw className="w-4 h-4" />
+              التحديث
             </TabsTrigger>
           </TabsList>
 
@@ -555,6 +560,11 @@ export function SettingsDialog({ children }: SettingsDialogProps) {
                 onCheckedChange={setDebugMode}
               />
             </div>
+          </TabsContent>
+
+          {/* Update Tab */}
+          <TabsContent value="update" className="space-y-5 mt-4">
+            <DataUpdatePanel />
           </TabsContent>
         </Tabs>
 

@@ -3,6 +3,7 @@ import { QuranPage, GhareebWord, SavedProgress } from '@/types/quran';
 import { parseMushafText } from '@/utils/quranParser';
 import { loadGhareebData, getWordsForPage } from '@/utils/ghareebLoader';
 import { useDataStore } from '@/stores/dataStore';
+import { getData } from '@/services/dataSource';
 
 const STORAGE_KEY = 'quran-app-progress';
 
@@ -27,12 +28,10 @@ export function useQuranData() {
       
       try {
         // Load Mushaf text (15-line Madina layout) and ghareeb data in parallel
-        const [mushafResponse, ghareebMap] = await Promise.all([
-          fetch('/data/mushaf.txt'),
+        const [mushafText, ghareebMap] = await Promise.all([
+          getData('mushaf'),
           loadGhareebData(),
         ]);
-        
-        const mushafText = await mushafResponse.text();
         const loadedPages = parseMushafText(mushafText);
         
         if (loadedPages.length === 0) {
