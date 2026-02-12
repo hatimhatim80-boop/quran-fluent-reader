@@ -8,6 +8,7 @@ export interface TahfeezWord {
   wordIndex: number;
   originalWord: string;
   page: number;
+  lineIdx?: number;
 }
 
 // Phrase (range) selection
@@ -28,7 +29,7 @@ export type TahfeezItem =
 function itemKey(item: TahfeezItem): string {
   if (item.type === 'word') {
     const w = item.data;
-    return `w_${w.surahNumber}_${w.ayahNumber}_${w.wordIndex}_${w.page}`;
+    return `w_${w.surahNumber}_${w.ayahNumber}_${w.wordIndex}_${w.page}_${w.lineIdx ?? ''}`;
   } else {
     const p = item.data;
     return `p_${p.surahNumber}_${p.ayahNumber}_${p.startWordIndex}_${p.endWordIndex}_${p.page}`;

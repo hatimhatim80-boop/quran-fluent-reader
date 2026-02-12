@@ -2,8 +2,8 @@ import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import { useTahfeezStore, TahfeezItem } from '@/stores/tahfeezStore';
 import { toast } from 'sonner';
 import { useQuranData } from '@/hooks/useQuranData';
-import { Link } from 'react-router-dom';
-import { BookOpen, Play, Pause, Eye, ArrowRight, Save, Trash2, GraduationCap, ListChecks, Zap, Book, Layers, Hash, FileText, Search, X, ChevronLeft, Download, Upload } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
+import { BookOpen, Play, Pause, Eye, ArrowRight, Save, Trash2, GraduationCap, ListChecks, Zap, Book, Layers, Hash, FileText, Search, X, ChevronLeft, Download, Upload, Settings2 } from 'lucide-react';
 import { Slider } from '@/components/ui/slider';
 import { Switch } from '@/components/ui/switch';
 import { Button } from '@/components/ui/button';
@@ -12,6 +12,7 @@ import { TahfeezQuizView } from '@/components/TahfeezQuizView';
 import { TahfeezSelectionView } from '@/components/TahfeezSelectionView';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { SURAH_INFO, SURAH_NAMES } from '@/utils/quranPageIndex';
+import { SettingsDialog } from '@/components/SettingsDialog';
 
 // ---- Quran Index Data ----
 const SURAHS = Object.entries(SURAH_NAMES).map(([name, number]) => ({
@@ -293,9 +294,17 @@ export default function TahfeezPage() {
             <h1 className="text-lg font-bold font-arabic text-foreground">بوابة التحفيظ</h1>
           </div>
           <div className="flex items-center gap-2">
+            <SettingsDialog>
+              <button className="nav-button w-8 h-8 rounded-full flex items-center justify-center" title="الإعدادات">
+                <Settings2 className="w-4 h-4" />
+              </button>
+            </SettingsDialog>
             <button onClick={() => setShowIndex(true)} className="nav-button w-8 h-8 rounded-full flex items-center justify-center" title="فهرس المصحف">
               <Book className="w-4 h-4" />
             </button>
+            <Link to="/mushaf" className="nav-button w-8 h-8 rounded-full flex items-center justify-center" title="بوابة الغريب">
+              <BookOpen className="w-4 h-4" />
+            </Link>
             <Link to="/" className="nav-button w-8 h-8 rounded-full flex items-center justify-center">
               <ArrowRight className="w-4 h-4" />
             </Link>
