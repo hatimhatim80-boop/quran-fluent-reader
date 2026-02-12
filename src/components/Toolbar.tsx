@@ -73,18 +73,33 @@ export function Toolbar({
       let otaUpdated = false;
       if (isNativeApp()) {
         otaUpdated = await checkOTAUpdate((p) => {
-          if (p.phase === 'error') {
-            toast.error(p.message);
+          switch (p.phase) {
+            case 'checking':
+              toast.loading(p.message, { id: 'ota' });
+              break;
+            case 'downloading':
+            case 'installing':
+              toast.loading(p.message, { id: 'ota' });
+              break;
+            case 'done':
+              toast.success(p.message, { id: 'ota' });
+              break;
+            case 'up-to-date':
+              toast.dismiss('ota');
+              break;
+            case 'error':
+              toast.error(p.message, { id: 'ota' });
+              break;
           }
         });
       }
 
-      if (otaUpdated) {
-        toast.success('تم تحديث التطبيق! أعد تشغيل التطبيق لتطبيق التغييرات.');
-      } else if (dataUpdated) {
-        toast.success('تم تحديث البيانات بنجاح!');
-      } else {
-        toast.info('كل شيء محدّث بالفعل ✓');
+      if (!otaUpdated) {
+        if (dataUpdated) {
+          toast.success('تم تحديث البيانات بنجاح!');
+        } else if (!isNativeApp()) {
+          toast.info('كل شيء محدّث بالفعل ✓');
+        }
       }
     } catch {
       toast.error('فشل التحديث. تحقق من اتصال الإنترنت.');
