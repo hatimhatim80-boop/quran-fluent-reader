@@ -42,8 +42,12 @@ export function TahfeezQuizView({
   revealedKeys,
   showAll,
 }: TahfeezQuizViewProps) {
-  const displayMode = useSettingsStore((s) => s.settings.display?.mode || 'lines15');
+  const { settings } = useSettingsStore();
+  const displayMode = settings.display?.mode || 'lines15';
   const isLines15 = displayMode === 'lines15';
+  const pageBackgroundColor = (settings.colors as any).pageBackgroundColor || '';
+  const pageFrameStyle = pageBackgroundColor ? { background: `hsl(${pageBackgroundColor})` } : undefined;
+  const highlightStyle = (settings.colors as any).highlightStyle || 'background';
 
   // Parse all word tokens (excluding headers, bismillah, spaces, verse numbers)
   const { lines, allWordTokens } = useMemo(() => {
@@ -250,9 +254,6 @@ export function TahfeezQuizView({
     }
   }, [blankedKeysList, firstKeysSet]);
 
-  const pageBackgroundColor = useSettingsStore((s) => (s.settings.colors as any).pageBackgroundColor || '');
-  const pageFrameStyle = pageBackgroundColor ? { background: `hsl(${pageBackgroundColor})` } : undefined;
-  const highlightStyle = useSettingsStore((s) => (s.settings.colors as any).highlightStyle || 'background');
 
   // Render
   const renderedContent = useMemo(() => {
@@ -304,28 +305,20 @@ export function TahfeezQuizView({
         const shouldShowAsRevealed = isBlanked && (isRevealed || showAll);
 
         if (shouldHide) {
-          // Hidden: show dotted blank placeholder
           lineElements.push(
-            <span key={`${lineIdx}-${tokenIdx}`} className="inline-block">
-              <span className="tahfeez-blank">{t}</span>
-            </span>
+            <span key={`${lineIdx}-${tokenIdx}`} className="tahfeez-blank">{t}</span>
           );
         } else if (shouldShowAsActive) {
           const activeClass = highlightStyle === 'text-only' ? 'tahfeez-active-blank--text-only' : 'tahfeez-active-blank';
           lineElements.push(
-            <span key={`${lineIdx}-${tokenIdx}`} className="inline-block">
-              <span className={activeClass}>{t}</span>
-            </span>
+            <span key={`${lineIdx}-${tokenIdx}`} className={activeClass}>{t}</span>
           );
         } else if (shouldShowAsRevealed) {
           const revealedClass = highlightStyle === 'text-only' ? 'tahfeez-revealed--text-only' : 'tahfeez-revealed';
           lineElements.push(
-            <span key={`${lineIdx}-${tokenIdx}`} className="inline-block">
-              <span className={revealedClass}>{t}</span>
-            </span>
+            <span key={`${lineIdx}-${tokenIdx}`} className={revealedClass}>{t}</span>
           );
         } else {
-          // Normal (not blanked)
           lineElements.push(
             <span key={`${lineIdx}-${tokenIdx}`}>{t}</span>
           );
