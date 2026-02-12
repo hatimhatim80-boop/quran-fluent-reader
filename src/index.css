@@ -230,19 +230,19 @@
     box-shadow: 0 0 10px 3px hsl(200 70% 60% / 0.35);
   }
 
-  /* Text-only highlight style */
+  /* Text-only highlight style — dark blue for readability */
   .ghareeb-word--text-only {
-    color: hsl(var(--highlight-color, 48 80% 50%));
-    font-weight: 600;
+    color: hsl(210 80% 35%);
+    font-weight: 700;
   }
 
   .ghareeb-word--text-only:hover {
-    filter: brightness(0.85);
+    color: hsl(210 85% 28%);
   }
 
   .ghareeb-word--text-only.ghareeb-word--active {
-    filter: brightness(0.7);
-    text-shadow: 0 0 8px hsl(var(--highlight-color, 48 80% 70%) / 0.5);
+    color: hsl(200 90% 30%);
+    text-shadow: 0 0 6px hsl(200 70% 50% / 0.4);
   }
 
   /* Word that was already shown during autoplay - subtle green tint */
@@ -276,7 +276,7 @@
   }
 
   .dark .ghareeb-word--text-only {
-    color: hsl(var(--highlight-color, 48 70% 60%));
+    color: hsl(210 70% 65%);
   }
 
   .dark .ghareeb-word--seen:not(.ghareeb-word--text-only) {
