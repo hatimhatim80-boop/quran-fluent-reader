@@ -250,6 +250,10 @@ export function TahfeezQuizView({
     }
   }, [blankedKeysList, firstKeysSet]);
 
+  const pageBackgroundColor = useSettingsStore((s) => (s.settings.colors as any).pageBackgroundColor || '');
+  const pageFrameStyle = pageBackgroundColor ? { background: `hsl(${pageBackgroundColor})` } : undefined;
+  const highlightStyle = useSettingsStore((s) => (s.settings.colors as any).highlightStyle || 'background');
+
   // Render
   const renderedContent = useMemo(() => {
     const elements: React.ReactNode[] = [];
@@ -338,9 +342,6 @@ export function TahfeezQuizView({
     return <div className={isLines15 ? 'quran-lines-container' : 'inline'}>{elements}</div>;
   }, [lines, blankedKeys, activeBlankKey, revealedKeys, showAll, isLines15]);
 
-  const pageBackgroundColor = useSettingsStore((s) => (s.settings.colors as any).pageBackgroundColor || '');
-  const pageFrameStyle = pageBackgroundColor ? { background: `hsl(${pageBackgroundColor})` } : undefined;
-  const highlightStyle = useSettingsStore((s) => (s.settings.colors as any).highlightStyle || 'background');
 
   return (
     <div className="page-frame p-5 sm:p-8" style={pageFrameStyle}>
