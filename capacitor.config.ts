@@ -10,6 +10,9 @@ const config: CapacitorConfig = {
       backgroundColor: '#F7F5F0',
       showSpinner: false,
     },
+    CapacitorUpdater: {
+      autoUpdate: false, // نتحكم يدوياً
+    },
   },
 };
 
