@@ -11,7 +11,7 @@ const config: CapacitorConfig = {
       showSpinner: false,
     },
     CapacitorUpdater: {
-      autoUpdate: false, // نتحكم يدوياً
+      autoUpdate: false,
     },
   },
 };
