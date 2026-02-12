@@ -254,6 +254,35 @@ export function SettingsDialog({ children }: SettingsDialogProps) {
 
           {/* Colors Tab */}
           <TabsContent value="colors" className="space-y-5 mt-4">
+            {/* Highlight style: background vs text-only */}
+            <div className="space-y-3">
+              <Label className="font-arabic font-bold">نمط التمييز</Label>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setColors({ highlightStyle: 'background' })}
+                  className={`flex-1 p-3 rounded-lg border transition-all text-center ${
+                    (settings.colors as any).highlightStyle !== 'text-only'
+                      ? 'border-primary ring-2 ring-primary/20'
+                      : 'border-border hover:border-muted-foreground/50'
+                  }`}
+                >
+                  <div className="w-full h-5 rounded mb-1.5 flex items-center justify-center font-arabic text-sm" style={{ background: 'hsl(48 80% 90% / 0.6)' }}>كلمة</div>
+                  <span className="font-arabic text-xs">خلفية ملونة</span>
+                </button>
+                <button
+                  onClick={() => setColors({ highlightStyle: 'text-only' })}
+                  className={`flex-1 p-3 rounded-lg border transition-all text-center ${
+                    (settings.colors as any).highlightStyle === 'text-only'
+                      ? 'border-primary ring-2 ring-primary/20'
+                      : 'border-border hover:border-muted-foreground/50'
+                  }`}
+                >
+                  <div className="w-full h-5 rounded mb-1.5 flex items-center justify-center font-arabic text-sm font-bold" style={{ color: 'hsl(48 80% 40%)' }}>كلمة</div>
+                  <span className="font-arabic text-xs">نص ملون فقط</span>
+                </button>
+              </div>
+            </div>
+
             <div className="space-y-3">
               <Label className="font-arabic font-bold">شدة التمييز</Label>
               <div className="flex gap-2">
@@ -274,11 +303,44 @@ export function SettingsDialog({ children }: SettingsDialogProps) {
               </div>
             </div>
 
+            {/* Page background color */}
+            <div className="space-y-3">
+              <Label className="font-arabic font-bold">لون خلفية الصفحة</Label>
+              <div className="grid grid-cols-4 gap-2">
+                {[
+                  { label: 'افتراضي', value: '' },
+                  { label: 'أبيض', value: '0 0% 100%' },
+                  { label: 'كريمي', value: '38 45% 96%' },
+                  { label: 'بيج', value: '35 30% 93%' },
+                  { label: 'أصفر فاتح', value: '48 60% 95%' },
+                  { label: 'أخضر فاتح', value: '140 20% 96%' },
+                  { label: 'أزرق فاتح', value: '210 30% 96%' },
+                  { label: 'داكن', value: '25 18% 10%' },
+                ].map((preset) => (
+                  <button
+                    key={preset.label}
+                    onClick={() => setColors({ pageBackgroundColor: preset.value })}
+                    className={`p-2 rounded-lg border transition-all ${
+                      (settings.colors as any).pageBackgroundColor === preset.value
+                        ? 'border-primary ring-2 ring-primary/20'
+                        : 'border-border hover:border-muted-foreground/50'
+                    }`}
+                  >
+                    <div 
+                      className="w-full h-6 rounded-md mb-1 border"
+                      style={{ background: preset.value ? `hsl(${preset.value})` : 'linear-gradient(180deg, hsl(var(--card)) 0%, hsl(38 45% 96%) 100%)' }}
+                    />
+                    <span className="font-arabic text-[10px]">{preset.label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
             {/* Color preview */}
             <div className="space-y-2">
               <Label className="font-arabic">معاينة التمييز</Label>
               <div className="p-6 rounded-lg border bg-card text-center font-arabic text-2xl">
-                كلمة عادية <span className="ghareeb-word ghareeb-word--active">الرَّحْمَٰنِ</span> كلمة عادية
+                كلمة عادية <span className={`ghareeb-word ghareeb-word--active ${(settings.colors as any).highlightStyle === 'text-only' ? 'ghareeb-word--text-only' : ''}`}>الرَّحْمَٰنِ</span> كلمة عادية
               </div>
             </div>
 

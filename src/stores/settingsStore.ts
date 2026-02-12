@@ -19,6 +19,8 @@ export interface DisplaySettings {
 export interface ColorSettings {
   highlightColor: string; // HSL values
   highlightIntensity: 'soft' | 'medium' | 'strong';
+  highlightStyle: 'background' | 'text-only'; // background highlight or text color only
+  pageBackgroundColor: string; // HSL values for page background
   popoverBackground: string;
   popoverText: string;
   popoverBorder: string;
@@ -64,6 +66,8 @@ const defaultSettings: AppSettings = {
   colors: {
     highlightColor: '48 80% 90%',
     highlightIntensity: 'medium',
+    highlightStyle: 'background',
+    pageBackgroundColor: '',
     popoverBackground: '38 50% 97%',
     popoverText: '25 30% 18%',
     popoverBorder: '35 25% 88%',

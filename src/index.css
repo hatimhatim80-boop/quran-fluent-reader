@@ -187,6 +187,11 @@
     position: relative;
   }
 
+  /* Custom page background override */
+  .page-frame--custom-bg {
+    background: var(--page-bg-override);
+  }
+
   /* Subtle inner border */
   .page-frame::before {
     content: '';
@@ -202,51 +207,82 @@
     position: relative;
     cursor: pointer;
     text-decoration: none;
+    transition: all 0.2s ease;
+  }
+
+  /* Background highlight style (default) */
+  .ghareeb-word:not(.ghareeb-word--text-only) {
     background-color: hsl(var(--highlight-color, 48 80% 90%) / var(--highlight-opacity, 0.6));
     border-radius: 3px;
     padding: 0 2px;
     margin: 0 -2px;
-    transition: all 0.2s ease;
   }
 
-  .ghareeb-word:hover {
+  .ghareeb-word:not(.ghareeb-word--text-only):hover {
     background-color: hsl(var(--highlight-color, 48 80% 85%) / calc(var(--highlight-opacity, 0.6) + 0.2));
   }
 
-  .ghareeb-word--active {
+  .ghareeb-word--active:not(.ghareeb-word--text-only) {
     background-color: hsl(var(--highlight-color, 48 85% 75%) / calc(var(--highlight-opacity, 0.6) + 0.3));
     box-shadow: 0 0 8px 2px hsl(var(--highlight-color, 48 80% 70%) / 0.4);
   }
 
+  /* Text-only highlight style */
+  .ghareeb-word--text-only {
+    color: hsl(var(--highlight-color, 48 80% 50%));
+    font-weight: 600;
+  }
+
+  .ghareeb-word--text-only:hover {
+    filter: brightness(0.85);
+  }
+
+  .ghareeb-word--text-only.ghareeb-word--active {
+    filter: brightness(0.7);
+    text-shadow: 0 0 8px hsl(var(--highlight-color, 48 80% 70%) / 0.5);
+  }
+
   /* Word that was already shown during autoplay - subtle green tint */
-  .ghareeb-word--seen {
+  .ghareeb-word--seen:not(.ghareeb-word--text-only) {
     background-color: hsl(140 45% 85% / 0.7);
     border-radius: 3px;
   }
 
-  .ghareeb-word--seen:hover {
+  .ghareeb-word--seen:not(.ghareeb-word--text-only):hover {
     background-color: hsl(140 50% 80% / 0.8);
   }
 
-  .dark .ghareeb-word {
+  .ghareeb-word--text-only.ghareeb-word--seen {
+    color: hsl(140 55% 40%);
+  }
+
+  .dark .ghareeb-word:not(.ghareeb-word--text-only) {
     background-color: hsl(48 60% 30% / 0.4);
   }
 
-  .dark .ghareeb-word:hover {
+  .dark .ghareeb-word:not(.ghareeb-word--text-only):hover {
     background-color: hsl(48 60% 35% / 0.5);
   }
 
-  .dark .ghareeb-word--active {
+  .dark .ghareeb-word--active:not(.ghareeb-word--text-only) {
     background-color: hsl(48 65% 40% / 0.6);
     box-shadow: 0 0 8px 2px hsl(48 60% 35% / 0.4);
   }
 
-  .dark .ghareeb-word--seen {
+  .dark .ghareeb-word--text-only {
+    color: hsl(var(--highlight-color, 48 70% 60%));
+  }
+
+  .dark .ghareeb-word--seen:not(.ghareeb-word--text-only) {
     background-color: hsl(140 35% 30% / 0.5);
   }
 
-  .dark .ghareeb-word--seen:hover {
+  .dark .ghareeb-word--seen:not(.ghareeb-word--text-only):hover {
     background-color: hsl(140 40% 35% / 0.6);
+  }
+
+  .dark .ghareeb-word--text-only.ghareeb-word--seen {
+    color: hsl(140 50% 60%);
   }
 
   /* Popover styling - High z-index to ensure visibility */
@@ -563,6 +599,15 @@
     font-weight: 700;
   }
 
+  /* Active blank text-only variant */
+  .tahfeez-active-blank--text-only {
+    display: inline-block;
+    color: hsl(var(--primary));
+    background: none;
+    animation: tahfeez-pulse-text 0.8s ease-in-out infinite;
+    font-weight: 700;
+  }
+
   /* Revealed word - success green */
   .tahfeez-revealed {
     display: inline-block;
@@ -575,9 +620,22 @@
     font-weight: 600;
   }
 
+  /* Revealed text-only variant */
+  .tahfeez-revealed--text-only {
+    display: inline-block;
+    color: hsl(140 55% 35%);
+    background: none;
+    transition: all 0.4s ease;
+    font-weight: 600;
+  }
+
   .dark .tahfeez-revealed {
     color: hsl(140 60% 70%);
     background: hsl(140 30% 18%);
+  }
+
+  .dark .tahfeez-revealed--text-only {
+    color: hsl(140 60% 70%);
   }
 
   @keyframes tahfeez-pulse {
@@ -586,6 +644,15 @@
     }
     50% {
       box-shadow: 0 0 14px 4px hsl(var(--primary) / 0.5);
+    }
+  }
+
+  @keyframes tahfeez-pulse-text {
+    0%, 100% {
+      text-shadow: 0 0 4px hsl(var(--primary) / 0.3);
+    }
+    50% {
+      text-shadow: 0 0 12px hsl(var(--primary) / 0.6);
     }
   }
 }

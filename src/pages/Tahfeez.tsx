@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useTahfeezStore, TahfeezItem } from '@/stores/tahfeezStore';
+import { toast } from 'sonner';
 import { useQuranData } from '@/hooks/useQuranData';
 import { Link } from 'react-router-dom';
-import { BookOpen, Play, Pause, Eye, ArrowRight, Save, Trash2, GraduationCap, ListChecks, Zap, Book, Layers, Hash, FileText, Search, X, ChevronLeft } from 'lucide-react';
+import { BookOpen, Play, Pause, Eye, ArrowRight, Save, Trash2, GraduationCap, ListChecks, Zap, Book, Layers, Hash, FileText, Search, X, ChevronLeft, Download, Upload } from 'lucide-react';
 import { Slider } from '@/components/ui/slider';
 import { Switch } from '@/components/ui/switch';
 import { Button } from '@/components/ui/button';
@@ -98,18 +99,31 @@ export default function TahfeezPage() {
         return;
       }
       const key = blankedKeysList[idx];
-      setActiveBlankKey(key);
-      setCurrentRevealIdx(idx);
+      const isFirstKey = firstKeysSet.has(key);
 
-      const duration = firstKeysSet.has(key) ? firstWordTimerSeconds : timerSeconds;
-
-      revealTimerRef.current = setTimeout(() => {
-        setRevealedKeys(prev => new Set([...prev, key]));
-        setActiveBlankKey(null);
+      if (isFirstKey) {
+        // First word of each ayah/phrase: wait the "thinking" delay BEFORE showing it
+        setActiveBlankKey(null); // keep hidden during thinking delay
+        setCurrentRevealIdx(idx);
         revealTimerRef.current = setTimeout(() => {
-          revealNext(idx + 1);
-        }, 300);
-      }, duration * 1000);
+          // Now highlight it as active
+          setActiveBlankKey(key);
+          // Then reveal after normal timer
+          revealTimerRef.current = setTimeout(() => {
+            setRevealedKeys(prev => new Set([...prev, key]));
+            setActiveBlankKey(null);
+            revealTimerRef.current = setTimeout(() => revealNext(idx + 1), 300);
+          }, timerSeconds * 1000);
+        }, firstWordTimerSeconds * 1000);
+      } else {
+        setActiveBlankKey(key);
+        setCurrentRevealIdx(idx);
+        revealTimerRef.current = setTimeout(() => {
+          setRevealedKeys(prev => new Set([...prev, key]));
+          setActiveBlankKey(null);
+          revealTimerRef.current = setTimeout(() => revealNext(idx + 1), 300);
+        }, timerSeconds * 1000);
+      }
     };
 
     const startIdx = currentRevealIdx < 0 ? 0 : currentRevealIdx;
@@ -327,14 +341,52 @@ export default function TahfeezPage() {
 
             {storedItems.length > 0 && (
               <div className="page-frame p-4 space-y-3">
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between flex-wrap gap-2">
                   <h3 className="font-arabic font-bold text-sm text-foreground">
                     المخزون ({storedItems.length})
                   </h3>
-                  <Button variant="ghost" size="sm" onClick={clearAllItems} className="text-destructive font-arabic text-xs">
-                    <Trash2 className="w-3 h-3 ml-1" />
-                    مسح الكل
-                  </Button>
+                  <div className="flex items-center gap-1">
+                    <Button variant="ghost" size="sm" onClick={() => {
+                      const data = JSON.stringify({ version: '1.0', exportedAt: new Date().toISOString(), items: storedItems }, null, 2);
+                      const blob = new Blob([data], { type: 'application/json' });
+                      const url = URL.createObjectURL(blob);
+                      const a = document.createElement('a');
+                      a.href = url; a.download = 'tahfeez-items.json'; a.click();
+                      URL.revokeObjectURL(url);
+                      toast.success('تم تصدير المخزون');
+                    }} className="font-arabic text-xs h-7 px-2">
+                      <Download className="w-3 h-3 ml-1" />
+                      تصدير
+                    </Button>
+                    <Button variant="ghost" size="sm" onClick={() => {
+                      const input = document.createElement('input');
+                      input.type = 'file'; input.accept = '.json';
+                      input.onchange = (e) => {
+                        const file = (e.target as HTMLInputElement).files?.[0];
+                        if (!file) return;
+                        const reader = new FileReader();
+                        reader.onload = (ev) => {
+                          try {
+                            const parsed = JSON.parse(ev.target?.result as string);
+                            const items = parsed.items || parsed;
+                            if (Array.isArray(items)) {
+                              items.forEach((item: TahfeezItem) => addItem(item));
+                              toast.success(`تم استيراد ${items.length} عنصر`);
+                            } else { toast.error('ملف غير صالح'); }
+                          } catch { toast.error('فشل قراءة الملف'); }
+                        };
+                        reader.readAsText(file);
+                      };
+                      input.click();
+                    }} className="font-arabic text-xs h-7 px-2">
+                      <Upload className="w-3 h-3 ml-1" />
+                      استيراد
+                    </Button>
+                    <Button variant="ghost" size="sm" onClick={clearAllItems} className="text-destructive font-arabic text-xs h-7 px-2">
+                      <Trash2 className="w-3 h-3 ml-1" />
+                      مسح الكل
+                    </Button>
+                  </div>
                 </div>
                 <div className="flex flex-wrap gap-2 max-h-48 overflow-y-auto">
                   {storedItems.map((item, i) => (
@@ -362,12 +414,12 @@ export default function TahfeezPage() {
                 </p>
 
                 <div className="space-y-1">
-                  <label className="text-xs font-arabic text-muted-foreground">مدة الكلمة الأولى: {firstWordTimerSeconds} ثانية</label>
+              <label className="text-xs font-arabic text-muted-foreground">مهلة التفكير قبل الكلمة الأولى: {firstWordTimerSeconds} ثانية</label>
                   <Slider value={[firstWordTimerSeconds]} onValueChange={([v]) => setFirstWordTimerSeconds(v)} min={1} max={30} step={1} />
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-xs font-arabic text-muted-foreground">مدة باقي الكلمات: {timerSeconds} ثانية</label>
+                  <label className="text-xs font-arabic text-muted-foreground">مدة ظهور كل كلمة: {timerSeconds} ثانية</label>
                   <Slider value={[timerSeconds]} onValueChange={([v]) => setTimerSeconds(v)} min={1} max={10} step={1} />
                 </div>
 
@@ -427,12 +479,12 @@ export default function TahfeezPage() {
             </div>
 
             <div className="space-y-1">
-              <label className="text-xs font-arabic text-muted-foreground">مدة الكلمة الأولى: {firstWordTimerSeconds} ثانية</label>
+              <label className="text-xs font-arabic text-muted-foreground">مهلة التفكير قبل الكلمة الأولى: {firstWordTimerSeconds} ثانية</label>
               <Slider value={[firstWordTimerSeconds]} onValueChange={([v]) => setFirstWordTimerSeconds(v)} min={1} max={30} step={1} />
             </div>
 
             <div className="space-y-1">
-              <label className="text-xs font-arabic text-muted-foreground">مدة باقي الكلمات: {timerSeconds} ثانية</label>
+              <label className="text-xs font-arabic text-muted-foreground">مدة ظهور كل كلمة: {timerSeconds} ثانية</label>
               <Slider value={[timerSeconds]} onValueChange={([v]) => setTimerSeconds(v)} min={1} max={10} step={1} />
             </div>
 
