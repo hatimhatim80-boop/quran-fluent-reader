@@ -61,7 +61,8 @@ export function TahfeezSelectionView({ page }: TahfeezSelectionViewProps) {
     return storedItems.some(item => {
       if (item.data.page !== page.pageNumber) return false;
       if (item.type === 'word') {
-        return item.data.wordIndex === tokenIdx && item.data.originalWord === text;
+        const w = item.data;
+        return w.wordIndex === tokenIdx && w.originalWord === text && (w.lineIdx === undefined || w.lineIdx === lineIdx);
       } else {
         return item.data.lineIdx === lineIdx && tokenIdx >= item.data.startWordIndex && tokenIdx <= item.data.endWordIndex;
       }
@@ -80,7 +81,8 @@ export function TahfeezSelectionView({ page }: TahfeezSelectionViewProps) {
       const existingItem = storedItems.find(item => {
         if (item.data.page !== page.pageNumber) return false;
         if (item.type === 'word') {
-          return item.data.wordIndex === tokenIdx && item.data.originalWord === text;
+          const w = item.data;
+          return w.wordIndex === tokenIdx && w.originalWord === text && (w.lineIdx === undefined || w.lineIdx === lineIdx);
         }
         return false;
       });
@@ -95,6 +97,7 @@ export function TahfeezSelectionView({ page }: TahfeezSelectionViewProps) {
             wordIndex: tokenIdx,
             originalWord: text,
             page: page.pageNumber,
+            lineIdx,
           }
         });
       }
