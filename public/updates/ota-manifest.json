@@ -1,6 +1,6 @@
 {
-  "version": "1.0.0",
-  "url": "https://your-server.com/releases/app-v1.0.0.zip",
+  "version": "1.0.1",
+  "url": "https://github.com/hatimhatim80-boop/quran-fluent-reader/releases/download/v1.0.1/dist.zip",
   "updatedAt": "2026-02-12T00:00:00Z",
-  "notes": "النسخة الأولى"
+  "notes": "OTA 1.0.1"
 }
