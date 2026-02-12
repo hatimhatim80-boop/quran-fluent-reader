@@ -598,8 +598,11 @@ export function PageView({
     return <div className={isLines15 ? 'quran-lines-container' : 'inline'}>{allElements}</div>;
   }, [page.text, page.pageNumber, ghareebWords, highlightedWordIndex, isPlaying, onWordClick, surahContextByLine, tokenMatchMap, highlightVersion, displayMode, tahfeezMode, toggleTahfeezWord, isTahfeezSelected, rangeAnchor, setRangeAnchor, addItem, storedItems]);
 
+  const pageBackgroundColor = useSettingsStore((s) => (s.settings.colors as any).pageBackgroundColor || '');
+  const pageFrameStyle = pageBackgroundColor ? { background: `hsl(${pageBackgroundColor})` } : undefined;
+
   return (
-    <div ref={containerRef} className="page-frame p-5 sm:p-8">
+    <div ref={containerRef} className="page-frame p-5 sm:p-8" style={pageFrameStyle}>
       {/* Page Number */}
       <div className="flex justify-center mb-5">
         <span className="bg-secondary/80 text-secondary-foreground px-4 py-1.5 rounded-full text-sm font-arabic shadow-sm">

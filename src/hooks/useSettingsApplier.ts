@@ -40,6 +40,14 @@ export function useSettingsApplier() {
     root.style.setProperty('--highlight-opacity', String(intensity.opacity));
     root.style.setProperty('--highlight-saturation', `${intensity.saturation}%`);
     root.style.setProperty('--highlight-color', settings.colors.highlightColor);
+    root.style.setProperty('--highlight-style', settings.colors.highlightStyle || 'background');
+    
+    // Page background color
+    if (settings.colors.pageBackgroundColor) {
+      root.style.setProperty('--page-bg-custom', settings.colors.pageBackgroundColor);
+    } else {
+      root.style.removeProperty('--page-bg-custom');
+    }
     
     // Popover colors
     root.style.setProperty('--popover-bg-custom', settings.colors.popoverBackground);

@@ -220,8 +220,10 @@ export function GhareebWordPopover({
     color: `hsl(${colorSettings.popoverText})`,
   };
 
+  const highlightStyle = settings.colors.highlightStyle || 'background';
   const wordClasses = [
     "ghareeb-word",
+    highlightStyle === 'text-only' ? "ghareeb-word--text-only" : "",
     isHighlighted ? "ghareeb-word--active" : "",
     wasSeen && !isHighlighted ? "ghareeb-word--seen" : "",
     extraClassName || "",

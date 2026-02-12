@@ -307,17 +307,17 @@ export function TahfeezQuizView({
             </span>
           );
         } else if (shouldShowAsActive) {
-          // Active: about to be revealed, highlight with accent color
+          const activeClass = highlightStyle === 'text-only' ? 'tahfeez-active-blank--text-only' : 'tahfeez-active-blank';
           lineElements.push(
             <span key={`${lineIdx}-${tokenIdx}`} className="inline-block">
-              <span className="tahfeez-active-blank">{t}</span>
+              <span className={activeClass}>{t}</span>
             </span>
           );
         } else if (shouldShowAsRevealed) {
-          // Revealed: show with success color
+          const revealedClass = highlightStyle === 'text-only' ? 'tahfeez-revealed--text-only' : 'tahfeez-revealed';
           lineElements.push(
             <span key={`${lineIdx}-${tokenIdx}`} className="inline-block">
-              <span className="tahfeez-revealed">{t}</span>
+              <span className={revealedClass}>{t}</span>
             </span>
           );
         } else {
@@ -338,8 +338,12 @@ export function TahfeezQuizView({
     return <div className={isLines15 ? 'quran-lines-container' : 'inline'}>{elements}</div>;
   }, [lines, blankedKeys, activeBlankKey, revealedKeys, showAll, isLines15]);
 
+  const pageBackgroundColor = useSettingsStore((s) => (s.settings.colors as any).pageBackgroundColor || '');
+  const pageFrameStyle = pageBackgroundColor ? { background: `hsl(${pageBackgroundColor})` } : undefined;
+  const highlightStyle = useSettingsStore((s) => (s.settings.colors as any).highlightStyle || 'background');
+
   return (
-    <div className="page-frame p-5 sm:p-8">
+    <div className="page-frame p-5 sm:p-8" style={pageFrameStyle}>
       <div id="tahfeez-blanked-keys" className="hidden" />
       <div className="flex justify-center mb-5">
         <span className="bg-secondary/80 text-secondary-foreground px-4 py-1.5 rounded-full text-sm font-arabic shadow-sm">
