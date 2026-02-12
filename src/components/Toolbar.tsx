@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { checkAndUpdate } from '@/services/updateService';
+import { checkOTAUpdate, isNativeApp } from '@/services/otaUpdateService';
 import { useSettingsStore } from '@/stores/settingsStore';
 import { SettingsDialog } from './SettingsDialog';
 import { BuildCenterDialog } from './BuildCenterDialog';
@@ -63,14 +64,27 @@ export function Toolbar({
     setIsUpdating(true);
 
     try {
-      const updated = await checkAndUpdate(
+      // 1. تحديث البيانات (ghareeb, mushaf, etc.)
+      const dataUpdated = await checkAndUpdate(
         settings.update?.manifestUrl || '/updates/manifest.json',
       );
 
-      if (updated) {
+      // 2. تحديث كود التطبيق (OTA) — فقط في APK
+      let otaUpdated = false;
+      if (isNativeApp()) {
+        otaUpdated = await checkOTAUpdate((p) => {
+          if (p.phase === 'error') {
+            toast.error(p.message);
+          }
+        });
+      }
+
+      if (otaUpdated) {
+        toast.success('تم تحديث التطبيق! أعد تشغيل التطبيق لتطبيق التغييرات.');
+      } else if (dataUpdated) {
         toast.success('تم تحديث البيانات بنجاح!');
       } else {
-        toast.info('البيانات محدّثة بالفعل');
+        toast.info('كل شيء محدّث بالفعل ✓');
       }
     } catch {
       toast.error('فشل التحديث. تحقق من اتصال الإنترنت.');
@@ -132,7 +146,7 @@ export function Toolbar({
               ? 'bg-primary/10 text-primary' 
               : 'nav-button'
           }`}
-          title="تحديث البيانات"
+          title={isNativeApp() ? "تحديث التطبيق والبيانات" : "تحديث البيانات"}
         >
           {isUpdating ? (
             <Loader2 className="w-3.5 h-3.5 animate-spin" />
