@@ -30,30 +30,38 @@ export function bindVerseNumbers(
 ): React.ReactNode[] {
   const result: React.ReactNode[] = [];
   
+  // First, find indices of all verse-number elements
+  const verseNumberIndices = new Set<number>();
+  elements.forEach((el, i) => {
+    if (isVerseNumberElement(el)) verseNumberIndices.add(i);
+  });
+  
+  // Find indices of spaces directly adjacent to verse numbers (to skip them)
+  const skipIndices = new Set<number>();
+  verseNumberIndices.forEach(vi => {
+    // Skip space before verse number
+    if (vi > 0 && isSpaceElement(elements[vi - 1])) skipIndices.add(vi - 1);
+    // Skip space after verse number
+    if (vi < elements.length - 1 && isSpaceElement(elements[vi + 1])) skipIndices.add(vi + 1);
+  });
+
   for (let i = 0; i < elements.length; i++) {
-    const el = elements[i];
-    const nextEl = elements[i + 1];
+    if (skipIndices.has(i)) continue; // skip spaces adjacent to verse numbers
     
-    // Check if next element is a verse number
-    if (nextEl && isVerseNumberElement(nextEl)) {
-      // Wrap current word + verse number + next word together
-      const group: React.ReactNode[] = [el];
-      let j = i + 1;
-      // Collect spaces and the verse number
-      while (j < elements.length && (isSpaceElement(elements[j]) || isVerseNumberElement(elements[j]))) {
-        group.push(elements[j]);
-        if (isVerseNumberElement(elements[j])) {
-          j++;
-          break;
-        }
-        j++;
-      }
-      // Also collect the next word after the verse number (spaces + first non-space element)
-      while (j < elements.length && isSpaceElement(elements[j])) {
-        group.push(elements[j]);
-        j++;
-      }
-      if (j < elements.length && !isVerseNumberElement(elements[j])) {
+    const el = elements[i];
+    
+    // Check if next non-skip element is a verse number
+    let nextIdx = i + 1;
+    while (nextIdx < elements.length && skipIndices.has(nextIdx)) nextIdx++;
+    
+    if (nextIdx < elements.length && isVerseNumberElement(elements[nextIdx])) {
+      // Wrap: current word + verse number (no spaces between)
+      const group: React.ReactNode[] = [el, elements[nextIdx]];
+      let j = nextIdx + 1;
+      // Skip the space after verse number (already in skipIndices)
+      while (j < elements.length && skipIndices.has(j)) j++;
+      // Also bind the next word after verse number
+      if (j < elements.length && !isVerseNumberElement(elements[j]) && !isSpaceElement(elements[j])) {
         group.push(elements[j]);
         j++;
       }
