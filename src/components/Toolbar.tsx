@@ -72,34 +72,37 @@ export function Toolbar({
       // 2. تحديث كود التطبيق (OTA) — فقط في APK
       let otaUpdated = false;
       if (isNativeApp()) {
-        otaUpdated = await checkOTAUpdate((p) => {
-          switch (p.phase) {
-            case 'checking':
-              toast.loading(p.message, { id: 'ota' });
-              break;
-            case 'downloading':
-            case 'installing':
-              toast.loading(p.message, { id: 'ota' });
-              break;
-            case 'done':
-              toast.success(p.message, { id: 'ota' });
-              break;
-            case 'up-to-date':
-              toast.dismiss('ota');
-              break;
-            case 'error':
-              toast.error(p.message, { id: 'ota' });
-              break;
-          }
-        });
+        try {
+          otaUpdated = await checkOTAUpdate((p) => {
+            switch (p.phase) {
+              case 'checking':
+                toast.loading(p.message, { id: 'ota' });
+                break;
+              case 'downloading':
+              case 'installing':
+                toast.loading(p.message, { id: 'ota' });
+                break;
+              case 'done':
+                toast.success(p.message, { id: 'ota' });
+                break;
+              case 'up-to-date':
+                toast.dismiss('ota');
+                break;
+              case 'error':
+                toast.error(p.message, { id: 'ota' });
+                break;
+            }
+          });
+        } catch {
+          // OTA failed silently — don't block data update success
+          toast.dismiss('ota');
+        }
       }
 
-      if (!otaUpdated) {
-        if (dataUpdated) {
-          toast.success('تم تحديث البيانات بنجاح!');
-        } else if (!isNativeApp()) {
-          toast.info('كل شيء محدّث بالفعل ✓');
-        }
+      if (dataUpdated) {
+        toast.success('تم تحديث البيانات بنجاح!');
+      } else if (!otaUpdated) {
+        toast.info('كل شيء محدّث بالفعل ✓');
       }
     } catch {
       toast.error('فشل التحديث. تحقق من اتصال الإنترنت.');
