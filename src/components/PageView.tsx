@@ -5,6 +5,7 @@ import { GhareebWordPopover } from './GhareebWordPopover';
 import { useHighlightOverrideStore } from '@/stores/highlightOverrideStore';
 import { useSettingsStore } from '@/stores/settingsStore';
 import { useTahfeezStore } from '@/stores/tahfeezStore';
+import { getPageMetadata } from '@/utils/juzHizbInfo';
 
 interface PageViewProps {
   page: QuranPage;
@@ -601,13 +602,21 @@ export function PageView({
   const pageBackgroundColor = useSettingsStore((s) => (s.settings.colors as any).pageBackgroundColor || '');
   const pageFrameStyle = pageBackgroundColor ? { background: `hsl(${pageBackgroundColor})` } : undefined;
 
+  const pageMeta = useMemo(() => getPageMetadata(page.pageNumber), [page.pageNumber]);
+
   return (
-    <div ref={containerRef} className="page-frame p-5 sm:p-8" style={pageFrameStyle}>
-      {/* Page Number */}
-      <div className="flex justify-center mb-5">
-        <span className="bg-secondary/80 text-secondary-foreground px-4 py-1.5 rounded-full text-sm font-arabic shadow-sm">
-          صفحة {page.pageNumber}
-        </span>
+    <div ref={containerRef} className="page-frame p-4 sm:p-6" style={pageFrameStyle}>
+      {/* Top Header: Hizb - Page Number - Hizb */}
+      <div className="flex items-center justify-between mb-1 font-arabic text-xs sm:text-sm text-muted-foreground/70">
+        <span>الحزب {pageMeta.hizbNumberArabic}</span>
+        <span className="text-primary font-bold text-sm sm:text-base">{pageMeta.pageNumberArabic}</span>
+        <span>الحزب {pageMeta.hizbNumberArabic}</span>
+      </div>
+
+      {/* Sub Header: Surah Name - Juz Name */}
+      <div className="flex items-center justify-between mb-4 pb-2 border-b border-ornament/20 font-arabic">
+        <span className="text-sm sm:text-base font-bold text-foreground">{pageMeta.surahName}</span>
+        <span className="text-sm sm:text-base font-bold text-foreground">{pageMeta.juzName}</span>
       </div>
 
       {/* Quran Text */}
@@ -615,20 +624,10 @@ export function PageView({
         {renderedContent}
       </div>
 
-      {/* Word Count - shows actual rendered count */}
-      {renderedWords.length > 0 && (
-        <div className="text-center text-xs text-muted-foreground mt-5 font-arabic opacity-70">
-          {renderedWords.length} كلمة غريبة
-        </div>
-      )}
-
-      {/* Decorative divider */}
-      <div className="flex justify-center mt-4">
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-px bg-gradient-to-r from-transparent to-ornament/30" />
-          <div className="w-1.5 h-1.5 rounded-full bg-ornament/30" />
-          <div className="w-8 h-px bg-gradient-to-l from-transparent to-ornament/30" />
-        </div>
+      {/* Footer: Page Number - Hizb */}
+      <div className="flex items-center justify-between mt-4 pt-2 border-t border-ornament/20 font-arabic text-xs sm:text-sm text-muted-foreground/70">
+        <span>{pageMeta.pageNumberArabic}</span>
+        <span>الحزب {pageMeta.hizbNumberArabic}</span>
       </div>
     </div>
   );
