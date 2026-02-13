@@ -171,7 +171,7 @@
     min-height: 1.8em;
     line-height: var(--quran-line-height, 2.4);
     padding: 0.05em 0;
-    word-spacing: 0.02em;
+    word-spacing: 0.05em;
   }
 
   /* On mobile with redistributed lines */
@@ -199,6 +199,7 @@
   .ayah-end-wrapper {
     white-space: nowrap;
     display: inline;
+    word-spacing: 0.25em;
   }
 
   /* Verse number styling - ornamental circle like traditional Mushaf */
@@ -208,7 +209,7 @@
     justify-content: center;
     font-size: 0.5em;
     color: hsl(var(--verse-number));
-    margin: 0 0.02em;
+    margin: 0 0.25em;
     vertical-align: middle;
     min-width: 2em;
     height: 2em;
