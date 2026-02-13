@@ -345,8 +345,9 @@ export function PageView({
             </div>
           );
         } else if (isBismillah(line)) {
+          // Bismillah always as independent block line (even in auto-containment)
           elements.push(
-            <div key={`bismillah-${idx}`} className="bismillah bismillah-compact font-arabic">
+            <div key={`bismillah-${idx}`} className="bismillah bismillah-compact font-arabic" style={{ display: 'block', textAlign: 'center', textAlignLast: 'center' }}>
               {formatBismillah(line)}
             </div>
           );
@@ -418,10 +419,10 @@ export function PageView({
         continue;
       }
 
-      // Bismillah
+      // Bismillah - always independent block line
       if (isBismillah(line)) {
         allElements.push(
-          <div key={`bismillah-${lineIdx}`} className="bismillah bismillah-compact font-arabic">
+          <div key={`bismillah-${lineIdx}`} className="bismillah bismillah-compact font-arabic" style={{ display: 'block', textAlign: 'center', textAlignLast: 'center' }}>
             {formatBismillah(line)}
           </div>
         );
