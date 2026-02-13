@@ -20,18 +20,44 @@ function isBismillah(line: string): boolean {
 function distributeWords(words: string[], targetLineCount: number): string[] {
   if (words.length === 0) return [];
   const MIN_WORDS_PER_LINE = 3;
-  // Reduce line count if it would create lines with fewer than MIN_WORDS_PER_LINE words
   const maxPossibleLines = Math.floor(words.length / MIN_WORDS_PER_LINE) || 1;
   const lineCount = Math.min(targetLineCount, maxPossibleLines, words.length);
+
+  // Calculate total character count (including spaces between words)
+  const totalChars = words.reduce((sum, w) => sum + w.length, 0) + (words.length - 1); // words + spaces
+  const targetCharsPerLine = totalChars / lineCount;
+
   const lines: string[] = [];
-  const baseWordsPerLine = Math.floor(words.length / lineCount);
-  const extra = words.length % lineCount;
-  let idx = 0;
-  for (let i = 0; i < lineCount; i++) {
-    const count = baseWordsPerLine + (i < extra ? 1 : 0);
-    lines.push(words.slice(idx, idx + count).join(' '));
-    idx += count;
+  let currentLineWords: string[] = [];
+  let currentLineChars = 0;
+  let linesRemaining = lineCount;
+
+  for (let i = 0; i < words.length; i++) {
+    const word = words[i];
+    const wordsRemaining = words.length - i;
+    const addedChars = currentLineWords.length === 0 ? word.length : word.length + 1; // +1 for space
+
+    // Must we start filling remaining lines? (ensure MIN_WORDS_PER_LINE for remaining lines)
+    const mustBreak = wordsRemaining <= (linesRemaining - 1) * MIN_WORDS_PER_LINE && currentLineWords.length >= MIN_WORDS_PER_LINE;
+
+    // Would adding this word exceed the target?
+    const wouldExceed = currentLineChars + addedChars > targetCharsPerLine * 1.15;
+
+    if (mustBreak || (wouldExceed && currentLineWords.length >= MIN_WORDS_PER_LINE && linesRemaining > 1)) {
+      lines.push(currentLineWords.join(' '));
+      currentLineWords = [word];
+      currentLineChars = word.length;
+      linesRemaining--;
+    } else {
+      currentLineWords.push(word);
+      currentLineChars += addedChars;
+    }
   }
+
+  if (currentLineWords.length > 0) {
+    lines.push(currentLineWords.join(' '));
+  }
+
   return lines;
 }
 
