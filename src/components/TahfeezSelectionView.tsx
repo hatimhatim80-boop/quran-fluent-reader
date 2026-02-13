@@ -33,6 +33,7 @@ export function TahfeezSelectionView({ page }: TahfeezSelectionViewProps) {
   const textDirection = useSettingsStore((s) => s.settings.display?.textDirection || 'rtl');
   const mobileLinesPerPage = useSettingsStore((s) => s.settings.display?.mobileLinesPerPage || 15);
   const desktopLinesPerPage = useSettingsStore((s) => s.settings.display?.desktopLinesPerPage || 15);
+  const textAlign = useSettingsStore((s) => s.settings.display?.textAlign || 'justify');
   const isLines15 = displayMode === 'lines15';
   const [selectionType, setSelectionType] = useState<'word' | 'phrase'>('word');
 
@@ -198,7 +199,7 @@ export function TahfeezSelectionView({ page }: TahfeezSelectionViewProps) {
 
       // Bind verse numbers to preceding word
       const processedElements = bindVerseNumbersSimple(lineElements, li);
-      const noJustify = shouldNoJustify(mobileLinesPerPage, desktopLinesPerPage);
+      const noJustify = shouldNoJustify(mobileLinesPerPage, desktopLinesPerPage, textAlign);
       if (isLines15) {
         elements.push(<div key={`line-${li}`} className={`quran-line${noJustify ? ' quran-line--no-justify' : ''}`}>{processedElements}</div>);
       } else {
