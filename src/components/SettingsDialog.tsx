@@ -319,6 +319,32 @@ export function SettingsDialog({ children }: SettingsDialogProps) {
               </div>
             </div>
 
+            {/* Text Alignment */}
+            <div className="space-y-3">
+              <Label className="font-arabic font-bold">محاذاة النص</Label>
+              <div className="grid grid-cols-4 gap-2">
+                {([
+                  { value: 'right' as const, label: 'يمين', icon: '⫸' },
+                  { value: 'left' as const, label: 'يسار', icon: '⫷' },
+                  { value: 'center' as const, label: 'وسط', icon: '☰' },
+                  { value: 'justify' as const, label: 'ضبط', icon: '⊞' },
+                ]).map((opt) => (
+                  <button
+                    key={opt.value}
+                    onClick={() => setDisplay({ textAlign: opt.value })}
+                    className={`p-3 rounded-lg border text-center transition-all ${
+                      (settings.display?.textAlign || 'justify') === opt.value
+                        ? 'border-primary bg-primary/10 ring-2 ring-primary/20'
+                        : 'border-border hover:border-muted-foreground/50'
+                    }`}
+                  >
+                    <span className="text-lg block mb-1">{opt.icon}</span>
+                    <span className="font-arabic text-[10px]">{opt.label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
             <div className="p-3 rounded-lg bg-muted/30 text-sm font-arabic text-muted-foreground">
               <Check className="w-4 h-4 inline ml-1 text-green-600" />
               وضع &quot;مصحف المدينة&quot; يعرض كل سطر منفصلاً بمحاذاة مطابقة للمصحف المطبوع
