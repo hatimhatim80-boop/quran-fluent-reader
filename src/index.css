@@ -227,14 +227,19 @@
   .mushafPage {
     max-width: 520px;
     margin: 0 auto;
-    padding: 14px 12px;
+    padding: 8px 10px;
     direction: rtl;
+    height: calc(100vh - 120px);
+    display: flex;
+    flex-direction: column;
   }
 
   .mushafLinesContainer {
     display: flex;
     flex-direction: column;
     gap: 0;
+    flex: 1;
+    justify-content: space-between;
   }
 
   .mushafLine {
@@ -243,9 +248,9 @@
     text-align: justify;
     text-align-last: right;
     text-justify: inter-word;
-    line-height: 2.2;
+    line-height: 1.9;
     font-family: var(--quran-font-family, 'KFGQPC HAFS Uthmanic Script', 'UthmanicHafs', 'Amiri Quran', serif);
-    font-size: var(--mushaf-font-size, 22px);
+    font-size: var(--mushaf-font-size, 18px);
     letter-spacing: 0 !important;
     word-spacing: 0 !important;
     font-kerning: normal;
