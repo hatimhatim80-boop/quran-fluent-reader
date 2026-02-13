@@ -17,9 +17,9 @@ function isBismillah(line: string): boolean {
 /**
  * Distributes words evenly across targetLineCount lines.
  */
-function distributeWords(words: string[], targetLineCount: number): string[] {
+function distributeWords(words: string[], targetLineCount: number, minWordsPerLine: number = 5): string[] {
   if (words.length === 0) return [];
-  const MIN_WORDS_PER_LINE = 5;
+  const MIN_WORDS_PER_LINE = minWordsPerLine;
   const maxPossibleLines = Math.floor(words.length / MIN_WORDS_PER_LINE) || 1;
   const lineCount = Math.min(targetLineCount, maxPossibleLines, words.length);
 
@@ -61,7 +61,7 @@ function distributeWords(words: string[], targetLineCount: number): string[] {
   return lines;
 }
 
-export function redistributeLines(originalLines: string[], targetLineCount: number): string[] {
+export function redistributeLines(originalLines: string[], targetLineCount: number, minWordsPerLine: number = 5): string[] {
   if (targetLineCount >= 15) return originalLines;
 
   // First pass: collect text segments and special lines
@@ -97,7 +97,7 @@ export function redistributeLines(originalLines: string[], targetLineCount: numb
 
   // Distribute lines proportionally to each text segment
   // Ensure each segment gets at least 1 line and no line has fewer than 3 words
-  const MIN_WORDS_PER_LINE = 5;
+  const MIN_WORDS_PER_LINE = minWordsPerLine;
   let remainingLines = availableTextLines;
   const segmentLineCounts: number[] = [];
   
@@ -126,7 +126,7 @@ export function redistributeLines(originalLines: string[], targetLineCount: numb
       result.push(seg.text);
     } else {
       const lineCount = segmentLineCounts[textSegIdx];
-      const distributed = distributeWords(seg.words, Math.max(1, lineCount));
+      const distributed = distributeWords(seg.words, Math.max(1, lineCount), minWordsPerLine);
       result.push(...distributed);
       textSegIdx++;
     }

@@ -50,6 +50,7 @@ export function TahfeezQuizView({
   const mobileLinesPerPage = settings.display?.mobileLinesPerPage || 15;
   const desktopLinesPerPage = settings.display?.desktopLinesPerPage || 15;
   const textAlign = settings.display?.textAlign || 'justify';
+  const minWordsPerLine = settings.display?.minWordsPerLine || 5;
   const isLines15 = displayMode === 'lines15';
   const pageBackgroundColor = (settings.colors as any).pageBackgroundColor || '';
   const pageFrameStyle = pageBackgroundColor ? { background: `hsl(${pageBackgroundColor})` } : undefined;
@@ -61,8 +62,8 @@ export function TahfeezQuizView({
     const originalLines = page.text.split('\n');
     const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
     const targetLines = isMobile ? mobileLinesPerPage : desktopLinesPerPage;
-    return redistributeLines(originalLines, targetLines).join('\n');
-  }, [page.text, displayMode, mobileLinesPerPage, desktopLinesPerPage]);
+    return redistributeLines(originalLines, targetLines, minWordsPerLine).join('\n');
+  }, [page.text, displayMode, mobileLinesPerPage, desktopLinesPerPage, minWordsPerLine]);
 
   // Parse all word tokens (excluding headers, bismillah, spaces, verse numbers)
   const { lines, allWordTokens } = useMemo(() => {

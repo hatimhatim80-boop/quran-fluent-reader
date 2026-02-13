@@ -319,6 +319,22 @@ export function SettingsDialog({ children }: SettingsDialogProps) {
               </div>
             </div>
 
+            <div className="space-y-2">
+              <Label className="font-arabic font-bold">الحد الأدنى للكلمات في السطر</Label>
+              <Slider
+                value={[settings.display?.minWordsPerLine || 5]}
+                onValueChange={([v]) => setDisplay({ minWordsPerLine: v })}
+                min={2}
+                max={8}
+                step={1}
+              />
+              <div className="flex items-center justify-between text-xs font-arabic text-muted-foreground">
+                <span>٢ كلمات</span>
+                <span className="text-primary font-bold text-sm">{settings.display?.minWordsPerLine || 5} كلمات</span>
+                <span>٨ كلمات</span>
+              </div>
+            </div>
+
             {settings.display?.mode === 'lines15' && (
               <div className="space-y-3">
                 <Label className="font-arabic font-bold">محاذاة النص (الاحتواء التلقائي)</Label>

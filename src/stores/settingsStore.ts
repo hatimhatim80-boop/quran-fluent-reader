@@ -17,6 +17,7 @@ export interface DisplaySettings {
   mode: 'continuous' | 'lines15';
   mobileLinesPerPage: number;
   desktopLinesPerPage: number;
+  minWordsPerLine: number;
   textDirection: 'rtl' | 'ltr';
   textAlign: 'right' | 'left' | 'center' | 'justify';
 }
@@ -103,6 +104,7 @@ const defaultSettings: AppSettings = {
     mode: 'lines15',
     mobileLinesPerPage: 15,
     desktopLinesPerPage: 15,
+    minWordsPerLine: 5,
     textDirection: 'rtl',
     textAlign: 'justify',
   },
