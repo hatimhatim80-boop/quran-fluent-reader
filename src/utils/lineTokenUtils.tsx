@@ -36,8 +36,7 @@ export function bindVerseNumbers(
     
     // Check if next element is a verse number
     if (nextEl && isVerseNumberElement(nextEl)) {
-      // Wrap current word + verse number together
-      // Also check if there's a space between them and include it
+      // Wrap current word + verse number + next word together
       const group: React.ReactNode[] = [el];
       let j = i + 1;
       // Collect spaces and the verse number
@@ -47,6 +46,15 @@ export function bindVerseNumbers(
           j++;
           break;
         }
+        j++;
+      }
+      // Also collect the next word after the verse number (spaces + first non-space element)
+      while (j < elements.length && isSpaceElement(elements[j])) {
+        group.push(elements[j]);
+        j++;
+      }
+      if (j < elements.length && !isVerseNumberElement(elements[j])) {
+        group.push(elements[j]);
         j++;
       }
       result.push(
