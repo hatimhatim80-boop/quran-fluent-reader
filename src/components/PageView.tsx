@@ -6,6 +6,7 @@ import { useHighlightOverrideStore } from '@/stores/highlightOverrideStore';
 import { useSettingsStore } from '@/stores/settingsStore';
 import { useTahfeezStore } from '@/stores/tahfeezStore';
 import { getPageMetadata } from '@/utils/juzHizbInfo';
+import { redistributeLines, shouldRedistribute } from '@/utils/lineRedistributor';
 
 interface PageViewProps {
   page: QuranPage;
@@ -74,6 +75,14 @@ export function PageView({
   const containerRef = useRef<HTMLDivElement>(null);
   const lastRenderedKeysRef = useRef<string>('');
   const displayMode = useSettingsStore((s) => s.settings.display?.mode || 'lines15');
+  const mobileLinesPerPage = useSettingsStore((s) => s.settings.display?.mobileLinesPerPage || 15);
+
+  // Redistribute lines for mobile if needed
+  const effectivePageText = useMemo(() => {
+    if (displayMode !== 'lines15' || !shouldRedistribute(mobileLinesPerPage)) return page.text;
+    const originalLines = page.text.split('\n');
+    return redistributeLines(originalLines, mobileLinesPerPage).join('\n');
+  }, [page.text, displayMode, mobileLinesPerPage]);
   const tahfeezMode = useTahfeezStore((s) => s.selectionMode);
   const toggleTahfeezWord = useTahfeezStore((s) => s.toggleWord);
   const isTahfeezSelected = useTahfeezStore((s) => s.isSelected);
@@ -95,7 +104,7 @@ export function PageView({
 
   // Build surah context map
   const surahContextByLine = useMemo(() => {
-    const lines = page.text.split('\n');
+    const lines = effectivePageText.split('\n');
     const contextMap: string[] = [];
     let currentSurah = page.surahName || '';
 
@@ -111,13 +120,13 @@ export function PageView({
     }
 
     return contextMap;
-  }, [page.text, page.surahName]);
+  }, [effectivePageText, page.surahName]);
 
   // First pass: determine which words are matched and in what order
   const matchedWordsInOrder = useMemo((): MatchedWord[] => {
-    if (!page.text || ghareebWords.length === 0) return [];
+    if (!effectivePageText || ghareebWords.length === 0) return [];
 
-    const lines = page.text.split('\n');
+    const lines = effectivePageText.split('\n');
     const matched: MatchedWord[] = [];
 
     // Prepare ghareeb entries
@@ -253,7 +262,7 @@ export function PageView({
     // Sort by reading order: line index first, then token index within line
     matched.sort((a, b) => a.lineIdx !== b.lineIdx ? a.lineIdx - b.lineIdx : a.tokenIdx - b.tokenIdx);
     return matched;
-  }, [page.text, ghareebWords, surahContextByLine]);
+  }, [effectivePageText, ghareebWords, surahContextByLine]);
 
   // Create the actual rendered words list with sequential indices
   const renderedWords = useMemo((): GhareebWord[] => {
@@ -309,10 +318,10 @@ export function PageView({
   }, [matchedWordsInOrder]);
 
   const renderedContent = useMemo(() => {
-    if (!page.text) return null;
+    if (!effectivePageText) return null;
 
     const isLines15 = displayMode === 'lines15';
-    const lines = page.text.split('\n');
+    const lines = effectivePageText.split('\n');
     
     // If no ghareeb words, render text
     if (ghareebWords.length === 0) {
@@ -597,7 +606,7 @@ export function PageView({
     }
 
     return <div className={isLines15 ? 'quran-lines-container' : 'inline'}>{allElements}</div>;
-  }, [page.text, page.pageNumber, ghareebWords, highlightedWordIndex, isPlaying, onWordClick, surahContextByLine, tokenMatchMap, highlightVersion, displayMode, tahfeezMode, toggleTahfeezWord, isTahfeezSelected, rangeAnchor, setRangeAnchor, addItem, storedItems]);
+  }, [effectivePageText, page.pageNumber, ghareebWords, highlightedWordIndex, isPlaying, onWordClick, surahContextByLine, tokenMatchMap, highlightVersion, displayMode, tahfeezMode, toggleTahfeezWord, isTahfeezSelected, rangeAnchor, setRangeAnchor, addItem, storedItems]);
 
   const pageBackgroundColor = useSettingsStore((s) => (s.settings.colors as any).pageBackgroundColor || '');
   const pageFrameStyle = pageBackgroundColor ? { background: `hsl(${pageBackgroundColor})` } : undefined;

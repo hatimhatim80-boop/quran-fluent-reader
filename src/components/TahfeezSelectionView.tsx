@@ -2,6 +2,7 @@ import React, { useState, useMemo, useCallback } from 'react';
 import { QuranPage } from '@/types/quran';
 import { useTahfeezStore, TahfeezItem, TahfeezPhrase } from '@/stores/tahfeezStore';
 import { useSettingsStore } from '@/stores/settingsStore';
+import { redistributeLines, shouldRedistribute } from '@/utils/lineRedistributor';
 
 function isSurahHeader(line: string): boolean {
   return line.startsWith('سُورَةُ') || line.startsWith('سورة ');
@@ -28,11 +29,19 @@ interface TahfeezSelectionViewProps {
 export function TahfeezSelectionView({ page }: TahfeezSelectionViewProps) {
   const { storedItems, addItem, removeItem, getItemKey, rangeAnchor, setRangeAnchor } = useTahfeezStore();
   const displayMode = useSettingsStore((s) => s.settings.display?.mode || 'lines15');
+  const mobileLinesPerPage = useSettingsStore((s) => s.settings.display?.mobileLinesPerPage || 15);
   const isLines15 = displayMode === 'lines15';
   const [selectionType, setSelectionType] = useState<'word' | 'phrase'>('word');
 
+  // Redistribute lines for mobile if needed
+  const effectiveText = useMemo(() => {
+    if (displayMode !== 'lines15' || !shouldRedistribute(mobileLinesPerPage)) return page.text;
+    const originalLines = page.text.split('\n');
+    return redistributeLines(originalLines, mobileLinesPerPage).join('\n');
+  }, [page.text, displayMode, mobileLinesPerPage]);
+
   const { lines, tokens } = useMemo(() => {
-    const lines = page.text.split('\n');
+    const lines = effectiveText.split('\n');
     const tokens: TokenData[][] = [];
     for (let lineIdx = 0; lineIdx < lines.length; lineIdx++) {
       const line = lines[lineIdx];
@@ -54,7 +63,7 @@ export function TahfeezSelectionView({ page }: TahfeezSelectionViewProps) {
       tokens.push(lineTokens);
     }
     return { lines, tokens };
-  }, [page.text]);
+  }, [effectiveText]);
 
   // Check if a word token is already stored
   const isTokenStored = useCallback((lineIdx: number, tokenIdx: number, text: string): boolean => {

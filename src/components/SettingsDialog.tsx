@@ -250,7 +250,28 @@ export function SettingsDialog({ children }: SettingsDialogProps) {
                 </button>
               </div>
             </div>
-            
+
+            {settings.display?.mode === 'lines15' && (
+              <div className="space-y-3">
+                <Label className="font-arabic font-bold">عدد الأسطر في الصفحة (الجوال)</Label>
+                <Slider
+                  value={[settings.display?.mobileLinesPerPage || 15]}
+                  onValueChange={([v]) => setDisplay({ mobileLinesPerPage: v })}
+                  min={5}
+                  max={15}
+                  step={1}
+                />
+                <div className="flex items-center justify-between text-xs font-arabic text-muted-foreground">
+                  <span>٥ أسطر</span>
+                  <span className="text-primary font-bold text-sm">{settings.display?.mobileLinesPerPage || 15} سطر</span>
+                  <span>١٥ سطر</span>
+                </div>
+                <p className="text-[10px] font-arabic text-muted-foreground">
+                  يتم توزيع الكلمات بالتساوي على عدد الأسطر المحدد
+                </p>
+              </div>
+            )}
+
             <div className="p-3 rounded-lg bg-muted/30 text-sm font-arabic text-muted-foreground">
               <Check className="w-4 h-4 inline ml-1 text-green-600" />
               وضع &quot;مصحف المدينة&quot; يعرض كل سطر منفصلاً بمحاذاة مطابقة للمصحف المطبوع
