@@ -1,5 +1,48 @@
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+import { persist, createJSONStorage, StateStorage } from 'zustand/middleware';
+import { openDB } from 'idb';
+
+// IndexedDB-based storage for better persistence in Capacitor/WebView
+const DB_NAME = 'tahfeez-persist';
+const STORE_NAME = 'keyval';
+
+async function getDB() {
+  return openDB(DB_NAME, 1, {
+    upgrade(db) {
+      if (!db.objectStoreNames.contains(STORE_NAME)) {
+        db.createObjectStore(STORE_NAME);
+      }
+    },
+  });
+}
+
+const idbStorage: StateStorage = {
+  getItem: async (name: string): Promise<string | null> => {
+    try {
+      const db = await getDB();
+      const value = await db.get(STORE_NAME, name);
+      return (value as string) ?? null;
+    } catch {
+      return localStorage.getItem(name);
+    }
+  },
+  setItem: async (name: string, value: string): Promise<void> => {
+    try {
+      const db = await getDB();
+      await db.put(STORE_NAME, value, name);
+    } catch {
+      localStorage.setItem(name, value);
+    }
+    try { localStorage.setItem(name, value); } catch {}
+  },
+  removeItem: async (name: string): Promise<void> => {
+    try {
+      const db = await getDB();
+      await db.delete(STORE_NAME, name);
+    } catch {}
+    try { localStorage.removeItem(name); } catch {}
+  },
+};
 
 // Single word selection
 export interface TahfeezWord {
@@ -131,8 +174,7 @@ export const useTahfeezStore = create<TahfeezState>()(
         return get().storedItems.some(item => {
           if (item.data.page !== page) return false;
           if (item.type === 'word') {
-            // Word items use tokenIdx as wordIndex for non-ghareeb words
-            return false; // handled separately in quiz view via matching
+            return false;
           } else {
             const p = item.data;
             return p.lineIdx === lineIdx && tokenIdx >= p.startWordIndex && tokenIdx <= p.endWordIndex;
@@ -160,6 +202,7 @@ export const useTahfeezStore = create<TahfeezState>()(
     }),
     {
       name: 'tahfeez.v2',
+      storage: createJSONStorage(() => idbStorage),
       partialize: (state) => ({
         storedItems: state.storedItems,
         quizSource: state.quizSource,
