@@ -10,6 +10,7 @@ import { Toolbar } from './Toolbar';
 import { QuranIndex } from './QuranIndex';
 import { DiagnosticModeBadge } from './DiagnosticModeActivator';
 import { useSettingsApplier } from '@/hooks/useSettingsApplier';
+import { useSettingsStore } from '@/stores/settingsStore';
 import { useDevDebugContextStore } from '@/stores/devDebugContextStore';
 import { useDiagnosticModeStore } from '@/stores/diagnosticModeStore';
 import { useHighlightOverrideStore } from '@/stores/highlightOverrideStore';
@@ -25,6 +26,7 @@ export function QuranReader() {
   } = useQuranData();
 
   const settings = useSettingsApplier();
+  const displayMode = useSettingsStore((s) => s.settings.display.mode);
   const clearAllOverrides = useHighlightOverrideStore((s) => s.clearAllOverrides);
   useEffect(() => { clearAllOverrides(); }, [clearAllOverrides]);
 
@@ -146,7 +148,19 @@ export function QuranReader() {
           )}
 
           {pageData && (
-            <MadinahPageView pageNumber={currentPage} />
+            displayMode === 'lines15' ? (
+              <MadinahPageView pageNumber={currentPage} />
+            ) : (
+              <PageView
+                page={pageData}
+                ghareebWords={pageWords}
+                highlightedWordIndex={currentWordIndex}
+                meaningEnabled={meaningActive}
+                isPlaying={isPlaying}
+                onWordClick={handleWordClick}
+                onRenderedWordsChange={handleRenderedWordsChange}
+              />
+            )
           )}
         </div>
 

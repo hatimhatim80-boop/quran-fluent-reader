@@ -229,7 +229,6 @@
     margin: 0 auto;
     padding: 14px 12px;
     direction: rtl;
-    unicode-bidi: plaintext;
   }
 
   .mushafLinesContainer {
@@ -239,28 +238,27 @@
   }
 
   .mushafLine {
-    white-space: pre;
+    white-space: nowrap;
     overflow: hidden;
-    text-align: justify;
-    text-justify: inter-word;
+    text-overflow: ellipsis;
+    text-align: right;
     line-height: 2.2;
     font-family: var(--quran-font-family, 'KFGQPC HAFS Uthmanic Script', 'UthmanicHafs', 'Amiri Quran', serif);
     font-size: var(--mushaf-font-size, 22px);
     letter-spacing: 0 !important;
-    word-spacing: 0 !important;
+    word-spacing: normal;
     font-kerning: normal;
-    font-variant-ligatures: normal;
-    text-rendering: geometricPrecision;
+    font-variant-ligatures: common-ligatures;
+    text-rendering: auto;
     direction: rtl;
-    unicode-bidi: plaintext;
+    unicode-bidi: bidi-override;
     color: hsl(var(--foreground));
   }
 
   .mushafBismillah {
     text-align: center;
-    text-align-last: center;
-    white-space: pre;
-    word-spacing: -0.15em !important;
+    white-space: nowrap;
+    word-spacing: normal;
   }
 
   .mushafSurahHeader {
