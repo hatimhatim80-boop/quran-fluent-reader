@@ -49,6 +49,7 @@ export function TahfeezQuizView({
   const textDirection = settings.display?.textDirection || 'rtl';
   const mobileLinesPerPage = settings.display?.mobileLinesPerPage || 15;
   const desktopLinesPerPage = settings.display?.desktopLinesPerPage || 15;
+  const textAlign = settings.display?.textAlign || 'justify';
   const isLines15 = displayMode === 'lines15';
   const pageBackgroundColor = (settings.colors as any).pageBackgroundColor || '';
   const pageFrameStyle = pageBackgroundColor ? { background: `hsl(${pageBackgroundColor})` } : undefined;
@@ -349,7 +350,7 @@ export function TahfeezQuizView({
 
       // Bind verse numbers to preceding word
       const processedElements = bindVerseNumbersSimple(lineElements, lineIdx);
-      const noJustify = shouldNoJustify(mobileLinesPerPage, desktopLinesPerPage);
+      const noJustify = shouldNoJustify(mobileLinesPerPage, desktopLinesPerPage, textAlign);
       if (isLines15) {
         elements.push(<div key={`line-${lineIdx}`} className={`quran-line${noJustify ? ' quran-line--no-justify' : ''}`}>{processedElements}</div>);
       } else {

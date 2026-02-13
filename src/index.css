@@ -174,11 +174,11 @@
     word-spacing: 0.02em;
   }
 
-  /* On mobile with redistributed lines, remove justify to avoid artificial gaps */
+  /* On mobile with redistributed lines, use user's chosen alignment instead of justify */
   @media (max-width: 767px) {
     .quran-line--no-justify {
-      text-align: right;
-      text-align-last: right;
+      text-align: var(--quran-text-align, right);
+      text-align-last: var(--quran-text-align, right);
       text-justify: auto;
       word-spacing: 0.02em;
     }

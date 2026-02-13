@@ -79,6 +79,7 @@ export function PageView({
   const textDirection = useSettingsStore((s) => s.settings.display?.textDirection || 'rtl');
   const mobileLinesPerPage = useSettingsStore((s) => s.settings.display?.mobileLinesPerPage || 15);
   const desktopLinesPerPage = useSettingsStore((s) => s.settings.display?.desktopLinesPerPage || 15);
+  const textAlign = useSettingsStore((s) => s.settings.display?.textAlign || 'justify');
 
   // Redistribute lines based on device
   const effectivePageText = useMemo(() => {
@@ -369,7 +370,7 @@ export function PageView({
             }
           }
           const processedElements = bindVerseNumbers(lineElements, idx);
-          const noJustify = shouldNoJustify(mobileLinesPerPage, desktopLinesPerPage);
+          const noJustify = shouldNoJustify(mobileLinesPerPage, desktopLinesPerPage, textAlign);
           elements.push(<div key={idx} className={`quran-line${noJustify ? ' quran-line--no-justify' : ''}`}>{processedElements}</div>);
         } else {
           elements.push(<span key={idx}>{line} </span>);
@@ -621,7 +622,7 @@ export function PageView({
       }
 
       // Add line elements - block for lines15 mode, inline for continuous
-      const noJustify = shouldNoJustify(mobileLinesPerPage, desktopLinesPerPage);
+      const noJustify = shouldNoJustify(mobileLinesPerPage, desktopLinesPerPage, textAlign);
       // Bind verse numbers to preceding word with nowrap wrapper
       const processedElements = bindVerseNumbers(lineElements, lineIdx);
       if (isLines15) {

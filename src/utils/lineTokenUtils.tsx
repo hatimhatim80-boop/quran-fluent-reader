@@ -9,9 +9,12 @@ export function formatBismillah(text: string): string {
 
 /**
  * Check if we should use no-justify mode (mobile with redistribution)
+ * Only applies when user hasn't explicitly set text alignment to justify
  */
-export function shouldNoJustify(mobileLinesPerPage: number, desktopLinesPerPage: number): boolean {
+export function shouldNoJustify(mobileLinesPerPage: number, desktopLinesPerPage: number, textAlign?: string): boolean {
   if (typeof window === 'undefined') return false;
+  // If user explicitly chose justify, never override it
+  if (textAlign === 'justify') return false;
   const isMobile = window.innerWidth < 768;
   return isMobile && mobileLinesPerPage < 15;
 }
