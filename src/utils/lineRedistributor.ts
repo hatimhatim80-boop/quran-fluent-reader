@@ -19,7 +19,7 @@ function isBismillah(line: string): boolean {
  */
 function distributeWords(words: string[], targetLineCount: number): string[] {
   if (words.length === 0) return [];
-  const MIN_WORDS_PER_LINE = 3;
+  const MIN_WORDS_PER_LINE = 5;
   const maxPossibleLines = Math.floor(words.length / MIN_WORDS_PER_LINE) || 1;
   const lineCount = Math.min(targetLineCount, maxPossibleLines, words.length);
 
@@ -97,7 +97,7 @@ export function redistributeLines(originalLines: string[], targetLineCount: numb
 
   // Distribute lines proportionally to each text segment
   // Ensure each segment gets at least 1 line and no line has fewer than 3 words
-  const MIN_WORDS_PER_LINE = 3;
+  const MIN_WORDS_PER_LINE = 5;
   let remainingLines = availableTextLines;
   const segmentLineCounts: number[] = [];
   
