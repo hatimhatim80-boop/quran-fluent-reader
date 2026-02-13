@@ -14,6 +14,23 @@
   font-display: swap;
 }
 
+/* Me Quran font */
+@font-face {
+  font-family: 'me_quran';
+  src: url('https://cdn.jsdelivr.net/gh/nicmarti/quran-font@main/me_quran.woff2') format('woff2');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Al Qalam Quran font */
+@font-face {
+  font-family: 'Al Qalam Quran';
+  src: url('https://cdn.jsdelivr.net/gh/AhmedAlQalam/Quran-Fonts@master/AlQalamQuran.woff2') format('woff2');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
 
 @import url('https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Noto+Naskh+Arabic:wght@400;500;600;700&family=Scheherazade+New:wght@400;500;600;700&display=swap');
 
@@ -150,7 +167,7 @@
     text-align: var(--quran-text-align, justify);
     text-align-last: var(--quran-text-align, justify);
     text-justify: inter-word;
-    direction: rtl;
+    direction: var(--quran-text-direction, rtl);
     min-height: 1.8em;
     line-height: var(--quran-line-height, 2.4);
     padding: 0.05em 0;
