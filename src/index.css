@@ -164,28 +164,28 @@
   }
 
   .quran-line {
-    text-align: justify;
-    text-align-last: justify;
+    text-align: var(--quran-text-align, justify);
+    text-align-last: var(--quran-text-align, justify);
     text-justify: inter-word;
-    direction: var(--quran-text-direction, rtl);
+    direction: rtl;
     min-height: 1.8em;
     line-height: var(--quran-line-height, 2.4);
     padding: 0.05em 0;
     word-spacing: 0.02em;
   }
 
-  /* On mobile with redistributed lines, use user's chosen alignment instead of justify */
+  /* On mobile with redistributed lines */
   @media (max-width: 767px) {
     .quran-line--no-justify {
-      text-align: justify;
-      text-align-last: justify;
+      text-align: var(--quran-text-align, justify);
+      text-align-last: var(--quran-text-align, justify);
       text-justify: auto;
       word-spacing: 0.02em;
     }
   }
 
   .quran-line:last-child {
-    text-align-last: justify;
+    text-align-last: var(--quran-text-align, justify);
   }
 
   /* Bismillah: single line, no word breaks */
