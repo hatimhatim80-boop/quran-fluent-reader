@@ -34,6 +34,9 @@ export function QuranReader() {
   const [showIndex, setShowIndex] = useState(false);
   const [showControls, setShowControls] = useState(false);
   const [fullscreen, setFullscreen] = useState(false);
+  const [pinchScale, setPinchScale] = useState(1);
+  const pinchRef = React.useRef<{ startDist: number; startScale: number } | null>(null);
+  const contentRef = React.useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
   const tahfeezMode = useTahfeezStore((s) => s.selectionMode);
   const setTahfeezMode = useTahfeezStore((s) => s.setSelectionMode);
@@ -74,6 +77,38 @@ export function QuranReader() {
     isPlaying ? pause() : play();
   }, [isPlaying, play, pause]);
 
+  // Pinch-to-zoom handler
+  useEffect(() => {
+    const el = contentRef.current;
+    if (!el) return;
+    const onTouchStart = (e: TouchEvent) => {
+      if (e.touches.length === 2) {
+        const dx = e.touches[0].clientX - e.touches[1].clientX;
+        const dy = e.touches[0].clientY - e.touches[1].clientY;
+        pinchRef.current = { startDist: Math.hypot(dx, dy), startScale: pinchScale };
+      }
+    };
+    const onTouchMove = (e: TouchEvent) => {
+      if (e.touches.length === 2 && pinchRef.current) {
+        e.preventDefault();
+        const dx = e.touches[0].clientX - e.touches[1].clientX;
+        const dy = e.touches[0].clientY - e.touches[1].clientY;
+        const dist = Math.hypot(dx, dy);
+        const newScale = Math.min(3, Math.max(0.5, pinchRef.current.startScale * (dist / pinchRef.current.startDist)));
+        setPinchScale(newScale);
+      }
+    };
+    const onTouchEnd = () => { pinchRef.current = null; };
+    el.addEventListener('touchstart', onTouchStart, { passive: false });
+    el.addEventListener('touchmove', onTouchMove, { passive: false });
+    el.addEventListener('touchend', onTouchEnd);
+    return () => {
+      el.removeEventListener('touchstart', onTouchStart);
+      el.removeEventListener('touchmove', onTouchMove);
+      el.removeEventListener('touchend', onTouchEnd);
+    };
+  }, [pinchScale]);
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center" dir="rtl">
@@ -101,7 +136,7 @@ export function QuranReader() {
   const meaningActive = isPlaying || currentWordIndex >= 0;
 
   return (
-    <div className="min-h-screen bg-background flex" dir="rtl">
+    <div className="min-h-screen bg-background flex" dir="rtl" ref={contentRef}>
       <DiagnosticModeBadge />
 
       {/* Index Sidebar */}
@@ -140,7 +175,7 @@ export function QuranReader() {
         )}
 
         {/* Page Content */}
-        <div className="flex-1 max-w-2xl mx-auto w-full px-3 py-4 sm:py-6">
+        <div className="flex-1 max-w-2xl mx-auto w-full px-3 py-4 sm:py-6" style={{ transform: `scale(${pinchScale})`, transformOrigin: 'top center', transition: pinchRef.current ? 'none' : 'transform 0.2s ease' }}>
           {settings.debugMode && isPlaying && (
             <div className="fixed top-16 left-4 z-50 bg-black/80 text-white text-xs px-3 py-2 rounded-lg font-mono">
               Running {currentWordIndex + 1} / {renderedWords.length}
