@@ -197,7 +197,7 @@ export function SettingsDialog({ children }: SettingsDialogProps) {
                 onValueChange={([v]) => setFonts({ quranFontSize: v })}
                 min={1}
                 max={3.5}
-                step={0.1}
+                step={0.05}
               />
             </div>
 
