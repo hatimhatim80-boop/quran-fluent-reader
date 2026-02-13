@@ -3,6 +3,7 @@ import { QuranPage } from '@/types/quran';
 import { normalizeArabic } from '@/utils/quranParser';
 import { useSettingsStore } from '@/stores/settingsStore';
 import { TahfeezItem } from '@/stores/tahfeezStore';
+import { redistributeLines, shouldRedistribute } from '@/utils/lineRedistributor';
 
 interface TahfeezQuizViewProps {
   page: QuranPage;
@@ -44,14 +45,22 @@ export function TahfeezQuizView({
 }: TahfeezQuizViewProps) {
   const { settings } = useSettingsStore();
   const displayMode = settings.display?.mode || 'lines15';
+  const mobileLinesPerPage = settings.display?.mobileLinesPerPage || 15;
   const isLines15 = displayMode === 'lines15';
   const pageBackgroundColor = (settings.colors as any).pageBackgroundColor || '';
   const pageFrameStyle = pageBackgroundColor ? { background: `hsl(${pageBackgroundColor})` } : undefined;
   const highlightStyle = (settings.colors as any).highlightStyle || 'background';
 
+  // Redistribute lines for mobile if needed
+  const effectiveText = useMemo(() => {
+    if (displayMode !== 'lines15' || !shouldRedistribute(mobileLinesPerPage)) return page.text;
+    const originalLines = page.text.split('\n');
+    return redistributeLines(originalLines, mobileLinesPerPage).join('\n');
+  }, [page.text, displayMode, mobileLinesPerPage]);
+
   // Parse all word tokens (excluding headers, bismillah, spaces, verse numbers)
   const { lines, allWordTokens } = useMemo(() => {
-    const lines = page.text.split('\n');
+    const lines = effectiveText.split('\n');
     const allWordTokens: TokenInfo[] = [];
     for (let lineIdx = 0; lineIdx < lines.length; lineIdx++) {
       const line = lines[lineIdx];
@@ -73,7 +82,7 @@ export function TahfeezQuizView({
       }
     }
     return { lines, allWordTokens };
-  }, [page.text]);
+  }, [effectiveText]);
 
   // Determine which keys should be blanked
   const blankedKeys = useMemo((): Set<string> => {
@@ -107,7 +116,7 @@ export function TahfeezQuizView({
         // Group tokens into ayahs by verse numbers
         const ayahGroups: TokenInfo[][] = [];
         let currentGroup: TokenInfo[] = [];
-        const rawLines = page.text.split('\n');
+        const rawLines = effectiveText.split('\n');
         for (let lineIdx = 0; lineIdx < rawLines.length; lineIdx++) {
           const line = rawLines[lineIdx];
           if (isSurahHeader(line) || isBismillah(line)) continue;
@@ -180,7 +189,7 @@ export function TahfeezQuizView({
       }
     }
     return keys;
-  }, [quizSource, storedItems, autoBlankMode, blankCount, ayahCount, page.pageNumber, allWordTokens, page.text]);
+  }, [quizSource, storedItems, autoBlankMode, blankCount, ayahCount, page.pageNumber, allWordTokens, effectiveText]);
 
   // Export blanked keys list (ordered) for parent to use in sequencing
   // This is used by the parent component via a ref or callback
@@ -213,8 +222,8 @@ export function TahfeezQuizView({
         }
       }
     } else {
-      // For auto: find first blanked key per ayah group
-      const rawLines = page.text.split('\n');
+      // For auto: find first blanked key of each contiguous blank group within each ayah
+      const rawLines = effectiveText.split('\n');
       let currentGroup: TokenInfo[] = [];
       const groups: TokenInfo[][] = [];
       for (let lineIdx = 0; lineIdx < rawLines.length; lineIdx++) {
@@ -236,14 +245,22 @@ export function TahfeezQuizView({
       }
       if (currentGroup.length > 0) groups.push(currentGroup);
       
+      // For each ayah group, find first key of each contiguous blank sequence
       for (const group of groups) {
-        const firstBlanked = group.find(t => blankedKeys.has(t.key));
-        if (firstBlanked) firstKeys.add(firstBlanked.key);
+        let prevWasBlanked = false;
+        for (const t of group) {
+          const isBlanked = blankedKeys.has(t.key);
+          if (isBlanked && !prevWasBlanked) {
+            // Start of a new contiguous blank group
+            firstKeys.add(t.key);
+          }
+          prevWasBlanked = isBlanked;
+        }
       }
     }
     
     return { blankedKeysList: orderedKeys, firstKeysSet: firstKeys };
-  }, [allWordTokens, blankedKeys, quizSource, storedItems, page.pageNumber, page.text]);
+  }, [allWordTokens, blankedKeys, quizSource, storedItems, page.pageNumber, effectiveText]);
 
   // Attach to DOM for parent to read
   React.useEffect(() => {
