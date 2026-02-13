@@ -287,68 +287,66 @@ export function SettingsDialog({ children }: SettingsDialogProps) {
               </div>
             </div>
 
+            <div className="space-y-3">
+              <Label className="font-arabic font-bold">عدد الأسطر في الصفحة (الجوال)</Label>
+              <Slider
+                value={[settings.display?.mobileLinesPerPage || 15]}
+                onValueChange={([v]) => setDisplay({ mobileLinesPerPage: v })}
+                min={5}
+                max={15}
+                step={1}
+              />
+              <div className="flex items-center justify-between text-xs font-arabic text-muted-foreground">
+                <span>٥ أسطر</span>
+                <span className="text-primary font-bold text-sm">{settings.display?.mobileLinesPerPage || 15} سطر</span>
+                <span>١٥ سطر</span>
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <Label className="font-arabic font-bold">عدد الأسطر في الصفحة (اللابتوب)</Label>
+              <Slider
+                value={[settings.display?.desktopLinesPerPage || 15]}
+                onValueChange={([v]) => setDisplay({ desktopLinesPerPage: v })}
+                min={5}
+                max={15}
+                step={1}
+              />
+              <div className="flex items-center justify-between text-xs font-arabic text-muted-foreground">
+                <span>٥ أسطر</span>
+                <span className="text-primary font-bold text-sm">{settings.display?.desktopLinesPerPage || 15} سطر</span>
+                <span>١٥ سطر</span>
+              </div>
+            </div>
+
             {settings.display?.mode === 'lines15' && (
-              <>
-                <div className="space-y-3">
-                  <Label className="font-arabic font-bold">عدد الأسطر في الصفحة (الجوال)</Label>
-                  <Slider
-                    value={[settings.display?.mobileLinesPerPage || 15]}
-                    onValueChange={([v]) => setDisplay({ mobileLinesPerPage: v })}
-                    min={5}
-                    max={15}
-                    step={1}
-                  />
-                  <div className="flex items-center justify-between text-xs font-arabic text-muted-foreground">
-                    <span>٥ أسطر</span>
-                    <span className="text-primary font-bold text-sm">{settings.display?.mobileLinesPerPage || 15} سطر</span>
-                    <span>١٥ سطر</span>
-                  </div>
+              <div className="space-y-3">
+                <Label className="font-arabic font-bold">محاذاة النص (الاحتواء التلقائي)</Label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    onClick={() => setDisplay({ textAlign: 'justify' })}
+                    className={`p-3 rounded-lg border text-center transition-all ${
+                      (settings.display?.textAlign || 'justify') === 'justify'
+                        ? 'border-primary bg-primary/10 ring-2 ring-primary/20'
+                        : 'border-border hover:border-muted-foreground/50'
+                    }`}
+                  >
+                    <span className="font-arabic text-sm font-bold block">ضبط من الجانبين</span>
+                    <span className="font-arabic text-[10px] text-muted-foreground">مثل المصحف المطبوع</span>
+                  </button>
+                  <button
+                    onClick={() => setDisplay({ textAlign: 'right' })}
+                    className={`p-3 rounded-lg border text-center transition-all ${
+                      settings.display?.textAlign === 'right'
+                        ? 'border-primary bg-primary/10 ring-2 ring-primary/20'
+                        : 'border-border hover:border-muted-foreground/50'
+                    }`}
+                  >
+                    <span className="font-arabic text-sm font-bold block">محاذاة لليمين</span>
+                    <span className="font-arabic text-[10px] text-muted-foreground">بدون تمديد</span>
+                  </button>
                 </div>
-
-                <div className="space-y-3">
-                  <Label className="font-arabic font-bold">عدد الأسطر في الصفحة (اللابتوب)</Label>
-                  <Slider
-                    value={[settings.display?.desktopLinesPerPage || 15]}
-                    onValueChange={([v]) => setDisplay({ desktopLinesPerPage: v })}
-                    min={5}
-                    max={15}
-                    step={1}
-                  />
-                  <div className="flex items-center justify-between text-xs font-arabic text-muted-foreground">
-                    <span>٥ أسطر</span>
-                    <span className="text-primary font-bold text-sm">{settings.display?.desktopLinesPerPage || 15} سطر</span>
-                    <span>١٥ سطر</span>
-                  </div>
-                </div>
-
-                <div className="space-y-3">
-                  <Label className="font-arabic font-bold">محاذاة النص (الاحتواء التلقائي)</Label>
-                  <div className="grid grid-cols-2 gap-2">
-                    <button
-                      onClick={() => setDisplay({ textAlign: 'justify' })}
-                      className={`p-3 rounded-lg border text-center transition-all ${
-                        (settings.display?.textAlign || 'justify') === 'justify'
-                          ? 'border-primary bg-primary/10 ring-2 ring-primary/20'
-                          : 'border-border hover:border-muted-foreground/50'
-                      }`}
-                    >
-                      <span className="font-arabic text-sm font-bold block">ضبط من الجانبين</span>
-                      <span className="font-arabic text-[10px] text-muted-foreground">مثل المصحف المطبوع</span>
-                    </button>
-                    <button
-                      onClick={() => setDisplay({ textAlign: 'right' })}
-                      className={`p-3 rounded-lg border text-center transition-all ${
-                        settings.display?.textAlign === 'right'
-                          ? 'border-primary bg-primary/10 ring-2 ring-primary/20'
-                          : 'border-border hover:border-muted-foreground/50'
-                      }`}
-                    >
-                      <span className="font-arabic text-sm font-bold block">محاذاة لليمين</span>
-                      <span className="font-arabic text-[10px] text-muted-foreground">بدون تمديد</span>
-                    </button>
-                  </div>
-                </div>
-              </>
+              </div>
             )}
 
 
