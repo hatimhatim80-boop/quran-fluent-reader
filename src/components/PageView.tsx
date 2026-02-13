@@ -38,9 +38,10 @@ function isSurahHeader(line: string): boolean {
   return line.startsWith('سُورَةُ') || line.startsWith('سورة ');
 }
 
-// Check if line is bismillah
+// Check if line is bismillah - use normalization to handle all Unicode variants
 function isBismillah(line: string): boolean {
-  return line.includes('بِسمِ اللَّهِ') || line.includes('بِسۡمِ ٱللَّهِ');
+  const normalized = normalizeArabic(line);
+  return normalized.includes('بسم الله الرحمن الرحيم') || normalized.includes('بسم الله');
 }
 
 // Strict word matching: require exact match or close substring (max 2 chars difference)
