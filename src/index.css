@@ -238,20 +238,21 @@
   }
 
   .mushafLine {
-    white-space: nowrap;
+    white-space: pre;
     overflow: hidden;
-    text-overflow: ellipsis;
-    text-align: right;
+    text-align: justify;
+    text-align-last: right;
+    text-justify: inter-word;
     line-height: 2.2;
     font-family: var(--quran-font-family, 'KFGQPC HAFS Uthmanic Script', 'UthmanicHafs', 'Amiri Quran', serif);
     font-size: var(--mushaf-font-size, 22px);
     letter-spacing: 0 !important;
-    word-spacing: normal;
+    word-spacing: 0 !important;
     font-kerning: normal;
     font-variant-ligatures: common-ligatures;
-    text-rendering: auto;
+    text-rendering: geometricPrecision;
     direction: rtl;
-    unicode-bidi: bidi-override;
+    unicode-bidi: embed;
     color: hsl(var(--foreground));
   }
 
