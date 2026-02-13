@@ -4,6 +4,7 @@ import { normalizeArabic } from '@/utils/quranParser';
 import { useSettingsStore } from '@/stores/settingsStore';
 import { TahfeezItem } from '@/stores/tahfeezStore';
 import { redistributeLines, shouldRedistribute } from '@/utils/lineRedistributor';
+import { formatBismillah, shouldNoJustify, bindVerseNumbersSimple } from '@/utils/lineTokenUtils';
 
 interface TahfeezQuizViewProps {
   page: QuranPage;
@@ -293,7 +294,7 @@ export function TahfeezQuizView({
       }
       if (isBismillah(line)) {
         elements.push(
-          <div key={`bismillah-${lineIdx}`} className="bismillah font-arabic">{line}</div>
+          <div key={`bismillah-${lineIdx}`} className="bismillah bismillah-compact font-arabic">{formatBismillah(line)}</div>
         );
         continue;
       }
@@ -346,10 +347,13 @@ export function TahfeezQuizView({
         }
       }
 
+      // Bind verse numbers to preceding word
+      const processedElements = bindVerseNumbersSimple(lineElements, lineIdx);
+      const noJustify = shouldNoJustify(mobileLinesPerPage, desktopLinesPerPage);
       if (isLines15) {
-        elements.push(<div key={`line-${lineIdx}`} className="quran-line">{lineElements}</div>);
+        elements.push(<div key={`line-${lineIdx}`} className={`quran-line${noJustify ? ' quran-line--no-justify' : ''}`}>{processedElements}</div>);
       } else {
-        elements.push(<span key={`line-${lineIdx}`}>{lineElements}{' '}</span>);
+        elements.push(<span key={`line-${lineIdx}`}>{processedElements}{' '}</span>);
       }
     }
 
