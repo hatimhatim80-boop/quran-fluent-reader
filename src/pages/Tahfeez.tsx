@@ -2,8 +2,9 @@ import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import { useTahfeezStore, TahfeezItem } from '@/stores/tahfeezStore';
 import { toast } from 'sonner';
 import { useQuranData } from '@/hooks/useQuranData';
+import { useSettingsApplier } from '@/hooks/useSettingsApplier';
 import { Link, useNavigate } from 'react-router-dom';
-import { BookOpen, Play, Pause, Eye, ArrowRight, Save, Trash2, GraduationCap, ListChecks, Zap, Book, Layers, Hash, FileText, Search, X, ChevronLeft, Download, Upload, Settings2 } from 'lucide-react';
+import { BookOpen, Play, Pause, Eye, ArrowRight, Save, Trash2, GraduationCap, ListChecks, Zap, Book, Layers, Hash, FileText, Search, X, ChevronLeft, Download, Upload, Settings2, Maximize2, Minimize2 } from 'lucide-react';
 import { Slider } from '@/components/ui/slider';
 import { Switch } from '@/components/ui/switch';
 import { Button } from '@/components/ui/button';
@@ -13,7 +14,6 @@ import { TahfeezSelectionView } from '@/components/TahfeezSelectionView';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { SURAH_INFO, SURAH_NAMES } from '@/utils/quranPageIndex';
 import { SettingsDialog } from '@/components/SettingsDialog';
-
 // ---- Quran Index Data ----
 const SURAHS = Object.entries(SURAH_NAMES).map(([name, number]) => ({
   number, name,
@@ -54,6 +54,7 @@ export default function TahfeezPage() {
   } = useTahfeezStore();
 
   const { currentPage, getCurrentPageData, goToPage, totalPages } = useQuranData();
+  useSettingsApplier(); // Apply font/display settings globally
   const pageData = getCurrentPageData();
 
   const [quizStarted, setQuizStarted] = useState(false);
@@ -68,6 +69,42 @@ export default function TahfeezPage() {
   const [showIndex, setShowIndex] = useState(false);
   const [indexSearch, setIndexSearch] = useState('');
   const [indexTab, setIndexTab] = useState('surahs');
+  const [fullscreen, setFullscreen] = useState(false);
+  const [pinchScale, setPinchScale] = useState(1);
+  const pinchRef = useRef<{ startDist: number; startScale: number } | null>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
+
+  // Pinch-to-zoom handler
+  useEffect(() => {
+    const el = contentRef.current;
+    if (!el) return;
+    const onTouchStart = (e: TouchEvent) => {
+      if (e.touches.length === 2) {
+        const dx = e.touches[0].clientX - e.touches[1].clientX;
+        const dy = e.touches[0].clientY - e.touches[1].clientY;
+        pinchRef.current = { startDist: Math.hypot(dx, dy), startScale: pinchScale };
+      }
+    };
+    const onTouchMove = (e: TouchEvent) => {
+      if (e.touches.length === 2 && pinchRef.current) {
+        e.preventDefault();
+        const dx = e.touches[0].clientX - e.touches[1].clientX;
+        const dy = e.touches[0].clientY - e.touches[1].clientY;
+        const dist = Math.hypot(dx, dy);
+        const newScale = Math.min(3, Math.max(0.5, pinchRef.current.startScale * (dist / pinchRef.current.startDist)));
+        setPinchScale(newScale);
+      }
+    };
+    const onTouchEnd = () => { pinchRef.current = null; };
+    el.addEventListener('touchstart', onTouchStart, { passive: false });
+    el.addEventListener('touchmove', onTouchMove, { passive: false });
+    el.addEventListener('touchend', onTouchEnd);
+    return () => {
+      el.removeEventListener('touchstart', onTouchStart);
+      el.removeEventListener('touchmove', onTouchMove);
+      el.removeEventListener('touchend', onTouchEnd);
+    };
+  }, [pinchScale]);
 
   // Read blanked keys from the quiz view after it renders
   useEffect(() => {
@@ -283,43 +320,56 @@ export default function TahfeezPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background" dir="rtl">
+    <div className="min-h-screen bg-background" dir="rtl" ref={contentRef}>
       {/* Header */}
-      <div className="sticky top-0 z-30 bg-background/95 backdrop-blur-md border-b border-border/50">
-        <div className="max-w-2xl mx-auto px-4 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
-              <GraduationCap className="w-4 h-4 text-primary" />
+      {!fullscreen && (
+        <div className="sticky top-0 z-30 bg-background/95 backdrop-blur-md border-b border-border/50">
+          <div className="max-w-2xl mx-auto px-4 py-3 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+                <GraduationCap className="w-4 h-4 text-primary" />
+              </div>
+              <h1 className="text-lg font-bold font-arabic text-foreground">بوابة التحفيظ</h1>
             </div>
-            <h1 className="text-lg font-bold font-arabic text-foreground">بوابة التحفيظ</h1>
-          </div>
-          <div className="flex items-center gap-2">
-            <SettingsDialog>
-              <button className="nav-button w-8 h-8 rounded-full flex items-center justify-center" title="الإعدادات">
-                <Settings2 className="w-4 h-4" />
+            <div className="flex items-center gap-2">
+              <SettingsDialog>
+                <button className="nav-button w-8 h-8 rounded-full flex items-center justify-center" title="الإعدادات">
+                  <Settings2 className="w-4 h-4" />
+                </button>
+              </SettingsDialog>
+              <button onClick={() => setShowIndex(true)} className="nav-button w-8 h-8 rounded-full flex items-center justify-center" title="فهرس المصحف">
+                <Book className="w-4 h-4" />
               </button>
-            </SettingsDialog>
-            <button onClick={() => setShowIndex(true)} className="nav-button w-8 h-8 rounded-full flex items-center justify-center" title="فهرس المصحف">
-              <Book className="w-4 h-4" />
-            </button>
-            <Link to="/mushaf" className="nav-button w-8 h-8 rounded-full flex items-center justify-center" title="بوابة الغريب">
-              <BookOpen className="w-4 h-4" />
-            </Link>
-            <Link to="/" className="nav-button w-8 h-8 rounded-full flex items-center justify-center">
-              <ArrowRight className="w-4 h-4" />
-            </Link>
+              <Link to="/mushaf" className="nav-button w-8 h-8 rounded-full flex items-center justify-center" title="بوابة الغريب">
+                <BookOpen className="w-4 h-4" />
+              </Link>
+              <Link to="/" className="nav-button w-8 h-8 rounded-full flex items-center justify-center">
+                <ArrowRight className="w-4 h-4" />
+              </Link>
+            </div>
+          </div>
+          {/* Current page indicator */}
+          <div className="max-w-2xl mx-auto px-4 pb-2 flex items-center justify-center gap-3">
+            <Button variant="ghost" size="sm" onClick={() => goToPage(currentPage - 1)} disabled={currentPage <= 1} className="text-xs font-arabic h-7 px-2">→</Button>
+            <span className="text-xs font-arabic text-muted-foreground">صفحة {currentPage} / {totalPages}</span>
+            <Button variant="ghost" size="sm" onClick={() => goToPage(currentPage + 1)} disabled={currentPage >= totalPages} className="text-xs font-arabic h-7 px-2">←</Button>
           </div>
         </div>
-        {/* Current page indicator */}
-        <div className="max-w-2xl mx-auto px-4 pb-2 flex items-center justify-center gap-3">
-          <Button variant="ghost" size="sm" onClick={() => goToPage(currentPage - 1)} disabled={currentPage <= 1} className="text-xs font-arabic h-7 px-2">→</Button>
-          <span className="text-xs font-arabic text-muted-foreground">صفحة {currentPage} / {totalPages}</span>
-          <Button variant="ghost" size="sm" onClick={() => goToPage(currentPage + 1)} disabled={currentPage >= totalPages} className="text-xs font-arabic h-7 px-2">←</Button>
-        </div>
-      </div>
+      )}
+
+      {/* Fullscreen toggle - always visible */}
+      <button
+        onClick={() => setFullscreen(!fullscreen)}
+        className={`fixed top-3 left-3 z-50 w-9 h-9 rounded-full flex items-center justify-center transition-all shadow-md ${
+          fullscreen ? 'bg-primary text-primary-foreground' : 'bg-background/90 border border-border text-foreground'
+        }`}
+        title={fullscreen ? 'إظهار الأشرطة' : 'صفحة كاملة'}
+      >
+        {fullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+      </button>
 
       {/* Tab icons */}
-      {!quizStarted && (
+      {!quizStarted && !fullscreen && (
         <div className="max-w-2xl mx-auto px-4 pt-4">
           <div className="flex justify-center gap-3">
             {tabs.map(tab => (
@@ -340,9 +390,16 @@ export default function TahfeezPage() {
         </div>
       )}
 
-      <div className="max-w-2xl mx-auto px-4 py-6 space-y-6">
+      <div className="max-w-2xl mx-auto px-4 py-6 space-y-6" style={{ transform: `scale(${pinchScale})`, transformOrigin: 'top center', transition: pinchRef.current ? 'none' : 'transform 0.2s ease' }}>
         {/* Tab 1: Store words */}
-        {!quizStarted && activeTab === 'store' && (
+        {/* Fullscreen: show only the quran page text */}
+        {fullscreen && pageData && (
+          <div className="animate-fade-in">
+            <TahfeezSelectionView page={pageData} />
+          </div>
+        )}
+
+        {!fullscreen && !quizStarted && activeTab === 'store' && (
           <div className="space-y-4 animate-fade-in">
             {pageData && (
               <TahfeezSelectionView page={pageData} />
@@ -408,7 +465,7 @@ export default function TahfeezPage() {
         )}
 
         {/* Tab 2: Custom quiz (stored words) */}
-        {!quizStarted && activeTab === 'custom-quiz' && (
+        {!fullscreen && !quizStarted && activeTab === 'custom-quiz' && (
           <div className="page-frame p-5 space-y-5 animate-fade-in">
             <h2 className="font-arabic font-bold text-foreground">اختبار المخزون</h2>
 
@@ -442,7 +499,7 @@ export default function TahfeezPage() {
         )}
 
         {/* Tab 3: Auto quiz */}
-        {!quizStarted && activeTab === 'auto-quiz' && (
+        {!fullscreen && !quizStarted && activeTab === 'auto-quiz' && (
           <div className="page-frame p-5 space-y-5 animate-fade-in">
             <h2 className="font-arabic font-bold text-foreground">اختبار تلقائي</h2>
 
