@@ -19,7 +19,10 @@ function isBismillah(line: string): boolean {
  */
 function distributeWords(words: string[], targetLineCount: number): string[] {
   if (words.length === 0) return [];
-  const lineCount = Math.min(targetLineCount, words.length);
+  const MIN_WORDS_PER_LINE = 3;
+  // Reduce line count if it would create lines with fewer than MIN_WORDS_PER_LINE words
+  const maxPossibleLines = Math.floor(words.length / MIN_WORDS_PER_LINE) || 1;
+  const lineCount = Math.min(targetLineCount, maxPossibleLines, words.length);
   const lines: string[] = [];
   const baseWordsPerLine = Math.floor(words.length / lineCount);
   const extra = words.length % lineCount;
@@ -68,18 +71,20 @@ export function redistributeLines(originalLines: string[], targetLineCount: numb
 
   // Distribute lines proportionally to each text segment
   // Ensure each segment gets at least 1 line and no line has fewer than 3 words
+  const MIN_WORDS_PER_LINE = 3;
   let remainingLines = availableTextLines;
   const segmentLineCounts: number[] = [];
   
   for (let i = 0; i < textSegments.length; i++) {
     const seg = textSegments[i];
+    // Max lines this segment can have while keeping MIN_WORDS_PER_LINE
+    const maxForSegment = Math.floor(seg.words.length / MIN_WORDS_PER_LINE) || 1;
     if (i === textSegments.length - 1) {
-      segmentLineCounts.push(Math.max(1, remainingLines));
+      segmentLineCounts.push(Math.max(1, Math.min(remainingLines, maxForSegment)));
     } else {
       const proportion = seg.words.length / totalWords;
       let lines = Math.max(1, Math.round(availableTextLines * proportion));
-      // Don't allow lines with fewer than 3 words
-      lines = Math.min(lines, Math.floor(seg.words.length / 3) || 1);
+      lines = Math.min(lines, maxForSegment);
       lines = Math.min(lines, remainingLines - (textSegments.length - 1 - i));
       lines = Math.max(1, lines);
       segmentLineCounts.push(lines);
@@ -95,9 +100,7 @@ export function redistributeLines(originalLines: string[], targetLineCount: numb
       result.push(seg.text);
     } else {
       const lineCount = segmentLineCounts[textSegIdx];
-      // Ensure last segment doesn't create sparse lines
-      const effectiveCount = Math.min(lineCount, Math.floor(seg.words.length / 2) || 1);
-      const distributed = distributeWords(seg.words, Math.max(1, effectiveCount));
+      const distributed = distributeWords(seg.words, Math.max(1, lineCount));
       result.push(...distributed);
       textSegIdx++;
     }
