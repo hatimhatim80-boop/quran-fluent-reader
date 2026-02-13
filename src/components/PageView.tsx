@@ -373,11 +373,30 @@ export function PageView({
           const noJustify = shouldNoJustify(mobileLinesPerPage, desktopLinesPerPage, textAlign);
           elements.push(<div key={idx} className={`quran-line${noJustify ? ' quran-line--no-justify' : ''}`}>{processedElements}</div>);
         } else {
-          elements.push(<span key={idx}>{line} </span>);
+          // Auto-containment: still use block divs with justify for both-side alignment
+          const tokens = line.split(/(\s+)/);
+          const lineElements: React.ReactNode[] = [];
+          for (let ti = 0; ti < tokens.length; ti++) {
+            const t = tokens[ti];
+            const isSpace = /^\s+$/.test(t);
+            if (isSpace) {
+              lineElements.push(<span key={`${idx}-${ti}`}>{t}</span>);
+              continue;
+            }
+            const clean = t.replace(/[﴿﴾()[\]{}۝۞٭؟،۔ۣۖۗۘۙۚۛۜ۟۠ۡۢۤۥۦۧۨ۩۪ۭ۫۬]/g, '').trim();
+            const isVN = /^[٠-٩0-9۰-۹]+$/.test(clean);
+            if (isVN) {
+              lineElements.push(<span key={`${idx}-${ti}`} className="verse-number">{t}</span>);
+            } else {
+              lineElements.push(<span key={`${idx}-${ti}`}>{t}</span>);
+            }
+          }
+          const processedElements = bindVerseNumbers(lineElements, idx);
+          elements.push(<div key={idx} className="quran-line">{processedElements}</div>);
         }
       }
       
-      return <div className={isLines15 ? 'quran-lines-container' : 'inline'}>{elements}</div>;
+      return <div className="quran-lines-container">{elements}</div>;
     }
 
     const allElements: React.ReactNode[] = [];
@@ -633,14 +652,14 @@ export function PageView({
         );
       } else {
         allElements.push(
-          <span key={`line-${lineIdx}`}>
-            {processedElements}{' '}
-          </span>
+          <div key={`line-${lineIdx}`} className="quran-line">
+            {processedElements}
+          </div>
         );
       }
     }
 
-    return <div className={isLines15 ? 'quran-lines-container' : 'inline'}>{allElements}</div>;
+    return <div className="quran-lines-container">{allElements}</div>;
   }, [effectivePageText, page.pageNumber, ghareebWords, highlightedWordIndex, isPlaying, onWordClick, surahContextByLine, tokenMatchMap, highlightVersion, displayMode, tahfeezMode, toggleTahfeezWord, isTahfeezSelected, rangeAnchor, setRangeAnchor, addItem, storedItems]);
 
   const pageBackgroundColor = useSettingsStore((s) => (s.settings.colors as any).pageBackgroundColor || '');
