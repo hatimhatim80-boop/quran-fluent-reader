@@ -396,7 +396,7 @@ export function PageView({
         }
       }
       
-      return <div className="quran-page" style={{ textAlign: 'justify', textAlignLast: 'justify' }}>{elements}</div>;
+      return <div className="quran-page" style={{ textAlign: 'justify', textAlignLast: 'right' }}>{elements}</div>;
     }
 
     const allElements: React.ReactNode[] = [];
@@ -659,7 +659,7 @@ export function PageView({
 
     return isLines15 
       ? <div className="quran-lines-container">{allElements}</div>
-      : <div className="quran-page" style={{ textAlign: 'justify', textAlignLast: 'justify' }}>{allElements}</div>;
+      : <div className="quran-page" style={{ textAlign: 'justify', textAlignLast: 'right' }}>{allElements}</div>;
   }, [effectivePageText, page.pageNumber, ghareebWords, highlightedWordIndex, isPlaying, onWordClick, surahContextByLine, tokenMatchMap, highlightVersion, displayMode, tahfeezMode, toggleTahfeezWord, isTahfeezSelected, rangeAnchor, setRangeAnchor, addItem, storedItems]);
 
   const pageBackgroundColor = useSettingsStore((s) => (s.settings.colors as any).pageBackgroundColor || '');
