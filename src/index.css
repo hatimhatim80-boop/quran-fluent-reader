@@ -191,7 +191,7 @@
     justify-content: center;
     font-size: 0.5em;
     color: hsl(var(--verse-number));
-    margin: 0 0.12em;
+    margin: 0 0.02em;
     vertical-align: middle;
     min-width: 2em;
     height: 2em;
