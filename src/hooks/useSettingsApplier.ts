@@ -70,6 +70,9 @@ export function useSettingsApplier() {
     root.style.setProperty('--popover-shadow', shadowMap[settings.popover.shadow] || shadowMap.medium);
     root.style.setProperty('--popover-show-arrow', settings.popover.showArrow ? '1' : '0');
 
+    // === DISPLAY SETTINGS ===
+    root.style.setProperty('--quran-text-align', settings.display?.textAlign || 'justify');
+
     // Debug mode logging
     if (settings.debugMode) {
       console.log('[SettingsApplier] Applied settings:', {

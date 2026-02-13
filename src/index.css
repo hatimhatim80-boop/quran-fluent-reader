@@ -147,8 +147,8 @@
   }
 
   .quran-line {
-    text-align: justify;
-    text-align-last: justify;
+    text-align: var(--quran-text-align, justify);
+    text-align-last: var(--quran-text-align, justify);
     text-justify: inter-word;
     direction: rtl;
     min-height: 1.8em;
@@ -168,7 +168,7 @@
   }
 
   .quran-line:last-child {
-    text-align-last: right;
+    text-align-last: var(--quran-text-align, right);
   }
 
   /* Bismillah: single line, no word breaks */

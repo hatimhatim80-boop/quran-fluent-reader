@@ -16,6 +16,7 @@ export interface DisplaySettings {
   mobileLinesPerPage: number;
   desktopLinesPerPage: number;
   textDirection: 'rtl' | 'ltr';
+  textAlign: 'right' | 'left' | 'center' | 'justify';
 }
 
 // Color settings
@@ -101,6 +102,7 @@ const defaultSettings: AppSettings = {
     mobileLinesPerPage: 15,
     desktopLinesPerPage: 15,
     textDirection: 'rtl',
+    textAlign: 'justify',
   },
   update: {
     manifestUrl: '/updates/manifest.json',
