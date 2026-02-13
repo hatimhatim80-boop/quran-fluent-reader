@@ -7,6 +7,7 @@ import { useSettingsStore } from '@/stores/settingsStore';
 import { useTahfeezStore } from '@/stores/tahfeezStore';
 import { getPageMetadata } from '@/utils/juzHizbInfo';
 import { redistributeLines, shouldRedistribute } from '@/utils/lineRedistributor';
+import { formatBismillah, shouldNoJustify, bindVerseNumbers } from '@/utils/lineTokenUtils';
 
 interface PageViewProps {
   page: QuranPage;
@@ -344,14 +345,15 @@ export function PageView({
           );
         } else if (isBismillah(line)) {
           elements.push(
-            <div key={`bismillah-${idx}`} className="bismillah font-arabic">
-              {line}
+            <div key={`bismillah-${idx}`} className="bismillah bismillah-compact font-arabic">
+              {formatBismillah(line)}
             </div>
           );
         } else if (isLines15) {
           // Line-by-line mode
           if (line.trim()) {
-            elements.push(<div key={idx} className="quran-line">{line}</div>);
+            const noJustify = shouldNoJustify(mobileLinesPerPage, desktopLinesPerPage);
+            elements.push(<div key={idx} className={`quran-line${noJustify ? ' quran-line--no-justify' : ''}`}>{line}</div>);
           }
         } else {
           elements.push(<span key={idx}>{line} </span>);
@@ -383,8 +385,8 @@ export function PageView({
       // Bismillah
       if (isBismillah(line)) {
         allElements.push(
-          <div key={`bismillah-${lineIdx}`} className="bismillah font-arabic">
-            {line}
+          <div key={`bismillah-${lineIdx}`} className="bismillah bismillah-compact font-arabic">
+            {formatBismillah(line)}
           </div>
         );
         continue;
@@ -594,16 +596,19 @@ export function PageView({
       }
 
       // Add line elements - block for lines15 mode, inline for continuous
+      const noJustify = shouldNoJustify(mobileLinesPerPage, desktopLinesPerPage);
+      // Bind verse numbers to preceding word with nowrap wrapper
+      const processedElements = bindVerseNumbers(lineElements, lineIdx);
       if (isLines15) {
         allElements.push(
-          <div key={`line-${lineIdx}`} className="quran-line">
-            {lineElements}
+          <div key={`line-${lineIdx}`} className={`quran-line${noJustify ? ' quran-line--no-justify' : ''}`}>
+            {processedElements}
           </div>
         );
       } else {
         allElements.push(
           <span key={`line-${lineIdx}`}>
-            {lineElements}{' '}
+            {processedElements}{' '}
           </span>
         );
       }

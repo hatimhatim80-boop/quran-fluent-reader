@@ -3,6 +3,7 @@ import { QuranPage } from '@/types/quran';
 import { useTahfeezStore, TahfeezItem, TahfeezPhrase } from '@/stores/tahfeezStore';
 import { useSettingsStore } from '@/stores/settingsStore';
 import { redistributeLines, shouldRedistribute } from '@/utils/lineRedistributor';
+import { formatBismillah, shouldNoJustify, bindVerseNumbersSimple } from '@/utils/lineTokenUtils';
 
 function isSurahHeader(line: string): boolean {
   return line.startsWith('سُورَةُ') || line.startsWith('سورة ');
@@ -160,7 +161,7 @@ export function TahfeezSelectionView({ page }: TahfeezSelectionViewProps) {
         continue;
       }
       if (lineTokens.length === 1 && lineTokens[0].isBismillah) {
-        elements.push(<div key={`b-${li}`} className="bismillah font-arabic">{lineTokens[0].text}</div>);
+        elements.push(<div key={`b-${li}`} className="bismillah bismillah-compact font-arabic">{formatBismillah(lineTokens[0].text)}</div>);
         continue;
       }
 
@@ -195,10 +196,13 @@ export function TahfeezSelectionView({ page }: TahfeezSelectionViewProps) {
         );
       }
 
+      // Bind verse numbers to preceding word
+      const processedElements = bindVerseNumbersSimple(lineElements, li);
+      const noJustify = shouldNoJustify(mobileLinesPerPage, desktopLinesPerPage);
       if (isLines15) {
-        elements.push(<div key={`line-${li}`} className="quran-line">{lineElements}</div>);
+        elements.push(<div key={`line-${li}`} className={`quran-line${noJustify ? ' quran-line--no-justify' : ''}`}>{processedElements}</div>);
       } else {
-        elements.push(<span key={`line-${li}`}>{lineElements}{' '}</span>);
+        elements.push(<span key={`line-${li}`}>{processedElements}{' '}</span>);
       }
     }
 

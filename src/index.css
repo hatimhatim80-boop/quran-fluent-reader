@@ -156,8 +156,30 @@
     padding: 0.05em 0;
   }
 
+  /* On mobile with redistributed lines, remove justify to avoid artificial gaps */
+  @media (max-width: 767px) {
+    .quran-line--no-justify {
+      text-align: right;
+      text-align-last: right;
+      text-justify: auto;
+    }
+  }
+
   .quran-line:last-child {
     text-align-last: right;
+  }
+
+  /* Bismillah: single line, no word breaks */
+  .bismillah-compact {
+    white-space: nowrap;
+    word-spacing: -0.15em;
+    letter-spacing: 0;
+  }
+
+  /* Verse number bound to last word - never breaks to new line alone */
+  .ayah-end-wrapper {
+    white-space: nowrap;
+    display: inline;
   }
 
   /* Verse number styling */
@@ -486,6 +508,7 @@
     @apply text-center py-2 my-3;
     color: hsl(var(--primary));
     font-size: 1.2rem;
+    white-space: nowrap;
   }
 }
 
