@@ -223,6 +223,48 @@
   }
 }
 
+  /* ── Madinah Fixed-Line Mushaf ── */
+  .mushafPage {
+    max-width: 520px;
+    margin: 0 auto;
+    padding: 14px 12px;
+  }
+
+  .mushafLinesContainer {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+
+  .mushafLine {
+    white-space: nowrap;
+    overflow: hidden;
+    text-align: right;
+    line-height: 2.2;
+    font-family: var(--quran-font-family, 'KFGQPC HAFS Uthmanic Script', 'UthmanicHafs', 'Amiri Quran', serif);
+    font-size: var(--mushaf-font-size, 22px);
+    letter-spacing: normal;
+    word-spacing: 0.02em;
+    direction: rtl;
+    color: hsl(var(--foreground));
+  }
+
+  .mushafBismillah {
+    text-align: center;
+    text-align-last: center;
+    white-space: nowrap;
+    word-spacing: -0.15em;
+  }
+
+  .mushafSurahHeader {
+    text-align: center;
+    padding: 8px 0;
+    font-size: 1.1em;
+    font-weight: bold;
+    color: hsl(var(--primary));
+    font-family: var(--quran-font-family, 'KFGQPC HAFS Uthmanic Script', 'UthmanicHafs', 'Amiri Quran', serif);
+  }
+
 @layer components {
   /* Premium page frame */
   .page-frame {

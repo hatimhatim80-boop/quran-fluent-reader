@@ -3,6 +3,7 @@ import { useQuranData } from '@/hooks/useQuranData';
 import { useAutoPlay } from '@/hooks/useAutoPlay';
 import { GhareebWord } from '@/types/quran';
 import { PageView } from './PageView';
+import { MadinahPageView } from './MadinahPageView';
 import { PageNavigation } from './PageNavigation';
 import { AutoPlayControls } from './AutoPlayControls';
 import { Toolbar } from './Toolbar';
@@ -145,15 +146,7 @@ export function QuranReader() {
           )}
 
           {pageData && (
-            <PageView
-              page={pageData}
-              ghareebWords={pageWords}
-              highlightedWordIndex={currentWordIndex}
-              meaningEnabled={meaningActive}
-              isPlaying={isPlaying}
-              onWordClick={handleWordClick}
-              onRenderedWordsChange={handleRenderedWordsChange}
-            />
+            <MadinahPageView pageNumber={currentPage} />
           )}
         </div>
 
