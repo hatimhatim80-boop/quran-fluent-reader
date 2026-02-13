@@ -392,11 +392,11 @@ export function PageView({
             }
           }
           const processedElements = bindVerseNumbers(lineElements, idx);
-          elements.push(<div key={idx} className="quran-line">{processedElements}</div>);
+          elements.push(<span key={idx}>{processedElements} </span>);
         }
       }
       
-      return <div className="quran-lines-container">{elements}</div>;
+      return <div className="quran-page" style={{ textAlign: 'justify', textAlignLast: 'justify' }}>{elements}</div>;
     }
 
     const allElements: React.ReactNode[] = [];
@@ -652,14 +652,14 @@ export function PageView({
         );
       } else {
         allElements.push(
-          <div key={`line-${lineIdx}`} className="quran-line">
-            {processedElements}
-          </div>
+          <span key={`line-${lineIdx}`}>{processedElements} </span>
         );
       }
     }
 
-    return <div className="quran-lines-container">{allElements}</div>;
+    return isLines15 
+      ? <div className="quran-lines-container">{allElements}</div>
+      : <div className="quran-page" style={{ textAlign: 'justify', textAlignLast: 'justify' }}>{allElements}</div>;
   }, [effectivePageText, page.pageNumber, ghareebWords, highlightedWordIndex, isPlaying, onWordClick, surahContextByLine, tokenMatchMap, highlightVersion, displayMode, tahfeezMode, toggleTahfeezWord, isTahfeezSelected, rangeAnchor, setRangeAnchor, addItem, storedItems]);
 
   const pageBackgroundColor = useSettingsStore((s) => (s.settings.colors as any).pageBackgroundColor || '');
