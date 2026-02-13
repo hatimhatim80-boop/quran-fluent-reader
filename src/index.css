@@ -119,7 +119,7 @@
     font-size: var(--quran-font-size, 1.55rem);
     font-weight: var(--quran-font-weight, 400);
     letter-spacing: 0.01em;
-    word-spacing: 0.08em;
+    word-spacing: 0.02em;
     color: hsl(25 40% 8%);
   }
 
@@ -154,6 +154,7 @@
     min-height: 1.8em;
     line-height: var(--quran-line-height, 2.4);
     padding: 0.05em 0;
+    word-spacing: 0.02em;
   }
 
   /* On mobile with redistributed lines, remove justify to avoid artificial gaps */
@@ -162,6 +163,7 @@
       text-align: right;
       text-align-last: right;
       text-justify: auto;
+      word-spacing: 0.02em;
     }
   }
 
@@ -182,15 +184,25 @@
     display: inline;
   }
 
-  /* Verse number styling */
+  /* Verse number styling - ornamental circle like traditional Mushaf */
   .verse-number {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    font-size: 0.6em;
+    font-size: 0.5em;
     color: hsl(var(--verse-number));
-    margin: 0 0.1em;
+    margin: 0 0.12em;
     vertical-align: middle;
+    min-width: 2em;
+    height: 2em;
+    padding: 0 0.3em;
+    border: 2px solid hsl(var(--verse-number) / 0.75);
+    border-radius: 50%;
+    background: hsl(var(--verse-number) / 0.08);
+    font-weight: 700;
+    line-height: 1;
+    flex-shrink: 0;
+    box-shadow: 0 0 0 1px hsl(var(--verse-number) / 0.15);
   }
 }
 

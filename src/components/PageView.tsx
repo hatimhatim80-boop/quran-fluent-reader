@@ -350,11 +350,27 @@ export function PageView({
             </div>
           );
         } else if (isLines15) {
-          // Line-by-line mode
-          if (line.trim()) {
-            const noJustify = shouldNoJustify(mobileLinesPerPage, desktopLinesPerPage);
-            elements.push(<div key={idx} className={`quran-line${noJustify ? ' quran-line--no-justify' : ''}`}>{line}</div>);
+          // Tokenize to apply verse-number styling even without ghareeb words
+          const tokens = line.split(/(\s+)/);
+          const lineElements: React.ReactNode[] = [];
+          for (let ti = 0; ti < tokens.length; ti++) {
+            const t = tokens[ti];
+            const isSpace = /^\s+$/.test(t);
+            if (isSpace) {
+              lineElements.push(<span key={`${idx}-${ti}`}>{t}</span>);
+              continue;
+            }
+            const clean = t.replace(/[﴿﴾()[\]{}۝۞٭؟،۔ۣۖۗۘۙۚۛۜ۟۠ۡۢۤۥۦۧۨ۩۪ۭ۫۬]/g, '').trim();
+            const isVN = /^[٠-٩0-9۰-۹]+$/.test(clean);
+            if (isVN) {
+              lineElements.push(<span key={`${idx}-${ti}`} className="verse-number">{t}</span>);
+            } else {
+              lineElements.push(<span key={`${idx}-${ti}`}>{t}</span>);
+            }
           }
+          const processedElements = bindVerseNumbers(lineElements, idx);
+          const noJustify = shouldNoJustify(mobileLinesPerPage, desktopLinesPerPage);
+          elements.push(<div key={idx} className={`quran-line${noJustify ? ' quran-line--no-justify' : ''}`}>{processedElements}</div>);
         } else {
           elements.push(<span key={idx}>{line} </span>);
         }
@@ -558,6 +574,15 @@ export function PageView({
           }
         }
         
+        // Verse number - render with special styling
+        if (td.isVerseNumber) {
+          lineElements.push(
+            <span key={`${lineIdx}-${i}`} className="verse-number">{td.token}</span>
+          );
+          i++;
+          continue;
+        }
+
         // Normal non-matched word (no override either)
         const isNonMatchSelected = tahfeezMode && isTahfeezSelected(0, 0, i, page.pageNumber);
         const isNonMatchAnchor = tahfeezMode && rangeAnchor && rangeAnchor.lineIdx === lineIdx && rangeAnchor.tokenIdx === i;
