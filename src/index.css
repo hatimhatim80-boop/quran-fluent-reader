@@ -112,14 +112,14 @@
 
   /* Premium Arabic text styling - uses CSS variables from settings */
   .arabic-text {
-    font-family: var(--quran-font-family, 'Amiri', 'Noto Naskh Arabic', serif);
+    font-family: var(--quran-font-family, 'KFGQPC HAFS Uthmanic Script', 'UthmanicHafs', 'Amiri', 'Noto Naskh Arabic', serif);
     direction: rtl;
     text-align: right;
-    line-height: var(--quran-line-height, 1.9);
-    font-size: var(--quran-font-size, 1.75rem);
+    line-height: var(--quran-line-height, 2.4);
+    font-size: var(--quran-font-size, 1.55rem);
     font-weight: var(--quran-font-weight, 400);
-    letter-spacing: 0;
-    word-spacing: 0.05em;
+    letter-spacing: 0.01em;
+    word-spacing: 0.08em;
     color: hsl(25 40% 8%);
   }
 
@@ -129,8 +129,8 @@
 
   @media (min-width: 640px) {
     .arabic-text {
-      font-size: var(--quran-font-size, 2rem);
-      line-height: var(--quran-line-height, 2);
+      font-size: var(--quran-font-size, 1.7rem);
+      line-height: var(--quran-line-height, 2.5);
     }
   }
 
@@ -143,6 +143,7 @@
   .quran-lines-container {
     display: flex;
     flex-direction: column;
+    gap: 0;
   }
 
   .quran-line {
@@ -150,8 +151,9 @@
     text-align-last: justify;
     text-justify: inter-word;
     direction: rtl;
-    min-height: 1.5em;
-    line-height: var(--quran-line-height, 1.9);
+    min-height: 1.8em;
+    line-height: var(--quran-line-height, 2.4);
+    padding: 0.05em 0;
   }
 
   .quran-line:last-child {
@@ -163,9 +165,9 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    font-size: 0.65em;
+    font-size: 0.6em;
     color: hsl(var(--verse-number));
-    margin: 0 0.15em;
+    margin: 0 0.1em;
     vertical-align: middle;
   }
 }
