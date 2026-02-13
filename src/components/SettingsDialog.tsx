@@ -22,6 +22,8 @@ const FONT_OPTIONS = [
   { value: 'amiri', label: 'Amiri', preview: 'بِسۡمِ ٱللَّهِ', family: "'Amiri', serif" },
   { value: 'scheherazade', label: 'Scheherazade New', preview: 'بِسۡمِ ٱللَّهِ', family: "'Scheherazade New', serif" },
   { value: 'notoNaskh', label: 'Noto Naskh Arabic', preview: 'بِسۡمِ ٱللَّهِ', family: "'Noto Naskh Arabic', serif" },
+  { value: 'meQuran', label: 'Me Quran', preview: 'بِسۡمِ ٱللَّهِ', family: "'me_quran', serif" },
+  { value: 'qalam', label: 'Al Qalam Quran', preview: 'بِسۡمِ ٱللَّهِ', family: "'Al Qalam Quran', serif" },
 ];
 
 const INTENSITY_OPTIONS = [
@@ -151,6 +153,40 @@ export function SettingsDialog({ children }: SettingsDialogProps) {
                     <span className="block text-xl mt-1" style={{ fontFamily: opt.family }}>{opt.preview}</span>
                   </button>
                 ))}
+              </div>
+
+              {/* Custom Font */}
+              <div className="p-3 rounded-lg border border-dashed border-muted-foreground/30 space-y-2">
+                <button
+                  onClick={() => setFonts({ fontFamily: 'custom' })}
+                  className={`w-full p-2 rounded-lg border text-center transition-all ${
+                    settings.fonts.fontFamily === 'custom'
+                      ? 'border-primary bg-primary/10 ring-2 ring-primary/20'
+                      : 'border-border hover:border-muted-foreground/50'
+                  }`}
+                >
+                  <span className="text-xs text-muted-foreground">🔗 خط مخصص (رابط CSS)</span>
+                </button>
+                {settings.fonts.fontFamily === 'custom' && (
+                  <div className="space-y-2 mt-2">
+                    <input
+                      type="text"
+                      placeholder="رابط CSS للخط (مثل: https://fonts.googleapis.com/...)"
+                      value={(settings.fonts as any).customFontUrl || ''}
+                      onChange={(e) => setFonts({ customFontUrl: e.target.value } as any)}
+                      className="w-full text-xs p-2 rounded border bg-background text-foreground placeholder:text-muted-foreground"
+                      dir="ltr"
+                    />
+                    <input
+                      type="text"
+                      placeholder="اسم عائلة الخط (font-family)"
+                      value={(settings.fonts as any).customFontFamily || ''}
+                      onChange={(e) => setFonts({ customFontFamily: e.target.value } as any)}
+                      className="w-full text-xs p-2 rounded border bg-background text-foreground placeholder:text-muted-foreground"
+                      dir="ltr"
+                    />
+                  </div>
+                )}
               </div>
             </div>
 

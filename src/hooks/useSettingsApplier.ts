@@ -20,6 +20,9 @@ export function useSettingsApplier() {
       scheherazade: "'Scheherazade New', 'Amiri', serif",
       uthman: "'KFGQPC HAFS Uthmanic Script', 'Amiri', serif",
       uthmanicHafs: "'UthmanicHafs', 'KFGQPC HAFS Uthmanic Script', 'Amiri', serif",
+      meQuran: "'me_quran', 'Amiri', serif",
+      qalam: "'Al Qalam Quran', 'Amiri', serif",
+      custom: settings.fonts.customFontFamily ? `'${settings.fonts.customFontFamily}', 'Amiri', serif` : "'Amiri', serif",
     };
 
     root.style.setProperty('--quran-font-family', fontMap[settings.fonts.fontFamily] || fontMap.uthman);
@@ -72,6 +75,19 @@ export function useSettingsApplier() {
 
     // === DISPLAY SETTINGS ===
     root.style.setProperty('--quran-text-align', settings.display?.textAlign || 'justify');
+    root.style.setProperty('--quran-text-direction', settings.display?.textDirection || 'rtl');
+
+    // Custom font support
+    if (settings.fonts.fontFamily === 'custom' && (settings.fonts as any).customFontUrl) {
+      const url = (settings.fonts as any).customFontUrl;
+      const existingLink = document.getElementById('custom-quran-font-link');
+      if (existingLink) existingLink.remove();
+      const link = document.createElement('link');
+      link.id = 'custom-quran-font-link';
+      link.rel = 'stylesheet';
+      link.href = url;
+      document.head.appendChild(link);
+    }
 
     // Debug mode logging
     if (settings.debugMode) {
