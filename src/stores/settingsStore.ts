@@ -14,6 +14,8 @@ export interface FontSettings {
 export interface DisplaySettings {
   mode: 'continuous' | 'lines15';
   mobileLinesPerPage: number;
+  desktopLinesPerPage: number;
+  textDirection: 'rtl' | 'ltr';
 }
 
 // Color settings
@@ -97,6 +99,8 @@ const defaultSettings: AppSettings = {
   display: {
     mode: 'lines15',
     mobileLinesPerPage: 15,
+    desktopLinesPerPage: 15,
+    textDirection: 'rtl',
   },
   update: {
     manifestUrl: '/updates/manifest.json',

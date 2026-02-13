@@ -75,14 +75,18 @@ export function PageView({
   const containerRef = useRef<HTMLDivElement>(null);
   const lastRenderedKeysRef = useRef<string>('');
   const displayMode = useSettingsStore((s) => s.settings.display?.mode || 'lines15');
+  const textDirection = useSettingsStore((s) => s.settings.display?.textDirection || 'rtl');
   const mobileLinesPerPage = useSettingsStore((s) => s.settings.display?.mobileLinesPerPage || 15);
+  const desktopLinesPerPage = useSettingsStore((s) => s.settings.display?.desktopLinesPerPage || 15);
 
-  // Redistribute lines for mobile if needed
+  // Redistribute lines based on device
   const effectivePageText = useMemo(() => {
-    if (displayMode !== 'lines15' || !shouldRedistribute(mobileLinesPerPage)) return page.text;
+    if (displayMode !== 'lines15' || !shouldRedistribute(mobileLinesPerPage, desktopLinesPerPage)) return page.text;
     const originalLines = page.text.split('\n');
-    return redistributeLines(originalLines, mobileLinesPerPage).join('\n');
-  }, [page.text, displayMode, mobileLinesPerPage]);
+    const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
+    const targetLines = isMobile ? mobileLinesPerPage : desktopLinesPerPage;
+    return redistributeLines(originalLines, targetLines).join('\n');
+  }, [page.text, displayMode, mobileLinesPerPage, desktopLinesPerPage]);
   const tahfeezMode = useTahfeezStore((s) => s.selectionMode);
   const toggleTahfeezWord = useTahfeezStore((s) => s.toggleWord);
   const isTahfeezSelected = useTahfeezStore((s) => s.isSelected);
@@ -614,7 +618,7 @@ export function PageView({
   const pageMeta = useMemo(() => getPageMetadata(page.pageNumber), [page.pageNumber]);
 
   return (
-    <div ref={containerRef} className="page-frame p-4 sm:p-6" style={pageFrameStyle}>
+    <div ref={containerRef} className="page-frame p-4 sm:p-6" style={pageFrameStyle} dir={textDirection}>
       {/* Top Header: Hizb - Page Number - Hizb */}
       <div className="flex items-center justify-between mb-1 font-arabic text-xs sm:text-sm text-muted-foreground/70">
         <span>الحزب {pageMeta.hizbNumberArabic}</span>

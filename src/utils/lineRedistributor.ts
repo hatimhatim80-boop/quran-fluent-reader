@@ -73,9 +73,20 @@ export function redistributeLines(originalLines: string[], targetLineCount: numb
 }
 
 /**
- * Check if we should redistribute (only on mobile-ish screens)
+ * Get the effective line count based on device width
  */
-export function shouldRedistribute(mobileLinesPerPage: number): boolean {
+export function getEffectiveLineCount(mobileLinesPerPage: number, desktopLinesPerPage: number): number {
+  if (typeof window === 'undefined') return 15;
+  const isMobile = window.innerWidth < 768;
+  return isMobile ? mobileLinesPerPage : desktopLinesPerPage;
+}
+
+/**
+ * Check if we should redistribute
+ */
+export function shouldRedistribute(mobileLinesPerPage: number, desktopLinesPerPage?: number): boolean {
   if (typeof window === 'undefined') return false;
-  return mobileLinesPerPage < 15 && window.innerWidth < 768;
+  const isMobile = window.innerWidth < 768;
+  const lineCount = isMobile ? mobileLinesPerPage : (desktopLinesPerPage ?? 15);
+  return lineCount < 15;
 }

@@ -45,18 +45,22 @@ export function TahfeezQuizView({
 }: TahfeezQuizViewProps) {
   const { settings } = useSettingsStore();
   const displayMode = settings.display?.mode || 'lines15';
+  const textDirection = settings.display?.textDirection || 'rtl';
   const mobileLinesPerPage = settings.display?.mobileLinesPerPage || 15;
+  const desktopLinesPerPage = settings.display?.desktopLinesPerPage || 15;
   const isLines15 = displayMode === 'lines15';
   const pageBackgroundColor = (settings.colors as any).pageBackgroundColor || '';
   const pageFrameStyle = pageBackgroundColor ? { background: `hsl(${pageBackgroundColor})` } : undefined;
   const highlightStyle = (settings.colors as any).highlightStyle || 'background';
 
-  // Redistribute lines for mobile if needed
+  // Redistribute lines based on device
   const effectiveText = useMemo(() => {
-    if (displayMode !== 'lines15' || !shouldRedistribute(mobileLinesPerPage)) return page.text;
+    if (displayMode !== 'lines15' || !shouldRedistribute(mobileLinesPerPage, desktopLinesPerPage)) return page.text;
     const originalLines = page.text.split('\n');
-    return redistributeLines(originalLines, mobileLinesPerPage).join('\n');
-  }, [page.text, displayMode, mobileLinesPerPage]);
+    const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
+    const targetLines = isMobile ? mobileLinesPerPage : desktopLinesPerPage;
+    return redistributeLines(originalLines, targetLines).join('\n');
+  }, [page.text, displayMode, mobileLinesPerPage, desktopLinesPerPage]);
 
   // Parse all word tokens (excluding headers, bismillah, spaces, verse numbers)
   const { lines, allWordTokens } = useMemo(() => {
@@ -354,7 +358,7 @@ export function TahfeezQuizView({
 
 
   return (
-    <div className="page-frame p-5 sm:p-8" style={pageFrameStyle}>
+    <div className="page-frame p-5 sm:p-8" style={pageFrameStyle} dir={textDirection}>
       <div id="tahfeez-blanked-keys" className="hidden" />
       <div className="flex justify-center mb-5">
         <span className="bg-secondary/80 text-secondary-foreground px-4 py-1.5 rounded-full text-sm font-arabic shadow-sm">

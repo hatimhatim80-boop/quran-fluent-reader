@@ -252,25 +252,72 @@ export function SettingsDialog({ children }: SettingsDialogProps) {
             </div>
 
             {settings.display?.mode === 'lines15' && (
-              <div className="space-y-3">
-                <Label className="font-arabic font-bold">عدد الأسطر في الصفحة (الجوال)</Label>
-                <Slider
-                  value={[settings.display?.mobileLinesPerPage || 15]}
-                  onValueChange={([v]) => setDisplay({ mobileLinesPerPage: v })}
-                  min={5}
-                  max={15}
-                  step={1}
-                />
-                <div className="flex items-center justify-between text-xs font-arabic text-muted-foreground">
-                  <span>٥ أسطر</span>
-                  <span className="text-primary font-bold text-sm">{settings.display?.mobileLinesPerPage || 15} سطر</span>
-                  <span>١٥ سطر</span>
+              <>
+                <div className="space-y-3">
+                  <Label className="font-arabic font-bold">عدد الأسطر في الصفحة (الجوال)</Label>
+                  <Slider
+                    value={[settings.display?.mobileLinesPerPage || 15]}
+                    onValueChange={([v]) => setDisplay({ mobileLinesPerPage: v })}
+                    min={5}
+                    max={15}
+                    step={1}
+                  />
+                  <div className="flex items-center justify-between text-xs font-arabic text-muted-foreground">
+                    <span>٥ أسطر</span>
+                    <span className="text-primary font-bold text-sm">{settings.display?.mobileLinesPerPage || 15} سطر</span>
+                    <span>١٥ سطر</span>
+                  </div>
                 </div>
-                <p className="text-[10px] font-arabic text-muted-foreground">
-                  يتم توزيع الكلمات بالتساوي على عدد الأسطر المحدد
-                </p>
-              </div>
+
+                <div className="space-y-3">
+                  <Label className="font-arabic font-bold">عدد الأسطر في الصفحة (اللابتوب)</Label>
+                  <Slider
+                    value={[settings.display?.desktopLinesPerPage || 15]}
+                    onValueChange={([v]) => setDisplay({ desktopLinesPerPage: v })}
+                    min={5}
+                    max={15}
+                    step={1}
+                  />
+                  <div className="flex items-center justify-between text-xs font-arabic text-muted-foreground">
+                    <span>٥ أسطر</span>
+                    <span className="text-primary font-bold text-sm">{settings.display?.desktopLinesPerPage || 15} سطر</span>
+                    <span>١٥ سطر</span>
+                  </div>
+                  <p className="text-[10px] font-arabic text-muted-foreground">
+                    يتم توزيع الكلمات بالتساوي على عدد الأسطر المحدد لكل جهاز
+                  </p>
+                </div>
+              </>
             )}
+
+            {/* Text Direction */}
+            <div className="space-y-3">
+              <Label className="font-arabic font-bold">اتجاه النص</Label>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  onClick={() => setDisplay({ textDirection: 'rtl' })}
+                  className={`p-3 rounded-lg border text-center transition-all ${
+                    (settings.display?.textDirection || 'rtl') === 'rtl'
+                      ? 'border-primary bg-primary/10 ring-2 ring-primary/20'
+                      : 'border-border hover:border-muted-foreground/50'
+                  }`}
+                >
+                  <span className="font-arabic text-sm font-bold block">يمين ← يسار</span>
+                  <span className="font-arabic text-[10px] text-muted-foreground">RTL (افتراضي)</span>
+                </button>
+                <button
+                  onClick={() => setDisplay({ textDirection: 'ltr' })}
+                  className={`p-3 rounded-lg border text-center transition-all ${
+                    settings.display?.textDirection === 'ltr'
+                      ? 'border-primary bg-primary/10 ring-2 ring-primary/20'
+                      : 'border-border hover:border-muted-foreground/50'
+                  }`}
+                >
+                  <span className="font-arabic text-sm font-bold block">يسار → يمين</span>
+                  <span className="font-arabic text-[10px] text-muted-foreground">LTR</span>
+                </button>
+              </div>
+            </div>
 
             <div className="p-3 rounded-lg bg-muted/30 text-sm font-arabic text-muted-foreground">
               <Check className="w-4 h-4 inline ml-1 text-green-600" />

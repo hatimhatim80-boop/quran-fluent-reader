@@ -29,16 +29,20 @@ interface TahfeezSelectionViewProps {
 export function TahfeezSelectionView({ page }: TahfeezSelectionViewProps) {
   const { storedItems, addItem, removeItem, getItemKey, rangeAnchor, setRangeAnchor } = useTahfeezStore();
   const displayMode = useSettingsStore((s) => s.settings.display?.mode || 'lines15');
+  const textDirection = useSettingsStore((s) => s.settings.display?.textDirection || 'rtl');
   const mobileLinesPerPage = useSettingsStore((s) => s.settings.display?.mobileLinesPerPage || 15);
+  const desktopLinesPerPage = useSettingsStore((s) => s.settings.display?.desktopLinesPerPage || 15);
   const isLines15 = displayMode === 'lines15';
   const [selectionType, setSelectionType] = useState<'word' | 'phrase'>('word');
 
-  // Redistribute lines for mobile if needed
+  // Redistribute lines based on device
   const effectiveText = useMemo(() => {
-    if (displayMode !== 'lines15' || !shouldRedistribute(mobileLinesPerPage)) return page.text;
+    if (displayMode !== 'lines15' || !shouldRedistribute(mobileLinesPerPage, desktopLinesPerPage)) return page.text;
     const originalLines = page.text.split('\n');
-    return redistributeLines(originalLines, mobileLinesPerPage).join('\n');
-  }, [page.text, displayMode, mobileLinesPerPage]);
+    const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
+    const targetLines = isMobile ? mobileLinesPerPage : desktopLinesPerPage;
+    return redistributeLines(originalLines, targetLines).join('\n');
+  }, [page.text, displayMode, mobileLinesPerPage, desktopLinesPerPage]);
 
   const { lines, tokens } = useMemo(() => {
     const lines = effectiveText.split('\n');
@@ -234,7 +238,7 @@ export function TahfeezSelectionView({ page }: TahfeezSelectionViewProps) {
       )}
 
       {/* Quran page for selection */}
-      <div className="page-frame p-5 sm:p-8">
+      <div className="page-frame p-5 sm:p-8" dir={textDirection}>
         <div className="flex justify-center mb-5">
           <span className="bg-secondary/80 text-secondary-foreground px-4 py-1.5 rounded-full text-sm font-arabic shadow-sm">
             صفحة {page.pageNumber}
