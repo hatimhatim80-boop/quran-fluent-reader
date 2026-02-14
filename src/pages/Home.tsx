@@ -1,7 +1,13 @@
 import { Link } from 'react-router-dom';
-import { BookOpen, GraduationCap } from 'lucide-react';
+import { BookOpen, GraduationCap, Plus } from 'lucide-react';
+import { SessionManager } from '@/components/SessionManager';
+import { useSessionsStore } from '@/stores/sessionsStore';
+import { useState } from 'react';
 
 export default function Home() {
+  const { sessions, createSession } = useSessionsStore();
+  const [showCreateFromCard, setShowCreateFromCard] = useState(false);
+
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-6" dir="rtl">
       <div className="max-w-lg w-full space-y-8">
@@ -45,6 +51,9 @@ export default function Home() {
             </div>
           </Link>
         </div>
+
+        {/* Sessions section */}
+        <SessionManager />
       </div>
     </div>
   );
