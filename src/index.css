@@ -408,6 +408,7 @@
     pointer-events: none;
     opacity: 0;
     transition: opacity 0.2s ease;
+    overflow: hidden;
   }
 
   .hybridTextLayer--ready {
@@ -422,13 +423,15 @@
     box-shadow: none !important;
     margin: 0 !important;
     border-radius: 0 !important;
-    /* Position text content to match PNG text area */
-    padding: 13.5% 7% 4% 7% !important;
+    /* Match PNG text area precisely:
+       Top: ornamental header ~8.5%, Sides: border ~5.5%, Bottom: ~3% */
+    padding: 8.5% 5.5% 3% 5.5% !important;
     width: 100% !important;
     height: 100% !important;
     box-sizing: border-box !important;
     display: flex !important;
     flex-direction: column !important;
+    overflow: hidden !important;
   }
 
   .hybridTextLayer .page-frame::before {
@@ -440,20 +443,24 @@
     display: flex !important;
     flex-direction: column !important;
     min-height: 0 !important;
+    overflow: hidden !important;
   }
 
   .hybridTextLayer .quran-lines-container {
     flex: 1 !important;
     display: flex !important;
     flex-direction: column !important;
-    justify-content: space-between !important;
+    justify-content: space-evenly !important;
+    overflow: hidden !important;
   }
 
   .hybridTextLayer .quran-line {
-    font-size: clamp(14px, 4.2vw, 22px) !important;
-    line-height: 1.8 !important;
+    /* Scale font with container width for proportional sizing */
+    font-size: clamp(12px, 3.8vw, 20px) !important;
+    line-height: 1.0 !important;
     text-align: center !important;
     white-space: nowrap !important;
+    flex-shrink: 0 !important;
   }
 
   .hybridTextLayer .quran-page,
@@ -471,12 +478,21 @@
     box-shadow: none !important;
   }
 
-  /* Hide surah headers and bismillah in hybrid - PNG already shows them */
-  .hybridTextLayer .surah-header,
+  /* Surah headers and bismillah: collapse height since PNG shows them */
+  .hybridTextLayer .surah-header {
+    font-size: 0 !important;
+    line-height: 0 !important;
+    height: 0 !important;
+    overflow: hidden !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
   .hybridTextLayer .bismillah {
     font-size: inherit !important;
     margin: 0 !important;
     padding: 0 !important;
+    line-height: 1.0 !important;
   }
 
   /* Ghareeb words in hybrid: keep them interactive */
@@ -524,8 +540,8 @@
   }
 
   /* Force the quran-page to remove min-height constraints */
-  .hybridTextLayer .quran-page.min-h-\\[350px\\],
-  .hybridTextLayer .quran-page.sm\\:min-h-\\[450px\\] {
+  .hybridTextLayer .quran-page.min-h-\[350px\],
+  .hybridTextLayer .quran-page.sm\:min-h-\[450px\] {
     min-height: 0 !important;
   }
 
@@ -533,7 +549,12 @@
   .hybridTextLayer--debug .quran-page,
   .hybridTextLayer--debug .quran-line,
   .hybridTextLayer--debug .quran-lines-container {
-    color: hsl(var(--primary) / 0.15) !important;
+    color: hsl(0 100% 50% / 0.25) !important;
+  }
+
+  .hybridTextLayer--debug .quran-line {
+    background: hsl(0 100% 50% / 0.05) !important;
+    outline: 1px solid hsl(0 100% 50% / 0.15) !important;
   }
 
   .hybridTextLayer--debug .ghareeb-word {
@@ -548,6 +569,14 @@
 
   .hybridTextLayer--debug span[data-word-inspectable] {
     outline: 1px dotted hsl(var(--muted-foreground) / 0.15);
+  }
+
+  .hybridTextLayer--debug .surah-header {
+    height: auto !important;
+    font-size: 8px !important;
+    line-height: 1 !important;
+    color: hsl(120 80% 40% / 0.3) !important;
+    outline: 1px dashed hsl(120 80% 40% / 0.3) !important;
   }
 
   .mushafLinesContainer {
