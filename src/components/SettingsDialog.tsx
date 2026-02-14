@@ -261,7 +261,7 @@ export function SettingsDialog({ children }: SettingsDialogProps) {
           <TabsContent value="display" className="space-y-5 mt-4">
             <div className="space-y-3">
               <Label className="font-arabic font-bold">نمط عرض الصفحة</Label>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-3 gap-2">
                 <button
                   onClick={() => setDisplay({ mode: 'lines15' })}
                   className={`p-4 rounded-lg border text-center transition-all ${
@@ -272,7 +272,7 @@ export function SettingsDialog({ children }: SettingsDialogProps) {
                 >
                   <Rows3 className="w-6 h-6 mx-auto mb-2 text-primary" />
                   <span className="font-arabic text-sm font-bold block">مصحف المدينة</span>
-                  <span className="font-arabic text-[10px] text-muted-foreground">15 سطراً في الصفحة</span>
+                  <span className="font-arabic text-[10px] text-muted-foreground">15 سطراً</span>
                 </button>
                 <button
                   onClick={() => setDisplay({ mode: 'continuous' })}
@@ -284,7 +284,19 @@ export function SettingsDialog({ children }: SettingsDialogProps) {
                 >
                   <Type className="w-6 h-6 mx-auto mb-2 text-primary" />
                   <span className="font-arabic text-sm font-bold block">تدفق مستمر</span>
-                  <span className="font-arabic text-[10px] text-muted-foreground">نص متصل بدون فواصل</span>
+                  <span className="font-arabic text-[10px] text-muted-foreground">نص متصل</span>
+                </button>
+                <button
+                  onClick={() => setDisplay({ mode: 'svgOverlay' })}
+                  className={`p-4 rounded-lg border text-center transition-all ${
+                    settings.display?.mode === 'svgOverlay'
+                      ? 'border-primary bg-primary/10 ring-2 ring-primary/20'
+                      : 'border-border hover:border-muted-foreground/50'
+                  }`}
+                >
+                  <Rows3 className="w-6 h-6 mx-auto mb-2 text-primary" />
+                  <span className="font-arabic text-sm font-bold block">صورة + إحداثيات</span>
+                  <span className="font-arabic text-[10px] text-muted-foreground">SVG تفاعلي</span>
                 </button>
               </div>
             </div>
