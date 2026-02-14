@@ -3,6 +3,7 @@ import { getMadinahPage, getMadinahParseResult, MadinahPage, normalizeBismillah 
 
 interface MadinahPageViewProps {
   pageNumber: number;
+  hidePageBadge?: boolean;
 }
 
 const BISMILLAH_REGEX = /بِسمِ|بِسۡمِ/;
@@ -40,7 +41,7 @@ function useFontCheck() {
   return fontLoaded;
 }
 
-export function MadinahPageView({ pageNumber }: MadinahPageViewProps) {
+export function MadinahPageView({ pageNumber, hidePageBadge }: MadinahPageViewProps) {
   const [pageData, setPageData] = useState<MadinahPage | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -130,12 +131,14 @@ export function MadinahPageView({ pageNumber }: MadinahPageViewProps) {
       )}
 
       {/* Page number header */}
-      <div className="text-center mb-2">
-        <span className="text-xs text-muted-foreground font-arabic">
-          {pageData.meta?.surah && <span className="ml-3">{pageData.meta.surah}</span>}
-          صفحة {pageNumber}
-        </span>
-      </div>
+      {!hidePageBadge && (
+        <div className="text-center mb-2">
+          <span className="text-xs text-muted-foreground font-arabic">
+            {pageData.meta?.surah && <span className="ml-3">{pageData.meta.surah}</span>}
+            صفحة {pageNumber}
+          </span>
+        </div>
+      )}
 
       {/* Fixed lines */}
       <div className="mushafLinesContainer">

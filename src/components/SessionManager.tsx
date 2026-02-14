@@ -49,9 +49,7 @@ export function SessionManager() {
     navigate(session.type === 'ghareeb' ? '/mushaf' : '/tahfeez');
   };
 
-  if (activeSessions.length === 0 && archivedSessions.length === 0) {
-    return null;
-  }
+  // Always show - even with no sessions, show create button
 
   return (
     <div className="space-y-3">
