@@ -348,12 +348,14 @@ export default function TahfeezPage() {
               </Link>
             </div>
           </div>
-          {/* Current page indicator */}
-          <div className="max-w-2xl mx-auto px-4 pb-2 flex items-center justify-center gap-3">
-            <Button variant="ghost" size="sm" onClick={() => goToPage(currentPage - 1)} disabled={currentPage <= 1} className="text-xs font-arabic h-7 px-2">→</Button>
-            <span className="text-xs font-arabic text-muted-foreground">صفحة {currentPage} / {totalPages}</span>
-            <Button variant="ghost" size="sm" onClick={() => goToPage(currentPage + 1)} disabled={currentPage >= totalPages} className="text-xs font-arabic h-7 px-2">←</Button>
-          </div>
+          {/* Current page indicator - hidden in fullscreen */}
+           {!fullscreen && (
+             <div className="max-w-2xl mx-auto px-4 pb-2 flex items-center justify-center gap-3">
+               <Button variant="ghost" size="sm" onClick={() => goToPage(currentPage - 1)} disabled={currentPage <= 1} className="text-xs font-arabic h-7 px-2">→</Button>
+               <span className="text-xs font-arabic text-muted-foreground">صفحة {currentPage} / {totalPages}</span>
+               <Button variant="ghost" size="sm" onClick={() => goToPage(currentPage + 1)} disabled={currentPage >= totalPages} className="text-xs font-arabic h-7 px-2">←</Button>
+             </div>
+           )}
         </div>
       )}
 
