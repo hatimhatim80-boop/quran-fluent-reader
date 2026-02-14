@@ -390,7 +390,7 @@ export default function TahfeezPage() {
         </div>
       )}
 
-      <div className="max-w-2xl mx-auto px-4 py-6 space-y-6" style={{ transform: `scale(${pinchScale})`, transformOrigin: 'top center', transition: pinchRef.current ? 'none' : 'transform 0.2s ease' }}>
+      <div className="max-w-2xl mx-auto px-3 py-6 space-y-6" style={{ transform: `scale(${pinchScale})`, transformOrigin: 'top center', transition: pinchRef.current ? 'none' : 'transform 0.2s ease' }}>
         {/* Tab 1: Store words */}
         {/* Fullscreen: show only the quran page text */}
         {fullscreen && pageData && (

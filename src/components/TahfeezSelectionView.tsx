@@ -184,7 +184,7 @@ export function TahfeezSelectionView({ page }: TahfeezSelectionViewProps) {
         lineElements.push(
           <span
             key={`${li}-${tok.tokenIdx}`}
-            className={`cursor-pointer rounded-sm px-0.5 transition-all duration-150 ${
+            className={`cursor-pointer rounded-sm transition-all duration-150 ${
               anchor
                 ? 'bg-amber-400/40 ring-2 ring-amber-500'
                 : stored
@@ -244,7 +244,7 @@ export function TahfeezSelectionView({ page }: TahfeezSelectionViewProps) {
       )}
 
       {/* Quran page for selection */}
-      <div className="page-frame p-5 sm:p-8" dir={textDirection}>
+      <div className="page-frame p-4 sm:p-8" dir={textDirection}>
         <div className="flex justify-center mb-5">
           <span className="bg-secondary/80 text-secondary-foreground px-4 py-1.5 rounded-full text-sm font-arabic shadow-sm">
             صفحة {page.pageNumber}
