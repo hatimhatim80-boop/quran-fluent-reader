@@ -261,6 +261,11 @@
     color: hsl(var(--foreground));
   }
 
+  .ayahNum {
+    margin-inline-start: 0 !important;
+    padding-inline-start: 0 !important;
+  }
+
   .mushafBismillah {
     text-align: center;
     white-space: nowrap;
