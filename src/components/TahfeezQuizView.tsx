@@ -364,7 +364,7 @@ export function TahfeezQuizView({
 
 
   return (
-    <div className="page-frame p-5 sm:p-8" style={pageFrameStyle} dir={textDirection}>
+    <div className="page-frame p-4 sm:p-8" style={pageFrameStyle} dir={textDirection}>
       <div id="tahfeez-blanked-keys" className="hidden" />
       <div className="flex justify-center mb-5">
         <span className="bg-secondary/80 text-secondary-foreground px-4 py-1.5 rounded-full text-sm font-arabic shadow-sm">
