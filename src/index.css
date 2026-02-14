@@ -231,17 +231,17 @@
     margin: 0 auto;
     padding: 8px 10px;
     direction: rtl;
-    height: calc(100vh - 120px);
+    min-height: 100dvh;
     display: flex;
     flex-direction: column;
+    justify-content: flex-start;
   }
 
   .mushafLinesContainer {
     display: flex;
     flex-direction: column;
     gap: 0;
-    flex: 1;
-    justify-content: space-between;
+    flex-shrink: 0;
   }
 
   .mushafLine {
