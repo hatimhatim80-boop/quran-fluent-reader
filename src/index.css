@@ -400,7 +400,7 @@
     z-index: 2;
   }
 
-  /* Layer B: Transparent text overlay */
+  /* ─── Layer B: Absolute-positioned overlay ─── */
   .hybridTextLayer {
     position: absolute;
     inset: 0;
@@ -408,7 +408,7 @@
     pointer-events: none;
     opacity: 0;
     transition: opacity 0.2s ease;
-    overflow: hidden;
+    /* NO flex, NO grid — children are absolutely positioned */
   }
 
   .hybridTextLayer--ready {
@@ -416,60 +416,61 @@
     opacity: 1;
   }
 
-  /* Make all text inside the hybrid overlay transparent */
+  /* page-frame fills the overlay exactly */
   .hybridTextLayer .page-frame {
+    position: absolute !important;
+    inset: 0 !important;
     background: transparent !important;
     border: none !important;
     box-shadow: none !important;
     margin: 0 !important;
+    padding: 0 !important;
     border-radius: 0 !important;
-    /* Match PNG text area precisely:
-       Top: ornamental header + surah band ~12%, Sides: border ~6%, Bottom: ~4% */
-    padding: 12% 6% 4% 6% !important;
     width: 100% !important;
     height: 100% !important;
     box-sizing: border-box !important;
-    display: flex !important;
-    flex-direction: column !important;
     overflow: hidden !important;
+    display: block !important;
   }
 
   .hybridTextLayer .page-frame::before {
     display: none !important;
   }
 
+  /* quran-page fills page-frame */
   .hybridTextLayer .quran-page {
-    flex: 1 !important;
-    display: flex !important;
-    flex-direction: column !important;
+    position: absolute !important;
+    inset: 0 !important;
+    display: block !important;
     min-height: 0 !important;
     overflow: hidden !important;
   }
 
+  /* lines-container fills quran-page — NO flex/grid */
   .hybridTextLayer .quran-lines-container {
-    flex: 1 !important;
-    display: grid !important;
-    /* Fixed 15-row grid to match Madinah Mushaf layout */
-    grid-template-rows: repeat(15, 1fr) !important;
+    position: absolute !important;
+    inset: 0 !important;
+    display: block !important;
     overflow: hidden !important;
-    align-items: center !important;
   }
 
+  /* ─── Each line is absolutely positioned via inline style (--line-top) ─── */
   .hybridTextLayer .quran-line {
-    /* Scale font with container width for proportional sizing */
-    font-size: clamp(10px, 3.4vw, 18px) !important;
-    line-height: 1.0 !important;
+    position: absolute !important;
+    left: 6% !important;
+    right: 6% !important;
+    height: 5.2% !important;
     text-align: center !important;
     white-space: nowrap !important;
     overflow: hidden !important;
-    min-height: 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    font-size: clamp(10px, 3.4vw, 18px) !important;
+    line-height: 1.0 !important;
   }
 
-  /* Lines beyond the 15th: hide overflow */
-  .hybridTextLayer .quran-line:nth-child(n+16) {
-    display: none !important;
-  }
-
+  /* All text transparent by default */
   .hybridTextLayer .quran-page,
   .hybridTextLayer .quran-line,
   .hybridTextLayer .quran-lines-container,
@@ -485,20 +486,21 @@
     box-shadow: none !important;
   }
 
-  /* Surah headers: collapse since PNG shows them in ornamental band */
+  /* Surah headers: collapse — PNG shows ornamental band */
   .hybridTextLayer .surah-header {
-    font-size: 0 !important;
-    line-height: 0 !important;
+    position: absolute !important;
+    width: 0 !important;
     height: 0 !important;
     overflow: hidden !important;
     margin: 0 !important;
     padding: 0 !important;
-    /* Don't occupy a grid row */
-    position: absolute !important;
-    width: 0 !important;
+    font-size: 0 !important;
+    line-height: 0 !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
   }
 
-  /* Bismillah occupies one of the 15 lines */
+  /* Bismillah: same styling as regular lines */
   .hybridTextLayer .bismillah {
     font-size: clamp(10px, 3.4vw, 18px) !important;
     margin: 0 !important;
@@ -508,7 +510,7 @@
     text-align: center !important;
   }
 
-  /* Ghareeb words in hybrid: keep them interactive */
+  /* ─── Ghareeb words: interactive but invisible ─── */
   .hybridTextLayer .ghareeb-word:not(.ghareeb-word--text-only) {
     background-color: transparent !important;
     border-color: transparent !important;
@@ -520,18 +522,17 @@
     color: transparent !important;
   }
 
-  /* On hover/click, show highlight OVER the PNG */
+  /* Hover highlight */
   .hybridTextLayer .ghareeb-word:hover:not(.ghareeb-word--text-only) {
     background-color: hsl(var(--highlight) / 0.35) !important;
     border-color: hsl(var(--highlight) / 0.5) !important;
   }
-
   .hybridTextLayer .ghareeb-word:hover.ghareeb-word--text-only {
     background-color: hsl(var(--highlight) / 0.25) !important;
     border-radius: 4px;
   }
 
-  /* Active/highlighted word */
+  /* Active word */
   .hybridTextLayer .ghareeb-word--active:not(.ghareeb-word--text-only) {
     background-color: hsl(200 70% 80% / 0.45) !important;
     border-color: hsl(200 70% 50% / 0.6) !important;
@@ -542,57 +543,75 @@
     background-color: hsl(140 45% 85% / 0.5) !important;
   }
 
-  /* Popover still shows normally */
   .hybridTextLayer .ghareeb-popover {
     color: hsl(var(--foreground)) !important;
   }
 
-  /* Header/footer hidden in hybrid by default */
+  /* Header/footer hidden */
   .hybridTextLayer .flex.items-center.justify-between {
     display: none !important;
   }
 
-  /* Force the quran-page to remove min-height constraints */
   .hybridTextLayer .quran-page.min-h-\[350px\],
   .hybridTextLayer .quran-page.sm\:min-h-\[450px\] {
     min-height: 0 !important;
   }
 
-  /* Debug overlay: show text at low opacity + borders on spans */
+  /* ─── Debug baselines ─── */
+  .hybridTextLayer--debug .quran-line {
+    background: hsl(0 100% 50% / 0.08) !important;
+    outline: 1px solid hsl(0 100% 50% / 0.3) !important;
+  }
+
   .hybridTextLayer--debug .quran-page,
   .hybridTextLayer--debug .quran-line,
   .hybridTextLayer--debug .quran-lines-container {
-    color: hsl(0 100% 50% / 0.25) !important;
-  }
-
-  .hybridTextLayer--debug .quran-line {
-    background: hsl(0 100% 50% / 0.05) !important;
-    outline: 1px solid hsl(0 100% 50% / 0.15) !important;
+    color: hsl(0 100% 50% / 0.3) !important;
   }
 
   .hybridTextLayer--debug .ghareeb-word {
-    color: hsl(200 80% 50% / 0.3) !important;
-    outline: 1px dashed hsl(200 80% 50% / 0.4);
+    color: hsl(200 80% 50% / 0.4) !important;
+    outline: 1px dashed hsl(200 80% 50% / 0.5);
     outline-offset: 1px;
   }
 
   .hybridTextLayer--debug .verse-number {
-    color: hsl(var(--verse-number) / 0.2) !important;
+    color: hsl(var(--verse-number) / 0.25) !important;
   }
 
   .hybridTextLayer--debug span[data-word-inspectable] {
-    outline: 1px dotted hsl(var(--muted-foreground) / 0.15);
+    outline: 1px dotted hsl(var(--muted-foreground) / 0.2);
   }
 
   .hybridTextLayer--debug .surah-header {
-    /* Keep collapsed even in debug */
     height: 0 !important;
     position: absolute !important;
+    opacity: 0 !important;
   }
 
   .hybridTextLayer--debug .bismillah {
-    color: hsl(120 80% 40% / 0.3) !important;
-    outline: 1px dashed hsl(120 80% 40% / 0.3) !important;
+    color: hsl(120 80% 40% / 0.35) !important;
+    outline: 1px dashed hsl(120 80% 40% / 0.35) !important;
+  }
+
+  /* Debug baseline markers (drawn by JS) */
+  .hybridDebugBaseline {
+    position: absolute;
+    left: 3%;
+    right: 3%;
+    height: 1px;
+    background: hsl(200 100% 50% / 0.5);
+    z-index: 10;
+    pointer-events: none;
+  }
+  .hybridDebugBaseline::after {
+    content: attr(data-line-label);
+    position: absolute;
+    left: 0;
+    top: -12px;
+    font-size: 9px;
+    color: hsl(200 100% 50% / 0.7);
+    font-family: monospace;
   }
 
   .mushafLinesContainer {
