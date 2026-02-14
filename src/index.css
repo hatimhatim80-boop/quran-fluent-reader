@@ -227,40 +227,47 @@
 
   /* ── Madinah Fixed-Line Mushaf ── */
   .mushafPage {
-    max-width: 520px;
+    max-width: 390px;
     margin: 0 auto;
-    padding: 8px 10px;
+    padding: 4px 0;
     direction: rtl;
-    display: block;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
   }
 
   .mushafLinesContainer {
     display: flex;
     flex-direction: column;
+    align-items: center;
     gap: 0;
-    flex-shrink: 0;
+    width: 100%;
   }
 
   .mushafLine {
     white-space: nowrap;
     overflow: hidden;
-    text-align: right;
-    line-height: 1.9;
+    text-align: center;
+    line-height: 2.15;
     font-family: var(--quran-font-family, 'KFGQPC HAFS Uthmanic Script', 'UthmanicHafs', 'Amiri Quran', serif);
     font-size: var(--mushaf-font-size, 18px);
     letter-spacing: 0 !important;
     word-spacing: 0 !important;
     font-kerning: normal;
     font-variant-ligatures: common-ligatures;
+    font-feature-settings: "liga" 1, "calt" 1;
     text-rendering: geometricPrecision;
     direction: rtl;
     unicode-bidi: plaintext;
     color: hsl(var(--foreground));
+    width: 100%;
   }
 
   .ayahNum {
+    display: inline-block;
     margin-inline-start: 0 !important;
     padding-inline-start: 0 !important;
+    line-height: 1;
   }
 
   .mushafBismillah {
