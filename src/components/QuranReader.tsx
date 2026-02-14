@@ -4,6 +4,7 @@ import { useAutoPlay } from '@/hooks/useAutoPlay';
 import { GhareebWord } from '@/types/quran';
 import { PageView } from './PageView';
 import { MadinahPageView } from './MadinahPageView';
+import { SvgOverlayPageView } from './SvgOverlayPageView';
 import { PageNavigation } from './PageNavigation';
 import { AutoPlayControls } from './AutoPlayControls';
 import { Toolbar } from './Toolbar';
@@ -194,7 +195,14 @@ export function QuranReader() {
           )}
 
           {pageData && (
-            displayMode === 'lines15' ? (
+            displayMode === 'svgOverlay' ? (
+              <SvgOverlayPageView
+                pageNumber={currentPage}
+                onWordClick={(word, idx) => handleWordClick({ ...word, pageNumber: currentPage, meaning: '', surahName: '', surahNumber: 0, verseNumber: 0, wordIndex: 0, order: idx, uniqueKey: word.key } as any, idx)}
+                highlightedIndex={currentWordIndex}
+                hidePageBadge={fullscreen}
+              />
+            ) : displayMode === 'lines15' ? (
               <MadinahPageView pageNumber={currentPage} hidePageBadge={fullscreen} />
             ) : (
               <PageView
