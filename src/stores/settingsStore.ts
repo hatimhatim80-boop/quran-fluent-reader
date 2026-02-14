@@ -21,6 +21,7 @@ export interface DisplaySettings {
   textDirection: 'rtl' | 'ltr';
   textAlign: 'right' | 'left' | 'center' | 'justify';
   autoFitFont: boolean;
+  balanceLastLine: boolean;
 }
 
 // Color settings
@@ -109,6 +110,7 @@ const defaultSettings: AppSettings = {
     textDirection: 'rtl',
     textAlign: 'justify',
     autoFitFont: false,
+    balanceLastLine: false,
   },
   update: {
     manifestUrl: '/updates/manifest.json',

@@ -16,15 +16,30 @@ function isBismillah(line: string): boolean {
 
 /**
  * Distributes words evenly across targetLineCount lines.
+ * When balanceLastLine is true, ensures the last line has a similar word count to others.
  */
-function distributeWords(words: string[], targetLineCount: number, minWordsPerLine: number = 5): string[] {
+function distributeWords(words: string[], targetLineCount: number, minWordsPerLine: number = 5, balanceLastLine: boolean = false): string[] {
   if (words.length === 0) return [];
   const MIN_WORDS_PER_LINE = minWordsPerLine;
   const maxPossibleLines = Math.floor(words.length / MIN_WORDS_PER_LINE) || 1;
   const lineCount = Math.min(targetLineCount, maxPossibleLines, words.length);
 
-  // Calculate total character count (including spaces between words)
-  const totalChars = words.reduce((sum, w) => sum + w.length, 0) + (words.length - 1); // words + spaces
+  if (balanceLastLine) {
+    // Even distribution: each line gets floor or ceil of words/lines
+    const wordsPerLine = Math.floor(words.length / lineCount);
+    const extraWords = words.length % lineCount;
+    const lines: string[] = [];
+    let pos = 0;
+    for (let i = 0; i < lineCount; i++) {
+      const count = wordsPerLine + (i < extraWords ? 1 : 0);
+      lines.push(words.slice(pos, pos + count).join(' '));
+      pos += count;
+    }
+    return lines;
+  }
+
+  // Original character-based distribution
+  const totalChars = words.reduce((sum, w) => sum + w.length, 0) + (words.length - 1);
   const targetCharsPerLine = totalChars / lineCount;
 
   const lines: string[] = [];
@@ -35,12 +50,9 @@ function distributeWords(words: string[], targetLineCount: number, minWordsPerLi
   for (let i = 0; i < words.length; i++) {
     const word = words[i];
     const wordsRemaining = words.length - i;
-    const addedChars = currentLineWords.length === 0 ? word.length : word.length + 1; // +1 for space
+    const addedChars = currentLineWords.length === 0 ? word.length : word.length + 1;
 
-    // Must we start filling remaining lines? (ensure MIN_WORDS_PER_LINE for remaining lines)
     const mustBreak = wordsRemaining <= (linesRemaining - 1) * MIN_WORDS_PER_LINE && currentLineWords.length >= MIN_WORDS_PER_LINE;
-
-    // Would adding this word exceed the target?
     const wouldExceed = currentLineChars + addedChars > targetCharsPerLine * 1.15;
 
     if (mustBreak || (wouldExceed && currentLineWords.length >= MIN_WORDS_PER_LINE && linesRemaining > 1)) {
@@ -61,7 +73,7 @@ function distributeWords(words: string[], targetLineCount: number, minWordsPerLi
   return lines;
 }
 
-export function redistributeLines(originalLines: string[], targetLineCount: number, minWordsPerLine: number = 5): string[] {
+export function redistributeLines(originalLines: string[], targetLineCount: number, minWordsPerLine: number = 5, balanceLastLine: boolean = false): string[] {
   if (targetLineCount >= 15) return originalLines;
 
   // First pass: collect text segments and special lines
@@ -126,7 +138,7 @@ export function redistributeLines(originalLines: string[], targetLineCount: numb
       result.push(seg.text);
     } else {
       const lineCount = segmentLineCounts[textSegIdx];
-      const distributed = distributeWords(seg.words, Math.max(1, lineCount), minWordsPerLine);
+      const distributed = distributeWords(seg.words, Math.max(1, lineCount), minWordsPerLine, balanceLastLine);
       result.push(...distributed);
       textSegIdx++;
     }

@@ -35,6 +35,7 @@ export function SettingsLivePreview({ visible, onToggle }: SettingsLivePreviewPr
   const minWords = display?.minWordsPerLine || 5;
   const textAlign = display?.textAlign || 'justify';
   const isLines15 = display?.mode === 'lines15';
+  const balanceLastLine = display?.balanceLastLine ?? false;
   const pageBackgroundColor = (colors as any).pageBackgroundColor || '';
 
   const previewLines = useMemo(() => {
@@ -42,8 +43,8 @@ export function SettingsLivePreview({ visible, onToggle }: SettingsLivePreviewPr
     if (!isLines15 || !shouldRedistribute(display?.mobileLinesPerPage || 15, display?.desktopLinesPerPage || 15)) {
       return originalLines;
     }
-    return redistributeLines(originalLines, targetLines, minWords);
-  }, [isLines15, targetLines, minWords, display?.mobileLinesPerPage, display?.desktopLinesPerPage]);
+    return redistributeLines(originalLines, targetLines, minWords, balanceLastLine);
+  }, [isLines15, targetLines, minWords, balanceLastLine, display?.mobileLinesPerPage, display?.desktopLinesPerPage]);
 
   const renderedLines = useMemo(() => {
     return previewLines.map((line, idx) => {

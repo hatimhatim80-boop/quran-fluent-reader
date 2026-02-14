@@ -83,6 +83,7 @@ export function PageView({
   const desktopLinesPerPage = useSettingsStore((s) => s.settings.display?.desktopLinesPerPage || 15);
   const textAlign = useSettingsStore((s) => s.settings.display?.textAlign || 'justify');
   const minWordsPerLine = useSettingsStore((s) => s.settings.display?.minWordsPerLine || 5);
+  const balanceLastLine = useSettingsStore((s) => s.settings.display?.balanceLastLine ?? false);
   const { containerRef: autoFitRef, fittedFontSize } = useAutoFitFont(page.text);
 
   // Redistribute lines based on device
@@ -91,8 +92,8 @@ export function PageView({
     const originalLines = page.text.split('\n');
     const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
     const targetLines = isMobile ? mobileLinesPerPage : desktopLinesPerPage;
-    return redistributeLines(originalLines, targetLines, minWordsPerLine).join('\n');
-  }, [page.text, displayMode, mobileLinesPerPage, desktopLinesPerPage, minWordsPerLine]);
+    return redistributeLines(originalLines, targetLines, minWordsPerLine, balanceLastLine).join('\n');
+  }, [page.text, displayMode, mobileLinesPerPage, desktopLinesPerPage, minWordsPerLine, balanceLastLine]);
   const tahfeezMode = useTahfeezStore((s) => s.selectionMode);
   const toggleTahfeezWord = useTahfeezStore((s) => s.toggleWord);
   const isTahfeezSelected = useTahfeezStore((s) => s.isSelected);

@@ -368,6 +368,18 @@ export function SettingsDialog({ children }: SettingsDialogProps) {
             )}
 
 
+            {/* Balance last line */}
+            <div className="flex items-center justify-between p-3 rounded-lg border">
+              <div className="space-y-0.5">
+                <Label className="font-arabic font-bold text-sm">موازنة السطر الأخير</Label>
+                <p className="text-[10px] font-arabic text-muted-foreground">يوزّع الكلمات بالتساوي ليتوافق السطر الأخير مع بقية الأسطر</p>
+              </div>
+              <Switch
+                checked={settings.display?.balanceLastLine ?? false}
+                onCheckedChange={(v) => setDisplay({ balanceLastLine: v })}
+              />
+            </div>
+
             {/* Auto-fit font size */}
             <div className="flex items-center justify-between p-3 rounded-lg border">
               <div className="space-y-0.5">
