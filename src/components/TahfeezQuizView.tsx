@@ -3,6 +3,7 @@ import { QuranPage } from '@/types/quran';
 import { normalizeArabic } from '@/utils/quranParser';
 import { useSettingsStore } from '@/stores/settingsStore';
 import { TahfeezItem } from '@/stores/tahfeezStore';
+import { useAutoFitFont } from '@/hooks/useAutoFitFont';
 import { redistributeLines, shouldRedistribute } from '@/utils/lineRedistributor';
 import { formatBismillah, shouldNoJustify, bindVerseNumbersSimple } from '@/utils/lineTokenUtils';
 
@@ -55,6 +56,7 @@ export function TahfeezQuizView({
   const pageBackgroundColor = (settings.colors as any).pageBackgroundColor || '';
   const pageFrameStyle = pageBackgroundColor ? { background: `hsl(${pageBackgroundColor})` } : undefined;
   const highlightStyle = (settings.colors as any).highlightStyle || 'background';
+  const { containerRef: autoFitRef, fittedFontSize } = useAutoFitFont(page.text);
 
   // Redistribute lines based on device
   const effectiveText = useMemo(() => {
@@ -364,7 +366,7 @@ export function TahfeezQuizView({
 
 
   return (
-    <div className="page-frame p-4 sm:p-8" style={pageFrameStyle} dir={textDirection}>
+    <div ref={autoFitRef} className="page-frame p-4 sm:p-8" style={{ ...pageFrameStyle, ...(fittedFontSize ? { fontSize: `${fittedFontSize}rem` } : {}) }} dir={textDirection}>
       <div id="tahfeez-blanked-keys" className="hidden" />
       <div className="flex justify-center mb-5">
         <span className="bg-secondary/80 text-secondary-foreground px-4 py-1.5 rounded-full text-sm font-arabic shadow-sm">
