@@ -261,30 +261,42 @@ export function SettingsDialog({ children }: SettingsDialogProps) {
           <TabsContent value="display" className="space-y-5 mt-4">
             <div className="space-y-3">
               <Label className="font-arabic font-bold">نمط عرض الصفحة</Label>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-3 gap-2">
                 <button
                   onClick={() => setDisplay({ mode: 'lines15' })}
-                  className={`p-4 rounded-lg border text-center transition-all ${
+                  className={`p-3 rounded-lg border text-center transition-all ${
                     settings.display?.mode === 'lines15'
                       ? 'border-primary bg-primary/10 ring-2 ring-primary/20'
                       : 'border-border hover:border-muted-foreground/50'
                   }`}
                 >
-                  <Rows3 className="w-6 h-6 mx-auto mb-2 text-primary" />
-                  <span className="font-arabic text-sm font-bold block">مصحف المدينة</span>
-                  <span className="font-arabic text-[10px] text-muted-foreground">15 سطراً</span>
+                  <Rows3 className="w-5 h-5 mx-auto mb-1 text-primary" />
+                  <span className="font-arabic text-xs font-bold block">مصحف المدينة</span>
+                  <span className="font-arabic text-[9px] text-muted-foreground">15 سطراً</span>
+                </button>
+                <button
+                  onClick={() => setDisplay({ mode: 'hybrid' })}
+                  className={`p-3 rounded-lg border text-center transition-all ${
+                    settings.display?.mode === 'hybrid'
+                      ? 'border-primary bg-primary/10 ring-2 ring-primary/20'
+                      : 'border-border hover:border-muted-foreground/50'
+                  }`}
+                >
+                  <Rows3 className="w-5 h-5 mx-auto mb-1 text-primary" />
+                  <span className="font-arabic text-xs font-bold block">هجين</span>
+                  <span className="font-arabic text-[9px] text-muted-foreground">PNG + تفاعل</span>
                 </button>
                 <button
                   onClick={() => setDisplay({ mode: 'continuous' })}
-                  className={`p-4 rounded-lg border text-center transition-all ${
+                  className={`p-3 rounded-lg border text-center transition-all ${
                     settings.display?.mode === 'continuous'
                       ? 'border-primary bg-primary/10 ring-2 ring-primary/20'
                       : 'border-border hover:border-muted-foreground/50'
                   }`}
                 >
-                  <Type className="w-6 h-6 mx-auto mb-2 text-primary" />
-                  <span className="font-arabic text-sm font-bold block">تدفق مستمر</span>
-                  <span className="font-arabic text-[10px] text-muted-foreground">نص متصل</span>
+                  <Type className="w-5 h-5 mx-auto mb-1 text-primary" />
+                  <span className="font-arabic text-xs font-bold block">تدفق مستمر</span>
+                  <span className="font-arabic text-[9px] text-muted-foreground">نص متصل</span>
                 </button>
               </div>
             </div>
