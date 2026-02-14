@@ -1,5 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { getMadinahPage, getMadinahParseResult, MadinahPage, normalizeBismillah } from '@/services/madinahPageLines';
+import { Loader2 } from 'lucide-react';
 
 interface MadinahPageViewProps {
   pageNumber: number;
@@ -16,37 +17,25 @@ function isBismillahLine(line: string): boolean {
   return BISMILLAH_REGEX.test(line);
 }
 
-/** Check if the primary mushaf font loaded */
-function useFontCheck() {
-  const [fontLoaded, setFontLoaded] = useState<boolean | null>(null);
-
-  useEffect(() => {
-    const checkFont = async () => {
-      try {
-        const loaded = await document.fonts.ready;
-        const hasFontA = loaded.check('16px "KFGQPC HAFS Uthmanic Script"');
-        const hasFontB = loaded.check('16px "UthmanicHafs"');
-        const hasFontC = loaded.check('16px "Amiri"');
-        setFontLoaded(hasFontA || hasFontB || hasFontC);
-        if (!hasFontA && !hasFontB && !hasFontC) {
-          console.warn('[MadinahPageView] ⚠️ No mushaf font detected — text may render incorrectly');
-        }
-      } catch {
-        setFontLoaded(null);
-      }
-    };
-    checkFont();
-  }, []);
-
-  return fontLoaded;
+/** PNG image URL from quran.i8x.net API */
+function getPngUrl(page: number): string {
+  return `https://quran.i8x.net/data/quran_image/${page}.png`;
 }
 
 export function MadinahPageView({ pageNumber, hidePageBadge }: MadinahPageViewProps) {
   const [pageData, setPageData] = useState<MadinahPage | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [globalErrors, setGlobalErrors] = useState<string[]>([]);
-  const fontLoaded = useFontCheck();
+  const [imgLoaded, setImgLoaded] = useState(false);
+  const [imgError, setImgError] = useState(false);
+  const [showTextFallback, setShowTextFallback] = useState(false);
+
+  // Reset image state on page change
+  useEffect(() => {
+    setImgLoaded(false);
+    setImgError(false);
+    setShowTextFallback(false);
+  }, [pageNumber]);
 
   useEffect(() => {
     let cancelled = false;
@@ -58,7 +47,6 @@ export function MadinahPageView({ pageNumber, hidePageBadge }: MadinahPageViewPr
       getMadinahParseResult(),
     ]).then(([data, parseResult]) => {
       if (cancelled) return;
-      setGlobalErrors(parseResult.errors);
       if (!data) {
         setError(`لا توجد بيانات سطور لهذه الصفحة رقم ${pageNumber}`);
         setPageData(null);
@@ -78,7 +66,10 @@ export function MadinahPageView({ pageNumber, hidePageBadge }: MadinahPageViewPr
   if (loading) {
     return (
       <div className="mushafPage text-center py-8">
-        <p className="font-arabic text-muted-foreground">جاري تحميل الصفحة...</p>
+        <div className="flex flex-col items-center gap-2">
+          <Loader2 className="w-6 h-6 text-primary animate-spin" />
+          <p className="font-arabic text-muted-foreground text-sm">جاري تحميل الصفحة...</p>
+        </div>
       </div>
     );
   }
@@ -91,21 +82,18 @@ export function MadinahPageView({ pageNumber, hidePageBadge }: MadinahPageViewPr
           <p className="font-arabic text-destructive/80 text-sm mt-2">
             {error || `لا توجد بيانات سطور لهذه الصفحة رقم ${pageNumber}`}
           </p>
-          {globalErrors.length > 0 && (
-            <div className="mt-3 text-xs text-destructive/70 font-arabic space-y-1">
-              {globalErrors.map((e, i) => <p key={i}>• {e}</p>)}
-            </div>
-          )}
         </div>
       </div>
     );
   }
 
+  const pngUrl = getPngUrl(pageNumber);
+
   return (
-    <div className="mushafPage">
-      {/* Page header - surah name + page number */}
+    <div className="mushafPage mushafHybrid">
+      {/* Page header */}
       {!hidePageBadge && (
-        <div className="w-full flex items-center justify-between px-3 py-1.5" style={{ borderBottom: '1px solid hsl(var(--ornament) / 0.15)' }}>
+        <div className="mushafHybridHeader">
           <span className="text-[10px] text-muted-foreground font-arabic">
             صفحة {pageNumber}
           </span>
@@ -117,39 +105,87 @@ export function MadinahPageView({ pageNumber, hidePageBadge }: MadinahPageViewPr
         </div>
       )}
 
-      {/* Fixed lines */}
-      <div className="mushafLinesContainer">
-        {pageData.lines.map((line, idx) => {
-          if (isSurahHeader(line)) {
-            return (
-              <div key={idx} className="mushafSurahHeader">
-                <span>{line}</span>
-              </div>
-            );
-          }
+      {/* Hybrid container: PNG background + text overlay */}
+      <div className="mushafHybridContainer">
+        {/* PNG Image Layer */}
+        {!imgError && (
+          <img
+            src={pngUrl}
+            alt={`صفحة ${pageNumber}`}
+            className={`mushafPngLayer ${imgLoaded ? 'mushafPngLoaded' : ''}`}
+            onLoad={() => setImgLoaded(true)}
+            onError={() => {
+              setImgError(true);
+              setShowTextFallback(true);
+            }}
+            loading="eager"
+            draggable={false}
+          />
+        )}
 
-          if (isBismillahLine(line)) {
-            return (
-              <div key={idx} className="mushafLine mushafBismillah">
-                <span>{normalizeBismillah(line)}</span>
-              </div>
-            );
-          }
+        {/* Loading spinner while PNG loads */}
+        {!imgLoaded && !imgError && (
+          <div className="mushafPngSpinner">
+            <Loader2 className="w-8 h-8 text-primary/40 animate-spin" />
+          </div>
+        )}
 
-          return (
-            <div key={idx} className="mushafLine">
-              <span>{line}</span>
+        {/* Text Overlay Layer - transparent, interactive */}
+        {!showTextFallback && (
+          <div className={`mushafTextOverlay ${imgLoaded ? 'mushafOverlayReady' : ''}`}>
+            <div className="mushafLinesContainer">
+              {pageData.lines.map((line, idx) => {
+                if (isSurahHeader(line)) {
+                  return (
+                    <div key={idx} className="mushafSurahHeader mushafOverlayLine">
+                      <span>{line}</span>
+                    </div>
+                  );
+                }
+                if (isBismillahLine(line)) {
+                  return (
+                    <div key={idx} className="mushafLine mushafBismillah mushafOverlayLine">
+                      <span>{normalizeBismillah(line)}</span>
+                    </div>
+                  );
+                }
+                return (
+                  <div key={idx} className="mushafLine mushafOverlayLine">
+                    <span>{line}</span>
+                  </div>
+                );
+              })}
             </div>
-          );
-        })}
-      </div>
+          </div>
+        )}
 
-      {/* Font warning - minimal */}
-      {fontLoaded === false && (
-        <div className="w-full px-2 py-1 text-center">
-          <p className="text-[9px] text-muted-foreground">⚠️ خط المصحف غير محمّل</p>
-        </div>
-      )}
+        {/* Fallback: show text directly if PNG fails */}
+        {showTextFallback && (
+          <div className="mushafLinesContainer">
+            {pageData.lines.map((line, idx) => {
+              if (isSurahHeader(line)) {
+                return (
+                  <div key={idx} className="mushafSurahHeader">
+                    <span>{line}</span>
+                  </div>
+                );
+              }
+              if (isBismillahLine(line)) {
+                return (
+                  <div key={idx} className="mushafLine mushafBismillah">
+                    <span>{normalizeBismillah(line)}</span>
+                  </div>
+                );
+              }
+              return (
+                <div key={idx} className="mushafLine">
+                  <span>{line}</span>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

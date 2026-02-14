@@ -252,6 +252,86 @@
     z-index: 1;
   }
 
+  /* ── Hybrid Mode (PNG + Text Overlay) ── */
+  .mushafHybrid {
+    background: hsl(var(--card));
+  }
+
+  .mushafHybridHeader {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 4px 12px;
+    border-bottom: 1px solid hsl(var(--ornament) / 0.15);
+    position: relative;
+    z-index: 5;
+  }
+
+  .mushafHybridContainer {
+    position: relative;
+    width: 100%;
+    min-height: 500px;
+  }
+
+  /* PNG background layer */
+  .mushafPngLayer {
+    display: block;
+    width: 100%;
+    height: auto;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    user-select: none;
+    -webkit-user-drag: none;
+    pointer-events: none;
+  }
+
+  .mushafPngLoaded {
+    opacity: 1;
+  }
+
+  .mushafPngSpinner {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* Text overlay - transparent, sits on top of PNG */
+  .mushafTextOverlay {
+    position: absolute;
+    inset: 0;
+    z-index: 3;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+  }
+
+  .mushafOverlayReady {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  /* Overlay lines: invisible text but interactive */
+  .mushafOverlayLine {
+    color: transparent !important;
+    cursor: pointer;
+    transition: color 0.15s ease;
+  }
+
+  /* On hover/tap, reveal text with highlight */
+  .mushafOverlayLine:hover {
+    color: hsl(var(--primary) / 0.7) !important;
+    background: hsl(var(--highlight) / 0.15);
+    border-radius: 2px;
+  }
+
+  .mushafOverlayLine:active {
+    color: hsl(var(--primary) / 0.85) !important;
+    background: hsl(var(--highlight) / 0.25);
+  }
+
   .mushafLinesContainer {
     display: flex;
     flex-direction: column;
