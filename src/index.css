@@ -424,8 +424,8 @@
     margin: 0 !important;
     border-radius: 0 !important;
     /* Match PNG text area precisely:
-       Top: ornamental header ~8.5%, Sides: border ~5.5%, Bottom: ~3% */
-    padding: 8.5% 5.5% 3% 5.5% !important;
+       Top: ornamental header + surah band ~12%, Sides: border ~6%, Bottom: ~4% */
+    padding: 12% 6% 4% 6% !important;
     width: 100% !important;
     height: 100% !important;
     box-sizing: border-box !important;
@@ -448,19 +448,26 @@
 
   .hybridTextLayer .quran-lines-container {
     flex: 1 !important;
-    display: flex !important;
-    flex-direction: column !important;
-    justify-content: space-evenly !important;
+    display: grid !important;
+    /* Fixed 15-row grid to match Madinah Mushaf layout */
+    grid-template-rows: repeat(15, 1fr) !important;
     overflow: hidden !important;
+    align-items: center !important;
   }
 
   .hybridTextLayer .quran-line {
     /* Scale font with container width for proportional sizing */
-    font-size: clamp(12px, 3.8vw, 20px) !important;
+    font-size: clamp(10px, 3.4vw, 18px) !important;
     line-height: 1.0 !important;
     text-align: center !important;
     white-space: nowrap !important;
-    flex-shrink: 0 !important;
+    overflow: hidden !important;
+    min-height: 0 !important;
+  }
+
+  /* Lines beyond the 15th: hide overflow */
+  .hybridTextLayer .quran-line:nth-child(n+16) {
+    display: none !important;
   }
 
   .hybridTextLayer .quran-page,
@@ -478,7 +485,7 @@
     box-shadow: none !important;
   }
 
-  /* Surah headers and bismillah: collapse height since PNG shows them */
+  /* Surah headers: collapse since PNG shows them in ornamental band */
   .hybridTextLayer .surah-header {
     font-size: 0 !important;
     line-height: 0 !important;
@@ -486,13 +493,19 @@
     overflow: hidden !important;
     margin: 0 !important;
     padding: 0 !important;
+    /* Don't occupy a grid row */
+    position: absolute !important;
+    width: 0 !important;
   }
 
+  /* Bismillah occupies one of the 15 lines */
   .hybridTextLayer .bismillah {
-    font-size: inherit !important;
+    font-size: clamp(10px, 3.4vw, 18px) !important;
     margin: 0 !important;
     padding: 0 !important;
     line-height: 1.0 !important;
+    white-space: nowrap !important;
+    text-align: center !important;
   }
 
   /* Ghareeb words in hybrid: keep them interactive */
@@ -572,9 +585,12 @@
   }
 
   .hybridTextLayer--debug .surah-header {
-    height: auto !important;
-    font-size: 8px !important;
-    line-height: 1 !important;
+    /* Keep collapsed even in debug */
+    height: 0 !important;
+    position: absolute !important;
+  }
+
+  .hybridTextLayer--debug .bismillah {
     color: hsl(120 80% 40% / 0.3) !important;
     outline: 1px dashed hsl(120 80% 40% / 0.3) !important;
   }
