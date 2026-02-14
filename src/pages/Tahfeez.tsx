@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useTahfeezStore, TahfeezItem } from '@/stores/tahfeezStore';
+import { useSessionsStore } from '@/stores/sessionsStore';
 import { toast } from 'sonner';
 import { useQuranData } from '@/hooks/useQuranData';
 import { useSettingsApplier } from '@/hooks/useSettingsApplier';
@@ -56,6 +57,22 @@ export default function TahfeezPage() {
   const { currentPage, getCurrentPageData, goToPage, totalPages } = useQuranData();
   useSettingsApplier(); // Apply font/display settings globally
   const pageData = getCurrentPageData();
+
+  // Auto-save session progress
+  const activeSessionId = useSessionsStore((s) => s.activeSessionId);
+  const updateSession = useSessionsStore((s) => s.updateSession);
+  const getSession = useSessionsStore((s) => s.getSession);
+  
+  useEffect(() => {
+    if (activeSessionId) {
+      const session = getSession(activeSessionId);
+      const tahfeezItemsSnapshot = session?.type === 'tahfeez' ? storedItems : undefined;
+      updateSession(activeSessionId, { 
+        currentPage,
+        tahfeezItems: tahfeezItemsSnapshot,
+      });
+    }
+  }, [currentPage, storedItems, activeSessionId, updateSession, getSession]);
 
   const [quizStarted, setQuizStarted] = useState(false);
   const [isPaused, setIsPaused] = useState(false);

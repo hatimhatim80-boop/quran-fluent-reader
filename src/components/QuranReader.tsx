@@ -15,6 +15,7 @@ import { useDevDebugContextStore } from '@/stores/devDebugContextStore';
 import { useDiagnosticModeStore } from '@/stores/diagnosticModeStore';
 import { useHighlightOverrideStore } from '@/stores/highlightOverrideStore';
 import { useTahfeezStore } from '@/stores/tahfeezStore';
+import { useSessionsStore } from '@/stores/sessionsStore';
 import { Loader2, List, SlidersHorizontal, ChevronRight, ChevronLeft, Maximize2, Minimize2, GraduationCap, Save, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
@@ -29,6 +30,16 @@ export function QuranReader() {
   const displayMode = useSettingsStore((s) => s.settings.display.mode);
   const clearAllOverrides = useHighlightOverrideStore((s) => s.clearAllOverrides);
   useEffect(() => { clearAllOverrides(); }, [clearAllOverrides]);
+
+  // Auto-save session progress
+  const activeSessionId = useSessionsStore((s) => s.activeSessionId);
+  const updateSession = useSessionsStore((s) => s.updateSession);
+  
+  useEffect(() => {
+    if (activeSessionId) {
+      updateSession(activeSessionId, { currentPage });
+    }
+  }, [currentPage, activeSessionId, updateSession]);
 
   const [renderedWords, setRenderedWords] = useState<GhareebWord[]>([]);
   const [showIndex, setShowIndex] = useState(false);
