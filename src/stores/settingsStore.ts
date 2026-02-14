@@ -14,7 +14,7 @@ export interface FontSettings {
 
 // Display settings
 export interface DisplaySettings {
-  mode: 'continuous' | 'lines15' | 'svgOverlay';
+  mode: 'continuous' | 'lines15';
   mobileLinesPerPage: number;
   desktopLinesPerPage: number;
   minWordsPerLine: number;
