@@ -184,7 +184,7 @@ export function QuranReader() {
 
           {pageData && (
             displayMode === 'lines15' ? (
-              <MadinahPageView pageNumber={currentPage} />
+              <MadinahPageView pageNumber={currentPage} hidePageBadge={fullscreen} />
             ) : (
               <PageView
                 page={pageData}
@@ -194,6 +194,7 @@ export function QuranReader() {
                 isPlaying={isPlaying}
                 onWordClick={handleWordClick}
                 onRenderedWordsChange={handleRenderedWordsChange}
+                hidePageBadge={fullscreen}
               />
             )
           )}
@@ -251,10 +252,12 @@ export function QuranReader() {
                 </button>
 
                 {/* Page indicator */}
-                <div className="bg-card border border-border rounded-full px-3 py-1 flex items-center gap-1">
-                  <span className="font-arabic text-sm font-bold text-foreground">{currentPage}</span>
-                  <span className="text-muted-foreground text-[10px] font-arabic">/ {totalPages}</span>
-                </div>
+                {!fullscreen && (
+                  <div className="bg-card border border-border rounded-full px-3 py-1 flex items-center gap-1">
+                    <span className="font-arabic text-sm font-bold text-foreground">{currentPage}</span>
+                    <span className="text-muted-foreground text-[10px] font-arabic">/ {totalPages}</span>
+                  </div>
+                )}
 
                 {/* Fullscreen toggle */}
                 <button

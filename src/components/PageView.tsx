@@ -18,6 +18,7 @@ interface PageViewProps {
   isPlaying?: boolean;
   onWordClick: (word: GhareebWord, index: number) => void;
   onRenderedWordsChange?: (words: GhareebWord[]) => void;
+  hidePageBadge?: boolean;
 }
 
 // Extract surah name from header line
@@ -74,6 +75,7 @@ export function PageView({
   isPlaying = false,
   onWordClick,
   onRenderedWordsChange,
+  hidePageBadge,
 }: PageViewProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const lastRenderedKeysRef = useRef<string>('');
@@ -676,17 +678,21 @@ export function PageView({
   return (
     <div ref={(el) => { (containerRef as any).current = el; (autoFitRef as any).current = el; }} className="page-frame p-4 sm:p-6" style={{ ...pageFrameStyle, ...(fittedFontSize ? { fontSize: `${fittedFontSize}rem` } : {}) }} dir={textDirection}>
       {/* Top Header: Hizb - Page Number - Hizb */}
-      <div className="flex items-center justify-between mb-1 font-arabic text-xs sm:text-sm text-muted-foreground/70">
-        <span>الحزب {pageMeta.hizbNumberArabic}</span>
-        <span className="text-primary font-bold text-sm sm:text-base">{pageMeta.pageNumberArabic}</span>
-        <span>الحزب {pageMeta.hizbNumberArabic}</span>
-      </div>
+      {!hidePageBadge && (
+        <div className="flex items-center justify-between mb-1 font-arabic text-xs sm:text-sm text-muted-foreground/70">
+          <span>الحزب {pageMeta.hizbNumberArabic}</span>
+          <span className="text-primary font-bold text-sm sm:text-base">{pageMeta.pageNumberArabic}</span>
+          <span>الحزب {pageMeta.hizbNumberArabic}</span>
+        </div>
+      )}
 
       {/* Sub Header: Surah Name - Juz Name */}
-      <div className="flex items-center justify-between mb-4 pb-2 border-b border-ornament/20 font-arabic">
-        <span className="text-sm sm:text-base font-bold text-foreground">{pageMeta.surahName}</span>
-        <span className="text-sm sm:text-base font-bold text-foreground">{pageMeta.juzName}</span>
-      </div>
+      {!hidePageBadge && (
+        <div className="flex items-center justify-between mb-4 pb-2 border-b border-ornament/20 font-arabic">
+          <span className="text-sm sm:text-base font-bold text-foreground">{pageMeta.surahName}</span>
+          <span className="text-sm sm:text-base font-bold text-foreground">{pageMeta.juzName}</span>
+        </div>
+      )}
 
       {/* Quran Text */}
       <div className="quran-page min-h-[350px] sm:min-h-[450px]">
@@ -694,10 +700,12 @@ export function PageView({
       </div>
 
       {/* Footer: Page Number - Hizb */}
-      <div className="flex items-center justify-between mt-4 pt-2 border-t border-ornament/20 font-arabic text-xs sm:text-sm text-muted-foreground/70">
-        <span>{pageMeta.pageNumberArabic}</span>
-        <span>الحزب {pageMeta.hizbNumberArabic}</span>
-      </div>
+      {!hidePageBadge && (
+        <div className="flex items-center justify-between mt-4 pt-2 border-t border-ornament/20 font-arabic text-xs sm:text-sm text-muted-foreground/70">
+          <span>{pageMeta.pageNumberArabic}</span>
+          <span>الحزب {pageMeta.hizbNumberArabic}</span>
+        </div>
+      )}
     </div>
   );
 }
