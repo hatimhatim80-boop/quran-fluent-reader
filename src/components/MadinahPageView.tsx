@@ -103,40 +103,17 @@ export function MadinahPageView({ pageNumber, hidePageBadge }: MadinahPageViewPr
 
   return (
     <div className="mushafPage">
-      {/* Font warning */}
-      {fontLoaded === false && (
-        <div className="bg-yellow-100 dark:bg-yellow-900/30 border border-yellow-400/50 rounded p-2 mb-2 text-center">
-          <p className="text-xs font-arabic text-yellow-800 dark:text-yellow-200">
-            ⚠️ لم يتم تحميل خط المصحف — قد يظهر النص بشكل مختلف
-          </p>
-        </div>
-      )}
-
-      {/* Global parse warnings */}
-      {globalErrors.length > 0 && (
-        <div className="bg-orange-50 dark:bg-orange-900/20 border border-orange-300/50 rounded p-2 mb-2 text-center">
-          <p className="text-[10px] font-arabic text-orange-700 dark:text-orange-300">
-            {globalErrors[0]}
-          </p>
-        </div>
-      )}
-
-      {/* Page line count warning */}
-      {pageData.warnings && pageData.warnings.length > 0 && (
-        <div className="bg-orange-50 dark:bg-orange-900/20 border border-orange-300/50 rounded p-1 mb-2 text-center">
-          {pageData.warnings.map((w, i) => (
-            <p key={i} className="text-[10px] font-arabic text-orange-600 dark:text-orange-400">⚠️ {w}</p>
-          ))}
-        </div>
-      )}
-
-      {/* Page number header */}
+      {/* Page header - surah name + page number */}
       {!hidePageBadge && (
-        <div className="text-center mb-2">
-          <span className="text-xs text-muted-foreground font-arabic">
-            {pageData.meta?.surah && <span className="ml-3">{pageData.meta.surah}</span>}
+        <div className="w-full flex items-center justify-between px-3 py-1.5" style={{ borderBottom: '1px solid hsl(var(--ornament) / 0.15)' }}>
+          <span className="text-[10px] text-muted-foreground font-arabic">
             صفحة {pageNumber}
           </span>
+          {pageData.meta?.surah && (
+            <span className="text-[10px] text-muted-foreground font-arabic">
+              {pageData.meta.surah}
+            </span>
+          )}
         </div>
       )}
 
@@ -167,12 +144,12 @@ export function MadinahPageView({ pageNumber, hidePageBadge }: MadinahPageViewPr
         })}
       </div>
 
-      {/* Line count debug info */}
-      <div className="text-center mt-1">
-        <span className="text-[9px] text-muted-foreground/40 font-mono">
-          {pageData.lines.length} lines
-        </span>
-      </div>
+      {/* Font warning - minimal */}
+      {fontLoaded === false && (
+        <div className="w-full px-2 py-1 text-center">
+          <p className="text-[9px] text-muted-foreground">⚠️ خط المصحف غير محمّل</p>
+        </div>
+      )}
     </div>
   );
 }

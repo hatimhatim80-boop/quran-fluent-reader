@@ -229,45 +229,73 @@
   .mushafPage {
     max-width: 390px;
     margin: 0 auto;
-    padding: 4px 0;
+    padding: 0;
     direction: rtl;
     display: flex;
     flex-direction: column;
     align-items: center;
+    background: hsl(var(--card));
+    border: 1px solid hsl(var(--page-border));
+    border-radius: 4px;
+    overflow: hidden;
+    position: relative;
+  }
+
+  /* Decorative inner border */
+  .mushafPage::before {
+    content: '';
+    position: absolute;
+    inset: 3px;
+    border: 1px solid hsl(var(--ornament) / 0.2);
+    border-radius: 2px;
+    pointer-events: none;
+    z-index: 1;
   }
 
   .mushafLinesContainer {
     display: flex;
     flex-direction: column;
-    align-items: center;
+    align-items: stretch;
     gap: 0;
     width: 100%;
+    padding: 8px 10px;
   }
 
   .mushafLine {
     white-space: nowrap;
     overflow: hidden;
+    text-overflow: clip;
     text-align: center;
-    line-height: 2.15;
-    font-family: var(--quran-font-family, 'KFGQPC HAFS Uthmanic Script', 'UthmanicHafs', 'Amiri Quran', serif);
-    font-size: var(--mushaf-font-size, 18px);
+    line-height: 2.05;
+    font-family: 'KFGQPC HAFS Uthmanic Script', 'UthmanicHafs', 'me_quran', 'Amiri Quran', 'Amiri', serif;
+    font-size: var(--mushaf-font-size, 22px);
     letter-spacing: 0 !important;
     word-spacing: 0 !important;
     font-kerning: normal;
     font-variant-ligatures: common-ligatures;
     font-feature-settings: "liga" 1, "calt" 1;
     text-rendering: geometricPrecision;
+    -webkit-font-smoothing: antialiased;
     direction: rtl;
     unicode-bidi: plaintext;
-    color: hsl(var(--foreground));
+    color: hsl(25 40% 8%);
     width: 100%;
+    min-height: 0;
+    padding: 0;
+    margin: 0;
+  }
+
+  .dark .mushafLine {
+    color: hsl(38 30% 90%);
   }
 
   .ayahNum {
-    display: inline-block;
-    margin-inline-start: 0 !important;
-    padding-inline-start: 0 !important;
-    line-height: 1;
+    display: inline;
+    margin: 0 !important;
+    padding: 0 !important;
+    line-height: inherit;
+    font-size: inherit;
+    vertical-align: baseline;
   }
 
   .mushafBismillah {
@@ -275,17 +303,25 @@
     white-space: nowrap;
     word-spacing: 0 !important;
     letter-spacing: 0 !important;
+    font-size: calc(var(--mushaf-font-size, 22px) * 0.9);
+    color: hsl(var(--primary));
+    padding: 2px 0;
   }
 
   .mushafSurahHeader {
     text-align: center;
-    padding: 8px 0;
-    font-size: 1.1em;
+    padding: 6px 0 2px;
+    font-size: calc(var(--mushaf-font-size, 22px) * 0.85);
     font-weight: bold;
     color: hsl(var(--primary));
-    font-family: var(--quran-font-family, 'KFGQPC HAFS Uthmanic Script', 'UthmanicHafs', 'Amiri Quran', serif);
+    font-family: 'KFGQPC HAFS Uthmanic Script', 'UthmanicHafs', 'Amiri Quran', 'Amiri', serif;
     direction: rtl;
     unicode-bidi: plaintext;
+    background: linear-gradient(90deg, transparent 0%, hsl(var(--ornament) / 0.08) 30%, hsl(var(--ornament) / 0.12) 50%, hsl(var(--ornament) / 0.08) 70%, transparent 100%);
+    border-top: 1px solid hsl(var(--ornament) / 0.15);
+    border-bottom: 1px solid hsl(var(--ornament) / 0.15);
+    margin: 0 -10px;
+    padding-inline: 10px;
   }
 
 @layer components {
