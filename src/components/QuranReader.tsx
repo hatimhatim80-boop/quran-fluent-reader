@@ -187,7 +187,7 @@ export function QuranReader() {
         )}
 
         {/* Page Content */}
-        <div className="flex-1 max-w-2xl mx-auto w-full px-3 py-4 sm:py-6" style={{ transform: `scale(${pinchScale})`, transformOrigin: 'top center', transition: pinchRef.current ? 'none' : 'transform 0.2s ease' }}>
+        <div className="max-w-2xl mx-auto w-full px-3 py-2 sm:py-6">
           {settings.debugMode && isPlaying && (
             <div className="fixed top-16 left-4 z-50 bg-black/80 text-white text-xs px-3 py-2 rounded-lg font-mono">
               Running {currentWordIndex + 1} / {renderedWords.length}
@@ -196,7 +196,9 @@ export function QuranReader() {
 
           {pageData && (
             displayMode === 'lines15' ? (
-              <MadinahPageView pageNumber={currentPage} hidePageBadge={fullscreen} />
+              <div style={{ transform: `scale(${pinchScale})`, transformOrigin: 'top center', transition: pinchRef.current ? 'none' : 'transform 0.2s ease' }}>
+                <MadinahPageView pageNumber={currentPage} hidePageBadge={fullscreen} />
+              </div>
             ) : (
               <PageView
                 page={pageData}
