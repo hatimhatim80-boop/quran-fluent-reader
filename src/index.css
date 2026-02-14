@@ -614,6 +614,36 @@
     font-family: monospace;
   }
 
+  /* ─── API Word Box overlay styles ─── */
+  .hybridWordBox--debug {
+    border: 1px dotted hsl(var(--muted-foreground) / 0.25);
+  }
+
+  .hybridWordBox--ghareeb {
+    /* Ghareeb words are subtly indicated */
+  }
+
+  .hybridWordBox--ghareeb-hover {
+    background-color: hsl(var(--highlight) / 0.35);
+    border-radius: 3px;
+  }
+
+  .hybridWordBox--active {
+    background-color: hsl(200 70% 80% / 0.45);
+    border: 2px solid hsl(200 70% 50% / 0.6);
+    box-shadow: 0 0 10px 3px hsl(200 70% 60% / 0.35);
+    border-radius: 3px;
+  }
+
+  .hybridWordBox--hover {
+    background-color: hsl(var(--muted) / 0.2);
+    border-radius: 2px;
+  }
+
+  .hybridWordBox--end {
+    pointer-events: none;
+    opacity: 0.3;
+  }
   .mushafLinesContainer {
     display: flex;
     flex-direction: column;
