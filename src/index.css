@@ -332,6 +332,182 @@
     background: hsl(var(--highlight) / 0.25);
   }
 
+  /* ── NEW Hybrid Mushaf (HybridMushafPageView) ── */
+  .hybridMushafRoot {
+    position: relative;
+    max-width: 500px;
+    margin: 0 auto;
+  }
+
+  .hybridDebugToggle {
+    position: absolute;
+    top: 4px;
+    left: 4px;
+    z-index: 20;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: hsl(var(--card));
+    border: 1px solid hsl(var(--border));
+    color: hsl(var(--muted-foreground));
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .hybridDebugToggle--active {
+    background: hsl(var(--primary));
+    color: hsl(var(--primary-foreground));
+    border-color: hsl(var(--primary));
+  }
+
+  .hybridContainer {
+    position: relative;
+    width: 100%;
+    overflow: hidden;
+    background: hsl(var(--card));
+    border: 1px solid hsl(var(--page-border));
+    border-radius: 4px;
+  }
+
+  /* Layer A: PNG */
+  .hybridPngLayer {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    user-select: none;
+    -webkit-user-drag: none;
+    pointer-events: none;
+    position: relative;
+    z-index: 1;
+  }
+
+  .hybridPngLoaded {
+    opacity: 1;
+  }
+
+  .hybridSpinner {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 2;
+  }
+
+  /* Layer B: Transparent text overlay */
+  .hybridTextLayer {
+    position: absolute;
+    inset: 0;
+    z-index: 5;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+  }
+
+  .hybridTextLayer--ready {
+    pointer-events: auto;
+    opacity: 1;
+  }
+
+  /* Make all text inside the hybrid overlay transparent */
+  .hybridTextLayer .page-frame {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  .hybridTextLayer .page-frame::before {
+    display: none !important;
+  }
+
+  .hybridTextLayer .quran-page,
+  .hybridTextLayer .quran-line,
+  .hybridTextLayer .quran-lines-container,
+  .hybridTextLayer .verse-number,
+  .hybridTextLayer .surah-header,
+  .hybridTextLayer .bismillah {
+    color: transparent !important;
+    border-color: transparent !important;
+  }
+
+  .hybridTextLayer .verse-number {
+    background: transparent !important;
+    box-shadow: none !important;
+  }
+
+  /* Ghareeb words in hybrid: keep them interactive */
+  .hybridTextLayer .ghareeb-word:not(.ghareeb-word--text-only) {
+    background-color: transparent !important;
+    border-color: transparent !important;
+    box-shadow: none !important;
+    color: transparent !important;
+  }
+
+  .hybridTextLayer .ghareeb-word--text-only {
+    color: transparent !important;
+  }
+
+  /* On hover/click, show highlight OVER the PNG */
+  .hybridTextLayer .ghareeb-word:hover:not(.ghareeb-word--text-only) {
+    background-color: hsl(var(--highlight) / 0.35) !important;
+    border-color: hsl(var(--highlight) / 0.5) !important;
+  }
+
+  .hybridTextLayer .ghareeb-word:hover.ghareeb-word--text-only {
+    background-color: hsl(var(--highlight) / 0.25) !important;
+    border-radius: 4px;
+  }
+
+  /* Active/highlighted word */
+  .hybridTextLayer .ghareeb-word--active:not(.ghareeb-word--text-only) {
+    background-color: hsl(200 70% 80% / 0.45) !important;
+    border-color: hsl(200 70% 50% / 0.6) !important;
+    box-shadow: 0 0 10px 3px hsl(200 70% 60% / 0.35) !important;
+  }
+
+  .hybridTextLayer .ghareeb-word--seen:not(.ghareeb-word--text-only) {
+    background-color: hsl(140 45% 85% / 0.5) !important;
+  }
+
+  /* Popover still shows normally */
+  .hybridTextLayer .ghareeb-popover {
+    color: hsl(var(--foreground)) !important;
+  }
+
+  /* Header/footer hidden in hybrid by default */
+  .hybridTextLayer > div > .flex.items-center {
+    display: none !important;
+  }
+
+  /* Debug overlay: show text at low opacity + borders on spans */
+  .hybridTextLayer--debug .quran-page,
+  .hybridTextLayer--debug .quran-line,
+  .hybridTextLayer--debug .quran-lines-container {
+    color: hsl(var(--primary) / 0.15) !important;
+  }
+
+  .hybridTextLayer--debug .ghareeb-word {
+    color: hsl(200 80% 50% / 0.3) !important;
+    outline: 1px dashed hsl(200 80% 50% / 0.4);
+    outline-offset: 1px;
+  }
+
+  .hybridTextLayer--debug .verse-number {
+    color: hsl(var(--verse-number) / 0.2) !important;
+  }
+
+  .hybridTextLayer--debug span[data-word-inspectable] {
+    outline: 1px dotted hsl(var(--muted-foreground) / 0.15);
+  }
+
   .mushafLinesContainer {
     display: flex;
     flex-direction: column;
