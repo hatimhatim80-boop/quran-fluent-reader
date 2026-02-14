@@ -357,11 +357,11 @@ export default function TahfeezPage() {
         </div>
       )}
 
-      {/* Fullscreen toggle - always visible */}
+      {/* Fullscreen toggle - auto-hides in fullscreen */}
       <button
         onClick={() => setFullscreen(!fullscreen)}
         className={`fixed top-3 left-3 z-50 w-9 h-9 rounded-full flex items-center justify-center transition-all shadow-md ${
-          fullscreen ? 'bg-primary text-primary-foreground' : 'bg-background/90 border border-border text-foreground'
+          fullscreen ? 'bg-primary/80 text-primary-foreground opacity-0 hover:opacity-100 focus:opacity-100 active:opacity-100' : 'bg-background/90 border border-border text-foreground'
         }`}
         title={fullscreen ? 'إظهار الأشرطة' : 'صفحة كاملة'}
       >
@@ -393,9 +393,25 @@ export default function TahfeezPage() {
       <div className="max-w-2xl mx-auto px-3 py-6 space-y-6" style={{ transform: `scale(${pinchScale})`, transformOrigin: 'top center', transition: pinchRef.current ? 'none' : 'transform 0.2s ease' }}>
         {/* Tab 1: Store words */}
         {/* Fullscreen: show only the quran page text */}
-        {fullscreen && pageData && (
+        {fullscreen && !quizStarted && pageData && (
           <div className="animate-fade-in">
-            <TahfeezSelectionView page={pageData} />
+            <TahfeezSelectionView page={pageData} hidePageBadge />
+          </div>
+        )}
+
+        {fullscreen && quizStarted && pageData && (
+          <div className="animate-fade-in">
+            <TahfeezQuizView
+              page={pageData}
+              quizSource={quizSource}
+              storedItems={storedItems}
+              autoBlankMode={autoBlankMode}
+              blankCount={blankCount}
+              ayahCount={ayahCount}
+              activeBlankKey={activeBlankKey}
+              revealedKeys={revealedKeys}
+              showAll={showAll}
+            />
           </div>
         )}
 
@@ -562,7 +578,7 @@ export default function TahfeezPage() {
         )}
 
         {/* Quiz view */}
-        {quizStarted && pageData && (
+        {!fullscreen && quizStarted && pageData && (
           <div className="space-y-4 animate-fade-in">
             {/* Progress */}
             <div className="page-frame p-3 flex items-center justify-between">
