@@ -40,7 +40,7 @@ export function SettingsLivePreview({ visible, onToggle }: SettingsLivePreviewPr
 
   const previewLines = useMemo(() => {
     const originalLines = SAMPLE_TEXT.split('\n');
-    if (!isLines15 || !shouldRedistribute(display?.mobileLinesPerPage || 15, display?.desktopLinesPerPage || 15)) {
+    if (!isLines15 || !shouldRedistribute(display?.mobileLinesPerPage || 15, display?.desktopLinesPerPage || 15, balanceLastLine)) {
       return originalLines;
     }
     return redistributeLines(originalLines, targetLines, minWords, balanceLastLine);

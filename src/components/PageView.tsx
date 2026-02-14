@@ -88,7 +88,7 @@ export function PageView({
 
   // Redistribute lines based on device
   const effectivePageText = useMemo(() => {
-    if (displayMode !== 'lines15' || !shouldRedistribute(mobileLinesPerPage, desktopLinesPerPage)) return page.text;
+    if (displayMode !== 'lines15' || !shouldRedistribute(mobileLinesPerPage, desktopLinesPerPage, balanceLastLine)) return page.text;
     const originalLines = page.text.split('\n');
     const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
     const targetLines = isMobile ? mobileLinesPerPage : desktopLinesPerPage;

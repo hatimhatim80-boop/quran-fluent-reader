@@ -74,7 +74,7 @@ function distributeWords(words: string[], targetLineCount: number, minWordsPerLi
 }
 
 export function redistributeLines(originalLines: string[], targetLineCount: number, minWordsPerLine: number = 5, balanceLastLine: boolean = false): string[] {
-  if (targetLineCount >= 15) return originalLines;
+  if (targetLineCount >= 15 && !balanceLastLine) return originalLines;
 
   // First pass: collect text segments and special lines
   let specialLinesCount = 0;
@@ -159,8 +159,9 @@ export function getEffectiveLineCount(mobileLinesPerPage: number, desktopLinesPe
 /**
  * Check if we should redistribute
  */
-export function shouldRedistribute(mobileLinesPerPage: number, desktopLinesPerPage?: number): boolean {
+export function shouldRedistribute(mobileLinesPerPage: number, desktopLinesPerPage?: number, balanceLastLine: boolean = false): boolean {
   if (typeof window === 'undefined') return false;
+  if (balanceLastLine) return true;
   const isMobile = window.innerWidth < 768;
   const lineCount = isMobile ? mobileLinesPerPage : (desktopLinesPerPage ?? 15);
   return lineCount < 15;
