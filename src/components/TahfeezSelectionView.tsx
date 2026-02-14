@@ -1,7 +1,8 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useRef } from 'react';
 import { QuranPage } from '@/types/quran';
 import { useTahfeezStore, TahfeezItem, TahfeezPhrase } from '@/stores/tahfeezStore';
 import { useSettingsStore } from '@/stores/settingsStore';
+import { useAutoFitFont } from '@/hooks/useAutoFitFont';
 import { redistributeLines, shouldRedistribute } from '@/utils/lineRedistributor';
 import { formatBismillah, shouldNoJustify, bindVerseNumbersSimple } from '@/utils/lineTokenUtils';
 
@@ -37,6 +38,7 @@ export function TahfeezSelectionView({ page }: TahfeezSelectionViewProps) {
   const minWordsPerLine = useSettingsStore((s) => s.settings.display?.minWordsPerLine || 5);
   const isLines15 = displayMode === 'lines15';
   const [selectionType, setSelectionType] = useState<'word' | 'phrase'>('word');
+  const { containerRef: autoFitRef, fittedFontSize } = useAutoFitFont(page.text);
 
   // Redistribute lines based on device
   const effectiveText = useMemo(() => {
@@ -244,7 +246,7 @@ export function TahfeezSelectionView({ page }: TahfeezSelectionViewProps) {
       )}
 
       {/* Quran page for selection */}
-      <div className="page-frame p-4 sm:p-8" dir={textDirection}>
+      <div ref={autoFitRef} className="page-frame p-4 sm:p-8" dir={textDirection} style={fittedFontSize ? { fontSize: `${fittedFontSize}rem` } : undefined}>
         <div className="flex justify-center mb-5">
           <span className="bg-secondary/80 text-secondary-foreground px-4 py-1.5 rounded-full text-sm font-arabic shadow-sm">
             صفحة {page.pageNumber}

@@ -368,6 +368,18 @@ export function SettingsDialog({ children }: SettingsDialogProps) {
             )}
 
 
+            {/* Auto-fit font size */}
+            <div className="flex items-center justify-between p-3 rounded-lg border">
+              <div className="space-y-0.5">
+                <Label className="font-arabic font-bold text-sm">ضبط حجم الخط تلقائياً</Label>
+                <p className="text-[10px] font-arabic text-muted-foreground">يُكبّر الخط تلقائياً ليملأ السطر الأطول عرض الصفحة</p>
+              </div>
+              <Switch
+                checked={settings.display?.autoFitFont ?? false}
+                onCheckedChange={(v) => setDisplay({ autoFitFont: v })}
+              />
+            </div>
+
             <div className="p-3 rounded-lg bg-muted/30 text-sm font-arabic text-muted-foreground">
               <Check className="w-4 h-4 inline ml-1 text-green-600" />
               وضع &quot;مصحف المدينة&quot; يعرض كل سطر منفصلاً بمحاذاة مطابقة للمصحف المطبوع

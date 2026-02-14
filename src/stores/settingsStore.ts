@@ -20,6 +20,7 @@ export interface DisplaySettings {
   minWordsPerLine: number;
   textDirection: 'rtl' | 'ltr';
   textAlign: 'right' | 'left' | 'center' | 'justify';
+  autoFitFont: boolean;
 }
 
 // Color settings
@@ -107,6 +108,7 @@ const defaultSettings: AppSettings = {
     minWordsPerLine: 5,
     textDirection: 'rtl',
     textAlign: 'justify',
+    autoFitFont: false,
   },
   update: {
     manifestUrl: '/updates/manifest.json',

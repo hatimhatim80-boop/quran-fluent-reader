@@ -1,4 +1,5 @@
 import React, { useMemo, useEffect, useRef } from 'react';
+import { useAutoFitFont } from '@/hooks/useAutoFitFont';
 import { QuranPage, GhareebWord } from '@/types/quran';
 import { normalizeArabic } from '@/utils/quranParser';
 import { GhareebWordPopover } from './GhareebWordPopover';
@@ -82,6 +83,7 @@ export function PageView({
   const desktopLinesPerPage = useSettingsStore((s) => s.settings.display?.desktopLinesPerPage || 15);
   const textAlign = useSettingsStore((s) => s.settings.display?.textAlign || 'justify');
   const minWordsPerLine = useSettingsStore((s) => s.settings.display?.minWordsPerLine || 5);
+  const { containerRef: autoFitRef, fittedFontSize } = useAutoFitFont(page.text);
 
   // Redistribute lines based on device
   const effectivePageText = useMemo(() => {
@@ -671,7 +673,7 @@ export function PageView({
   const pageMeta = useMemo(() => getPageMetadata(page.pageNumber), [page.pageNumber]);
 
   return (
-    <div ref={containerRef} className="page-frame p-4 sm:p-6" style={pageFrameStyle} dir={textDirection}>
+    <div ref={(el) => { (containerRef as any).current = el; (autoFitRef as any).current = el; }} className="page-frame p-4 sm:p-6" style={{ ...pageFrameStyle, ...(fittedFontSize ? { fontSize: `${fittedFontSize}rem` } : {}) }} dir={textDirection}>
       {/* Top Header: Hizb - Page Number - Hizb */}
       <div className="flex items-center justify-between mb-1 font-arabic text-xs sm:text-sm text-muted-foreground/70">
         <span>الحزب {pageMeta.hizbNumberArabic}</span>
