@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { SettingsLivePreview } from './SettingsLivePreview';
 import { Type, Palette, LayoutGrid, Settings2, RotateCcw, Download, Upload, Zap, Bug, Check, Rows3, RefreshCw } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -53,6 +54,7 @@ export function SettingsDialog({ children }: SettingsDialogProps) {
     importSettings 
   } = useSettingsStore();
   const [isOpen, setIsOpen] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
 
   const handleExport = () => {
     const json = exportSettings();
@@ -682,6 +684,9 @@ export function SettingsDialog({ children }: SettingsDialogProps) {
             <DataUpdatePanel />
           </TabsContent>
         </Tabs>
+
+        {/* Live Preview */}
+        <SettingsLivePreview visible={showPreview} onToggle={() => setShowPreview(!showPreview)} />
 
         {/* Actions */}
         <div className="flex flex-wrap gap-2 mt-6 pt-4 border-t">
