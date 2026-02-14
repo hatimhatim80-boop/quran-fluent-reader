@@ -5,7 +5,7 @@ import { toast } from 'sonner';
 import { useQuranData } from '@/hooks/useQuranData';
 import { useSettingsApplier } from '@/hooks/useSettingsApplier';
 import { Link, useNavigate } from 'react-router-dom';
-import { BookOpen, Play, Pause, Eye, ArrowRight, Save, Trash2, GraduationCap, ListChecks, Zap, Book, Layers, Hash, FileText, Search, X, ChevronLeft, Download, Upload, Settings2, Maximize2, Minimize2 } from 'lucide-react';
+import { BookOpen, Play, Pause, Eye, ArrowRight, Save, Trash2, GraduationCap, ListChecks, Zap, Book, Layers, Hash, FileText, Search, X, ChevronLeft, Download, Upload, Settings2, Maximize2, Minimize2, ChevronsRight } from 'lucide-react';
 import { Slider } from '@/components/ui/slider';
 import { Switch } from '@/components/ui/switch';
 import { Button } from '@/components/ui/button';
@@ -367,12 +367,14 @@ export default function TahfeezPage() {
           </div>
           {/* Current page indicator - hidden in fullscreen */}
            {!fullscreen && (
-             <div className="max-w-2xl mx-auto px-4 pb-2 flex items-center justify-center gap-3">
-               <Button variant="ghost" size="sm" onClick={() => goToPage(currentPage - 1)} disabled={currentPage <= 1} className="text-xs font-arabic h-7 px-2">→</Button>
-               <span className="text-xs font-arabic text-muted-foreground">صفحة {currentPage} / {totalPages}</span>
-               <Button variant="ghost" size="sm" onClick={() => goToPage(currentPage + 1)} disabled={currentPage >= totalPages} className="text-xs font-arabic h-7 px-2">←</Button>
-             </div>
-           )}
+              <div className="max-w-2xl mx-auto px-4 pb-2 flex items-center justify-center gap-2">
+                <Button variant="ghost" size="sm" onClick={() => goToPage(1)} disabled={currentPage <= 1} className="text-xs font-arabic h-7 px-2" title="الصفحة الأولى">⏮</Button>
+                <Button variant="ghost" size="sm" onClick={() => goToPage(currentPage - 1)} disabled={currentPage <= 1} className="text-xs font-arabic h-7 px-2">→</Button>
+                <span className="text-xs font-arabic text-muted-foreground">صفحة {currentPage} / {totalPages}</span>
+                <Button variant="ghost" size="sm" onClick={() => goToPage(currentPage + 1)} disabled={currentPage >= totalPages} className="text-xs font-arabic h-7 px-2">←</Button>
+                <Button variant="ghost" size="sm" onClick={() => goToPage(totalPages)} disabled={currentPage >= totalPages} className="text-xs font-arabic h-7 px-2" title="الصفحة الأخيرة">⏭</Button>
+              </div>
+            )}
         </div>
       )}
 

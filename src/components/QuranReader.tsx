@@ -16,7 +16,7 @@ import { useDiagnosticModeStore } from '@/stores/diagnosticModeStore';
 import { useHighlightOverrideStore } from '@/stores/highlightOverrideStore';
 import { useTahfeezStore } from '@/stores/tahfeezStore';
 import { useSessionsStore } from '@/stores/sessionsStore';
-import { Loader2, List, SlidersHorizontal, ChevronRight, ChevronLeft, Maximize2, Minimize2, GraduationCap, Save, X } from 'lucide-react';
+import { Loader2, List, SlidersHorizontal, ChevronRight, ChevronLeft, Maximize2, Minimize2, GraduationCap, Save, X, ChevronsRight, ChevronsLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 export function QuranReader() {
@@ -216,14 +216,24 @@ export function QuranReader() {
           <div className="max-w-2xl mx-auto px-3 py-2">
             {/* Page navigation - always visible */}
             <div className="flex items-center justify-between gap-1">
-              <button
-                onClick={prevPage}
-                disabled={currentPage <= 1}
-                className="nav-button w-10 h-10 rounded-full disabled:opacity-30 disabled:cursor-not-allowed"
-                title="الصفحة السابقة"
-              >
-                <ChevronRight className="w-5 h-5" />
-              </button>
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => goToPage(1)}
+                  disabled={currentPage <= 1}
+                  className="nav-button w-10 h-10 rounded-full disabled:opacity-30 disabled:cursor-not-allowed"
+                  title="الصفحة الأولى"
+                >
+                  <ChevronRight className="w-5 h-5" />
+                </button>
+                <button
+                  onClick={prevPage}
+                  disabled={currentPage <= 1}
+                  className="nav-button w-10 h-10 rounded-full disabled:opacity-30 disabled:cursor-not-allowed"
+                  title="الصفحة السابقة"
+                >
+                  <ChevronRight className="w-5 h-5" />
+                </button>
+              </div>
 
               <div className="flex items-center gap-1.5">
                 {/* Index toggle */}
@@ -282,14 +292,24 @@ export function QuranReader() {
                 </button>
               </div>
 
-              <button
-                onClick={nextPage}
-                disabled={currentPage >= totalPages}
-                className="nav-button w-10 h-10 rounded-full disabled:opacity-30 disabled:cursor-not-allowed"
-                title="الصفحة التالية"
-              >
-                <ChevronLeft className="w-5 h-5" />
-              </button>
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={nextPage}
+                  disabled={currentPage >= totalPages}
+                  className="nav-button w-10 h-10 rounded-full disabled:opacity-30 disabled:cursor-not-allowed"
+                  title="الصفحة التالية"
+                >
+                  <ChevronLeft className="w-5 h-5" />
+                </button>
+                <button
+                  onClick={() => goToPage(totalPages)}
+                  disabled={currentPage >= totalPages}
+                  className="nav-button w-10 h-10 rounded-full disabled:opacity-30 disabled:cursor-not-allowed"
+                  title="الصفحة الأخيرة"
+                >
+                  <ChevronLeft className="w-5 h-5" />
+                </button>
+              </div>
             </div>
 
             {/* Expandable autoplay controls */}
