@@ -44,9 +44,6 @@ export function HybridMushafPageView({ pageNumber, hidePageBadge }: HybridMushaf
 
   const pngUrl = getPngUrl(pageNumber);
 
-  // Calculate aspect ratio for container sizing
-  const aspectRatio = imgDimensions ? imgDimensions.h / imgDimensions.w : 1.6; // ~standard mushaf ratio
-
   return (
     <div className="hybridMushafRoot">
       {/* Debug toggle */}
@@ -60,11 +57,10 @@ export function HybridMushafPageView({ pageNumber, hidePageBadge }: HybridMushaf
         </button>
       )}
 
-      {/* Main hybrid container */}
+      {/* Main hybrid container - PNG defines the size */}
       <div
         ref={containerRef}
         className="hybridContainer"
-        style={{ aspectRatio: `1 / ${aspectRatio}` }}
       >
         {/* Layer A: PNG Background */}
         {!imgError && (
@@ -144,6 +140,7 @@ function HybridPageContent({
       onWordClick={handleWordClick}
       onRenderedWordsChange={handleRenderedWordsChange}
       hidePageBadge={hidePageBadge}
+      forceDisplayMode="lines15"
     />
   );
 }

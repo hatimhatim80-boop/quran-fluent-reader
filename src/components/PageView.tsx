@@ -19,6 +19,8 @@ interface PageViewProps {
   onWordClick: (word: GhareebWord, index: number) => void;
   onRenderedWordsChange?: (words: GhareebWord[]) => void;
   hidePageBadge?: boolean;
+  /** Force a specific display mode (used by hybrid overlay to force lines15) */
+  forceDisplayMode?: string;
 }
 
 // Extract surah name from header line
@@ -76,10 +78,12 @@ export function PageView({
   onWordClick,
   onRenderedWordsChange,
   hidePageBadge,
+  forceDisplayMode,
 }: PageViewProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const lastRenderedKeysRef = useRef<string>('');
-  const displayMode = useSettingsStore((s) => s.settings.display?.mode || 'lines15');
+  const storeDisplayMode = useSettingsStore((s) => s.settings.display?.mode || 'lines15');
+  const displayMode = forceDisplayMode || storeDisplayMode;
   const textDirection = useSettingsStore((s) => s.settings.display?.textDirection || 'rtl');
   const mobileLinesPerPage = useSettingsStore((s) => s.settings.display?.mobileLinesPerPage || 15);
   const desktopLinesPerPage = useSettingsStore((s) => s.settings.display?.desktopLinesPerPage || 15);
