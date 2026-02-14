@@ -26,9 +26,10 @@ interface TokenData {
 
 interface TahfeezSelectionViewProps {
   page: QuranPage;
+  hidePageBadge?: boolean;
 }
 
-export function TahfeezSelectionView({ page }: TahfeezSelectionViewProps) {
+export function TahfeezSelectionView({ page, hidePageBadge }: TahfeezSelectionViewProps) {
   const { storedItems, addItem, removeItem, getItemKey, rangeAnchor, setRangeAnchor } = useTahfeezStore();
   const displayMode = useSettingsStore((s) => s.settings.display?.mode || 'lines15');
   const textDirection = useSettingsStore((s) => s.settings.display?.textDirection || 'rtl');
@@ -216,43 +217,49 @@ export function TahfeezSelectionView({ page }: TahfeezSelectionViewProps) {
 
   return (
     <div className="space-y-3">
-      {/* Selection mode toggle */}
-      <div className="flex items-center justify-center gap-2">
-        <button
-          onClick={() => { setSelectionType('word'); setRangeAnchor(null); }}
-          className={`px-4 py-2 rounded-lg text-xs font-arabic font-bold transition-all ${
-            selectionType === 'word'
-              ? 'bg-primary text-primary-foreground shadow-md'
-              : 'bg-secondary/50 text-muted-foreground hover:bg-secondary'
-          }`}
-        >
-          تحديد كلمة
-        </button>
-        <button
-          onClick={() => { setSelectionType('phrase'); setRangeAnchor(null); }}
-          className={`px-4 py-2 rounded-lg text-xs font-arabic font-bold transition-all ${
-            selectionType === 'phrase'
-              ? 'bg-primary text-primary-foreground shadow-md'
-              : 'bg-secondary/50 text-muted-foreground hover:bg-secondary'
-          }`}
-        >
-          تحديد جملة
-        </button>
-      </div>
+      {!hidePageBadge && (
+        <>
+          {/* Selection mode toggle */}
+          <div className="flex items-center justify-center gap-2">
+            <button
+              onClick={() => { setSelectionType('word'); setRangeAnchor(null); }}
+              className={`px-4 py-2 rounded-lg text-xs font-arabic font-bold transition-all ${
+                selectionType === 'word'
+                  ? 'bg-primary text-primary-foreground shadow-md'
+                  : 'bg-secondary/50 text-muted-foreground hover:bg-secondary'
+              }`}
+            >
+              تحديد كلمة
+            </button>
+            <button
+              onClick={() => { setSelectionType('phrase'); setRangeAnchor(null); }}
+              className={`px-4 py-2 rounded-lg text-xs font-arabic font-bold transition-all ${
+                selectionType === 'phrase'
+                  ? 'bg-primary text-primary-foreground shadow-md'
+                  : 'bg-secondary/50 text-muted-foreground hover:bg-secondary'
+              }`}
+            >
+              تحديد جملة
+            </button>
+          </div>
 
-      {selectionType === 'phrase' && (
-        <p className="text-[11px] font-arabic text-center text-muted-foreground">
-          {rangeAnchor ? '🔵 انقر على الكلمة الأخيرة لإتمام التحديد' : 'انقر على الكلمة الأولى ثم الأخيرة'}
-        </p>
+          {selectionType === 'phrase' && (
+            <p className="text-[11px] font-arabic text-center text-muted-foreground">
+              {rangeAnchor ? '🔵 انقر على الكلمة الأخيرة لإتمام التحديد' : 'انقر على الكلمة الأولى ثم الأخيرة'}
+            </p>
+          )}
+        </>
       )}
 
       {/* Quran page for selection */}
       <div ref={autoFitRef} className="page-frame p-4 sm:p-8" dir={textDirection} style={fittedFontSize ? { fontSize: `${fittedFontSize}rem` } : undefined}>
-        <div className="flex justify-center mb-5">
-          <span className="bg-secondary/80 text-secondary-foreground px-4 py-1.5 rounded-full text-sm font-arabic shadow-sm">
-            صفحة {page.pageNumber}
-          </span>
-        </div>
+        {!hidePageBadge && (
+          <div className="flex justify-center mb-5">
+            <span className="bg-secondary/80 text-secondary-foreground px-4 py-1.5 rounded-full text-sm font-arabic shadow-sm">
+              صفحة {page.pageNumber}
+            </span>
+          </div>
+        )}
         <div className="quran-page min-h-[350px] sm:min-h-[450px]">
           {renderedContent}
         </div>
