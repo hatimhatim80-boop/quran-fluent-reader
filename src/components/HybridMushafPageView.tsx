@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef, useCallback } from 'react';
+import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import { useQuranData } from '@/hooks/useQuranData';
 import { PageView } from './PageView';
 import { GhareebWord } from '@/types/quran';
@@ -15,13 +15,28 @@ function getPngUrl(page: number): string {
   return `https://quran.i8x.net/data/quran_image/${page}.png`;
 }
 
+/**
+ * Calibrated line-top positions (% from top of image).
+ * These are measured from the Madinah Mushaf PNG layout:
+ * - Text area starts ~10.5% from top (below ornamental header)
+ * - Text area ends ~93.5% from top (above page number)
+ * - 15 lines evenly distributed in that range
+ * - Each line slot height ≈ (93.5 - 10.5) / 15 = 5.53%
+ */
+const TEXT_AREA_TOP = 10.5;
+const TEXT_AREA_BOTTOM = 93.5;
+const LINE_SLOT_HEIGHT = (TEXT_AREA_BOTTOM - TEXT_AREA_TOP) / 15;
+
+function getLineTop(lineIndex: number): number {
+  return TEXT_AREA_TOP + lineIndex * LINE_SLOT_HEIGHT;
+}
+
 export function HybridMushafPageView({ pageNumber, hidePageBadge }: HybridMushafPageViewProps) {
   const [imgLoaded, setImgLoaded] = useState(false);
   const [imgError, setImgError] = useState(false);
   const [debugOverlay, setDebugOverlay] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const imgRef = useRef<HTMLImageElement>(null);
-  const [imgDimensions, setImgDimensions] = useState<{ w: number; h: number } | null>(null);
 
   const debugMode = useSettingsStore((s) => s.settings.debugMode);
 
@@ -29,20 +44,26 @@ export function HybridMushafPageView({ pageNumber, hidePageBadge }: HybridMushaf
   useEffect(() => {
     setImgLoaded(false);
     setImgError(false);
-    setImgDimensions(null);
   }, [pageNumber]);
 
   const handleImgLoad = useCallback(() => {
     setImgLoaded(true);
-    if (imgRef.current) {
-      setImgDimensions({
-        w: imgRef.current.naturalWidth,
-        h: imgRef.current.naturalHeight,
-      });
-    }
   }, []);
 
   const pngUrl = getPngUrl(pageNumber);
+
+  // Debug baselines: 15 lines showing calibrated positions
+  const debugBaselines = useMemo(() => {
+    if (!debugOverlay) return null;
+    return Array.from({ length: 15 }, (_, i) => (
+      <div
+        key={i}
+        className="hybridDebugBaseline"
+        style={{ top: `${getLineTop(i)}%` }}
+        data-line-label={`L${i + 1} (${getLineTop(i).toFixed(1)}%)`}
+      />
+    ));
+  }, [debugOverlay]);
 
   return (
     <div className="hybridMushafRoot">
@@ -57,11 +78,8 @@ export function HybridMushafPageView({ pageNumber, hidePageBadge }: HybridMushaf
         </button>
       )}
 
-      {/* Main hybrid container - PNG defines the size */}
-      <div
-        ref={containerRef}
-        className="hybridContainer"
-      >
+      {/* Main container - PNG defines the size */}
+      <div ref={containerRef} className="hybridContainer">
         {/* Layer A: PNG Background */}
         {!imgError && (
           <img
@@ -83,6 +101,9 @@ export function HybridMushafPageView({ pageNumber, hidePageBadge }: HybridMushaf
           </div>
         )}
 
+        {/* Debug baselines */}
+        {debugBaselines}
+
         {/* Layer B: Transparent interactive text overlay */}
         <div className={`hybridTextLayer ${debugOverlay ? 'hybridTextLayer--debug' : ''} ${imgLoaded || imgError ? 'hybridTextLayer--ready' : ''}`}>
           <HybridPageContent
@@ -96,7 +117,7 @@ export function HybridMushafPageView({ pageNumber, hidePageBadge }: HybridMushaf
   );
 }
 
-/** Inner component that renders PageView with transparent text */
+/** Inner component that renders PageView with line positioning via CSS custom properties */
 function HybridPageContent({
   pageNumber,
   hidePageBadge,
@@ -126,21 +147,52 @@ function HybridPageContent({
     setCurrentWordIndex(index);
   }, [setCurrentWordIndex]);
 
+  // After PageView renders, inject absolute positioning on each .quran-line
+  const overlayRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!overlayRef.current) return;
+    // Find all rendered quran-lines and position them absolutely
+    const lines = overlayRef.current.querySelectorAll('.quran-line');
+    let realLineIndex = 0;
+    lines.forEach((line) => {
+      const el = line as HTMLElement;
+      // Skip empty lines (no text content)
+      const text = el.textContent?.trim();
+      if (!text) {
+        el.style.display = 'none';
+        return;
+      }
+      el.style.top = `${getLineTop(realLineIndex)}%`;
+      realLineIndex++;
+      // Hide lines beyond 15
+      if (realLineIndex > 15) {
+        el.style.display = 'none';
+      }
+    });
+
+    // Also position bismillah elements
+    const bismillahs = overlayRef.current.querySelectorAll('.bismillah');
+    // Bismillah is typically part of the line count, handled above
+  }, [pageData, pageNumber]);
+
   if (!pageData) return null;
 
   const meaningActive = currentWordIndex >= 0;
 
   return (
-    <PageView
-      page={pageData}
-      ghareebWords={pageWords}
-      highlightedWordIndex={currentWordIndex}
-      meaningEnabled={meaningActive}
-      isPlaying={false}
-      onWordClick={handleWordClick}
-      onRenderedWordsChange={handleRenderedWordsChange}
-      hidePageBadge={hidePageBadge}
-      forceDisplayMode="lines15"
-    />
+    <div ref={overlayRef}>
+      <PageView
+        page={pageData}
+        ghareebWords={pageWords}
+        highlightedWordIndex={currentWordIndex}
+        meaningEnabled={meaningActive}
+        isPlaying={false}
+        onWordClick={handleWordClick}
+        onRenderedWordsChange={handleRenderedWordsChange}
+        hidePageBadge={hidePageBadge}
+        forceDisplayMode="lines15"
+      />
+    </div>
   );
 }
