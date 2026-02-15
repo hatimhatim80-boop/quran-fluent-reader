@@ -47,6 +47,15 @@ export function QuranReader() {
   const [showControls, setShowControls] = useState(false);
   const [fullscreen, setFullscreen] = useState(false);
   const [pinchScale, setPinchScale] = useState(1);
+  const [showFullscreenExit, setShowFullscreenExit] = useState(false);
+  const fullscreenTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleFullscreenTap = useCallback(() => {
+    if (!fullscreen) return;
+    setShowFullscreenExit(true);
+    if (fullscreenTimerRef.current) clearTimeout(fullscreenTimerRef.current);
+    fullscreenTimerRef.current = setTimeout(() => setShowFullscreenExit(false), 3000);
+  }, [fullscreen]);
   const pinchRef = React.useRef<{ startDist: number; startScale: number } | null>(null);
   const contentRef = React.useRef<HTMLDivElement>(null);
   const pageContentRef = React.useRef<HTMLDivElement>(null);
@@ -213,10 +222,27 @@ export function QuranReader() {
         )}
 
         {/* Page Content */}
-        <div className={`max-w-2xl mx-auto w-full px-1 sm:px-3 ${fullscreen ? 'flex-1 flex flex-col justify-center py-1' : 'py-2 sm:py-6'}`} ref={pageContentRef}>
+        <div
+          className={`max-w-2xl mx-auto w-full px-1 sm:px-3 ${fullscreen ? 'flex-1 flex flex-col justify-center py-1' : 'py-2 sm:py-6'}`}
+          ref={pageContentRef}
+          onClick={handleFullscreenTap}
+        >
           {settings.debugMode && isPlaying && (
             <div className="fixed top-16 left-4 z-50 bg-black/80 text-white text-xs px-3 py-2 rounded-lg font-mono">
               Running {currentWordIndex + 1} / {renderedWords.length}
+            </div>
+          )}
+
+          {/* Fullscreen exit button */}
+          {fullscreen && showFullscreenExit && (
+            <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 animate-fade-in">
+              <button
+                onClick={(e) => { e.stopPropagation(); setFullscreen(false); setShowFullscreenExit(false); }}
+                className="bg-background/90 backdrop-blur-md border border-border rounded-full px-4 py-2 flex items-center gap-2 shadow-lg"
+              >
+                <Minimize2 className="w-4 h-4 text-foreground" />
+                <span className="font-arabic text-sm text-foreground">خروج من الشاشة الكاملة</span>
+              </button>
             </div>
           )}
 
