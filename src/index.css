@@ -293,7 +293,7 @@
     direction: rtl;
     display: flex;
     flex-direction: column;
-    align-items: center;
+    align-items: stretch;
     background: hsl(var(--card));
     border: 1px solid hsl(var(--page-border));
     border-radius: 4px;
@@ -716,11 +716,9 @@
   }
 
   .mushafLine {
-    white-space: nowrap;
     overflow: visible;
-    padding-inline: 8px;
     box-sizing: border-box;
-    transform-origin: right center;
+    transform-origin: center center;
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -739,7 +737,7 @@
     color: hsl(25 40% 8%);
     width: 100%;
     min-height: 0;
-    padding: 0;
+    padding: 0 8px;
     margin: 0;
   }
 
