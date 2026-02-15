@@ -57,7 +57,7 @@ export default function TahfeezPage() {
 
   const { currentPage, getCurrentPageData, goToPage, totalPages } = useQuranData();
   useSettingsApplier(); // Apply font/display settings globally
-  const displayMode = useSettingsStore((s) => s.settings.display?.mode || 'lines15');
+  const displayMode = useSettingsStore((s) => s.settings.display?.mode || 'auto15');
   const pageData = getCurrentPageData();
 
   // Auto-save session progress
@@ -413,7 +413,7 @@ export default function TahfeezPage() {
         </div>
       )}
 
-      <div className={`mx-auto space-y-6 ${displayMode === 'lines15' ? 'w-full max-w-[390px] py-1' : 'max-w-2xl w-full px-3 py-2 sm:py-6'}`} style={{ transform: `scale(${pinchScale})`, transformOrigin: 'top center', transition: pinchRef.current ? 'none' : 'transform 0.2s ease' }}>
+      <div className={`mx-auto space-y-6 max-w-2xl w-full px-3 py-2 sm:py-6`} style={{ transform: `scale(${pinchScale})`, transformOrigin: 'top center', transition: pinchRef.current ? 'none' : 'transform 0.2s ease' }}>
         {/* Tab 1: Store words */}
         {/* Fullscreen: show only the quran page text */}
         {fullscreen && !quizStarted && pageData && (

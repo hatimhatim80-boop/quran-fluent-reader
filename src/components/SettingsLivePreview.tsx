@@ -34,7 +34,7 @@ export function SettingsLivePreview({ visible, onToggle }: SettingsLivePreviewPr
   const targetLines = isMobile ? (display?.mobileLinesPerPage || 15) : (display?.desktopLinesPerPage || 15);
   const minWords = display?.minWordsPerLine || 5;
   const textAlign = display?.textAlign || 'justify';
-  const isLines15 = display?.mode === 'lines15';
+  const isLines15 = false;
   const balanceLastLine = display?.balanceLastLine ?? false;
   const pageBackgroundColor = (colors as any).pageBackgroundColor || '';
 
