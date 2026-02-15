@@ -11,7 +11,9 @@ import {
   MoreHorizontal,
   RefreshCw,
   Loader2,
+  Home,
 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { checkAndUpdate } from '@/services/updateService';
 import { checkOTAUpdate, isNativeApp } from '@/services/otaUpdateService';
@@ -58,6 +60,7 @@ export function Toolbar({
   const [showAdminTools, setShowAdminTools] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
   const { settings } = useSettingsStore();
+  const navigate = useNavigate();
 
   const handleUpdate = useCallback(async () => {
     if (isUpdating) return;
@@ -131,6 +134,16 @@ export function Toolbar({
 
       {/* Compact toolbar row */}
       <div className="flex items-center justify-center gap-1.5">
+        {/* Home */}
+        <button
+          type="button"
+          onClick={() => navigate('/')}
+          className="nav-button w-8 h-8 rounded-full flex items-center justify-center"
+          title="الرئيسية"
+        >
+          <Home className="w-3.5 h-3.5" />
+        </button>
+
         {/* Play/Pause */}
         <button
           type="button"

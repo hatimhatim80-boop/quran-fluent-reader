@@ -31,9 +31,19 @@ export interface ColorSettings {
   highlightIntensity: 'soft' | 'medium' | 'strong';
   highlightStyle: 'background' | 'text-only';
   pageBackgroundColor: string;
+  containerBorderColor: string;
   popoverBackground: string;
-  popoverText: string;
+  popoverWordColor: string;
+  popoverMeaningColor: string;
   popoverBorder: string;
+  /** @deprecated use popoverWordColor instead */
+  popoverText?: string;
+}
+
+// Meaning box font size settings
+export interface MeaningBoxFontSettings {
+  wordFontSize: number;
+  meaningFontSize: number;
 }
 
 // Popover style settings
@@ -68,6 +78,7 @@ export interface AppSettings {
   autoplay: AutoplaySettings;
   display: DisplaySettings;
   update: UpdateSettings;
+  meaningBox: MeaningBoxFontSettings;
   debugMode: boolean;
 }
 
@@ -85,8 +96,10 @@ const defaultSettings: AppSettings = {
     highlightIntensity: 'medium',
     highlightStyle: 'background',
     pageBackgroundColor: '',
+    containerBorderColor: '',
     popoverBackground: '38 50% 97%',
-    popoverText: '25 30% 18%',
+    popoverWordColor: '25 30% 18%',
+    popoverMeaningColor: '25 20% 35%',
     popoverBorder: '35 25% 88%',
   },
   popover: {
@@ -118,6 +131,10 @@ const defaultSettings: AppSettings = {
     manifestUrl: '/updates/manifest.json',
     autoUpdate: false,
   },
+  meaningBox: {
+    wordFontSize: 1.4,
+    meaningFontSize: 1.1,
+  },
   debugMode: false,
 };
 
@@ -129,6 +146,7 @@ interface SettingsState {
   setAutoplay: (autoplay: Partial<AutoplaySettings>) => void;
   setDisplay: (display: Partial<DisplaySettings>) => void;
   setUpdate: (update: Partial<UpdateSettings>) => void;
+  setMeaningBox: (mb: Partial<MeaningBoxFontSettings>) => void;
   setDebugMode: (enabled: boolean) => void;
   resetSettings: () => void;
   exportSettings: () => string;
@@ -185,6 +203,14 @@ export const useSettingsStore = create<SettingsState>()(
           settings: {
             ...state.settings,
             update: { ...state.settings.update, ...update },
+          },
+        })),
+
+      setMeaningBox: (mb) =>
+        set((state) => ({
+          settings: {
+            ...state.settings,
+            meaningBox: { ...state.settings.meaningBox, ...mb },
           },
         })),
 

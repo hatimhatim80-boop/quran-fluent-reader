@@ -713,7 +713,11 @@ export function PageView({
   }, [effectivePageText, page.pageNumber, ghareebWords, highlightedWordIndex, isPlaying, onWordClick, surahContextByLine, tokenMatchMap, highlightVersion, displayMode, tahfeezMode, toggleTahfeezWord, isTahfeezSelected, rangeAnchor, setRangeAnchor, addItem, storedItems, auto15ShortPageAlign]);
 
   const pageBackgroundColor = useSettingsStore((s) => (s.settings.colors as any).pageBackgroundColor || '');
-  const pageFrameStyle = pageBackgroundColor ? { background: `hsl(${pageBackgroundColor})` } : undefined;
+  const containerBorderColor = useSettingsStore((s) => (s.settings.colors as any).containerBorderColor || '');
+  const pageFrameStyle: React.CSSProperties = {
+    ...(pageBackgroundColor ? { background: `hsl(${pageBackgroundColor})` } : {}),
+    ...(containerBorderColor ? { borderColor: `hsl(${containerBorderColor})` } : {}),
+  };
 
   const pageMeta = useMemo(() => getPageMetadata(page.pageNumber), [page.pageNumber]);
 

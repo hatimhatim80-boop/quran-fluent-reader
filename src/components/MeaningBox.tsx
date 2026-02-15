@@ -2,6 +2,7 @@ import React from "react";
 import { X, BookOpen } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useHighlightOverrideStore } from "@/stores/highlightOverrideStore";
+import { useSettingsStore } from "@/stores/settingsStore";
 
 interface MeaningBoxProps {
   positionKey: string | null;
@@ -15,6 +16,11 @@ interface MeaningBoxProps {
 
 export function MeaningBox({ positionKey, identityKey, defaultMeaning, wordText, surahName, verseNumber, onClose }: MeaningBoxProps) {
   const getEffectiveMeaning = useHighlightOverrideStore((s) => s.getEffectiveMeaning);
+  const { settings } = useSettingsStore();
+  const colors = settings.colors;
+  const mb = settings.meaningBox || { wordFontSize: 1.4, meaningFontSize: 1.1 };
+  const wordColor = colors.popoverWordColor || colors.popoverText || '25 30% 18%';
+  const meaningColor = colors.popoverMeaningColor || colors.popoverText || '25 20% 35%';
 
   const meaningInfo = positionKey
     ? getEffectiveMeaning(positionKey, identityKey || "", defaultMeaning || "")
@@ -32,6 +38,10 @@ export function MeaningBox({ positionKey, identityKey, defaultMeaning, wordText,
           transition={{ duration: 0.25, ease: "easeOut" }}
           className="meaning-panel p-5 sm:p-6"
           dir="rtl"
+          style={{
+            background: `hsl(${colors.popoverBackground})`,
+            borderColor: `hsl(${colors.popoverBorder})`,
+          }}
         >
           {/* Header */}
           <div className="flex items-center justify-between mb-4">
@@ -52,9 +62,9 @@ export function MeaningBox({ positionKey, identityKey, defaultMeaning, wordText,
 
           {/* Word and Location */}
           <div className="mb-4">
-            <h3 className="text-2xl font-bold font-arabic text-foreground mb-2">{wordText}</h3>
+            <h3 className="font-bold font-arabic" style={{ color: `hsl(${wordColor})`, fontSize: `${mb.wordFontSize}rem` }}>{wordText}</h3>
             {surahName && verseNumber && (
-              <div className="inline-flex items-center gap-1.5 bg-primary/8 text-primary px-2.5 py-1 rounded-full text-xs font-arabic">
+              <div className="inline-flex items-center gap-1.5 bg-primary/8 text-primary px-2.5 py-1 rounded-full text-xs font-arabic mt-2">
                 <span>{surahName}</span>
                 <span className="opacity-50">•</span>
                 <span>آية {verseNumber}</span>
@@ -63,8 +73,8 @@ export function MeaningBox({ positionKey, identityKey, defaultMeaning, wordText,
           </div>
 
           {/* Meaning */}
-          <div className="bg-card rounded-xl p-4 border border-border/50">
-            <p className="font-arabic text-lg text-foreground leading-relaxed">{meaningInfo.meaning}</p>
+          <div className="rounded-xl p-4 border border-border/50" style={{ background: `hsl(${colors.popoverBackground})` }}>
+            <p className="font-arabic leading-relaxed" style={{ color: `hsl(${meaningColor})`, fontSize: `${mb.meaningFontSize}rem` }}>{meaningInfo.meaning}</p>
           </div>
         </motion.div>
       )}

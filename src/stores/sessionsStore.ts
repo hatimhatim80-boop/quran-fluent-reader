@@ -43,6 +43,14 @@ const idbStorage: StateStorage = {
   },
 };
 
+export interface SessionSection {
+  id: string;
+  title: string;
+  startPage: number;
+  endPage?: number;
+  currentPage: number;
+}
+
 export interface Session {
   id: string;
   name: string;
@@ -53,6 +61,7 @@ export interface Session {
   currentPage: number;
   startPage?: number;
   endPage?: number;
+  sections?: SessionSection[];
   /** For tahfeez: snapshot of stored items */
   tahfeezItems?: unknown[];
   /** For tahfeez: quiz settings snapshot */
@@ -64,12 +73,15 @@ interface SessionsState {
   activeSessionId: string | null;
 
   createSession: (name: string, type: 'ghareeb' | 'tahfeez', startPage?: number, endPage?: number) => string;
-  updateSession: (id: string, patch: Partial<Pick<Session, 'name' | 'currentPage' | 'startPage' | 'endPage' | 'tahfeezItems' | 'quizSettings'>>) => void;
+  updateSession: (id: string, patch: Partial<Pick<Session, 'name' | 'currentPage' | 'startPage' | 'endPage' | 'tahfeezItems' | 'quizSettings' | 'sections'>>) => void;
   archiveSession: (id: string) => void;
   unarchiveSession: (id: string) => void;
   deleteSession: (id: string) => void;
   setActiveSession: (id: string | null) => void;
   getSession: (id: string) => Session | undefined;
+  addSection: (sessionId: string, title: string, startPage: number, endPage?: number) => void;
+  removeSection: (sessionId: string, sectionId: string) => void;
+  updateSection: (sessionId: string, sectionId: string, patch: Partial<Pick<SessionSection, 'title' | 'startPage' | 'endPage' | 'currentPage'>>) => void;
 }
 
 export const useSessionsStore = create<SessionsState>()(
@@ -130,6 +142,37 @@ export const useSessionsStore = create<SessionsState>()(
       setActiveSession: (id) => set({ activeSessionId: id }),
 
       getSession: (id) => get().sessions.find(s => s.id === id),
+
+      addSection: (sessionId, title, startPage, endPage) => {
+        const sectionId = `sec_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+        set({
+          sessions: get().sessions.map(s =>
+            s.id === sessionId
+              ? { ...s, sections: [...(s.sections || []), { id: sectionId, title, startPage, endPage, currentPage: startPage }], updatedAt: Date.now() }
+              : s
+          ),
+        });
+      },
+
+      removeSection: (sessionId, sectionId) => {
+        set({
+          sessions: get().sessions.map(s =>
+            s.id === sessionId
+              ? { ...s, sections: (s.sections || []).filter(sec => sec.id !== sectionId), updatedAt: Date.now() }
+              : s
+          ),
+        });
+      },
+
+      updateSection: (sessionId, sectionId, patch) => {
+        set({
+          sessions: get().sessions.map(s =>
+            s.id === sessionId
+              ? { ...s, sections: (s.sections || []).map(sec => sec.id === sectionId ? { ...sec, ...patch } : sec), updatedAt: Date.now() }
+              : s
+          ),
+        });
+      },
     }),
     {
       name: 'sessions.v1',
