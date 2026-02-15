@@ -362,7 +362,9 @@ export function TahfeezQuizView({
       }
     }
 
-    return <div className={isLines15 ? 'quran-lines-container' : 'inline'}>{elements}</div>;
+    return isLines15 
+      ? <div className="quran-lines-container">{elements}</div>
+      : <div className="quran-page" style={{ textAlign: 'justify', textAlignLast: 'right' }}>{elements}</div>;
   }, [lines, blankedKeys, activeBlankKey, revealedKeys, showAll, isLines15]);
 
 
