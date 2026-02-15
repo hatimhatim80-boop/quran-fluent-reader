@@ -668,9 +668,14 @@ export function PageView({
       const noJustify = shouldNoJustify(mobileLinesPerPage, desktopLinesPerPage, textAlign);
       // Bind verse numbers to preceding word with nowrap wrapper
       const processedElements = bindVerseNumbers(lineElements, lineIdx);
+      
+      // Detect short lines (≤3 actual words) for auto15 center alignment
+      const actualWordCount = tokenData.filter(td => !td.isSpace && !td.isVerseNumber).length;
+      const isShortLine = actualWordCount <= 3;
+      
       if (isLines15) {
         allElements.push(
-          <div key={`line-${lineIdx}`} className={`quran-line${noJustify ? ' quran-line--no-justify' : ''}`}>
+          <div key={`line-${lineIdx}`} className={`quran-line${noJustify ? ' quran-line--no-justify' : ''}${isAuto15 && isShortLine ? ' quran-line--short' : ''}`}>
             {processedElements}
           </div>
         );

@@ -283,6 +283,12 @@
     text-align-last: justify;
   }
 
+  /* Short lines (≤3 words, e.g. short surahs) - center instead of justify */
+  .auto15-line .quran-line--short {
+    text-align: center;
+    text-align-last: center;
+  }
+
   .auto15-line--empty {
     visibility: hidden;
   }
