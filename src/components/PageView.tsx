@@ -1,5 +1,6 @@
 import React, { useMemo, useEffect, useRef } from 'react';
 import { useAutoFitFont } from '@/hooks/useAutoFitFont';
+import { useAutoFlowFit } from '@/hooks/useAutoFlowFit';
 import { QuranPage, GhareebWord } from '@/types/quran';
 import { normalizeArabic } from '@/utils/quranParser';
 import { GhareebWordPopover } from './GhareebWordPopover';
@@ -93,6 +94,23 @@ export function PageView({
   const fontFamily = useSettingsStore((s) => s.settings.fonts.fontFamily);
   const fontWeight = useSettingsStore((s) => s.settings.fonts.fontWeight);
   const { containerRef: autoFitRef, fittedFontSize } = useAutoFitFont(page.text);
+  
+  // Auto flow fit for autoFlow15 mode
+  const fontFamilyCSS = useSettingsStore((s) => {
+    const fontMap: Record<string, string> = {
+      amiri: "'Amiri', serif", amiriQuran: "'Amiri Quran', serif",
+      notoNaskh: "'Noto Naskh Arabic', serif", scheherazade: "'Scheherazade New', serif",
+      uthman: "'KFGQPC HAFS Uthmanic Script', serif", uthmanicHafs: "'UthmanicHafs', serif",
+      meQuran: "'me_quran', serif", qalam: "'Al Qalam Quran', serif",
+      custom: s.settings.fonts.customFontFamily ? `'${s.settings.fonts.customFontFamily}', serif` : "'Amiri', serif",
+    };
+    return fontMap[s.settings.fonts.fontFamily] || fontMap.uthman;
+  });
+  const lineHeightSetting = useSettingsStore((s) => s.settings.fonts.lineHeight);
+  const isAutoFlow15 = displayMode === 'autoFlow15';
+  const { containerRef: autoFlowRef, fittedFontSize: autoFlowFontSize } = useAutoFlowFit(
+    page.text, fontFamilyCSS, fontWeight, lineHeightSetting, 15, isAutoFlow15,
+  );
 
   // Redistribute lines based on device
   const effectivePageText = useMemo(() => {
@@ -695,7 +713,7 @@ export function PageView({
   const pageMeta = useMemo(() => getPageMetadata(page.pageNumber), [page.pageNumber]);
 
   return (
-    <div ref={(el) => { (containerRef as any).current = el; (autoFitRef as any).current = el; }} className="page-frame p-4 sm:p-6" style={{ ...pageFrameStyle, ...(fittedFontSize ? { fontSize: `${fittedFontSize}rem` } : {}) }} dir={textDirection}>
+    <div ref={(el) => { (containerRef as any).current = el; (autoFitRef as any).current = el; if (isAutoFlow15) (autoFlowRef as any).current = el; }} className="page-frame p-4 sm:p-6" style={{ ...pageFrameStyle, ...(isAutoFlow15 && autoFlowFontSize ? { '--quran-font-size': `${autoFlowFontSize}px` } as React.CSSProperties : fittedFontSize ? { fontSize: `${fittedFontSize}rem` } : {}) }} dir={textDirection}>
       {/* Top Header: Hizb - Page Number - Hizb */}
       {!hidePageBadge && (
         <div className="flex items-center justify-between mb-1 font-arabic text-xs sm:text-sm text-muted-foreground/70">

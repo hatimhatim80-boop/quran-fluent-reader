@@ -262,10 +262,31 @@ export function SettingsDialog({ children }: SettingsDialogProps) {
           <TabsContent value="display" className="space-y-5 mt-4">
             <div className="space-y-3">
               <Label className="font-arabic font-bold">نمط عرض الصفحة</Label>
-              <div className="p-3 rounded-lg border border-primary bg-primary/10 ring-2 ring-primary/20 text-center">
-                <Type className="w-5 h-5 mx-auto mb-1 text-primary" />
-                <span className="font-arabic text-xs font-bold block">تدفق مستمر</span>
-                <span className="font-arabic text-[9px] text-muted-foreground">نص متصل</span>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  onClick={() => setDisplay({ mode: 'continuous' })}
+                  className={`p-3 rounded-lg border transition-all text-center ${
+                    settings.display?.mode !== 'autoFlow15'
+                      ? 'border-primary bg-primary/10 ring-2 ring-primary/20'
+                      : 'border-border hover:border-muted-foreground/50'
+                  }`}
+                >
+                  <Type className="w-5 h-5 mx-auto mb-1 text-primary" />
+                  <span className="font-arabic text-xs font-bold block">تدفق مستمر</span>
+                  <span className="font-arabic text-[9px] text-muted-foreground">نص متصل حر</span>
+                </button>
+                <button
+                  onClick={() => setDisplay({ mode: 'autoFlow15' })}
+                  className={`p-3 rounded-lg border transition-all text-center ${
+                    settings.display?.mode === 'autoFlow15'
+                      ? 'border-primary bg-primary/10 ring-2 ring-primary/20'
+                      : 'border-border hover:border-muted-foreground/50'
+                  }`}
+                >
+                  <Rows3 className="w-5 h-5 mx-auto mb-1 text-primary" />
+                  <span className="font-arabic text-xs font-bold block">تدفق ١٥ سطر</span>
+                  <span className="font-arabic text-[9px] text-muted-foreground">خط تلقائي لـ15 سطر</span>
+                </button>
               </div>
             </div>
 
