@@ -263,17 +263,22 @@
   }
 
   .auto15-line {
-    white-space: nowrap;
     overflow: visible;
     text-align: justify;
-    text-align-last: center;
+    text-align-last: justify;
     direction: rtl;
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    justify-content: center;
     line-height: 1.1;
     min-height: 0;
     box-sizing: border-box;
+  }
+
+  .auto15-line .quran-line {
+    width: 100%;
+    text-align: justify;
+    text-align-last: justify;
   }
 
   .auto15-line--empty {
