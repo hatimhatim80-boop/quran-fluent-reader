@@ -6,7 +6,7 @@ const DESIGN_H = 1414;
 /**
  * Fixed-canvas approach: the page is always laid out at 1000×1414 design pixels,
  * then uniformly scaled to fit the viewport wrapper.
- * No per-line scaleX — the entire canvas scales as one unit.
+ * Uses min(scaleW, scaleH) so the entire page is visible without scrolling.
  */
 export function useAutoFit15Lines(pageText: string, fontFamily: string, fontWeight: number) {
   const canvasRef = useRef<HTMLDivElement>(null);
@@ -18,13 +18,19 @@ export function useAutoFit15Lines(pageText: string, fontFamily: string, fontWeig
     if (!wrapper) return;
 
     const wrapperW = wrapper.clientWidth;
-    // Scale based on width — page fills the container width
-    const s = wrapperW / DESIGN_W;
+    // Calculate available height: viewport minus header, toolbar, badges, padding
+    const wrapperRect = wrapper.getBoundingClientRect();
+    const availableH = window.innerHeight - wrapperRect.top - 60; // 60px for bottom toolbar
+    
+    const scaleW = wrapperW / DESIGN_W;
+    const scaleH = availableH / DESIGN_H;
+    
+    // Use the smaller scale so the full page fits both horizontally and vertically
+    const s = Math.min(scaleW, scaleH);
     setScale(Math.max(0.15, s));
   }, []);
 
   useEffect(() => {
-    // Small delay to let DOM settle after font/text changes
     const timer = setTimeout(recalc, 50);
     return () => clearTimeout(timer);
   }, [pageText, fontFamily, fontWeight, recalc]);
