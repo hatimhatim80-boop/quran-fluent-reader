@@ -682,10 +682,11 @@ export function PageView({
     }
 
     if (isAuto15) {
-      // Build 15-row grid with padding for short pages
-      const totalLines = 15;
+      // Build grid with padding for short pages
+      // Use actual content count or 15, whichever is larger
       const contentLineCount = allElements.length;
-      const emptyCount = Math.max(0, totalLines - contentLineCount);
+      const targetRows = Math.max(15, contentLineCount);
+      const emptyCount = Math.max(0, targetRows - contentLineCount);
       const topEmpty = auto15ShortPageAlign === 'center' ? Math.floor(emptyCount / 2) : 0;
       const bottomEmpty = emptyCount - topEmpty;
 
@@ -694,7 +695,6 @@ export function PageView({
         gridElements.push(<div key={`empty-top-${e}`} className="auto15-line auto15-line--empty">&nbsp;</div>);
       }
       allElements.forEach((el, idx) => {
-        // Wrap each element in auto15-line if not already
         gridElements.push(
           <div key={`auto15-${idx}`} className="auto15-line">
             {el}
@@ -704,7 +704,8 @@ export function PageView({
       for (let e = 0; e < bottomEmpty; e++) {
         gridElements.push(<div key={`empty-bot-${e}`} className="auto15-line auto15-line--empty">&nbsp;</div>);
       }
-      return <>{gridElements}</>;
+      // Pass dynamic row count so CSS grid can adapt
+      return <div data-grid-rows={targetRows}>{gridElements}</div>;
     }
 
     return isLines15 
@@ -748,7 +749,11 @@ export function PageView({
           <div
             ref={(el) => { (containerRef as any).current = el; (auto15Ref as any).current = el; }}
             className="mushafPageAuto15 arabic-text"
-            style={{ transform: `scale(${auto15Scale})`, transformOrigin: 'top right' }}
+            style={{
+              transform: `scale(${auto15Scale})`,
+              transformOrigin: 'top right',
+              '--auto15-rows': String(renderedContent && (renderedContent as any).props?.['data-grid-rows'] || 15),
+            } as React.CSSProperties}
           >
             {renderedContent}
           </div>
