@@ -4,6 +4,7 @@ import { useSessionsStore } from '@/stores/sessionsStore';
 import { toast } from 'sonner';
 import { useQuranData } from '@/hooks/useQuranData';
 import { useSettingsApplier } from '@/hooks/useSettingsApplier';
+import { useSettingsStore } from '@/stores/settingsStore';
 import { Link, useNavigate } from 'react-router-dom';
 import { BookOpen, Play, Pause, Eye, ArrowRight, Save, Trash2, GraduationCap, ListChecks, Zap, Book, Layers, Hash, FileText, Search, X, ChevronLeft, Download, Upload, Settings2, Maximize2, Minimize2, ChevronsRight } from 'lucide-react';
 import { Slider } from '@/components/ui/slider';
@@ -56,6 +57,7 @@ export default function TahfeezPage() {
 
   const { currentPage, getCurrentPageData, goToPage, totalPages } = useQuranData();
   useSettingsApplier(); // Apply font/display settings globally
+  const displayMode = useSettingsStore((s) => s.settings.display?.mode || 'lines15');
   const pageData = getCurrentPageData();
 
   // Auto-save session progress
@@ -411,7 +413,7 @@ export default function TahfeezPage() {
         </div>
       )}
 
-      <div className="max-w-2xl mx-auto px-3 py-6 space-y-6" style={{ transform: `scale(${pinchScale})`, transformOrigin: 'top center', transition: pinchRef.current ? 'none' : 'transform 0.2s ease' }}>
+      <div className={`mx-auto space-y-6 ${displayMode === 'lines15' ? 'max-w-[390px] px-1 py-1' : 'max-w-2xl px-3 py-6'}`} style={{ transform: `scale(${pinchScale})`, transformOrigin: 'top center', transition: pinchRef.current ? 'none' : 'transform 0.2s ease' }}>
         {/* Tab 1: Store words */}
         {/* Fullscreen: show only the quran page text */}
         {fullscreen && !quizStarted && pageData && (

@@ -123,7 +123,11 @@ export function PageView({
   const surahContextByLine = useMemo(() => {
     const lines = effectivePageText.split('\n');
     const contextMap: string[] = [];
-    let currentSurah = page.surahName || '';
+
+    // If a surah header exists mid-page, lines before it belong to the 
+    // PREVIOUS surah. Use empty string so they match any surah's ghareeb words.
+    const firstHeaderIdx = lines.findIndex(l => isSurahHeader(l));
+    let currentSurah = (firstHeaderIdx > 0) ? '' : (page.surahName || '');
 
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
