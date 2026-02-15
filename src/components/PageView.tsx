@@ -731,7 +731,8 @@ export function PageView({
   const isAuto15Mode = displayMode === 'auto15';
 
   if (isAuto15Mode) {
-    const scaledH = 1414 * auto15Scale;
+    const DESIGN_H = 1414;
+    const scaledH = DESIGN_H * auto15Scale;
     return (
       <div className="page-frame p-2 sm:p-4" style={pageFrameStyle} dir={textDirection}>
         {!hidePageBadge && (
@@ -757,7 +758,7 @@ export function PageView({
             className="mushafPageAuto15 arabic-text"
             style={{
               transform: `scale(${auto15Scale})`,
-              transformOrigin: 'top right',
+              transformOrigin: 'top center',
               '--auto15-rows': String(auto15RowCount),
             } as React.CSSProperties}
           >
