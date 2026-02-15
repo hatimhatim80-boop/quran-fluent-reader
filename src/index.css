@@ -264,12 +264,13 @@
 
   .auto15-line {
     white-space: nowrap;
-    overflow: hidden;
-    text-align: center;
+    overflow: visible;
+    text-align: justify;
+    text-align-last: center;
     direction: rtl;
     display: flex;
     align-items: center;
-    justify-content: center;
+    justify-content: space-between;
     line-height: 1.1;
     min-height: 0;
     box-sizing: border-box;
