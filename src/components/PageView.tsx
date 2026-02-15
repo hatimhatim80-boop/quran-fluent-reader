@@ -689,10 +689,14 @@ export function PageView({
     }
 
     if (isAuto15) {
-      // Build grid with padding for short pages
+      // Build grid with padding for short pages — strictly 15 lines max
       const contentLineCount = allElements.length;
-      const targetRows = Math.max(15, contentLineCount);
-      const emptyCount = Math.max(0, targetRows - contentLineCount);
+      // Cap at exactly 15 lines: if content exceeds 15, truncate extra lines
+      if (contentLineCount > 15) {
+        allElements.splice(15);
+      }
+      const targetRows = 15;
+      const emptyCount = Math.max(0, targetRows - allElements.length);
       const topEmpty = auto15ShortPageAlign === 'center' ? Math.floor(emptyCount / 2) : 0;
       const bottomEmpty = emptyCount - topEmpty;
 
