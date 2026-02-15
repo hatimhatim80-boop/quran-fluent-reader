@@ -14,7 +14,7 @@ export interface FontSettings {
 
 // Display settings
 export interface DisplaySettings {
-  mode: 'continuous' | 'auto15';
+  mode: 'continuous';
   mobileLinesPerPage: number;
   desktopLinesPerPage: number;
   minWordsPerLine: number;
@@ -22,7 +22,6 @@ export interface DisplaySettings {
   textAlign: 'right' | 'left' | 'center' | 'justify';
   autoFitFont: boolean;
   balanceLastLine: boolean;
-  auto15ShortPageAlign: 'center' | 'top';
 }
 
 // Color settings
@@ -117,7 +116,7 @@ const defaultSettings: AppSettings = {
     pauseOnMissingMeaning: false,
   },
   display: {
-    mode: 'auto15',
+    mode: 'continuous',
     mobileLinesPerPage: 15,
     desktopLinesPerPage: 15,
     minWordsPerLine: 5,
@@ -125,7 +124,6 @@ const defaultSettings: AppSettings = {
     textAlign: 'justify',
     autoFitFont: false,
     balanceLastLine: false,
-    auto15ShortPageAlign: 'center',
   },
   update: {
     manifestUrl: '/updates/manifest.json',
