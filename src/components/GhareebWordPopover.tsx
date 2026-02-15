@@ -211,13 +211,18 @@ export function GhareebWordPopover({
     borderColor: `hsl(${colorSettings.popoverBorder})`,
   };
 
+  const meaningBoxSettings = settings.meaningBox || { wordFontSize: 1.4, meaningFontSize: 1.1 };
+  const wordColor = colorSettings.popoverWordColor || colorSettings.popoverText || '25 30% 18%';
+  const meaningColor = colorSettings.popoverMeaningColor || colorSettings.popoverText || '25 20% 35%';
+
   const wordStyle: React.CSSProperties = {
-    color: `hsl(${colorSettings.popoverText})`,
+    color: `hsl(${wordColor})`,
+    fontSize: `${meaningBoxSettings.wordFontSize}rem`,
   };
 
   const meaningStyle: React.CSSProperties = {
-    fontSize: `${fontSettings.meaningFontSize}rem`,
-    color: `hsl(${colorSettings.popoverText})`,
+    fontSize: `${meaningBoxSettings.meaningFontSize}rem`,
+    color: `hsl(${meaningColor})`,
   };
 
   const highlightStyle = settings.colors.highlightStyle || 'background';

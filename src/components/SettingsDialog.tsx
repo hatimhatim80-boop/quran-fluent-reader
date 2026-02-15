@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
-import { useSettingsStore, FontSettings, ColorSettings, PopoverSettings } from '@/stores/settingsStore';
+import { useSettingsStore, FontSettings, ColorSettings, PopoverSettings, MeaningBoxFontSettings } from '@/stores/settingsStore';
 import { toast } from 'sonner';
 import { DataUpdatePanel } from './DataUpdatePanel';
 
@@ -48,6 +48,7 @@ export function SettingsDialog({ children }: SettingsDialogProps) {
     setPopover, 
     setAutoplay, 
     setDisplay,
+    setMeaningBox,
     setDebugMode,
     resetSettings, 
     exportSettings, 
@@ -497,18 +498,19 @@ export function SettingsDialog({ children }: SettingsDialogProps) {
               <Label className="font-arabic font-bold">لون إطار المعنى</Label>
               <div className="grid grid-cols-3 gap-2">
                 {[
-                  { label: 'كريمي', bg: '38 50% 97%', text: '25 30% 18%', border: '35 25% 88%' },
-                  { label: 'أبيض', bg: '0 0% 100%', text: '0 0% 15%', border: '0 0% 88%' },
-                  { label: 'ذهبي', bg: '42 60% 94%', text: '30 40% 15%', border: '40 40% 78%' },
-                  { label: 'أزرق فاتح', bg: '210 40% 96%', text: '210 30% 18%', border: '210 25% 85%' },
-                  { label: 'أخضر فاتح', bg: '140 30% 96%', text: '140 25% 18%', border: '140 20% 85%' },
-                  { label: 'داكن', bg: '25 18% 12%', text: '38 30% 90%', border: '25 15% 25%' },
+                  { label: 'كريمي', bg: '38 50% 97%', word: '25 30% 18%', meaning: '25 20% 35%', border: '35 25% 88%' },
+                  { label: 'أبيض', bg: '0 0% 100%', word: '0 0% 15%', meaning: '0 0% 30%', border: '0 0% 88%' },
+                  { label: 'ذهبي', bg: '42 60% 94%', word: '30 40% 15%', meaning: '30 30% 30%', border: '40 40% 78%' },
+                  { label: 'أزرق فاتح', bg: '210 40% 96%', word: '210 30% 18%', meaning: '210 20% 35%', border: '210 25% 85%' },
+                  { label: 'أخضر فاتح', bg: '140 30% 96%', word: '140 25% 18%', meaning: '140 20% 35%', border: '140 20% 85%' },
+                  { label: 'داكن', bg: '25 18% 12%', word: '38 30% 90%', meaning: '38 25% 70%', border: '25 15% 25%' },
                 ].map((preset) => (
                   <button
                     key={preset.label}
                     onClick={() => setColors({ 
                       popoverBackground: preset.bg, 
-                      popoverText: preset.text,
+                      popoverWordColor: preset.word,
+                      popoverMeaningColor: preset.meaning,
                       popoverBorder: preset.border 
                     })}
                     className={`p-2 rounded-lg border transition-all ${
@@ -530,6 +532,118 @@ export function SettingsDialog({ children }: SettingsDialogProps) {
               </div>
             </div>
 
+            {/* Separate word/meaning color controls */}
+            <div className="space-y-3">
+              <Label className="font-arabic font-bold">لون الكلمة داخل الإطار</Label>
+              <div className="grid grid-cols-4 gap-2">
+                {[
+                  { label: 'داكن', value: '25 30% 18%' },
+                  { label: 'بني', value: '30 40% 25%' },
+                  { label: 'أزرق', value: '210 50% 30%' },
+                  { label: 'أخضر', value: '140 40% 25%' },
+                  { label: 'ذهبي', value: '36 55% 42%' },
+                  { label: 'أحمر', value: '0 50% 35%' },
+                  { label: 'فاتح', value: '38 30% 90%' },
+                  { label: 'أبيض', value: '0 0% 95%' },
+                ].map((c) => (
+                  <button
+                    key={c.label}
+                    onClick={() => setColors({ popoverWordColor: c.value })}
+                    className={`p-1.5 rounded-lg border transition-all ${
+                      (settings.colors.popoverWordColor || '25 30% 18%') === c.value
+                        ? 'border-primary ring-2 ring-primary/20'
+                        : 'border-border hover:border-muted-foreground/50'
+                    }`}
+                  >
+                    <div className="w-full h-4 rounded-md mb-1" style={{ background: `hsl(${c.value})` }} />
+                    <span className="font-arabic text-[9px]">{c.label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <Label className="font-arabic font-bold">لون المعنى داخل الإطار</Label>
+              <div className="grid grid-cols-4 gap-2">
+                {[
+                  { label: 'رمادي', value: '25 20% 35%' },
+                  { label: 'بني', value: '30 30% 30%' },
+                  { label: 'أزرق', value: '210 40% 35%' },
+                  { label: 'أخضر', value: '140 30% 30%' },
+                  { label: 'ذهبي', value: '36 45% 40%' },
+                  { label: 'أحمر', value: '0 40% 35%' },
+                  { label: 'فاتح', value: '38 25% 70%' },
+                  { label: 'أبيض', value: '0 0% 85%' },
+                ].map((c) => (
+                  <button
+                    key={c.label}
+                    onClick={() => setColors({ popoverMeaningColor: c.value })}
+                    className={`p-1.5 rounded-lg border transition-all ${
+                      (settings.colors.popoverMeaningColor || '25 20% 35%') === c.value
+                        ? 'border-primary ring-2 ring-primary/20'
+                        : 'border-border hover:border-muted-foreground/50'
+                    }`}
+                  >
+                    <div className="w-full h-4 rounded-md mb-1" style={{ background: `hsl(${c.value})` }} />
+                    <span className="font-arabic text-[9px]">{c.label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Meaning box font sizes */}
+            <div className="space-y-3">
+              <Label className="font-arabic font-bold">حجم خط الكلمة في الإطار: <span className="text-primary">{(settings.meaningBox?.wordFontSize || 1.4).toFixed(2)}rem</span></Label>
+              <Slider
+                value={[settings.meaningBox?.wordFontSize || 1.4]}
+                onValueChange={([v]) => setMeaningBox({ wordFontSize: v })}
+                min={0.8}
+                max={2.5}
+                step={0.05}
+              />
+            </div>
+
+            <div className="space-y-3">
+              <Label className="font-arabic font-bold">حجم خط المعنى في الإطار: <span className="text-primary">{(settings.meaningBox?.meaningFontSize || 1.1).toFixed(2)}rem</span></Label>
+              <Slider
+                value={[settings.meaningBox?.meaningFontSize || 1.1]}
+                onValueChange={([v]) => setMeaningBox({ meaningFontSize: v })}
+                min={0.6}
+                max={2}
+                step={0.05}
+              />
+            </div>
+
+            {/* Container border color */}
+            <div className="space-y-3">
+              <Label className="font-arabic font-bold">لون إطار الحاوية</Label>
+              <div className="grid grid-cols-4 gap-2">
+                {[
+                  { label: 'افتراضي', value: '' },
+                  { label: 'ذهبي', value: '36 45% 60%' },
+                  { label: 'بيج', value: '35 25% 82%' },
+                  { label: 'رمادي', value: '0 0% 80%' },
+                  { label: 'أزرق', value: '210 30% 75%' },
+                  { label: 'أخضر', value: '140 25% 70%' },
+                  { label: 'بني', value: '25 30% 50%' },
+                  { label: 'داكن', value: '25 15% 25%' },
+                ].map((c) => (
+                  <button
+                    key={c.label}
+                    onClick={() => setColors({ containerBorderColor: c.value })}
+                    className={`p-1.5 rounded-lg border transition-all ${
+                      (settings.colors.containerBorderColor || '') === c.value
+                        ? 'border-primary ring-2 ring-primary/20'
+                        : 'border-border hover:border-muted-foreground/50'
+                    }`}
+                  >
+                    <div className="w-full h-4 rounded-md mb-1 border-2" style={{ borderColor: c.value ? `hsl(${c.value})` : 'hsl(var(--border))' }} />
+                    <span className="font-arabic text-[9px]">{c.label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
             {/* Live Popover Preview */}
             <div className="relative p-6 rounded-lg border bg-muted/30">
               <div 
@@ -540,8 +654,8 @@ export function SettingsDialog({ children }: SettingsDialogProps) {
                   maxWidth: 200,
                 }}
               >
-                <div className="font-arabic text-lg font-bold" style={{ color: `hsl(${settings.colors.popoverText})` }}>وَقَارًا</div>
-                <div className="font-arabic text-sm mt-1" style={{ color: `hsl(${settings.colors.popoverText})`, opacity: 0.85 }}>عَظَمَةً وَهَيْبَةً</div>
+                <div className="font-arabic font-bold" style={{ color: `hsl(${settings.colors.popoverWordColor || '25 30% 18%'})`, fontSize: `${settings.meaningBox?.wordFontSize || 1.4}rem` }}>وَقَارًا</div>
+                <div className="font-arabic mt-1" style={{ color: `hsl(${settings.colors.popoverMeaningColor || '25 20% 35%'})`, fontSize: `${settings.meaningBox?.meaningFontSize || 1.1}rem` }}>عَظَمَةً وَهَيْبَةً</div>
               </div>
             </div>
             
