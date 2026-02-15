@@ -213,14 +213,14 @@ export function QuranReader() {
         )}
 
         {/* Page Content */}
-        <div className={`max-w-2xl mx-auto w-full px-1 sm:px-3 overflow-hidden ${fullscreen ? 'flex-1 flex flex-col justify-center py-1' : 'py-2 sm:py-6'}`} ref={pageContentRef}>
+        <div className={`max-w-2xl mx-auto w-full px-1 sm:px-3 ${fullscreen ? 'flex-1 flex flex-col justify-center py-1' : 'py-2 sm:py-6'}`} ref={pageContentRef}>
           {settings.debugMode && isPlaying && (
             <div className="fixed top-16 left-4 z-50 bg-black/80 text-white text-xs px-3 py-2 rounded-lg font-mono">
               Running {currentWordIndex + 1} / {renderedWords.length}
             </div>
           )}
 
-          <div style={{ transform: pinchScale !== 1 ? `scale(${pinchScale})` : undefined, transformOrigin: 'center top', transition: 'transform 0.1s ease-out' }}>
+          <div style={{ transform: pinchScale !== 1 ? `scale(${pinchScale})` : undefined, transformOrigin: 'center center', transition: 'transform 0.1s ease-out' }}>
             {pageData && (
               <PageView
                 page={pageData}
