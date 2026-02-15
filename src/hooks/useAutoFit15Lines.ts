@@ -2,8 +2,9 @@ import { useEffect, useRef, useCallback, useState } from 'react';
 
 /**
  * Page-level AutoFit for 15-line Mushaf mode.
- * Uses an OFF-SCREEN hidden element + binary search to find the
- * LARGEST font-size (px) where NO line overflows horizontally.
+ * Uses an OFF-SCREEN hidden element that mirrors the real page grid
+ * (same width, height, padding, grid-template-rows) + binary search
+ * to find the LARGEST font-size (px) where NO line overflows horizontally.
  * One uniform size for all lines. No transform/scale.
  */
 export function useAutoFit15Lines(
@@ -35,29 +36,38 @@ export function useAutoFit15Lines(
       lineTexts.push(el.textContent || '');
     }
 
-    // Build off-screen tester element for reliable measurement
+    const rowCount = lineTexts.length;
+
+    // Build off-screen tester that mirrors the real page grid exactly
     const tester = document.createElement('div');
     tester.style.position = 'absolute';
     tester.style.visibility = 'hidden';
     tester.style.left = '-99999px';
     tester.style.top = '-99999px';
-    tester.style.width = `${innerW}px`;
-    tester.style.direction = 'rtl';
+    tester.style.width = `${pageEl.clientWidth}px`;
+    tester.style.height = `${pageEl.clientHeight}px`;
+    tester.style.display = 'grid';
+    tester.style.gridTemplateRows = `repeat(${Math.max(15, rowCount)}, 1fr)`;
+    tester.style.padding = style.padding;
+    tester.style.boxSizing = 'border-box';
     tester.style.overflow = 'visible';
+    tester.style.direction = 'rtl';
     document.body.appendChild(tester);
 
     const testLineEls: HTMLDivElement[] = [];
     for (const text of lineTexts) {
       const d = document.createElement('div');
-      d.style.whiteSpace = 'nowrap';
-      d.style.overflow = 'visible';
+      // Mirror .auto15-line styles
       d.style.direction = 'rtl';
       d.style.unicodeBidi = 'plaintext';
+      d.style.whiteSpace = 'nowrap';
+      d.style.overflow = 'visible';
+      d.style.textOverflow = 'clip';
+      d.style.display = 'flex';
+      d.style.alignItems = 'center';
       d.style.fontFamily = fontFamily;
       d.style.fontWeight = String(fontWeight);
-      d.style.lineHeight = '1';
-      d.style.width = 'auto';
-      d.style.display = 'inline-block';
+      d.style.lineHeight = '1.1';
       d.textContent = text;
       tester.appendChild(d);
       testLineEls.push(d);
@@ -95,10 +105,8 @@ export function useAutoFit15Lines(
     // Clean up tester
     document.body.removeChild(tester);
 
-    // Apply uniform font size to real line elements
-    for (const el of lineEls) {
-      el.style.fontSize = `${best}px`;
-    }
+    // Apply ONE uniform font size to the whole page element
+    pageEl.style.fontSize = `${best}px`;
 
     setFittedFontSize(best);
   }, [fontFamily, fontWeight]);
