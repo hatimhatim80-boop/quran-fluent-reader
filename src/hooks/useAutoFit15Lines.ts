@@ -48,7 +48,7 @@ export function useAutoFit15Lines(
     tester.style.height = `${pageEl.clientHeight}px`;
     tester.style.display = 'flex';
     tester.style.flexDirection = 'column';
-    tester.style.justifyContent = 'space-between';
+    tester.style.justifyContent = 'stretch';
     tester.style.padding = style.padding;
     tester.style.boxSizing = 'border-box';
     tester.style.overflow = 'visible';
@@ -58,13 +58,15 @@ export function useAutoFit15Lines(
     const testLineEls: HTMLDivElement[] = [];
     for (const text of lineTexts) {
       const d = document.createElement('div');
-      // Mirror .auto15-line styles
       d.style.direction = 'rtl';
       d.style.unicodeBidi = 'plaintext';
       d.style.whiteSpace = 'nowrap';
       d.style.overflow = 'visible';
       d.style.textOverflow = 'clip';
-      d.style.display = 'block';
+      d.style.display = 'flex';
+      d.style.alignItems = 'center';
+      d.style.justifyContent = 'center';
+      d.style.flex = '1 1 0';
       d.style.fontFamily = fontFamily;
       d.style.fontWeight = String(fontWeight);
       d.style.lineHeight = '1.1';
