@@ -683,7 +683,6 @@ export function PageView({
 
     if (isAuto15) {
       // Build grid with padding for short pages
-      // Use actual content count or 15, whichever is larger
       const contentLineCount = allElements.length;
       const targetRows = Math.max(15, contentLineCount);
       const emptyCount = Math.max(0, targetRows - contentLineCount);
@@ -704,8 +703,8 @@ export function PageView({
       for (let e = 0; e < bottomEmpty; e++) {
         gridElements.push(<div key={`empty-bot-${e}`} className="auto15-line auto15-line--empty">&nbsp;</div>);
       }
-      // Pass dynamic row count so CSS grid can adapt
-      return <div data-grid-rows={targetRows}>{gridElements}</div>;
+      // Return as fragment - elements will be direct children of .mushafPageAuto15
+      return <>{gridElements}</>;
     }
 
     return isLines15 
@@ -721,6 +720,13 @@ export function PageView({
   };
 
   const pageMeta = useMemo(() => getPageMetadata(page.pageNumber), [page.pageNumber]);
+
+  // Compute auto15 row count from page lines
+  const auto15RowCount = useMemo(() => {
+    if (displayMode !== 'auto15') return 15;
+    const lines = effectivePageText.split('\n');
+    return Math.max(15, lines.length);
+  }, [displayMode, effectivePageText]);
 
   const isAuto15Mode = displayMode === 'auto15';
 
@@ -752,7 +758,7 @@ export function PageView({
             style={{
               transform: `scale(${auto15Scale})`,
               transformOrigin: 'top right',
-              '--auto15-rows': String(renderedContent && (renderedContent as any).props?.['data-grid-rows'] || 15),
+              '--auto15-rows': String(auto15RowCount),
             } as React.CSSProperties}
           >
             {renderedContent}

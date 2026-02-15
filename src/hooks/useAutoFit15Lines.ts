@@ -18,9 +18,8 @@ export function useAutoFit15Lines(pageText: string, fontFamily: string, fontWeig
     if (!wrapper) return;
 
     const wrapperW = wrapper.clientWidth;
-    const wrapperH = wrapper.clientHeight || wrapperW * (DESIGN_H / DESIGN_W);
-
-    const s = Math.min(wrapperW / DESIGN_W, wrapperH / DESIGN_H);
+    // Scale based on width only - let the page scroll vertically if needed
+    const s = wrapperW / DESIGN_W;
     setScale(s);
   }, []);
 
