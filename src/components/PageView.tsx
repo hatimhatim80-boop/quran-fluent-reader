@@ -1,6 +1,5 @@
 import React, { useMemo, useEffect, useRef } from 'react';
 import { useAutoFitFont } from '@/hooks/useAutoFitFont';
-import { useAutoFit15Lines } from '@/hooks/useAutoFit15Lines';
 import { QuranPage, GhareebWord } from '@/types/quran';
 import { normalizeArabic } from '@/utils/quranParser';
 import { GhareebWordPopover } from './GhareebWordPopover';
@@ -83,7 +82,7 @@ export function PageView({
 }: PageViewProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const lastRenderedKeysRef = useRef<string>('');
-  const storeDisplayMode = useSettingsStore((s) => s.settings.display?.mode || 'lines15');
+  const storeDisplayMode = useSettingsStore((s) => s.settings.display?.mode || 'continuous');
   const displayMode = forceDisplayMode || storeDisplayMode;
   const textDirection = useSettingsStore((s) => s.settings.display?.textDirection || 'rtl');
   const mobileLinesPerPage = useSettingsStore((s) => s.settings.display?.mobileLinesPerPage || 15);
@@ -91,11 +90,9 @@ export function PageView({
   const textAlign = useSettingsStore((s) => s.settings.display?.textAlign || 'justify');
   const minWordsPerLine = useSettingsStore((s) => s.settings.display?.minWordsPerLine || 5);
   const balanceLastLine = useSettingsStore((s) => s.settings.display?.balanceLastLine ?? false);
-  const auto15ShortPageAlign = useSettingsStore((s) => s.settings.display?.auto15ShortPageAlign || 'center');
   const fontFamily = useSettingsStore((s) => s.settings.fonts.fontFamily);
   const fontWeight = useSettingsStore((s) => s.settings.fonts.fontWeight);
   const { containerRef: autoFitRef, fittedFontSize } = useAutoFitFont(page.text);
-  const { pageRef: auto15PageRef } = useAutoFit15Lines(page.text, fontFamily, fontWeight);
 
   // Redistribute lines based on device
   const effectivePageText = useMemo(() => {
@@ -123,8 +120,8 @@ export function PageView({
     const el = document.querySelector<HTMLElement>(
       `[data-ghareeb-index="${highlightedWordIndex}"]`,
     );
-    // Don't scroll if inside a fixed mushaf page (lines15/auto15)
-    if (el?.closest('.mushafPage, .mushafPageAuto15')) return;
+    // Don't scroll if inside a fixed mushaf page
+    if (el?.closest('.mushafPage')) return;
     el?.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
   }, [highlightedWordIndex]);
 
@@ -350,8 +347,7 @@ export function PageView({
   const renderedContent = useMemo(() => {
     if (!effectivePageText) return null;
 
-    const isLines15 = displayMode === 'lines15' || displayMode === 'auto15';
-    const isAuto15 = displayMode === 'auto15';
+    const isLines15 = displayMode === 'lines15';
     const lines = effectivePageText.split('\n');
     
     // If no ghareeb words, render text
@@ -671,13 +667,9 @@ export function PageView({
       // Bind verse numbers to preceding word with nowrap wrapper
       const processedElements = bindVerseNumbers(lineElements, lineIdx);
       
-      // Detect short lines (≤3 actual words) for auto15 center alignment
-      const actualWordCount = tokenData.filter(td => !td.isSpace && !td.isVerseNumber).length;
-      const isShortLine = actualWordCount <= 3;
-      
       if (isLines15) {
         allElements.push(
-          <div key={`line-${lineIdx}`} className={`quran-line${noJustify ? ' quran-line--no-justify' : ''}${isAuto15 && isShortLine ? ' quran-line--short' : ''}`}>
+          <div key={`line-${lineIdx}`} className={`quran-line${noJustify ? ' quran-line--no-justify' : ''}`}>
             {processedElements}
           </div>
         );
@@ -688,40 +680,10 @@ export function PageView({
       }
     }
 
-    if (isAuto15) {
-      // Build grid with padding for short pages — strictly 15 lines max
-      const contentLineCount = allElements.length;
-      // Cap at exactly 15 lines: if content exceeds 15, truncate extra lines
-      if (contentLineCount > 15) {
-        allElements.splice(15);
-      }
-      const targetRows = 15;
-      const emptyCount = Math.max(0, targetRows - allElements.length);
-      const topEmpty = auto15ShortPageAlign === 'center' ? Math.floor(emptyCount / 2) : 0;
-      const bottomEmpty = emptyCount - topEmpty;
-
-      const gridElements: React.ReactNode[] = [];
-      for (let e = 0; e < topEmpty; e++) {
-        gridElements.push(<div key={`empty-top-${e}`} className="auto15-line auto15-line--empty">&nbsp;</div>);
-      }
-      allElements.forEach((el, idx) => {
-        gridElements.push(
-          <div key={`auto15-${idx}`} className="auto15-line">
-            {el}
-          </div>
-        );
-      });
-      for (let e = 0; e < bottomEmpty; e++) {
-        gridElements.push(<div key={`empty-bot-${e}`} className="auto15-line auto15-line--empty">&nbsp;</div>);
-      }
-      // Return as fragment - elements will be direct children of .mushafPageAuto15
-      return <>{gridElements}</>;
-    }
-
     return isLines15 
       ? <div className="quran-lines-container">{allElements}</div>
       : <div className="quran-page" style={{ textAlign: 'justify', textAlignLast: 'right' }}>{allElements}</div>;
-  }, [effectivePageText, page.pageNumber, ghareebWords, highlightedWordIndex, isPlaying, onWordClick, surahContextByLine, tokenMatchMap, highlightVersion, displayMode, tahfeezMode, toggleTahfeezWord, isTahfeezSelected, rangeAnchor, setRangeAnchor, addItem, storedItems, auto15ShortPageAlign]);
+  }, [effectivePageText, page.pageNumber, ghareebWords, highlightedWordIndex, isPlaying, onWordClick, surahContextByLine, tokenMatchMap, highlightVersion, displayMode, tahfeezMode, toggleTahfeezWord, isTahfeezSelected, rangeAnchor, setRangeAnchor, addItem, storedItems]);
 
   const pageBackgroundColor = useSettingsStore((s) => (s.settings.colors as any).pageBackgroundColor || '');
   const containerBorderColor = useSettingsStore((s) => (s.settings.colors as any).containerBorderColor || '');
@@ -731,50 +693,6 @@ export function PageView({
   };
 
   const pageMeta = useMemo(() => getPageMetadata(page.pageNumber), [page.pageNumber]);
-
-  // Compute auto15 row count from page lines
-  const auto15RowCount = useMemo(() => {
-    if (displayMode !== 'auto15') return 15;
-    const lines = effectivePageText.split('\n');
-    return Math.max(15, lines.length);
-  }, [displayMode, effectivePageText]);
-
-  const isAuto15Mode = displayMode === 'auto15';
-
-  if (isAuto15Mode) {
-    return (
-      <div className="page-frame p-2 sm:p-4" style={pageFrameStyle} dir={textDirection}>
-        {!hidePageBadge && (
-          <div className="flex items-center justify-between mb-1 font-arabic text-xs sm:text-sm text-muted-foreground/70">
-            <span>الحزب {pageMeta.hizbNumberArabic}</span>
-            <span className="text-primary font-bold text-sm sm:text-base">{pageMeta.pageNumberArabic}</span>
-            <span>الحزب {pageMeta.hizbNumberArabic}</span>
-          </div>
-        )}
-        {!hidePageBadge && (
-          <div className="flex items-center justify-between mb-2 pb-1 border-b border-ornament/20 font-arabic">
-            <span className="text-sm sm:text-base font-bold text-foreground">{pageMeta.surahName}</span>
-            <span className="text-sm sm:text-base font-bold text-foreground">{pageMeta.juzName}</span>
-          </div>
-        )}
-        <div
-          ref={(el) => { (containerRef as any).current = el; (auto15PageRef as any).current = el; }}
-          className="mushafPageAuto15 arabic-text"
-          style={{
-            '--auto15-rows': String(auto15RowCount),
-          } as React.CSSProperties}
-        >
-          {renderedContent}
-        </div>
-        {!hidePageBadge && (
-          <div className="flex items-center justify-between mt-2 pt-1 border-t border-ornament/20 font-arabic text-xs sm:text-sm text-muted-foreground/70">
-            <span>{pageMeta.pageNumberArabic}</span>
-            <span>الحزب {pageMeta.hizbNumberArabic}</span>
-          </div>
-        )}
-      </div>
-    );
-  }
 
   return (
     <div ref={(el) => { (containerRef as any).current = el; (autoFitRef as any).current = el; }} className="page-frame p-4 sm:p-6" style={{ ...pageFrameStyle, ...(fittedFontSize ? { fontSize: `${fittedFontSize}rem` } : {}) }} dir={textDirection}>
