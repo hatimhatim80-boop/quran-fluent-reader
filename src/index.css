@@ -1032,9 +1032,9 @@
     transform: translateY(0);
   }
 
-  /* Surah header */
+  /* Surah header - centered in frame */
   .surah-header {
-    @apply text-center py-3 my-4;
+    @apply text-center py-2 my-2;
     background: linear-gradient(
       90deg,
       transparent 0%,
@@ -1045,14 +1045,20 @@
     );
     border-top: 1px solid hsl(var(--ornament) / 0.2);
     border-bottom: 1px solid hsl(var(--ornament) / 0.2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
 
-  /* Bismillah styling */
+  /* Bismillah styling - same size as text, spacing matches line height */
   .bismillah {
-    @apply text-center py-2 my-3;
-    color: hsl(var(--primary));
-    font-size: 1.2rem;
+    @apply text-center;
+    color: hsl(var(--foreground));
+    font-size: inherit;
     white-space: nowrap;
+    margin: 0;
+    padding: 0;
+    line-height: inherit;
   }
 }
 
