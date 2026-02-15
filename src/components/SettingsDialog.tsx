@@ -263,18 +263,6 @@ export function SettingsDialog({ children }: SettingsDialogProps) {
               <Label className="font-arabic font-bold">نمط عرض الصفحة</Label>
               <div className="grid grid-cols-2 gap-2">
                 <button
-                  onClick={() => setDisplay({ mode: 'lines15' })}
-                  className={`p-3 rounded-lg border text-center transition-all ${
-                    settings.display?.mode === 'lines15'
-                      ? 'border-primary bg-primary/10 ring-2 ring-primary/20'
-                      : 'border-border hover:border-muted-foreground/50'
-                  }`}
-                >
-                  <Rows3 className="w-5 h-5 mx-auto mb-1 text-primary" />
-                  <span className="font-arabic text-xs font-bold block">مصحف المدينة</span>
-                  <span className="font-arabic text-[9px] text-muted-foreground">15 سطراً ثابت</span>
-                </button>
-                <button
                   onClick={() => setDisplay({ mode: 'auto15' })}
                   className={`p-3 rounded-lg border text-center transition-all ${
                     settings.display?.mode === 'auto15'
@@ -349,35 +337,6 @@ export function SettingsDialog({ children }: SettingsDialogProps) {
               </div>
             </div>
 
-            {settings.display?.mode === 'lines15' && (
-              <div className="space-y-3">
-                <Label className="font-arabic font-bold">محاذاة النص (الاحتواء التلقائي)</Label>
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    onClick={() => setDisplay({ textAlign: 'justify' })}
-                    className={`p-3 rounded-lg border text-center transition-all ${
-                      (settings.display?.textAlign || 'justify') === 'justify'
-                        ? 'border-primary bg-primary/10 ring-2 ring-primary/20'
-                        : 'border-border hover:border-muted-foreground/50'
-                    }`}
-                  >
-                    <span className="font-arabic text-sm font-bold block">ضبط من الجانبين</span>
-                    <span className="font-arabic text-[10px] text-muted-foreground">مثل المصحف المطبوع</span>
-                  </button>
-                  <button
-                    onClick={() => setDisplay({ textAlign: 'right' })}
-                    className={`p-3 rounded-lg border text-center transition-all ${
-                      settings.display?.textAlign === 'right'
-                        ? 'border-primary bg-primary/10 ring-2 ring-primary/20'
-                        : 'border-border hover:border-muted-foreground/50'
-                    }`}
-                  >
-                    <span className="font-arabic text-sm font-bold block">محاذاة لليمين</span>
-                    <span className="font-arabic text-[10px] text-muted-foreground">بدون تمديد</span>
-                  </button>
-                </div>
-              </div>
-            )}
 
 
             {/* Balance last line */}

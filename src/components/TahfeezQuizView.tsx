@@ -46,13 +46,13 @@ export function TahfeezQuizView({
   showAll,
 }: TahfeezQuizViewProps) {
   const { settings } = useSettingsStore();
-  const displayMode = settings.display?.mode || 'lines15';
+  const displayMode = settings.display?.mode || 'auto15';
   const textDirection = settings.display?.textDirection || 'rtl';
   const mobileLinesPerPage = settings.display?.mobileLinesPerPage || 15;
   const desktopLinesPerPage = settings.display?.desktopLinesPerPage || 15;
   const textAlign = settings.display?.textAlign || 'justify';
   const minWordsPerLine = settings.display?.minWordsPerLine || 5;
-  const isLines15 = displayMode === 'lines15';
+  const isLines15 = false;
   const pageBackgroundColor = (settings.colors as any).pageBackgroundColor || '';
   const pageFrameStyle = pageBackgroundColor ? { background: `hsl(${pageBackgroundColor})` } : undefined;
   const highlightStyle = (settings.colors as any).highlightStyle || 'background';
@@ -61,7 +61,7 @@ export function TahfeezQuizView({
 
   // Redistribute lines based on device
   const effectiveText = useMemo(() => {
-    if (displayMode !== 'lines15' || !shouldRedistribute(mobileLinesPerPage, desktopLinesPerPage, balanceLastLine)) return page.text;
+    if (!shouldRedistribute(mobileLinesPerPage, desktopLinesPerPage, balanceLastLine)) return page.text;
     const originalLines = page.text.split('\n');
     const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
     const targetLines = isMobile ? mobileLinesPerPage : desktopLinesPerPage;

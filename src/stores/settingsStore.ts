@@ -14,7 +14,7 @@ export interface FontSettings {
 
 // Display settings
 export interface DisplaySettings {
-  mode: 'continuous' | 'lines15' | 'auto15';
+  mode: 'continuous' | 'auto15';
   mobileLinesPerPage: number;
   desktopLinesPerPage: number;
   minWordsPerLine: number;
@@ -104,7 +104,7 @@ const defaultSettings: AppSettings = {
     pauseOnMissingMeaning: false,
   },
   display: {
-    mode: 'lines15',
+    mode: 'auto15',
     mobileLinesPerPage: 15,
     desktopLinesPerPage: 15,
     minWordsPerLine: 5,
