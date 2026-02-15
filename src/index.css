@@ -158,6 +158,18 @@
     word-break: break-word;
   }
 
+  /* Fullscreen page frame: fill viewport */
+  .fullscreen-page-frame {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    min-height: 100dvh;
+    box-sizing: border-box;
+  }
+  .fullscreen-page-frame .quran-page {
+    min-height: auto !important;
+  }
+
   /* Better mobile text containment */
   @media (max-width: 639px) {
     .page-frame {
