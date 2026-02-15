@@ -235,7 +235,7 @@
     direction: rtl;
     display: flex;
     flex-direction: column;
-    justify-content: space-between;
+    justify-content: stretch;
     background: hsl(var(--card));
     border: 1px solid hsl(var(--page-border));
     border-radius: 4px;
@@ -258,11 +258,13 @@
   .auto15-line {
     overflow: visible;
     direction: rtl;
-    display: block;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     line-height: 1.1;
     min-height: 0;
     box-sizing: border-box;
-    flex-shrink: 0;
+    flex: 1 1 0;
   }
 
   .auto15-line > .quran-line {
