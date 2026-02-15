@@ -18,9 +18,9 @@ export function useAutoFit15Lines(pageText: string, fontFamily: string, fontWeig
     if (!wrapper) return;
 
     const wrapperW = wrapper.clientWidth;
-    // Scale based on width only - let the page scroll vertically if needed
+    // Scale based on width — page fills the container width
     const s = wrapperW / DESIGN_W;
-    setScale(s);
+    setScale(Math.max(0.15, s));
   }, []);
 
   useEffect(() => {

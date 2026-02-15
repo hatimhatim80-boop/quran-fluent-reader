@@ -230,8 +230,10 @@
   /* Wrapper: takes available space, canvas scales inside it */
   .auto15-wrapper {
     width: 100%;
-    overflow: visible;
+    overflow: hidden;
     position: relative;
+    display: flex;
+    justify-content: center;
   }
 
   /* Canvas: fixed design size, scaled via transform */
@@ -248,7 +250,7 @@
     overflow: hidden;
     position: relative;
     box-sizing: border-box;
-    transform-origin: top right;
+    transform-origin: top center;
     font-size: 48px;
   }
 
