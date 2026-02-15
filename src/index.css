@@ -238,11 +238,12 @@
 
   /* Canvas: fixed design size, scaled via transform */
   .mushafPageAuto15 {
-    width: 1000px;
-    height: 1414px;
-    padding: 40px 50px;
+    width: 550px;
+    height: 778px;
+    padding: 20px 25px;
     direction: rtl;
     display: grid;
+    grid-template-columns: 1fr;
     grid-template-rows: repeat(var(--auto15-rows, 15), 1fr);
     background: hsl(var(--card));
     border: 1px solid hsl(var(--page-border));
@@ -251,7 +252,7 @@
     position: relative;
     box-sizing: border-box;
     transform-origin: top center;
-    font-size: 48px;
+    font-size: 28px;
   }
 
   .mushafPageAuto15::before {
@@ -266,15 +267,18 @@
 
   .auto15-line {
     overflow: visible;
-    text-align: justify;
-    text-align-last: justify;
     direction: rtl;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    display: block;
     line-height: 1.1;
     min-height: 0;
     box-sizing: border-box;
+  }
+
+  .auto15-line > .quran-line {
+    width: 100%;
+    text-align: justify;
+    text-align-last: justify;
+    text-justify: inter-word;
   }
 
   .auto15-line .quran-line {
