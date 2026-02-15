@@ -95,7 +95,7 @@ export function PageView({
   const fontFamily = useSettingsStore((s) => s.settings.fonts.fontFamily);
   const fontWeight = useSettingsStore((s) => s.settings.fonts.fontWeight);
   const { containerRef: autoFitRef, fittedFontSize } = useAutoFitFont(page.text);
-  const { containerRef: auto15Ref, fittedFontPx } = useAutoFit15Lines(page.text, fontFamily, fontWeight);
+  const { canvasRef: auto15Ref, wrapperRef: auto15WrapperRef, scale: auto15Scale } = useAutoFit15Lines(page.text, fontFamily, fontWeight);
 
   // Redistribute lines based on device
   const effectivePageText = useMemo(() => {
@@ -718,6 +718,7 @@ export function PageView({
   const isAuto15Mode = displayMode === 'auto15';
 
   if (isAuto15Mode) {
+    const scaledH = 1414 * auto15Scale;
     return (
       <div className="page-frame p-2 sm:p-4" style={pageFrameStyle} dir={textDirection}>
         {!hidePageBadge && (
@@ -734,10 +735,17 @@ export function PageView({
           </div>
         )}
         <div
-          ref={(el) => { (containerRef as any).current = el; (auto15Ref as any).current = el; }}
-          className="mushafPageAuto15 arabic-text"
+          ref={(el) => { (auto15WrapperRef as any).current = el; }}
+          className="auto15-wrapper"
+          style={{ height: `${scaledH}px` }}
         >
-          {renderedContent}
+          <div
+            ref={(el) => { (containerRef as any).current = el; (auto15Ref as any).current = el; }}
+            className="mushafPageAuto15 arabic-text"
+            style={{ transform: `scale(${auto15Scale})`, transformOrigin: 'top right' }}
+          >
+            {renderedContent}
+          </div>
         </div>
         {!hidePageBadge && (
           <div className="flex items-center justify-between mt-2 pt-1 border-t border-ornament/20 font-arabic text-xs sm:text-sm text-muted-foreground/70">
