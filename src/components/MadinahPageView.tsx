@@ -149,9 +149,13 @@ export function MadinahPageView({ pageNumber, hidePageBadge }: MadinahPageViewPr
                     </div>
                   );
                 }
+                const words = line.split(/\s+/).filter(Boolean);
+                const isShort = words.length <= 3;
                 return (
-                  <div key={idx} className="mushafLine mushafOverlayLine">
-                    <span>{line}</span>
+                  <div key={idx} className={`mushafLine mushafOverlayLine${isShort ? ' mushafLine--short' : ''}`}>
+                    {words.map((w, wi) => (
+                      <span key={wi}>{w}</span>
+                    ))}
                   </div>
                 );
               })}
@@ -177,9 +181,13 @@ export function MadinahPageView({ pageNumber, hidePageBadge }: MadinahPageViewPr
                   </div>
                 );
               }
+              const words = line.split(/\s+/).filter(Boolean);
+              const isShort = words.length <= 3;
               return (
-                <div key={idx} className="mushafLine">
-                  <span>{line}</span>
+                <div key={idx} className={`mushafLine${isShort ? ' mushafLine--short' : ''}`}>
+                  {words.map((w, wi) => (
+                    <span key={wi}>{w}</span>
+                  ))}
                 </div>
               );
             })}

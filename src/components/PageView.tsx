@@ -121,6 +121,8 @@ export function PageView({
     const el = document.querySelector<HTMLElement>(
       `[data-ghareeb-index="${highlightedWordIndex}"]`,
     );
+    // Don't scroll if inside a fixed mushaf page (lines15/auto15)
+    if (el?.closest('.mushafPage, .mushafPageAuto15')) return;
     el?.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
   }, [highlightedWordIndex]);
 

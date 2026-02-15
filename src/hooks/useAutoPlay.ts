@@ -50,10 +50,13 @@ export function useAutoPlay({
     }
   }, []);
 
-  // Scroll active word into view
+  // Scroll active word into view (skip if inside a fixed-canvas container)
   const scrollToActiveWord = useCallback((index: number) => {
     const wordEl = document.querySelector(`[data-ghareeb-index="${index}"]`);
     if (wordEl) {
+      // Don't scroll if the word is inside a fixed mushaf page (lines15/auto15)
+      const inFixedPage = wordEl.closest('.mushafPage, .mushafPageAuto15');
+      if (inFixedPage) return;
       wordEl.scrollIntoView({
         behavior: 'smooth',
         block: 'center',
