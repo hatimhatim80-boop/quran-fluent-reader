@@ -188,7 +188,7 @@ export function QuranReader() {
         )}
 
         {/* Page Content */}
-        <div className={displayMode === 'auto15' ? 'w-full max-w-4xl mx-auto py-1 px-2' : 'max-w-2xl mx-auto w-full px-3 py-2 sm:py-6'}>
+        <div className={displayMode === 'auto15' ? 'w-full max-w-2xl mx-auto py-1 px-2' : 'max-w-2xl mx-auto w-full px-3 py-2 sm:py-6'}>
           {settings.debugMode && isPlaying && (
             <div className="fixed top-16 left-4 z-50 bg-black/80 text-white text-xs px-3 py-2 rounded-lg font-mono">
               Running {currentWordIndex + 1} / {renderedWords.length}
