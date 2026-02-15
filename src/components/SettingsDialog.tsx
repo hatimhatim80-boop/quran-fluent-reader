@@ -287,18 +287,6 @@ export function SettingsDialog({ children }: SettingsDialogProps) {
                   <span className="font-arabic text-[9px] text-muted-foreground">Auto-fit حجم الخط</span>
                 </button>
                 <button
-                  onClick={() => setDisplay({ mode: 'hybrid' })}
-                  className={`p-3 rounded-lg border text-center transition-all ${
-                    settings.display?.mode === 'hybrid'
-                      ? 'border-primary bg-primary/10 ring-2 ring-primary/20'
-                      : 'border-border hover:border-muted-foreground/50'
-                  }`}
-                >
-                  <Rows3 className="w-5 h-5 mx-auto mb-1 text-primary" />
-                  <span className="font-arabic text-xs font-bold block">هجين</span>
-                  <span className="font-arabic text-[9px] text-muted-foreground">PNG + تفاعل</span>
-                </button>
-                <button
                   onClick={() => setDisplay({ mode: 'continuous' })}
                   className={`p-3 rounded-lg border text-center transition-all ${
                     settings.display?.mode === 'continuous'

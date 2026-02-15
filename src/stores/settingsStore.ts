@@ -14,7 +14,7 @@ export interface FontSettings {
 
 // Display settings
 export interface DisplaySettings {
-  mode: 'continuous' | 'lines15' | 'hybrid' | 'auto15';
+  mode: 'continuous' | 'lines15' | 'auto15';
   mobileLinesPerPage: number;
   desktopLinesPerPage: number;
   minWordsPerLine: number;
