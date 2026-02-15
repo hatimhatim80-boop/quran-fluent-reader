@@ -270,7 +270,7 @@
     direction: rtl;
     display: flex;
     align-items: center;
-    line-height: 1.55;
+    line-height: 1.1;
     min-height: 0;
     box-sizing: border-box;
   }
