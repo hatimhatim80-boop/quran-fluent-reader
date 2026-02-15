@@ -233,9 +233,9 @@
     aspect-ratio: 3 / 4.2;
     padding: 3% 4%;
     direction: rtl;
-    display: grid;
-    grid-template-columns: 1fr;
-    grid-template-rows: repeat(var(--auto15-rows, 15), 1fr);
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
     background: hsl(var(--card));
     border: 1px solid hsl(var(--page-border));
     border-radius: 4px;
@@ -258,11 +258,11 @@
   .auto15-line {
     overflow: visible;
     direction: rtl;
-    display: flex;
-    align-items: center;
+    display: block;
     line-height: 1.1;
     min-height: 0;
     box-sizing: border-box;
+    flex-shrink: 0;
   }
 
   .auto15-line > .quran-line {
