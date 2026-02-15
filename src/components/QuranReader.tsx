@@ -238,7 +238,8 @@ export function QuranReader() {
         </div>
 
         {/* Bottom Navigation Bar */}
-        <div className={`sticky bottom-0 z-30 bg-background/95 backdrop-blur-md border-t border-border/50 transition-all ${fullscreen ? 'opacity-0 pointer-events-none hover:opacity-100 hover:pointer-events-auto focus-within:opacity-100 focus-within:pointer-events-auto' : ''}`}>
+        {!fullscreen && (
+        <div className="sticky bottom-0 z-30 bg-background/95 backdrop-blur-md border-t border-border/50">
           <div className="max-w-2xl mx-auto px-3 py-2">
             {/* Page navigation - always visible */}
             <div className="flex items-center justify-between gap-1">
@@ -383,6 +384,7 @@ export function QuranReader() {
             )}
           </div>
         </div>
+        )}
 
         {/* Footer - hidden in fullscreen */}
         {!fullscreen && (
