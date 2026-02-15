@@ -174,7 +174,7 @@ export function QuranReader() {
   const meaningActive = isPlaying || currentWordIndex >= 0;
 
   return (
-    <div className="min-h-screen bg-background flex" dir="rtl" ref={contentRef}>
+    <div className={`bg-background flex ${fullscreen ? 'h-screen' : 'min-h-screen'}`} dir="rtl" ref={contentRef}>
       <DiagnosticModeBadge />
 
       {/* Index Sidebar */}
@@ -213,7 +213,7 @@ export function QuranReader() {
         )}
 
         {/* Page Content */}
-        <div className="max-w-2xl mx-auto w-full px-1 sm:px-3 py-2 sm:py-6 overflow-hidden" ref={pageContentRef}>
+        <div className={`max-w-2xl mx-auto w-full px-1 sm:px-3 overflow-hidden ${fullscreen ? 'flex-1 flex flex-col justify-center py-1' : 'py-2 sm:py-6'}`} ref={pageContentRef}>
           {settings.debugMode && isPlaying && (
             <div className="fixed top-16 left-4 z-50 bg-black/80 text-white text-xs px-3 py-2 rounded-lg font-mono">
               Running {currentWordIndex + 1} / {renderedWords.length}
@@ -237,7 +237,7 @@ export function QuranReader() {
         </div>
 
         {/* Bottom Navigation Bar */}
-        <div className={`sticky bottom-0 z-30 bg-background/95 backdrop-blur-md border-t border-border/50 transition-all ${fullscreen ? 'opacity-0 hover:opacity-100 focus-within:opacity-100' : ''}`}>
+        <div className={`sticky bottom-0 z-30 bg-background/95 backdrop-blur-md border-t border-border/50 transition-all ${fullscreen ? 'opacity-0 pointer-events-none hover:opacity-100 hover:pointer-events-auto focus-within:opacity-100 focus-within:pointer-events-auto' : ''}`}>
           <div className="max-w-2xl mx-auto px-3 py-2">
             {/* Page navigation - always visible */}
             <div className="flex items-center justify-between gap-1">
@@ -383,7 +383,7 @@ export function QuranReader() {
           </div>
         </div>
 
-        {/* Footer */}
+        {/* Footer - hidden in fullscreen */}
         {!fullscreen && (
           <div className="text-center text-[9px] text-muted-foreground/50 font-arabic py-1">
             يُحفظ تقدمك تلقائياً
