@@ -261,7 +261,7 @@ export function SettingsDialog({ children }: SettingsDialogProps) {
           <TabsContent value="display" className="space-y-5 mt-4">
             <div className="space-y-3">
               <Label className="font-arabic font-bold">نمط عرض الصفحة</Label>
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-2 gap-2">
                 <button
                   onClick={() => setDisplay({ mode: 'lines15' })}
                   className={`p-3 rounded-lg border text-center transition-all ${
@@ -272,7 +272,19 @@ export function SettingsDialog({ children }: SettingsDialogProps) {
                 >
                   <Rows3 className="w-5 h-5 mx-auto mb-1 text-primary" />
                   <span className="font-arabic text-xs font-bold block">مصحف المدينة</span>
-                  <span className="font-arabic text-[9px] text-muted-foreground">15 سطراً</span>
+                  <span className="font-arabic text-[9px] text-muted-foreground">15 سطراً ثابت</span>
+                </button>
+                <button
+                  onClick={() => setDisplay({ mode: 'auto15' })}
+                  className={`p-3 rounded-lg border text-center transition-all ${
+                    settings.display?.mode === 'auto15'
+                      ? 'border-primary bg-primary/10 ring-2 ring-primary/20'
+                      : 'border-border hover:border-muted-foreground/50'
+                  }`}
+                >
+                  <Rows3 className="w-5 h-5 mx-auto mb-1 text-primary" />
+                  <span className="font-arabic text-xs font-bold block">15 سطر تلقائي</span>
+                  <span className="font-arabic text-[9px] text-muted-foreground">Auto-fit حجم الخط</span>
                 </button>
                 <button
                   onClick={() => setDisplay({ mode: 'hybrid' })}
@@ -403,6 +415,37 @@ export function SettingsDialog({ children }: SettingsDialogProps) {
                 onCheckedChange={(v) => setDisplay({ autoFitFont: v })}
               />
             </div>
+
+            {/* Auto15 short page alignment */}
+            {settings.display?.mode === 'auto15' && (
+              <div className="space-y-3">
+                <Label className="font-arabic font-bold">محاذاة الصفحات القصيرة (&lt;15 سطر)</Label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    onClick={() => setDisplay({ auto15ShortPageAlign: 'center' })}
+                    className={`p-3 rounded-lg border text-center transition-all ${
+                      (settings.display?.auto15ShortPageAlign || 'center') === 'center'
+                        ? 'border-primary bg-primary/10 ring-2 ring-primary/20'
+                        : 'border-border hover:border-muted-foreground/50'
+                    }`}
+                  >
+                    <span className="font-arabic text-sm font-bold block">وسط</span>
+                    <span className="font-arabic text-[10px] text-muted-foreground">أسطر فارغة أعلى وأسفل</span>
+                  </button>
+                  <button
+                    onClick={() => setDisplay({ auto15ShortPageAlign: 'top' })}
+                    className={`p-3 rounded-lg border text-center transition-all ${
+                      settings.display?.auto15ShortPageAlign === 'top'
+                        ? 'border-primary bg-primary/10 ring-2 ring-primary/20'
+                        : 'border-border hover:border-muted-foreground/50'
+                    }`}
+                  >
+                    <span className="font-arabic text-sm font-bold block">أعلى</span>
+                    <span className="font-arabic text-[10px] text-muted-foreground">أسطر فارغة في الأسفل</span>
+                  </button>
+                </div>
+              </div>
+            )}
 
             <div className="p-3 rounded-lg bg-muted/30 text-sm font-arabic text-muted-foreground">
               <Check className="w-4 h-4 inline ml-1 text-green-600" />

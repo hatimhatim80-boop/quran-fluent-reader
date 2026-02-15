@@ -1,5 +1,6 @@
 import React, { useMemo, useEffect, useRef } from 'react';
 import { useAutoFitFont } from '@/hooks/useAutoFitFont';
+import { useAutoFit15Lines } from '@/hooks/useAutoFit15Lines';
 import { QuranPage, GhareebWord } from '@/types/quran';
 import { normalizeArabic } from '@/utils/quranParser';
 import { GhareebWordPopover } from './GhareebWordPopover';
@@ -90,7 +91,11 @@ export function PageView({
   const textAlign = useSettingsStore((s) => s.settings.display?.textAlign || 'justify');
   const minWordsPerLine = useSettingsStore((s) => s.settings.display?.minWordsPerLine || 5);
   const balanceLastLine = useSettingsStore((s) => s.settings.display?.balanceLastLine ?? false);
+  const auto15ShortPageAlign = useSettingsStore((s) => s.settings.display?.auto15ShortPageAlign || 'center');
+  const fontFamily = useSettingsStore((s) => s.settings.fonts.fontFamily);
+  const fontWeight = useSettingsStore((s) => s.settings.fonts.fontWeight);
   const { containerRef: autoFitRef, fittedFontSize } = useAutoFitFont(page.text);
+  const { containerRef: auto15Ref, fittedFontPx } = useAutoFit15Lines(page.text, fontFamily, fontWeight);
 
   // Redistribute lines based on device
   const effectivePageText = useMemo(() => {
@@ -341,7 +346,8 @@ export function PageView({
   const renderedContent = useMemo(() => {
     if (!effectivePageText) return null;
 
-    const isLines15 = displayMode === 'lines15';
+    const isLines15 = displayMode === 'lines15' || displayMode === 'auto15';
+    const isAuto15 = displayMode === 'auto15';
     const lines = effectivePageText.split('\n');
     
     // If no ghareeb words, render text
@@ -673,15 +679,75 @@ export function PageView({
       }
     }
 
+    if (isAuto15) {
+      // Build 15-row grid with padding for short pages
+      const totalLines = 15;
+      const contentLineCount = allElements.length;
+      const emptyCount = Math.max(0, totalLines - contentLineCount);
+      const topEmpty = auto15ShortPageAlign === 'center' ? Math.floor(emptyCount / 2) : 0;
+      const bottomEmpty = emptyCount - topEmpty;
+
+      const gridElements: React.ReactNode[] = [];
+      for (let e = 0; e < topEmpty; e++) {
+        gridElements.push(<div key={`empty-top-${e}`} className="auto15-line auto15-line--empty">&nbsp;</div>);
+      }
+      allElements.forEach((el, idx) => {
+        // Wrap each element in auto15-line if not already
+        gridElements.push(
+          <div key={`auto15-${idx}`} className="auto15-line">
+            {el}
+          </div>
+        );
+      });
+      for (let e = 0; e < bottomEmpty; e++) {
+        gridElements.push(<div key={`empty-bot-${e}`} className="auto15-line auto15-line--empty">&nbsp;</div>);
+      }
+      return <>{gridElements}</>;
+    }
+
     return isLines15 
       ? <div className="quran-lines-container">{allElements}</div>
       : <div className="quran-page" style={{ textAlign: 'justify', textAlignLast: 'right' }}>{allElements}</div>;
-  }, [effectivePageText, page.pageNumber, ghareebWords, highlightedWordIndex, isPlaying, onWordClick, surahContextByLine, tokenMatchMap, highlightVersion, displayMode, tahfeezMode, toggleTahfeezWord, isTahfeezSelected, rangeAnchor, setRangeAnchor, addItem, storedItems]);
+  }, [effectivePageText, page.pageNumber, ghareebWords, highlightedWordIndex, isPlaying, onWordClick, surahContextByLine, tokenMatchMap, highlightVersion, displayMode, tahfeezMode, toggleTahfeezWord, isTahfeezSelected, rangeAnchor, setRangeAnchor, addItem, storedItems, auto15ShortPageAlign]);
 
   const pageBackgroundColor = useSettingsStore((s) => (s.settings.colors as any).pageBackgroundColor || '');
   const pageFrameStyle = pageBackgroundColor ? { background: `hsl(${pageBackgroundColor})` } : undefined;
 
   const pageMeta = useMemo(() => getPageMetadata(page.pageNumber), [page.pageNumber]);
+
+  const isAuto15Mode = displayMode === 'auto15';
+
+  if (isAuto15Mode) {
+    return (
+      <div className="page-frame p-2 sm:p-4" style={pageFrameStyle} dir={textDirection}>
+        {!hidePageBadge && (
+          <div className="flex items-center justify-between mb-1 font-arabic text-xs sm:text-sm text-muted-foreground/70">
+            <span>الحزب {pageMeta.hizbNumberArabic}</span>
+            <span className="text-primary font-bold text-sm sm:text-base">{pageMeta.pageNumberArabic}</span>
+            <span>الحزب {pageMeta.hizbNumberArabic}</span>
+          </div>
+        )}
+        {!hidePageBadge && (
+          <div className="flex items-center justify-between mb-2 pb-1 border-b border-ornament/20 font-arabic">
+            <span className="text-sm sm:text-base font-bold text-foreground">{pageMeta.surahName}</span>
+            <span className="text-sm sm:text-base font-bold text-foreground">{pageMeta.juzName}</span>
+          </div>
+        )}
+        <div
+          ref={(el) => { (containerRef as any).current = el; (auto15Ref as any).current = el; }}
+          className="mushafPageAuto15 arabic-text"
+        >
+          {renderedContent}
+        </div>
+        {!hidePageBadge && (
+          <div className="flex items-center justify-between mt-2 pt-1 border-t border-ornament/20 font-arabic text-xs sm:text-sm text-muted-foreground/70">
+            <span>{pageMeta.pageNumberArabic}</span>
+            <span>الحزب {pageMeta.hizbNumberArabic}</span>
+          </div>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div ref={(el) => { (containerRef as any).current = el; (autoFitRef as any).current = el; }} className="page-frame p-4 sm:p-6" style={{ ...pageFrameStyle, ...(fittedFontSize ? { fontSize: `${fittedFontSize}rem` } : {}) }} dir={textDirection}>
