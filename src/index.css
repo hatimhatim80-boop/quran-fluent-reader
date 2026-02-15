@@ -154,6 +154,19 @@
   .quran-page {
     @apply arabic-text;
     text-align: right;
+    overflow-wrap: break-word;
+    word-break: break-word;
+  }
+
+  /* Better mobile text containment */
+  @media (max-width: 639px) {
+    .page-frame {
+      padding-left: 0.5rem !important;
+      padding-right: 0.5rem !important;
+    }
+    .quran-page {
+      font-size: var(--quran-font-size, 1.3rem);
+    }
   }
 
   /* 15-line Madina Mushaf style */

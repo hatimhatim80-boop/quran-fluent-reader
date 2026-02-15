@@ -49,6 +49,8 @@ export function QuranReader() {
   const [pinchScale, setPinchScale] = useState(1);
   const pinchRef = React.useRef<{ startDist: number; startScale: number } | null>(null);
   const contentRef = React.useRef<HTMLDivElement>(null);
+  const pageContentRef = React.useRef<HTMLDivElement>(null);
+  const swipeRef = React.useRef<{ startX: number; startY: number; startTime: number } | null>(null);
   const navigate = useNavigate();
   const tahfeezMode = useTahfeezStore((s) => s.selectionMode);
   const setTahfeezMode = useTahfeezStore((s) => s.setSelectionMode);
@@ -91,13 +93,15 @@ export function QuranReader() {
 
   // Pinch-to-zoom handler
   useEffect(() => {
-    const el = contentRef.current;
+    const el = pageContentRef.current;
     if (!el) return;
     const onTouchStart = (e: TouchEvent) => {
       if (e.touches.length === 2) {
         const dx = e.touches[0].clientX - e.touches[1].clientX;
         const dy = e.touches[0].clientY - e.touches[1].clientY;
         pinchRef.current = { startDist: Math.hypot(dx, dy), startScale: pinchScale };
+      } else if (e.touches.length === 1) {
+        swipeRef.current = { startX: e.touches[0].clientX, startY: e.touches[0].clientY, startTime: Date.now() };
       }
     };
     const onTouchMove = (e: TouchEvent) => {
@@ -109,8 +113,30 @@ export function QuranReader() {
         const newScale = Math.min(3, Math.max(0.5, pinchRef.current.startScale * (dist / pinchRef.current.startDist)));
         setPinchScale(newScale);
       }
+      if (e.touches.length === 1 && swipeRef.current) {
+        // Cancel swipe if vertical movement is dominant
+        const dy = Math.abs(e.touches[0].clientY - swipeRef.current.startY);
+        const dx = Math.abs(e.touches[0].clientX - swipeRef.current.startX);
+        if (dy > dx * 1.5) swipeRef.current = null;
+      }
     };
-    const onTouchEnd = () => { pinchRef.current = null; };
+    const onTouchEnd = (e: TouchEvent) => {
+      // Handle swipe for page navigation
+      if (swipeRef.current && e.changedTouches.length === 1) {
+        const dx = e.changedTouches[0].clientX - swipeRef.current.startX;
+        const dy = Math.abs(e.changedTouches[0].clientY - swipeRef.current.startY);
+        const elapsed = Date.now() - swipeRef.current.startTime;
+        const absDx = Math.abs(dx);
+        // Require: horizontal > 60px, faster than 400ms, and more horizontal than vertical
+        if (absDx > 60 && elapsed < 400 && absDx > dy * 1.5) {
+          // RTL: swipe left = next page, swipe right = prev page (reversed for RTL)
+          if (dx < 0) nextPage();
+          else prevPage();
+        }
+      }
+      swipeRef.current = null;
+      pinchRef.current = null;
+    };
     el.addEventListener('touchstart', onTouchStart, { passive: false });
     el.addEventListener('touchmove', onTouchMove, { passive: false });
     el.addEventListener('touchend', onTouchEnd);
@@ -119,7 +145,7 @@ export function QuranReader() {
       el.removeEventListener('touchmove', onTouchMove);
       el.removeEventListener('touchend', onTouchEnd);
     };
-  }, [pinchScale]);
+  }, [pinchScale, nextPage, prevPage]);
 
   if (isLoading) {
     return (
@@ -187,25 +213,27 @@ export function QuranReader() {
         )}
 
         {/* Page Content */}
-        <div className="max-w-2xl mx-auto w-full px-3 py-2 sm:py-6">
+        <div className="max-w-2xl mx-auto w-full px-1 sm:px-3 py-2 sm:py-6 overflow-hidden" ref={pageContentRef}>
           {settings.debugMode && isPlaying && (
             <div className="fixed top-16 left-4 z-50 bg-black/80 text-white text-xs px-3 py-2 rounded-lg font-mono">
               Running {currentWordIndex + 1} / {renderedWords.length}
             </div>
           )}
 
-          {pageData && (
-            <PageView
-              page={pageData}
-              ghareebWords={pageWords}
-              highlightedWordIndex={currentWordIndex}
-              meaningEnabled={meaningActive}
-              isPlaying={isPlaying}
-              onWordClick={handleWordClick}
-              onRenderedWordsChange={handleRenderedWordsChange}
-              hidePageBadge={fullscreen}
-            />
-          )}
+          <div style={{ transform: pinchScale !== 1 ? `scale(${pinchScale})` : undefined, transformOrigin: 'center top', transition: 'transform 0.1s ease-out' }}>
+            {pageData && (
+              <PageView
+                page={pageData}
+                ghareebWords={pageWords}
+                highlightedWordIndex={currentWordIndex}
+                meaningEnabled={meaningActive}
+                isPlaying={isPlaying}
+                onWordClick={handleWordClick}
+                onRenderedWordsChange={handleRenderedWordsChange}
+                hidePageBadge={fullscreen}
+              />
+            )}
+          </div>
         </div>
 
         {/* Bottom Navigation Bar */}
