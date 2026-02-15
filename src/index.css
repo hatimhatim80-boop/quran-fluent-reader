@@ -721,7 +721,9 @@
     padding-inline: 8px;
     box-sizing: border-box;
     transform-origin: right center;
-    text-align: center;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
     line-height: 2.05;
     font-family: 'KFGQPC HAFS Uthmanic Script', 'UthmanicHafs', 'me_quran', 'Amiri Quran', 'Amiri', serif;
     font-size: var(--mushaf-font-size, 22px);
@@ -739,6 +741,12 @@
     min-height: 0;
     padding: 0;
     margin: 0;
+  }
+
+  /* Short lines (few words) should be centered, not stretched */
+  .mushafLine--short {
+    justify-content: center;
+    gap: 0.3em;
   }
 
   .dark .mushafLine {
