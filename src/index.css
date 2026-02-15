@@ -620,7 +620,9 @@
   }
 
   .hybridWordBox--ghareeb {
-    /* Ghareeb words are subtly indicated */
+    background-color: hsl(var(--highlight) / 0.2);
+    border: 1.5px solid hsl(var(--highlight) / 0.35);
+    border-radius: 3px;
   }
 
   .hybridWordBox--ghareeb-hover {
