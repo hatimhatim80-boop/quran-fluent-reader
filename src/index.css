@@ -225,22 +225,13 @@
   }
 }
 
-  /* ── Auto 15 Lines Mode: Fixed Canvas ── */
+  /* ── Auto 15 Lines Mode: Page-level font fit ── */
 
-  /* Wrapper: takes available space, canvas scales inside it */
-  .auto15-wrapper {
-    width: 100%;
-    overflow: hidden;
-    position: relative;
-    display: flex;
-    justify-content: center;
-  }
-
-  /* Canvas: fixed design size, scaled via transform */
+  /* Canvas: fluid width, aspect-ratio keeps proportions, NO transform/scale */
   .mushafPageAuto15 {
-    width: 550px;
-    height: 778px;
-    padding: 20px 25px;
+    width: 100%;
+    aspect-ratio: 3 / 4.2;
+    padding: 3% 4%;
     direction: rtl;
     display: grid;
     grid-template-columns: 1fr;
@@ -248,11 +239,10 @@
     background: hsl(var(--card));
     border: 1px solid hsl(var(--page-border));
     border-radius: 4px;
-    overflow: hidden;
+    overflow: visible;
     position: relative;
     box-sizing: border-box;
-    transform-origin: top center;
-    font-size: 28px;
+    font-size: 28px; /* initial; overridden by JS autofit */
   }
 
   .mushafPageAuto15::before {
@@ -266,7 +256,7 @@
   }
 
   .auto15-line {
-    overflow: hidden;
+    overflow: visible;
     direction: rtl;
     display: flex;
     align-items: center;

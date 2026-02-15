@@ -1,42 +1,103 @@
-import { useEffect, useRef, useState, useCallback } from 'react';
-
-const DESIGN_W = 550;
-const DESIGN_H = 778;
+import { useEffect, useRef, useCallback, useState } from 'react';
 
 /**
- * Fixed-canvas approach: the page is always laid out at 1000×1414 design pixels,
- * then uniformly scaled to fit the viewport wrapper.
- * Uses min(scaleW, scaleH) so the entire page is visible without scrolling.
+ * Page-level AutoFit for 15-line Mushaf mode.
+ * Uses binary search to find the LARGEST font-size (px) where
+ * NO line overflows horizontally. One uniform size for all lines.
+ * No transform/scale — avoids Arabic glyph distortion.
  */
-export function useAutoFit15Lines(pageText: string, fontFamily: string, fontWeight: number) {
-  const canvasRef = useRef<HTMLDivElement>(null);
-  const wrapperRef = useRef<HTMLDivElement>(null);
-  const [scale, setScale] = useState(1);
+export function useAutoFit15Lines(
+  pageText: string,
+  fontFamily: string,
+  fontWeight: number,
+) {
+  const pageRef = useRef<HTMLDivElement>(null);
+  const [fittedFontSize, setFittedFontSize] = useState<number | null>(null);
 
-  const recalc = useCallback(() => {
-    const wrapper = wrapperRef.current;
-    if (!wrapper) return;
+  const refit = useCallback(() => {
+    const pageEl = pageRef.current;
+    if (!pageEl) return;
 
-    const wrapperW = wrapper.clientWidth;
-    // Scale based on available width so text fills the line
-    const s = wrapperW / DESIGN_W;
-    setScale(Math.max(0.15, s));
+    const style = getComputedStyle(pageEl);
+    const innerW =
+      pageEl.clientWidth -
+      parseFloat(style.paddingLeft) -
+      parseFloat(style.paddingRight);
+
+    if (innerW <= 0) return;
+
+    // Collect all .quran-line elements inside the page grid
+    const lineEls = pageEl.querySelectorAll<HTMLElement>('.quran-line');
+    if (lineEls.length === 0) return;
+
+    // Binary search: largest font where every line fits
+    const MIN = 10;
+    const MAX = 90;
+    let lo = MIN;
+    let hi = MAX;
+    let best = MIN;
+
+    const fits = (fs: number) => {
+      for (const el of lineEls) {
+        el.style.fontSize = `${fs}px`;
+      }
+      // Force layout
+      void pageEl.offsetWidth;
+      for (const el of lineEls) {
+        if (el.scrollWidth > innerW + 1) return false;
+      }
+      return true;
+    };
+
+    // Temporarily allow overflow so scrollWidth is measurable
+    const prevOverflow = pageEl.style.overflow;
+    pageEl.style.overflow = 'visible';
+    for (const el of lineEls) {
+      (el as HTMLElement).style.overflow = 'visible';
+      (el as HTMLElement).style.whiteSpace = 'nowrap';
+    }
+
+    while (lo <= hi) {
+      const mid = (lo + hi) >> 1;
+      if (fits(mid)) {
+        best = mid;
+        lo = mid + 1;
+      } else {
+        hi = mid - 1;
+      }
+    }
+
+    // Apply final size
+    for (const el of lineEls) {
+      el.style.fontSize = `${best}px`;
+      (el as HTMLElement).style.overflow = '';
+      (el as HTMLElement).style.whiteSpace = '';
+    }
+    pageEl.style.overflow = prevOverflow;
+
+    setFittedFontSize(best);
   }, []);
 
   useEffect(() => {
-    const timer = setTimeout(recalc, 50);
-    return () => clearTimeout(timer);
-  }, [pageText, fontFamily, fontWeight, recalc]);
+    // Wait for fonts & layout
+    const raf1 = requestAnimationFrame(() => {
+      const raf2 = requestAnimationFrame(() => {
+        refit();
+      });
+      return () => cancelAnimationFrame(raf2);
+    });
+    return () => cancelAnimationFrame(raf1);
+  }, [pageText, fontFamily, fontWeight, refit]);
 
   useEffect(() => {
-    const onResize = () => recalc();
+    const onResize = () => refit();
     window.addEventListener('resize', onResize);
     window.addEventListener('orientationchange', onResize);
     return () => {
       window.removeEventListener('resize', onResize);
       window.removeEventListener('orientationchange', onResize);
     };
-  }, [recalc]);
+  }, [refit]);
 
-  return { canvasRef, wrapperRef, scale, designW: DESIGN_W, designH: DESIGN_H };
+  return { pageRef, fittedFontSize };
 }

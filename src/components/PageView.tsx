@@ -95,7 +95,7 @@ export function PageView({
   const fontFamily = useSettingsStore((s) => s.settings.fonts.fontFamily);
   const fontWeight = useSettingsStore((s) => s.settings.fonts.fontWeight);
   const { containerRef: autoFitRef, fittedFontSize } = useAutoFitFont(page.text);
-  const { canvasRef: auto15Ref, wrapperRef: auto15WrapperRef, scale: auto15Scale } = useAutoFit15Lines(page.text, fontFamily, fontWeight);
+  const { pageRef: auto15PageRef } = useAutoFit15Lines(page.text, fontFamily, fontWeight);
 
   // Redistribute lines based on device
   const effectivePageText = useMemo(() => {
@@ -116,38 +116,7 @@ export function PageView({
   // Subscribe to highlight overrides for reactivity (read-only, no editing)
   const highlightVersion = useHighlightOverrideStore((s) => s.version);
 
-  // Auto-shrink font for overflowing lines in auto15 mode
-  useEffect(() => {
-    if (displayMode !== 'auto15') return;
-    const container = containerRef.current;
-    if (!container) return;
-    const timer = setTimeout(() => {
-      const lineWrappers = container.querySelectorAll<HTMLElement>('.auto15-line');
-      lineWrappers.forEach((wrapper) => {
-        const line = wrapper.querySelector<HTMLElement>('.quran-line');
-        if (!line) return;
-        // Reset any previous inline font-size
-        line.style.fontSize = '';
-        // Temporarily remove overflow:hidden so scrollWidth reflects true content width
-        const prevOverflow = wrapper.style.overflow;
-        wrapper.style.overflow = 'visible';
-        const availableW = wrapper.clientWidth;
-        if (availableW <= 0) { wrapper.style.overflow = prevOverflow; return; }
-        // Force layout recalc
-        void line.offsetWidth;
-        const contentW = line.scrollWidth;
-        if (contentW > availableW + 1) {
-          const ratio = availableW / contentW;
-          const currentSize = parseFloat(getComputedStyle(line).fontSize);
-          const newSize = Math.floor(currentSize * ratio * 0.96); // 4% safety margin
-          line.style.fontSize = `${Math.max(12, newSize)}px`;
-        }
-        // Restore overflow
-        wrapper.style.overflow = prevOverflow;
-      });
-    }, 100);
-    return () => clearTimeout(timer);
-  }, [displayMode, effectivePageText, auto15Scale]);
+  // Per-line auto-shrink removed — page-level font fit handles everything
 
   useEffect(() => {
     if (highlightedWordIndex < 0) return;
@@ -769,8 +738,6 @@ export function PageView({
   const isAuto15Mode = displayMode === 'auto15';
 
   if (isAuto15Mode) {
-    const DESIGN_H = 778;
-    const scaledH = DESIGN_H * auto15Scale;
     return (
       <div className="page-frame p-2 sm:p-4" style={pageFrameStyle} dir={textDirection}>
         {!hidePageBadge && (
@@ -787,21 +754,13 @@ export function PageView({
           </div>
         )}
         <div
-          ref={(el) => { (auto15WrapperRef as any).current = el; }}
-          className="auto15-wrapper"
-          style={{ height: `${scaledH}px` }}
+          ref={(el) => { (containerRef as any).current = el; (auto15PageRef as any).current = el; }}
+          className="mushafPageAuto15 arabic-text"
+          style={{
+            '--auto15-rows': String(auto15RowCount),
+          } as React.CSSProperties}
         >
-          <div
-            ref={(el) => { (containerRef as any).current = el; (auto15Ref as any).current = el; }}
-            className="mushafPageAuto15 arabic-text"
-            style={{
-              transform: `scale(${auto15Scale})`,
-              transformOrigin: 'top center',
-              '--auto15-rows': String(auto15RowCount),
-            } as React.CSSProperties}
-          >
-            {renderedContent}
-          </div>
+          {renderedContent}
         </div>
         {!hidePageBadge && (
           <div className="flex items-center justify-between mt-2 pt-1 border-t border-ornament/20 font-arabic text-xs sm:text-sm text-muted-foreground/70">
