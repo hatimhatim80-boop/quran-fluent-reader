@@ -1,4 +1,4 @@
-import React, { useMemo, useEffect, useRef } from 'react';
+import React, { useMemo, useEffect, useRef, useState } from 'react';
 import { useAutoFitFont } from '@/hooks/useAutoFitFont';
 import { useAutoFlowFit } from '@/hooks/useAutoFlowFit';
 import { QuranPage, GhareebWord } from '@/types/quran';
@@ -22,6 +22,8 @@ interface PageViewProps {
   hidePageBadge?: boolean;
   /** Force a specific display mode (used by hybrid overlay to force lines15) */
   forceDisplayMode?: string;
+  /** Whether fullscreen mode is active - enables viewport-fitting */
+  fullscreen?: boolean;
 }
 
 // Extract surah name from header line
@@ -80,6 +82,7 @@ export function PageView({
   onRenderedWordsChange,
   hidePageBadge,
   forceDisplayMode,
+  fullscreen,
 }: PageViewProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const lastRenderedKeysRef = useRef<string>('');
@@ -108,8 +111,29 @@ export function PageView({
   });
   const lineHeightSetting = useSettingsStore((s) => s.settings.fonts.lineHeight);
   const isAutoFlow15 = displayMode === 'autoFlow15';
+  const isContinuous = displayMode === 'continuous';
+  // In fullscreen, calculate available height for viewport fitting
+  const [viewportHeight, setViewportHeight] = useState<number | undefined>(undefined);
+  useEffect(() => {
+    if (!fullscreen) { setViewportHeight(undefined); return; }
+    const update = () => {
+      // Subtract some padding for the container
+      setViewportHeight(window.innerHeight - 24);
+    };
+    update();
+    window.addEventListener('resize', update);
+    window.addEventListener('orientationchange', update);
+    return () => {
+      window.removeEventListener('resize', update);
+      window.removeEventListener('orientationchange', update);
+    };
+  }, [fullscreen]);
+  
+  // Enable auto-fit for autoFlow15 always, AND for continuous in fullscreen
+  const autoFlowEnabled = isAutoFlow15 || (isContinuous && !!fullscreen);
   const { containerRef: autoFlowRef, fittedFontSize: autoFlowFontSize } = useAutoFlowFit(
-    page.text, fontFamilyCSS, fontWeight, lineHeightSetting, 15, isAutoFlow15,
+    page.text, fontFamilyCSS, fontWeight, lineHeightSetting, 15, autoFlowEnabled, 
+    fullscreen ? viewportHeight : undefined,
   );
 
   // Redistribute lines based on device
@@ -712,8 +736,10 @@ export function PageView({
 
   const pageMeta = useMemo(() => getPageMetadata(page.pageNumber), [page.pageNumber]);
 
+  const useAutoFlow = autoFlowEnabled && autoFlowFontSize;
+
   return (
-    <div ref={(el) => { (containerRef as any).current = el; (autoFitRef as any).current = el; if (isAutoFlow15) (autoFlowRef as any).current = el; }} className="page-frame p-4 sm:p-6" style={{ ...pageFrameStyle, ...(isAutoFlow15 && autoFlowFontSize ? { '--quran-font-size': `${autoFlowFontSize}px` } as React.CSSProperties : fittedFontSize ? { fontSize: `${fittedFontSize}rem` } : {}) }} dir={textDirection}>
+    <div ref={(el) => { (containerRef as any).current = el; (autoFitRef as any).current = el; if (autoFlowEnabled) (autoFlowRef as any).current = el; }} className={`page-frame p-4 sm:p-6 ${fullscreen ? 'fullscreen-page-frame' : ''}`} style={{ ...pageFrameStyle, ...(useAutoFlow ? { '--quran-font-size': `${autoFlowFontSize}px` } as React.CSSProperties : fittedFontSize ? { fontSize: `${fittedFontSize}rem` } : {}) }} dir={textDirection}>
       {/* Top Header: Hizb - Page Number - Hizb */}
       {!hidePageBadge && (
         <div className="flex items-center justify-between mb-1 font-arabic text-xs sm:text-sm text-muted-foreground/70">

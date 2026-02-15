@@ -12,6 +12,8 @@ export function useAutoFlowFit(
   lineHeight: number,
   targetLines = 15,
   enabled = true,
+  /** Optional max height in px (e.g. viewport height for fullscreen) */
+  maxHeightPx?: number,
 ) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [fittedFontSize, setFittedFontSize] = useState<number | null>(null);
@@ -48,7 +50,7 @@ export function useAutoFlowFit(
     document.body.appendChild(tester);
 
     const MIN = 8;
-    const MAX = 60;
+    const MAX = 80;
     let lo = MIN;
     let hi = MAX;
     let best = MIN;
@@ -57,7 +59,8 @@ export function useAutoFlowFit(
       tester.style.fontSize = `${fs}px`;
       void tester.offsetWidth;
       const lineH = fs * lineHeight;
-      const maxHeight = lineH * targetLines;
+      // Use maxHeightPx if provided (fullscreen), otherwise use targetLines
+      const maxHeight = maxHeightPx ? maxHeightPx : lineH * targetLines;
       return tester.scrollHeight <= maxHeight + 1;
     };
 
@@ -73,7 +76,7 @@ export function useAutoFlowFit(
 
     document.body.removeChild(tester);
     setFittedFontSize(best);
-  }, [pageText, fontFamily, fontWeight, lineHeight, targetLines, enabled]);
+  }, [pageText, fontFamily, fontWeight, lineHeight, targetLines, enabled, maxHeightPx]);
 
   useEffect(() => {
     if (!enabled) { setFittedFontSize(null); return; }

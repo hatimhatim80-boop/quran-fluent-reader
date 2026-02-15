@@ -231,6 +231,7 @@ export function QuranReader() {
                 onWordClick={handleWordClick}
                 onRenderedWordsChange={handleRenderedWordsChange}
                 hidePageBadge={fullscreen}
+                fullscreen={fullscreen}
               />
             )}
           </div>
