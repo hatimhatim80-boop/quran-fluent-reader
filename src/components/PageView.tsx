@@ -122,23 +122,30 @@ export function PageView({
     const container = containerRef.current;
     if (!container) return;
     const timer = setTimeout(() => {
-      const lines = container.querySelectorAll<HTMLElement>('.auto15-line .quran-line');
-      lines.forEach((line) => {
+      const lineWrappers = container.querySelectorAll<HTMLElement>('.auto15-line');
+      lineWrappers.forEach((wrapper) => {
+        const line = wrapper.querySelector<HTMLElement>('.quran-line');
+        if (!line) return;
         // Reset any previous inline font-size
         line.style.fontSize = '';
-        const parent = line.parentElement;
-        if (!parent) return;
-        const availableW = parent.clientWidth;
-        if (availableW <= 0) return;
-        // Check if line overflows
-        if (line.scrollWidth > availableW + 2) {
-          const ratio = availableW / line.scrollWidth;
+        // Temporarily remove overflow:hidden so scrollWidth reflects true content width
+        const prevOverflow = wrapper.style.overflow;
+        wrapper.style.overflow = 'visible';
+        const availableW = wrapper.clientWidth;
+        if (availableW <= 0) { wrapper.style.overflow = prevOverflow; return; }
+        // Force layout recalc
+        void line.offsetWidth;
+        const contentW = line.scrollWidth;
+        if (contentW > availableW + 1) {
+          const ratio = availableW / contentW;
           const currentSize = parseFloat(getComputedStyle(line).fontSize);
-          const newSize = Math.floor(currentSize * ratio * 0.98); // 2% safety margin
+          const newSize = Math.floor(currentSize * ratio * 0.96); // 4% safety margin
           line.style.fontSize = `${Math.max(12, newSize)}px`;
         }
+        // Restore overflow
+        wrapper.style.overflow = prevOverflow;
       });
-    }, 80);
+    }, 100);
     return () => clearTimeout(timer);
   }, [displayMode, effectivePageText, auto15Scale]);
 
