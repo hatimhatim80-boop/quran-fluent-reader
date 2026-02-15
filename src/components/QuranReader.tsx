@@ -183,7 +183,7 @@ export function QuranReader() {
   const meaningActive = isPlaying || currentWordIndex >= 0;
 
   return (
-    <div className={`bg-background flex ${fullscreen ? 'h-screen' : 'min-h-screen'}`} dir="rtl" ref={contentRef}>
+    <div className={`bg-background flex ${fullscreen ? 'h-[100dvh] w-screen overflow-hidden' : 'min-h-screen'}`} dir="rtl" ref={contentRef}>
       <DiagnosticModeBadge />
 
       {/* Index Sidebar */}
@@ -223,7 +223,7 @@ export function QuranReader() {
 
         {/* Page Content */}
         <div
-          className={`max-w-2xl mx-auto w-full px-1 sm:px-3 ${fullscreen ? 'flex-1 flex flex-col justify-center py-1' : 'py-2 sm:py-6'}`}
+          className={`w-full ${fullscreen ? 'flex-1 flex flex-col justify-center items-center px-0 py-0 h-full' : 'max-w-2xl mx-auto px-1 sm:px-3 py-2 sm:py-6'}`}
           ref={pageContentRef}
           onClick={handleFullscreenTap}
         >
