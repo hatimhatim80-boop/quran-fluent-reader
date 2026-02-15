@@ -2,9 +2,9 @@ import { useEffect, useRef, useCallback, useState } from 'react';
 
 /**
  * Page-level AutoFit for 15-line Mushaf mode.
- * Uses binary search to find the LARGEST font-size (px) where
- * NO line overflows horizontally. One uniform size for all lines.
- * No transform/scale — avoids Arabic glyph distortion.
+ * Uses an OFF-SCREEN hidden element + binary search to find the
+ * LARGEST font-size (px) where NO line overflows horizontally.
+ * One uniform size for all lines. No transform/scale.
  */
 export function useAutoFit15Lines(
   pageText: string,
@@ -26,9 +26,42 @@ export function useAutoFit15Lines(
 
     if (innerW <= 0) return;
 
-    // Collect all .quran-line elements inside the page grid
+    // Collect text content from all .quran-line elements
     const lineEls = pageEl.querySelectorAll<HTMLElement>('.quran-line');
     if (lineEls.length === 0) return;
+
+    const lineTexts: string[] = [];
+    for (const el of lineEls) {
+      lineTexts.push(el.textContent || '');
+    }
+
+    // Build off-screen tester element for reliable measurement
+    const tester = document.createElement('div');
+    tester.style.position = 'absolute';
+    tester.style.visibility = 'hidden';
+    tester.style.left = '-99999px';
+    tester.style.top = '-99999px';
+    tester.style.width = `${innerW}px`;
+    tester.style.direction = 'rtl';
+    tester.style.overflow = 'visible';
+    document.body.appendChild(tester);
+
+    const testLineEls: HTMLDivElement[] = [];
+    for (const text of lineTexts) {
+      const d = document.createElement('div');
+      d.style.whiteSpace = 'nowrap';
+      d.style.overflow = 'visible';
+      d.style.direction = 'rtl';
+      d.style.unicodeBidi = 'plaintext';
+      d.style.fontFamily = fontFamily;
+      d.style.fontWeight = String(fontWeight);
+      d.style.lineHeight = '1';
+      d.style.width = 'auto';
+      d.style.display = 'inline-block';
+      d.textContent = text;
+      tester.appendChild(d);
+      testLineEls.push(d);
+    }
 
     // Binary search: largest font where every line fits
     const MIN = 10;
@@ -38,24 +71,16 @@ export function useAutoFit15Lines(
     let best = MIN;
 
     const fits = (fs: number) => {
-      for (const el of lineEls) {
+      for (const el of testLineEls) {
         el.style.fontSize = `${fs}px`;
       }
       // Force layout
-      void pageEl.offsetWidth;
-      for (const el of lineEls) {
+      void tester.offsetWidth;
+      for (const el of testLineEls) {
         if (el.scrollWidth > innerW + 1) return false;
       }
       return true;
     };
-
-    // Temporarily allow overflow so scrollWidth is measurable
-    const prevOverflow = pageEl.style.overflow;
-    pageEl.style.overflow = 'visible';
-    for (const el of lineEls) {
-      (el as HTMLElement).style.overflow = 'visible';
-      (el as HTMLElement).style.whiteSpace = 'nowrap';
-    }
 
     while (lo <= hi) {
       const mid = (lo + hi) >> 1;
@@ -67,16 +92,16 @@ export function useAutoFit15Lines(
       }
     }
 
-    // Apply final size
+    // Clean up tester
+    document.body.removeChild(tester);
+
+    // Apply uniform font size to real line elements
     for (const el of lineEls) {
       el.style.fontSize = `${best}px`;
-      (el as HTMLElement).style.overflow = '';
-      (el as HTMLElement).style.whiteSpace = '';
     }
-    pageEl.style.overflow = prevOverflow;
 
     setFittedFontSize(best);
-  }, []);
+  }, [fontFamily, fontWeight]);
 
   useEffect(() => {
     // Wait for fonts & layout
