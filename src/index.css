@@ -238,7 +238,7 @@
     background: hsl(var(--card));
     border: 1px solid hsl(var(--page-border));
     border-radius: 4px;
-    overflow: hidden;
+    overflow: visible;
     position: relative;
     box-sizing: border-box;
   }
@@ -255,8 +255,7 @@
 
   .auto15-line {
     white-space: nowrap;
-    overflow: hidden;
-    text-overflow: clip;
+    overflow: visible;
     text-align: justify;
     text-align-last: justify;
     text-justify: inter-word;
@@ -266,6 +265,9 @@
     justify-content: center;
     line-height: 1;
     min-height: 0;
+    padding-inline: 8px;
+    box-sizing: border-box;
+    transform-origin: right center;
   }
 
   .auto15-line--empty {
@@ -289,7 +291,7 @@
     background: hsl(var(--card));
     border: 1px solid hsl(var(--page-border));
     border-radius: 4px;
-    overflow: hidden;
+    overflow: visible;
     position: relative;
   }
 
@@ -709,8 +711,10 @@
 
   .mushafLine {
     white-space: nowrap;
-    overflow: hidden;
-    text-overflow: clip;
+    overflow: visible;
+    padding-inline: 8px;
+    box-sizing: border-box;
+    transform-origin: right center;
     text-align: center;
     line-height: 2.05;
     font-family: 'KFGQPC HAFS Uthmanic Script', 'UthmanicHafs', 'me_quran', 'Amiri Quran', 'Amiri', serif;

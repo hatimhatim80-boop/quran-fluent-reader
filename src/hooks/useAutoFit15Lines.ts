@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 
 /**
- * Hook that uses binary search to find the optimal font size
- * so that all 15 lines (white-space: nowrap) fit within the container width.
+ * Hook that measures each .auto15-line's scrollWidth and applies
+ * transform: scaleX(available / scrollWidth) clamped between 0.90–1.0
+ * so every line fits within the container without clipping.
  *
- * Returns a ref to attach to the .mushafPageAuto15 container
- * and the computed font size in px.
+ * Also sets a base font size via binary search, then fine-tunes with scaleX.
  */
 export function useAutoFit15Lines(pageText: string, fontFamily: string, fontWeight: number) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -21,9 +21,14 @@ export function useAutoFit15Lines(pageText: string, fontFamily: string, fontWeig
     const lines = container.querySelectorAll<HTMLElement>('.auto15-line');
     if (lines.length === 0) return;
 
+    // Reset transforms before measuring for font size
+    lines.forEach(line => {
+      line.style.transform = '';
+    });
+
     // Binary search for max font size where no line overflows
-    let lo = 8;   // min font px
-    let hi = 80;  // max font px
+    let lo = 8;
+    let hi = 80;
     const ITERATIONS = 15;
 
     for (let iter = 0; iter < ITERATIONS; iter++) {
@@ -49,15 +54,16 @@ export function useAutoFit15Lines(pageText: string, fontFamily: string, fontWeig
     const finalSize = Math.floor(lo * 100) / 100;
     container.style.fontSize = `${finalSize}px`;
     setFittedFontPx(finalSize);
+
+    // Now apply scaleX per-line for any remaining overflow
+    fitMushafLines(container);
   }, []);
 
   useEffect(() => {
-    // Wait for fonts to load then fit
     const timer = setTimeout(fitFont, 80);
     return () => clearTimeout(timer);
   }, [pageText, fontFamily, fontWeight, fitFont]);
 
-  // Re-fit on resize
   useEffect(() => {
     const handleResize = () => fitFont();
     window.addEventListener('resize', handleResize);
@@ -65,4 +71,30 @@ export function useAutoFit15Lines(pageText: string, fontFamily: string, fontWeig
   }, [fitFont]);
 
   return { containerRef, fittedFontPx };
+}
+
+/**
+ * Measures each .auto15-line inside pageEl and applies
+ * transform: scaleX(available / scrollWidth) clamped [0.90, 1.0]
+ * with transform-origin: right center (set in CSS).
+ */
+function fitMushafLines(pageEl: HTMLElement) {
+  const lines = pageEl.querySelectorAll<HTMLElement>('.auto15-line');
+  if (!lines.length) return;
+
+  const available = pageEl.clientWidth;
+  if (available <= 0) return;
+
+  lines.forEach(line => {
+    // Reset transform to measure natural width
+    line.style.transform = '';
+    const scrollW = line.scrollWidth;
+
+    if (scrollW > available) {
+      const scale = Math.max(0.90, Math.min(1.0, available / scrollW));
+      line.style.transform = `scaleX(${scale})`;
+    } else {
+      line.style.transform = '';
+    }
+  });
 }
