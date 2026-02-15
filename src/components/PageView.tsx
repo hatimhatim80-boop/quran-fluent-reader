@@ -736,7 +736,7 @@ export function PageView({
   const isAuto15Mode = displayMode === 'auto15';
 
   if (isAuto15Mode) {
-    const DESIGN_H = 1414;
+    const DESIGN_H = 778;
     const scaledH = DESIGN_H * auto15Scale;
     return (
       <div className="page-frame p-2 sm:p-4" style={pageFrameStyle} dir={textDirection}>

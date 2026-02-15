@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 
-const DESIGN_W = 1000;
-const DESIGN_H = 1414;
+const DESIGN_W = 550;
+const DESIGN_H = 778;
 
 /**
  * Fixed-canvas approach: the page is always laid out at 1000×1414 design pixels,
@@ -18,15 +18,8 @@ export function useAutoFit15Lines(pageText: string, fontFamily: string, fontWeig
     if (!wrapper) return;
 
     const wrapperW = wrapper.clientWidth;
-    // Calculate available height: viewport minus header, toolbar, badges, padding
-    const wrapperRect = wrapper.getBoundingClientRect();
-    const availableH = window.innerHeight - wrapperRect.top - 60; // 60px for bottom toolbar
-    
-    const scaleW = wrapperW / DESIGN_W;
-    const scaleH = availableH / DESIGN_H;
-    
-    // Use the smaller scale so the full page fits both horizontally and vertically
-    const s = Math.min(scaleW, scaleH);
+    // Scale based on available width so text fills the line
+    const s = wrapperW / DESIGN_W;
     setScale(Math.max(0.15, s));
   }, []);
 
