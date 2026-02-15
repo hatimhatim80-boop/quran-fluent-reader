@@ -116,6 +116,32 @@ export function PageView({
   // Subscribe to highlight overrides for reactivity (read-only, no editing)
   const highlightVersion = useHighlightOverrideStore((s) => s.version);
 
+  // Auto-shrink font for overflowing lines in auto15 mode
+  useEffect(() => {
+    if (displayMode !== 'auto15') return;
+    const container = containerRef.current;
+    if (!container) return;
+    const timer = setTimeout(() => {
+      const lines = container.querySelectorAll<HTMLElement>('.auto15-line .quran-line');
+      lines.forEach((line) => {
+        // Reset any previous inline font-size
+        line.style.fontSize = '';
+        const parent = line.parentElement;
+        if (!parent) return;
+        const availableW = parent.clientWidth;
+        if (availableW <= 0) return;
+        // Check if line overflows
+        if (line.scrollWidth > availableW + 2) {
+          const ratio = availableW / line.scrollWidth;
+          const currentSize = parseFloat(getComputedStyle(line).fontSize);
+          const newSize = Math.floor(currentSize * ratio * 0.98); // 2% safety margin
+          line.style.fontSize = `${Math.max(12, newSize)}px`;
+        }
+      });
+    }, 80);
+    return () => clearTimeout(timer);
+  }, [displayMode, effectivePageText, auto15Scale]);
+
   useEffect(() => {
     if (highlightedWordIndex < 0) return;
     const el = document.querySelector<HTMLElement>(
