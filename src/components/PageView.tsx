@@ -117,7 +117,6 @@ export function PageView({
   useEffect(() => {
     if (!fullscreen) { setViewportHeight(undefined); return; }
     const update = () => {
-      // Subtract some padding for the container
       setViewportHeight(window.innerHeight - 8);
     };
     update();
@@ -128,6 +127,20 @@ export function PageView({
       window.removeEventListener('orientationchange', update);
     };
   }, [fullscreen]);
+
+  // Debug: log padding/height for fullscreen consistency verification
+  useEffect(() => {
+    if (!fullscreen || !containerRef.current) return;
+    const raf = requestAnimationFrame(() => {
+      const el = containerRef.current;
+      if (!el) return;
+      const cs = getComputedStyle(el);
+      console.log('[PageView:FS-Debug]', `page=${page.pageNumber}`, 
+        `padTop=${cs.paddingTop}`, `padBot=${cs.paddingBottom}`, 
+        `height=${el.getBoundingClientRect().height.toFixed(1)}px`);
+    });
+    return () => cancelAnimationFrame(raf);
+  }, [fullscreen, page.pageNumber]);
   
   // Enable auto-fit for autoFlow15 always, AND for continuous in fullscreen
   const autoFlowEnabled = isAutoFlow15 || (isContinuous && !!fullscreen);
@@ -460,7 +473,9 @@ export function PageView({
         }
       }
       
-      return <div className="quran-page" style={{ textAlign: 'justify', textAlignLast: 'right' }}>{elements}</div>;
+      return isLines15
+        ? <div className={`quran-lines-container ${fullscreen ? 'lines15-grid' : ''}`}>{elements}</div>
+        : <div className="quran-page" style={{ textAlign: 'justify', textAlignLast: 'right' }}>{elements}</div>;
     }
 
     const allElements: React.ReactNode[] = [];
@@ -723,9 +738,9 @@ export function PageView({
     }
 
     return isLines15 
-      ? <div className="quran-lines-container">{allElements}</div>
+      ? <div className={`quran-lines-container ${fullscreen ? 'lines15-grid' : ''}`}>{allElements}</div>
       : <div className="quran-page" style={{ textAlign: 'justify', textAlignLast: 'right' }}>{allElements}</div>;
-  }, [effectivePageText, page.pageNumber, ghareebWords, highlightedWordIndex, isPlaying, onWordClick, surahContextByLine, tokenMatchMap, highlightVersion, displayMode, tahfeezMode, toggleTahfeezWord, isTahfeezSelected, rangeAnchor, setRangeAnchor, addItem, storedItems]);
+  }, [effectivePageText, page.pageNumber, ghareebWords, highlightedWordIndex, isPlaying, onWordClick, surahContextByLine, tokenMatchMap, highlightVersion, displayMode, tahfeezMode, toggleTahfeezWord, isTahfeezSelected, rangeAnchor, setRangeAnchor, addItem, storedItems, fullscreen]);
 
   const pageBackgroundColor = useSettingsStore((s) => (s.settings.colors as any).pageBackgroundColor || '');
   const containerBorderColor = useSettingsStore((s) => (s.settings.colors as any).containerBorderColor || '');
@@ -738,11 +753,11 @@ export function PageView({
 
   const useAutoFlow = autoFlowEnabled && autoFlowFontSize;
 
-  return (
+  const pageContent = (
     <div ref={(el) => { (containerRef as any).current = el; (autoFitRef as any).current = el; if (autoFlowEnabled) (autoFlowRef as any).current = el; }} className={`page-frame p-4 sm:p-6 ${fullscreen ? 'fullscreen-page-frame' : ''}`} style={{ ...pageFrameStyle, ...(useAutoFlow ? { '--quran-font-size': `${autoFlowFontSize}px` } as React.CSSProperties : fittedFontSize ? { fontSize: `${fittedFontSize}rem` } : {}) }} dir={textDirection}>
       {/* Top Header: Hizb - Page Number - Hizb */}
       {!hidePageBadge && (
-        <div className="flex items-center justify-between mb-1 font-arabic text-xs sm:text-sm text-muted-foreground/70">
+        <div className="flex items-center justify-between font-arabic text-xs sm:text-sm text-muted-foreground/70">
           <span>الحزب {pageMeta.hizbNumberArabic}</span>
           <span className="text-primary font-bold text-sm sm:text-base">{pageMeta.pageNumberArabic}</span>
           <span>الحزب {pageMeta.hizbNumberArabic}</span>
@@ -751,24 +766,29 @@ export function PageView({
 
       {/* Sub Header: Surah Name - Juz Name */}
       {!hidePageBadge && (
-        <div className="flex items-center justify-between mb-4 pb-2 border-b border-ornament/20 font-arabic">
+        <div className="flex items-center justify-between pb-2 border-b border-ornament/20 font-arabic">
           <span className="text-sm sm:text-base font-bold text-foreground">{pageMeta.surahName}</span>
           <span className="text-sm sm:text-base font-bold text-foreground">{pageMeta.juzName}</span>
         </div>
       )}
 
       {/* Quran Text */}
-      <div className="quran-page min-h-[350px] sm:min-h-[450px]">
+      <div className="quran-page min-h-[350px] sm:min-h-[450px]" style={fullscreen ? { minHeight: 0, flex: 1 } : undefined}>
         {renderedContent}
       </div>
 
       {/* Footer: Page Number - Hizb */}
       {!hidePageBadge && (
-        <div className="flex items-center justify-between mt-4 pt-2 border-t border-ornament/20 font-arabic text-xs sm:text-sm text-muted-foreground/70">
+        <div className="flex items-center justify-between pt-2 border-t border-ornament/20 font-arabic text-xs sm:text-sm text-muted-foreground/70">
           <span>{pageMeta.pageNumberArabic}</span>
           <span>الحزب {pageMeta.hizbNumberArabic}</span>
         </div>
       )}
     </div>
   );
+
+  if (fullscreen) {
+    return <div className="mushafViewport">{pageContent}</div>;
+  }
+  return pageContent;
 }
