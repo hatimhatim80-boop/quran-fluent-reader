@@ -177,7 +177,6 @@
   .fullscreen-page-frame {
     display: flex;
     flex-direction: column;
-    justify-content: stretch;
     height: 100%;
     flex: 1;
     box-sizing: border-box;
@@ -194,11 +193,24 @@
   .fullscreen-page-frame .quran-page {
     min-height: auto !important;
     flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
   }
 
-  /* 15-line grid: keep same layout as normal mode */
+  /* Lines container stretches to fill */
   .fullscreen-page-frame .quran-lines-container {
     flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+  }
+
+  /* Each line stretches evenly */
+  .fullscreen-page-frame .quran-line {
+    flex: 1;
+    display: flex;
+    align-items: center;
   }
 
   /* Better mobile text containment */
