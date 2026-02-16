@@ -48,6 +48,7 @@ export function TahfeezSelectionView({ page, hidePageBadge }: TahfeezSelectionVi
       amiri: "'Amiri', serif", amiriQuran: "'Amiri Quran', serif",
       notoNaskh: "'Noto Naskh Arabic', serif", scheherazade: "'Scheherazade New', serif",
       uthman: "'KFGQPC HAFS Uthmanic Script', serif", uthmanicHafs: "'UthmanicHafs', serif",
+      uthmanicHafs22: "'UthmanicHafs22', serif", hafsNastaleeq: "'HafsNastaleeq', serif",
       meQuran: "'me_quran', serif", qalam: "'Al Qalam Quran', serif",
     };
     return fontMap[useSettingsStore.getState().settings.fonts.fontFamily] || fontMap.uthman;

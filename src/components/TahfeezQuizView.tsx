@@ -64,6 +64,7 @@ export function TahfeezQuizView({
       amiri: "'Amiri', serif", amiriQuran: "'Amiri Quran', serif",
       notoNaskh: "'Noto Naskh Arabic', serif", scheherazade: "'Scheherazade New', serif",
       uthman: "'KFGQPC HAFS Uthmanic Script', serif", uthmanicHafs: "'UthmanicHafs', serif",
+      uthmanicHafs22: "'UthmanicHafs22', serif", hafsNastaleeq: "'HafsNastaleeq', serif",
       meQuran: "'me_quran', serif", qalam: "'Al Qalam Quran', serif",
       custom: settings.fonts.customFontFamily ? `'${settings.fonts.customFontFamily}', serif` : "'Amiri', serif",
     };
