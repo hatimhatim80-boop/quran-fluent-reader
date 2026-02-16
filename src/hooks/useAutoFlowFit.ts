@@ -1,82 +1,56 @@
 import { useEffect, useRef, useCallback, useState } from 'react';
 
 /**
- * Auto-fit font size for continuous flow mode with 15 lines.
- * Binary-searches for the largest font-size (px) where the flowing text
- * wraps into at most `targetLines` lines within the container's width.
+ * Auto-fit for autoFlow15 mode — Madinah Mushaf style.
+ * 
+ * No binary search, no transform, no grid 1fr.
+ * Simple math:
+ *   lineHeightPx = innerHeight / 15
+ *   fontSize = lineHeightPx * 0.82
+ * 
+ * Each .quran-line gets a fixed height. Short pages stay natural.
  */
 export function useAutoFlowFit(
   pageText: string,
   fontFamily: string,
   fontWeight: number,
-  lineHeight: number,
-  targetLines = 15,
+  _lineHeight: number,
+  _targetLines = 15,
   enabled = true,
-  /** Optional max height in px (e.g. viewport height for fullscreen) */
-  maxHeightPx?: number,
+  _maxHeightPx?: number,
 ) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [fittedFontSize, setFittedFontSize] = useState<number | null>(null);
 
   const refit = useCallback(() => {
     if (!enabled) { setFittedFontSize(null); return; }
-    const el = containerRef.current;
-    if (!el || !pageText) return;
+    const pageEl = containerRef.current;
+    if (!pageEl || !pageText) return;
 
-    const style = getComputedStyle(el);
-    const padL = parseFloat(style.paddingLeft) || 0;
-    const padR = parseFloat(style.paddingRight) || 0;
-    const innerW = el.clientWidth - padL - padR;
-    if (innerW <= 0) return;
+    const computed = getComputedStyle(pageEl);
+    const innerHeight =
+      pageEl.clientHeight -
+      parseFloat(computed.paddingTop) -
+      parseFloat(computed.paddingBottom);
 
-    // Build off-screen tester that mimics the continuous flow rendering
-    const tester = document.createElement('div');
-    tester.style.cssText = `
-      position:absolute; visibility:hidden; left:-99999px; top:-99999px;
-      width:${innerW}px; direction:rtl; unicode-bidi:plaintext;
-      font-family:${fontFamily}; font-weight:${fontWeight};
-      line-height:${lineHeight}; text-align:justify;
-      white-space:normal; word-break:normal; overflow-wrap:normal;
-    `;
-    
-    // Render text similar to how PageView does it (inline spans per line)
-    const lines = pageText.split('\n');
-    for (const line of lines) {
-      const span = document.createElement('span');
-      span.textContent = line + ' ';
-      tester.appendChild(span);
-    }
-    
-    document.body.appendChild(tester);
+    if (innerHeight <= 0) return;
 
-    const MIN = 8;
-    const MAX = 80;
-    let lo = MIN;
-    let hi = MAX;
-    let best = MIN;
+    const lineHeightPx = innerHeight / 15;
 
-    const fits = (fs: number) => {
-      tester.style.fontSize = `${fs}px`;
-      void tester.offsetWidth;
-      const lineH = fs * lineHeight;
-      // Use maxHeightPx if provided (fullscreen), otherwise use targetLines
-      const maxHeight = maxHeightPx ? maxHeightPx : lineH * targetLines;
-      return tester.scrollHeight <= maxHeight + 1;
-    };
+    // 0.82 ratio suits Mushaf Arabic fonts
+    const fontSize = lineHeightPx * 0.82;
 
-    while (lo <= hi) {
-      const mid = (lo + hi) >> 1;
-      if (fits(mid)) {
-        best = mid;
-        lo = mid + 1;
-      } else {
-        hi = mid - 1;
-      }
-    }
+    // Apply font size to the page element
+    pageEl.style.fontSize = `${fontSize}px`;
 
-    document.body.removeChild(tester);
-    setFittedFontSize(best);
-  }, [pageText, fontFamily, fontWeight, lineHeight, targetLines, enabled, maxHeightPx]);
+    // Apply fixed height to each .quran-line
+    const lines = pageEl.querySelectorAll<HTMLElement>('.quran-line');
+    lines.forEach(line => {
+      line.style.height = `${lineHeightPx}px`;
+    });
+
+    setFittedFontSize(fontSize);
+  }, [pageText, fontFamily, fontWeight, enabled]);
 
   useEffect(() => {
     if (!enabled) { setFittedFontSize(null); return; }

@@ -369,7 +369,7 @@ export function PageView({
   const renderedContent = useMemo(() => {
     if (!effectivePageText) return null;
 
-    const isLines15 = displayMode === 'lines15';
+    const isLines15 = displayMode === 'lines15' || isAutoFlow15;
     const lines = effectivePageText.split('\n');
     
     // If no ghareeb words, render text
@@ -721,7 +721,7 @@ export function PageView({
   const useAutoFlow = autoFlowEnabled && autoFlowFontSize;
 
   const pageContent = (
-    <div ref={(el) => { (containerRef as any).current = el; (autoFitRef as any).current = el; if (autoFlowEnabled) (autoFlowRef as any).current = el; }} className="page-frame p-4 sm:p-6" style={{ ...pageFrameStyle, ...(useAutoFlow ? { '--quran-font-size': `${autoFlowFontSize}px` } as React.CSSProperties : fittedFontSize ? { fontSize: `${fittedFontSize}rem` } : {}) }} dir={textDirection}>
+    <div ref={(el) => { (containerRef as any).current = el; (autoFitRef as any).current = el; if (autoFlowEnabled) (autoFlowRef as any).current = el; }} className="page-frame p-4 sm:p-6" style={{ ...pageFrameStyle, ...(isAutoFlow15 ? { aspectRatio: '3 / 4.2', overflow: 'hidden' } : {}), ...(useAutoFlow ? {} : fittedFontSize ? { fontSize: `${fittedFontSize}rem` } : {}) }} dir={textDirection}>
       {/* Top Header: Hizb - Page Number - Hizb */}
       {!hidePageBadge && (
         <div className="flex items-center justify-between font-arabic text-xs sm:text-sm text-muted-foreground/70">
