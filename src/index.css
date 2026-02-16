@@ -115,7 +115,7 @@
     --page-border: 35 30% 82%;
     --ornament: 36 45% 50%;
     --meaning-bg: 38 50% 96%;
-    --verse-number: 36 40% 55%;
+    --verse-number: 145 45% 40%;
   }
 
   .dark {
@@ -152,7 +152,7 @@
     --page-border: 30 20% 25%;
     --ornament: 40 50% 50%;
     --meaning-bg: 25 18% 12%;
-    --verse-number: 40 45% 50%;
+    --verse-number: 145 40% 50%;
   }
 }
 
@@ -787,19 +787,14 @@
   }
 
 @layer components {
-  /* Premium page frame */
+  /* Traditional Mushaf page frame */
   .page-frame {
-    background: linear-gradient(
-      180deg,
-      hsl(var(--card)) 0%,
-      hsl(38 45% 96%) 50%,
-      hsl(var(--card)) 100%
-    );
-    border: 1px solid hsl(var(--page-border));
-    border-radius: 1rem;
+    background: hsl(45 40% 95%);
+    border: 3px solid hsl(145 45% 45%);
+    border-radius: 0.25rem;
     box-shadow: 
-      0 1px 3px rgba(0, 0, 0, 0.04),
-      0 4px 12px rgba(0, 0, 0, 0.03);
+      0 1px 3px rgba(0, 0, 0, 0.06),
+      0 4px 12px rgba(0, 0, 0, 0.04);
     position: relative;
   }
 
@@ -808,14 +803,27 @@
     background: var(--page-bg-override);
   }
 
-  /* Subtle inner border */
+  /* Inner ornamental border */
   .page-frame::before {
     content: '';
     position: absolute;
-    inset: 6px;
-    border: 1px solid hsl(var(--ornament) / 0.15);
-    border-radius: 0.75rem;
+    inset: 5px;
+    border: 1.5px solid hsl(145 40% 55% / 0.5);
+    border-radius: 0.15rem;
     pointer-events: none;
+  }
+
+  /* Corner diamond decorations */
+  .page-frame::after {
+    content: '';
+    position: absolute;
+    inset: -1px;
+    pointer-events: none;
+    background:
+      radial-gradient(6px 6px at 8px 8px, hsl(145 50% 45%) 45%, transparent 50%),
+      radial-gradient(6px 6px at calc(100% - 8px) 8px, hsl(145 50% 45%) 45%, transparent 50%),
+      radial-gradient(6px 6px at 8px calc(100% - 8px), hsl(145 50% 45%) 45%, transparent 50%),
+      radial-gradient(6px 6px at calc(100% - 8px) calc(100% - 8px), hsl(145 50% 45%) 45%, transparent 50%);
   }
 
   /* Premium ghareeb word - uses settings for highlight color */
@@ -1080,22 +1088,26 @@
     transform: translateY(0);
   }
 
-  /* Surah header - centered in frame */
+  /* Surah header - green ornamental band */
   .surah-header {
     @apply text-center py-2 my-2;
     background: linear-gradient(
       90deg,
       transparent 0%,
-      hsl(var(--ornament) / 0.08) 20%,
-      hsl(var(--ornament) / 0.12) 50%,
-      hsl(var(--ornament) / 0.08) 80%,
+      hsl(145 40% 88%) 15%,
+      hsl(145 45% 82%) 50%,
+      hsl(145 40% 88%) 85%,
       transparent 100%
     );
-    border-top: 1px solid hsl(var(--ornament) / 0.2);
-    border-bottom: 1px solid hsl(var(--ornament) / 0.2);
+    border-top: 2px solid hsl(145 45% 55% / 0.5);
+    border-bottom: 2px solid hsl(145 45% 55% / 0.5);
     display: flex;
     align-items: center;
     justify-content: center;
+  }
+
+  .surah-header span {
+    color: hsl(145 50% 30%) !important;
   }
 
   /* Bismillah styling - same size as text, spacing matches line height */
