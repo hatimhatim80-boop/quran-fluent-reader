@@ -2,7 +2,7 @@ import React, { useState, useMemo, useCallback, useRef } from 'react';
 import { QuranPage } from '@/types/quran';
 import { useTahfeezStore, TahfeezItem, TahfeezPhrase } from '@/stores/tahfeezStore';
 import { useSettingsStore } from '@/stores/settingsStore';
-import { useAutoFitFont } from '@/hooks/useAutoFitFont';
+import { useAutoFlowFit } from '@/hooks/useAutoFlowFit';
 import { redistributeLines, shouldRedistribute } from '@/utils/lineRedistributor';
 import { formatBismillah, shouldNoJustify, bindVerseNumbersSimple } from '@/utils/lineTokenUtils';
 
@@ -38,9 +38,23 @@ export function TahfeezSelectionView({ page, hidePageBadge }: TahfeezSelectionVi
   const textAlign = useSettingsStore((s) => s.settings.display?.textAlign || 'justify');
   const minWordsPerLine = useSettingsStore((s) => s.settings.display?.minWordsPerLine || 5);
   const balanceLastLine = useSettingsStore((s) => s.settings.display?.balanceLastLine ?? false);
-  const isLines15 = displayMode === 'lines15';
+  const isAutoFlow15 = displayMode === 'autoFlow15';
+  const isLines15 = isAutoFlow15;
   const [selectionType, setSelectionType] = useState<'word' | 'phrase'>('word');
-  const { containerRef: autoFitRef, fittedFontSize } = useAutoFitFont(page.text);
+  const fontFamilyCSS = (() => {
+    const fontMap: Record<string, string> = {
+      amiri: "'Amiri', serif", amiriQuran: "'Amiri Quran', serif",
+      notoNaskh: "'Noto Naskh Arabic', serif", scheherazade: "'Scheherazade New', serif",
+      uthman: "'KFGQPC HAFS Uthmanic Script', serif", uthmanicHafs: "'UthmanicHafs', serif",
+      meQuran: "'me_quran', serif", qalam: "'Al Qalam Quran', serif",
+    };
+    return fontMap[useSettingsStore.getState().settings.fonts.fontFamily] || fontMap.uthman;
+  })();
+  const fontWeight = useSettingsStore((s) => s.settings.fonts.fontWeight);
+  const lineHeightSetting = useSettingsStore((s) => s.settings.fonts.lineHeight);
+  const { containerRef: autoFlowRef, fittedFontSize } = useAutoFlowFit(
+    page.text, fontFamilyCSS, fontWeight, lineHeightSetting, 15, isAutoFlow15, undefined
+  );
 
   // Redistribute lines based on device
   const effectiveText = useMemo(() => {
@@ -254,7 +268,7 @@ export function TahfeezSelectionView({ page, hidePageBadge }: TahfeezSelectionVi
       )}
 
       {/* Quran page for selection */}
-      <div ref={autoFitRef} className="page-frame p-4 sm:p-8" dir={textDirection} style={fittedFontSize ? { fontSize: `${fittedFontSize}rem` } : undefined}>
+      <div ref={autoFlowRef} className="page-frame p-4 sm:p-6" dir={textDirection} style={isAutoFlow15 ? { aspectRatio: '3 / 4.2', overflow: 'hidden' } : undefined}>
         {!hidePageBadge && (
           <div className="flex justify-center mb-5">
             <span className="bg-secondary/80 text-secondary-foreground px-4 py-1.5 rounded-full text-sm font-arabic shadow-sm">
