@@ -317,7 +317,7 @@ export function TahfeezQuizView({
       }
       if (isBismillah(line)) {
         elements.push(
-          <div key={`bismillah-${lineIdx}`} className="bismillah bismillah-compact font-arabic">{formatBismillah(line)}</div>
+          <div key={`bismillah-${lineIdx}`} className="bismillah bismillah-compact font-arabic" style={{ display: 'block', textAlign: 'center', textAlignLast: 'center' }}>{formatBismillah(line)}</div>
         );
         continue;
       }
