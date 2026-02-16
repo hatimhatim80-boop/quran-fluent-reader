@@ -148,6 +148,12 @@ interface SettingsState {
   setUpdate: (update: Partial<UpdateSettings>) => void;
   setMeaningBox: (mb: Partial<MeaningBoxFontSettings>) => void;
   setDebugMode: (enabled: boolean) => void;
+  resetFonts: () => void;
+  resetColors: () => void;
+  resetPopover: () => void;
+  resetAutoplay: () => void;
+  resetDisplay: () => void;
+  resetMeaningBox: () => void;
   resetSettings: () => void;
   exportSettings: () => string;
   importSettings: (json: string) => boolean;
@@ -219,6 +225,12 @@ export const useSettingsStore = create<SettingsState>()(
           settings: { ...state.settings, debugMode: enabled },
         })),
 
+      resetFonts: () => set((state) => ({ settings: { ...state.settings, fonts: defaultSettings.fonts } })),
+      resetColors: () => set((state) => ({ settings: { ...state.settings, colors: defaultSettings.colors } })),
+      resetPopover: () => set((state) => ({ settings: { ...state.settings, popover: defaultSettings.popover } })),
+      resetAutoplay: () => set((state) => ({ settings: { ...state.settings, autoplay: defaultSettings.autoplay } })),
+      resetDisplay: () => set((state) => ({ settings: { ...state.settings, display: defaultSettings.display } })),
+      resetMeaningBox: () => set((state) => ({ settings: { ...state.settings, meaningBox: defaultSettings.meaningBox } })),
       resetSettings: () => set({ settings: defaultSettings }),
 
       exportSettings: () => {

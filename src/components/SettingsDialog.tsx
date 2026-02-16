@@ -50,7 +50,13 @@ export function SettingsDialog({ children }: SettingsDialogProps) {
     setDisplay,
     setMeaningBox,
     setDebugMode,
-    resetSettings, 
+    resetSettings,
+    resetFonts,
+    resetColors,
+    resetPopover,
+    resetAutoplay,
+    resetDisplay,
+    resetMeaningBox,
     exportSettings, 
     importSettings 
   } = useSettingsStore();
@@ -139,6 +145,12 @@ export function SettingsDialog({ children }: SettingsDialogProps) {
 
           {/* Fonts Tab */}
           <TabsContent value="fonts" className="space-y-5 mt-4">
+            <div className="flex justify-end">
+              <Button variant="ghost" size="sm" onClick={() => { resetFonts(); toast.success('تم إرجاع إعدادات الخطوط للافتراضي'); }} className="gap-1 font-arabic text-xs text-muted-foreground hover:text-primary h-7 px-2">
+                <RotateCcw className="w-3 h-3" />
+                الافتراضي
+              </Button>
+            </div>
             <div className="space-y-3">
               <Label className="font-arabic font-bold">نوع الخط</Label>
               <div className="grid grid-cols-2 gap-2">
@@ -260,6 +272,12 @@ export function SettingsDialog({ children }: SettingsDialogProps) {
 
           {/* Display Tab */}
           <TabsContent value="display" className="space-y-5 mt-4">
+            <div className="flex justify-end">
+              <Button variant="ghost" size="sm" onClick={() => { resetDisplay(); toast.success('تم إرجاع إعدادات العرض للافتراضي'); }} className="gap-1 font-arabic text-xs text-muted-foreground hover:text-primary h-7 px-2">
+                <RotateCcw className="w-3 h-3" />
+                الافتراضي
+              </Button>
+            </div>
             <div className="space-y-3">
               <Label className="font-arabic font-bold">نمط عرض الصفحة</Label>
               <div className="grid grid-cols-2 gap-2">
@@ -372,6 +390,12 @@ export function SettingsDialog({ children }: SettingsDialogProps) {
 
           {/* Colors Tab */}
           <TabsContent value="colors" className="space-y-5 mt-4">
+            <div className="flex justify-end">
+              <Button variant="ghost" size="sm" onClick={() => { resetColors(); toast.success('تم إرجاع إعدادات الألوان للافتراضي'); }} className="gap-1 font-arabic text-xs text-muted-foreground hover:text-primary h-7 px-2">
+                <RotateCcw className="w-3 h-3" />
+                الافتراضي
+              </Button>
+            </div>
             {/* Highlight style: background vs text-only */}
             <div className="space-y-3">
               <Label className="font-arabic font-bold">نمط التمييز</Label>
@@ -636,6 +660,12 @@ export function SettingsDialog({ children }: SettingsDialogProps) {
 
           {/* Popover Tab */}
           <TabsContent value="popover" className="space-y-5 mt-4">
+            <div className="flex justify-end">
+              <Button variant="ghost" size="sm" onClick={() => { resetPopover(); resetMeaningBox(); toast.success('تم إرجاع إعدادات النوافذ للافتراضي'); }} className="gap-1 font-arabic text-xs text-muted-foreground hover:text-primary h-7 px-2">
+                <RotateCcw className="w-3 h-3" />
+                الافتراضي
+              </Button>
+            </div>
             <div className="space-y-3">
               <Label className="font-arabic">عرض النافذة: <span className="text-primary font-bold">{settings.popover.width}px</span></Label>
               <Slider
@@ -731,6 +761,12 @@ export function SettingsDialog({ children }: SettingsDialogProps) {
 
           {/* Autoplay Tab */}
           <TabsContent value="autoplay" className="space-y-5 mt-4">
+            <div className="flex justify-end">
+              <Button variant="ghost" size="sm" onClick={() => { resetAutoplay(); toast.success('تم إرجاع إعدادات التشغيل للافتراضي'); }} className="gap-1 font-arabic text-xs text-muted-foreground hover:text-primary h-7 px-2">
+                <RotateCcw className="w-3 h-3" />
+                الافتراضي
+              </Button>
+            </div>
             <div className="space-y-3">
               <Label className="font-arabic">سرعة التشغيل: <span className="text-primary font-bold">{settings.autoplay.speed} ثانية/كلمة</span></Label>
               <Slider
