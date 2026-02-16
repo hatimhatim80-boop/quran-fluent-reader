@@ -18,7 +18,7 @@ import { useDiagnosticModeStore } from '@/stores/diagnosticModeStore';
 import { useHighlightOverrideStore } from '@/stores/highlightOverrideStore';
 import { useTahfeezStore } from '@/stores/tahfeezStore';
 import { useSessionsStore } from '@/stores/sessionsStore';
-import { Loader2, List, SlidersHorizontal, ChevronRight, ChevronLeft, Maximize2, Minimize2, GraduationCap, Save, X, ChevronsRight, ChevronsLeft } from 'lucide-react';
+import { Loader2, List, SlidersHorizontal, ChevronRight, ChevronLeft, Eye, EyeOff, GraduationCap, Save, X, ChevronsRight, ChevronsLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 export function QuranReader() {
@@ -45,17 +45,8 @@ export function QuranReader() {
   const [renderedWords, setRenderedWords] = useState<GhareebWord[]>([]);
   const [showIndex, setShowIndex] = useState(false);
   const [showControls, setShowControls] = useState(false);
-  const [fullscreen, setFullscreen] = useState(false);
+  const [hideBars, setHideBars] = useState(false);
   const [pinchScale, setPinchScale] = useState(1);
-  const [showFullscreenExit, setShowFullscreenExit] = useState(false);
-  const fullscreenTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const handleFullscreenTap = useCallback(() => {
-    if (!fullscreen) return;
-    setShowFullscreenExit(true);
-    if (fullscreenTimerRef.current) clearTimeout(fullscreenTimerRef.current);
-    fullscreenTimerRef.current = setTimeout(() => setShowFullscreenExit(false), 3000);
-  }, [fullscreen]);
   const pinchRef = React.useRef<{ startDist: number; startScale: number } | null>(null);
   const contentRef = React.useRef<HTMLDivElement>(null);
   const pageContentRef = React.useRef<HTMLDivElement>(null);
@@ -183,7 +174,7 @@ export function QuranReader() {
   const meaningActive = isPlaying || currentWordIndex >= 0;
 
   return (
-    <div className={`bg-background flex ${fullscreen ? 'h-[100dvh] w-screen overflow-hidden' : 'min-h-screen'}`} dir="rtl" ref={contentRef}>
+    <div className="bg-background flex min-h-screen" dir="rtl" ref={contentRef}>
       <DiagnosticModeBadge />
 
       {/* Index Sidebar */}
@@ -199,7 +190,7 @@ export function QuranReader() {
       {/* Main Content */}
       <div className="flex-1 min-w-0 flex flex-col">
         {/* Top Bar */}
-        {!fullscreen && (
+        {!hideBars && (
           <div className="sticky top-0 z-30 bg-background/95 backdrop-blur-md border-b border-border/50">
             <div className="max-w-2xl mx-auto px-3 py-2">
               <Toolbar
@@ -223,26 +214,12 @@ export function QuranReader() {
 
         {/* Page Content */}
         <div
-          className={`w-full ${fullscreen ? 'flex-1 flex flex-col justify-center items-center px-0 py-0 h-full' : 'max-w-2xl mx-auto px-1 sm:px-3 py-2 sm:py-6'}`}
+          className="w-full max-w-2xl mx-auto px-1 sm:px-3 py-2 sm:py-6"
           ref={pageContentRef}
-          onClick={handleFullscreenTap}
         >
           {settings.debugMode && isPlaying && (
             <div className="fixed top-16 left-4 z-50 bg-black/80 text-white text-xs px-3 py-2 rounded-lg font-mono">
               Running {currentWordIndex + 1} / {renderedWords.length}
-            </div>
-          )}
-
-          {/* Fullscreen exit button */}
-          {fullscreen && showFullscreenExit && (
-            <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 animate-fade-in">
-              <button
-                onClick={(e) => { e.stopPropagation(); setFullscreen(false); setShowFullscreenExit(false); }}
-                className="bg-background/90 backdrop-blur-md border border-border rounded-full px-4 py-2 flex items-center gap-2 shadow-lg"
-              >
-                <Minimize2 className="w-4 h-4 text-foreground" />
-                <span className="font-arabic text-sm text-foreground">خروج من الشاشة الكاملة</span>
-              </button>
             </div>
           )}
 
@@ -256,15 +233,14 @@ export function QuranReader() {
                 isPlaying={isPlaying}
                 onWordClick={handleWordClick}
                 onRenderedWordsChange={handleRenderedWordsChange}
-                hidePageBadge={fullscreen}
-                fullscreen={fullscreen}
+                hidePageBadge={false}
               />
             )}
           </div>
         </div>
 
         {/* Bottom Navigation Bar */}
-        {!fullscreen && (
+        {!hideBars && (
         <div className="sticky bottom-0 z-30 bg-background/95 backdrop-blur-md border-t border-border/50">
           <div className="max-w-2xl mx-auto px-3 py-2">
             {/* Page navigation - always visible */}
@@ -326,22 +302,18 @@ export function QuranReader() {
                 </button>
 
                 {/* Page indicator */}
-                {!fullscreen && (
-                  <div className="bg-card border border-border rounded-full px-3 py-1 flex items-center gap-1">
-                    <span className="font-arabic text-sm font-bold text-foreground">{currentPage}</span>
-                    <span className="text-muted-foreground text-[10px] font-arabic">/ {totalPages}</span>
-                  </div>
-                )}
+                <div className="bg-card border border-border rounded-full px-3 py-1 flex items-center gap-1">
+                  <span className="font-arabic text-sm font-bold text-foreground">{currentPage}</span>
+                  <span className="text-muted-foreground text-[10px] font-arabic">/ {totalPages}</span>
+                </div>
 
-                {/* Fullscreen toggle */}
+                {/* Hide bars toggle */}
                 <button
-                  onClick={() => setFullscreen(!fullscreen)}
-                  className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${
-                    fullscreen ? 'bg-primary text-primary-foreground' : 'nav-button'
-                  }`}
-                  title={fullscreen ? 'إظهار الأشرطة' : 'وضع القراءة'}
+                  onClick={() => setHideBars(true)}
+                  className="nav-button w-8 h-8 rounded-full flex items-center justify-center transition-all"
+                  title="إخفاء الأزرار"
                 >
-                  {fullscreen ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
+                  <EyeOff className="w-3.5 h-3.5" />
                 </button>
               </div>
 
@@ -412,8 +384,22 @@ export function QuranReader() {
         </div>
         )}
 
-        {/* Footer - hidden in fullscreen */}
-        {!fullscreen && (
+        {/* Show bars button - floating when bars are hidden */}
+        {hideBars && (
+          <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 animate-fade-in">
+            <button
+              onClick={() => setHideBars(false)}
+              className="bg-background/90 backdrop-blur-md border border-border rounded-full px-4 py-2 flex items-center gap-2 shadow-lg"
+              title="إظهار الأزرار"
+            >
+              <Eye className="w-4 h-4 text-foreground" />
+              <span className="font-arabic text-sm text-foreground">إظهار الأزرار</span>
+            </button>
+          </div>
+        )}
+
+        {/* Footer */}
+        {!hideBars && (
           <div className="text-center text-[9px] text-muted-foreground/50 font-arabic py-1">
             يُحفظ تقدمك تلقائياً
           </div>
