@@ -19,18 +19,44 @@ function getPngUrl(page: number): string {
 }
 
 /**
- * Calibrated line-top positions (% from top of image).
- * Text area: 10.5% to 93.5%, 15 lines evenly distributed.
+ * Calibrated text-area positions (% of image dimensions).
+ * These values are tuned for quran.i8x.net PNGs (standard Madinah mushaf layout).
  */
-const TEXT_AREA_TOP = 10.5;
-const TEXT_AREA_BOTTOM = 93.5;
-const LINE_SLOT_HEIGHT = (TEXT_AREA_BOTTOM - TEXT_AREA_TOP) / 15;
-const TEXT_AREA_LEFT = 6;
-const TEXT_AREA_RIGHT = 94;
-const TEXT_AREA_WIDTH = TEXT_AREA_RIGHT - TEXT_AREA_LEFT;
+const STANDARD_TEXT_AREA = {
+  top: 11.2,
+  bottom: 93.0,
+  left: 7.5,
+  right: 92.5,
+};
 
-function getLineTop(lineIndex: number): number {
-  return TEXT_AREA_TOP + lineIndex * LINE_SLOT_HEIGHT;
+/** Pages 1-2 have a different layout (centered, fewer lines) */
+const PAGE1_TEXT_AREA = { top: 18, bottom: 53, left: 15, right: 85 };
+const PAGE2_TEXT_AREA = { top: 16, bottom: 55, left: 12, right: 88 };
+
+function getTextArea(page: number) {
+  if (page === 1) return PAGE1_TEXT_AREA;
+  if (page === 2) return PAGE2_TEXT_AREA;
+  return STANDARD_TEXT_AREA;
+}
+
+function getLineTop(page: number, lineIndex: number, totalLines: number): number {
+  const area = getTextArea(page);
+  const height = area.bottom - area.top;
+  const slotHeight = height / Math.max(totalLines, 1);
+  return area.top + lineIndex * slotHeight;
+}
+
+function getLineHeight(page: number, totalLines: number): number {
+  const area = getTextArea(page);
+  return (area.bottom - area.top) / Math.max(totalLines, 1);
+}
+
+/** Estimate relative width of a word based on character count (approximation) */
+function estimateWordWeight(text: string): number {
+  // Count actual characters (excluding diacritics/harakat)
+  const base = text.replace(/[\u064B-\u0652\u0670\u06D6-\u06ED\u08D4-\u08E1\u08E3-\u08FF]/g, '');
+  // Each base char gets weight 1, end-of-verse markers are narrower
+  return Math.max(base.length, 0.5);
 }
 
 /** Match a ghareeb word to an API word using location key */
@@ -62,18 +88,19 @@ export function HybridMushafPageView({ pageNumber, hidePageBadge }: HybridMushaf
 
   const pngUrl = getPngUrl(pageNumber);
 
-  // Debug baselines: 15 lines showing calibrated positions
+  // Debug baselines showing calibrated positions
+  const debugLineSpan = apiWords ? (Math.max(...apiWords.lines.map(l => l.lineNumber)) - Math.min(...apiWords.lines.map(l => l.lineNumber)) + 1) : 15;
   const debugBaselines = useMemo(() => {
     if (!debugOverlay) return null;
-    return Array.from({ length: 15 }, (_, i) => (
+    return Array.from({ length: debugLineSpan }, (_, i) => (
       <div
         key={i}
         className="hybridDebugBaseline"
-        style={{ top: `${getLineTop(i)}%` }}
-        data-line-label={`L${i + 1} (${getLineTop(i).toFixed(1)}%)`}
+        style={{ top: `${getLineTop(pageNumber, i, debugLineSpan)}%` }}
+        data-line-label={`L${i + 1} (${getLineTop(pageNumber, i, debugLineSpan).toFixed(1)}%)`}
       />
     ));
-  }, [debugOverlay]);
+  }, [debugOverlay, pageNumber, debugLineSpan]);
 
   // Determine if API overlay is ready
   const useApiOverlay = !!apiWords && !apiError;
@@ -200,30 +227,40 @@ function ApiWordOverlay({
     }> = [];
 
     let globalIdx = 0;
+    const area = getTextArea(pageNumber);
+    const areaWidth = area.right - area.left;
+    
+    // Use actual line number range from API for proper mapping
+    const minLine = Math.min(...apiWords.lines.map(l => l.lineNumber));
+    const maxLine = Math.max(...apiWords.lines.map(l => l.lineNumber));
+    const lineSpan = maxLine - minLine + 1;
 
     for (const line of apiWords.lines) {
-      const lineIndex = line.lineNumber - 1; // Convert to 0-based
-      if (lineIndex < 0 || lineIndex >= 15) continue;
+      // Map line number to 0-based slot index relative to the actual range
+      const slotIndex = line.lineNumber - minLine;
 
-      const top = getLineTop(lineIndex);
-      const height = LINE_SLOT_HEIGHT;
+      const top = getLineTop(pageNumber, slotIndex, lineSpan);
+      const height = getLineHeight(pageNumber, lineSpan);
       const wordsInLine = line.words.length;
 
-      // Distribute words RTL across the text area
-      // In RTL, first word (position 1) is rightmost
-      const wordWidth = TEXT_AREA_WIDTH / Math.max(wordsInLine, 1);
+      // Calculate proportional widths based on character weight
+      const weights = line.words.map((w) => estimateWordWeight(w.text_uthmani));
+      const totalWeight = weights.reduce((a, b) => a + b, 0);
+
+      let cursorRight = area.right; // Start from right edge (RTL)
 
       for (let i = 0; i < wordsInLine; i++) {
         const apiWord = line.words[i];
-        // RTL: first word at right edge, last at left edge
-        const left = TEXT_AREA_RIGHT - wordWidth * (i + 1);
+        const proportion = weights[i] / totalWeight;
+        const wordWidth = areaWidth * proportion;
+        const left = cursorRight - wordWidth;
+        cursorRight = left; // Move cursor left
 
-        // Try to match with ghareeb
         const ghareeb = ghareebByLocation.get(apiWord.location) ?? null;
 
         boxes.push({
           apiWord,
-          lineIndex,
+          lineIndex: slotIndex,
           top,
           left,
           width: wordWidth,
@@ -235,7 +272,7 @@ function ApiWordOverlay({
     }
 
     return boxes;
-  }, [apiWords, ghareebByLocation]);
+  }, [apiWords, ghareebByLocation, pageNumber]);
 
   // Build rendered ghareeb words list (in reading order)
   useEffect(() => {
@@ -376,7 +413,7 @@ function FallbackTextOverlay({
         el.style.display = 'none';
         return;
       }
-      el.style.top = `${getLineTop(realLineIndex)}%`;
+      el.style.top = `${getLineTop(pageNumber, realLineIndex, 15)}%`;
       realLineIndex++;
       if (realLineIndex > 15) {
         el.style.display = 'none';
