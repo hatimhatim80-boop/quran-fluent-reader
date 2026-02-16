@@ -24,7 +24,8 @@ function isSurahHeader(line: string): boolean {
 }
 
 function isBismillah(line: string): boolean {
-  return line.includes('بِسمِ اللَّهِ') || line.includes('بِسۡمِ ٱللَّهِ');
+  const normalized = normalizeArabic(line);
+  return normalized.includes('بسم الله الرحمن الرحيم') || normalized.includes('بسم الله');
 }
 
 interface TokenInfo {
