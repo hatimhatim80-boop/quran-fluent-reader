@@ -32,6 +32,24 @@
   font-display: swap;
 }
 
+/* Uthman Taha Naskh v2 */
+@font-face {
+  font-family: 'UthmanTN';
+  src: url('/fonts/UthmanTN_v2-0_1.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* KFGQPC Annotated Regular */
+@font-face {
+  font-family: 'KFGQPCAnnotated';
+  src: url('/fonts/KFGQPCAnRegular_1.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
 @import url('https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Noto+Naskh+Arabic:wght@400;500;600;700&family=Scheherazade+New:wght@400;500;600;700&display=swap');
 
 @layer base {
@@ -125,6 +143,11 @@
   body {
     @apply bg-background text-foreground antialiased;
     font-family: var(--quran-font-family, 'Amiri', 'Noto Naskh Arabic', serif);
+    /* Safe area padding for notch/status bar & bottom nav */
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
   }
 
   /* Premium Arabic text styling - uses CSS variables from settings */

@@ -128,13 +128,13 @@ export function Toolbar({
             <BookOpen className="w-3.5 h-3.5 text-primary" />
           </div>
           <h1 className="text-lg font-bold font-arabic text-foreground">
-            القرآن الكريم
+            حفظ وفهم القرآن
           </h1>
         </div>
       </DiagnosticModeActivator>
       
       <p className="text-[11px] text-muted-foreground font-arabic mb-2 text-center">
-        الميسر في غريب القرآن
+        الميسر في غريب القرآن الكريم
       </p>
 
       {/* Compact toolbar row */}

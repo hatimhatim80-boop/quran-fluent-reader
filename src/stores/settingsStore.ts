@@ -3,7 +3,7 @@ import { persist } from 'zustand/middleware';
 
 // Font settings
 export interface FontSettings {
-  fontFamily: 'amiri' | 'amiriQuran' | 'notoNaskh' | 'scheherazade' | 'uthman' | 'uthmanicHafs' | 'meQuran' | 'qalam' | 'custom';
+  fontFamily: 'amiri' | 'amiriQuran' | 'notoNaskh' | 'scheherazade' | 'uthman' | 'uthmanicHafs' | 'uthmanTN' | 'kfgqpcAnnotated' | 'meQuran' | 'qalam' | 'custom';
   quranFontSize: number;
   meaningFontSize: number;
   lineHeight: number;

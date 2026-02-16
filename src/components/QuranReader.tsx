@@ -191,7 +191,7 @@ export function QuranReader() {
       <div className="flex-1 min-w-0 flex flex-col">
         {/* Top Bar */}
         {!hideBars && (
-          <div className="sticky top-0 z-30 bg-background/95 backdrop-blur-md border-b border-border/50">
+          <div className="sticky top-0 z-30 bg-background/95 backdrop-blur-md border-b border-border/50" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
             <div className="max-w-2xl mx-auto px-3 py-2">
               <Toolbar
                 isPlaying={isPlaying}
@@ -241,7 +241,7 @@ export function QuranReader() {
 
         {/* Bottom Navigation Bar */}
         {!hideBars && (
-        <div className="sticky bottom-0 z-30 bg-background/95 backdrop-blur-md border-t border-border/50">
+        <div className="sticky bottom-0 z-30 bg-background/95 backdrop-blur-md border-t border-border/50" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
           <div className="max-w-2xl mx-auto px-3 py-2">
             {/* Page navigation - always visible */}
             <div className="flex items-center justify-between gap-1">

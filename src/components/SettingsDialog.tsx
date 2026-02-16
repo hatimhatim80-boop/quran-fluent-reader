@@ -19,6 +19,8 @@ interface SettingsDialogProps {
 const FONT_OPTIONS = [
   { value: 'uthman', label: 'خط حفص العثماني', preview: 'بِسۡمِ ٱللَّهِ', family: "'KFGQPC HAFS Uthmanic Script', serif" },
   { value: 'uthmanicHafs', label: 'خط حفص الذكي', preview: 'بِسۡمِ ٱللَّهِ', family: "'UthmanicHafs', serif" },
+  { value: 'uthmanTN', label: 'عثمان طه نسخ', preview: 'بِسۡمِ ٱللَّهِ', family: "'UthmanTN', serif" },
+  { value: 'kfgqpcAnnotated', label: 'KFGQPC المشكّل', preview: 'بِسۡمِ ٱللَّهِ', family: "'KFGQPCAnnotated', serif" },
   { value: 'amiriQuran', label: 'Amiri Quran', preview: 'بِسۡمِ ٱللَّهِ', family: "'Amiri Quran', serif" },
   { value: 'amiri', label: 'Amiri', preview: 'بِسۡمِ ٱللَّهِ', family: "'Amiri', serif" },
   { value: 'scheherazade', label: 'Scheherazade New', preview: 'بِسۡمِ ٱللَّهِ', family: "'Scheherazade New', serif" },
