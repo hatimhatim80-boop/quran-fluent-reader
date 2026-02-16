@@ -20,6 +20,8 @@ export function useSettingsApplier() {
       scheherazade: "'Scheherazade New', 'Amiri', serif",
       uthman: "'KFGQPC HAFS Uthmanic Script', 'Amiri', serif",
       uthmanicHafs: "'UthmanicHafs', 'KFGQPC HAFS Uthmanic Script', 'Amiri', serif",
+      uthmanTN: "'UthmanTN', 'Amiri', serif",
+      kfgqpcAnnotated: "'KFGQPCAnnotated', 'Amiri', serif",
       meQuran: "'me_quran', 'Amiri', serif",
       qalam: "'Al Qalam Quran', 'Amiri', serif",
       custom: settings.fonts.customFontFamily ? `'${settings.fonts.customFontFamily}', 'Amiri', serif` : "'Amiri', serif",
