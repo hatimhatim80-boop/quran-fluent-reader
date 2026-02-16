@@ -20,6 +20,8 @@ export function useSettingsApplier() {
       scheherazade: "'Scheherazade New', 'Amiri', serif",
       uthman: "'KFGQPC HAFS Uthmanic Script', 'Amiri', serif",
       uthmanicHafs: "'UthmanicHafs', 'KFGQPC HAFS Uthmanic Script', 'Amiri', serif",
+      uthmanicHafs22: "'UthmanicHafs22', 'UthmanicHafs', 'Amiri', serif",
+      hafsNastaleeq: "'HafsNastaleeq', 'Amiri', serif",
       uthmanTN: "'UthmanTN', 'Amiri', serif",
       kfgqpcAnnotated: "'KFGQPCAnnotated', 'Amiri', serif",
       meQuran: "'me_quran', 'Amiri', serif",

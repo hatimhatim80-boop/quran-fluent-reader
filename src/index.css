@@ -50,6 +50,27 @@
   font-display: swap;
 }
 
+/* UthmanicHafs v22 */
+@font-face {
+  font-family: 'UthmanicHafs22';
+  src: url('/fonts/uthmanic_hafs_v22.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Hafs Nastaleeq v10 */
+@font-face {
+  font-family: 'HafsNastaleeq';
+  src: url('/fonts/HafsNastaleeq_Ver10.otf') format('opentype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
 @import url('https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Noto+Naskh+Arabic:wght@400;500;600;700&family=Scheherazade+New:wght@400;500;600;700&display=swap');
 
 @layer base {
@@ -177,7 +198,7 @@
   .quran-page {
     @apply arabic-text;
     text-align: justify;
-    text-align-last: justify;
+    text-align-last: right;
     text-justify: inter-word;
     overflow-wrap: break-word;
     word-break: break-word;
@@ -226,7 +247,7 @@
   }
 
   .quran-line:last-child {
-    text-align-last: justify;
+    text-align-last: right;
   }
 
   /* Bismillah: single line, no word breaks */
