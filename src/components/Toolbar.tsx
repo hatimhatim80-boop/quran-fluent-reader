@@ -24,6 +24,7 @@ import { FullPageEditorDialog } from './FullPageEditorDialog';
 import { WorkingDataManager } from './WorkingDataManager';
 import { FullFilesViewer } from './FullFilesViewer';
 import { DiagnosticModeActivator } from './DiagnosticModeActivator';
+import { useDiagnosticModeStore } from '@/stores/diagnosticModeStore';
 import { GhareebWord, QuranPage } from '@/types/quran';
 
 interface ToolbarProps {
@@ -61,6 +62,10 @@ export function Toolbar({
   const [isUpdating, setIsUpdating] = useState(false);
   const { settings } = useSettingsStore();
   const navigate = useNavigate();
+  const isDiagnosticEnabled = useDiagnosticModeStore((s) => s.isEnabled);
+  const isNative = isNativeApp();
+  // In native app, admin tools only visible when diagnostic mode is enabled
+  const canShowAdminToggle = !isNative || isDiagnosticEnabled;
 
   const handleUpdate = useCallback(async () => {
     if (isUpdating) return;
@@ -195,16 +200,18 @@ export function Toolbar({
           </button>
         </SettingsDialog>
 
-        {/* Admin toggle */}
-        <button
-          onClick={() => setShowAdminTools(!showAdminTools)}
-          className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${
-            showAdminTools ? 'bg-primary/15 border border-primary/30' : 'nav-button'
-          }`}
-          title="أدوات الإدارة"
-        >
-          <MoreHorizontal className="w-3.5 h-3.5" />
-        </button>
+        {/* Admin toggle - hidden in native app unless diagnostic mode */}
+        {canShowAdminToggle && (
+          <button
+            onClick={() => setShowAdminTools(!showAdminTools)}
+            className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${
+              showAdminTools ? 'bg-primary/15 border border-primary/30' : 'nav-button'
+            }`}
+            title="أدوات الإدارة"
+          >
+            <MoreHorizontal className="w-3.5 h-3.5" />
+          </button>
+        )}
 
         {showAdminTools && (
           <>

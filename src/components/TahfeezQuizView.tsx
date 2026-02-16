@@ -53,8 +53,8 @@ export function TahfeezQuizView({
   const desktopLinesPerPage = settings.display?.desktopLinesPerPage || 15;
   const textAlign = settings.display?.textAlign || 'justify';
   const minWordsPerLine = settings.display?.minWordsPerLine || 5;
-  const isAutoFlow15 = displayMode === 'autoFlow15';
-  const isLines15 = isAutoFlow15;
+  const isAutoFlow15 = false;
+  const isLines15 = false;
   const pageBackgroundColor = (settings.colors as any).pageBackgroundColor || '';
   const pageFrameStyle = pageBackgroundColor ? { background: `hsl(${pageBackgroundColor})` } : undefined;
   const highlightStyle = (settings.colors as any).highlightStyle || 'background';

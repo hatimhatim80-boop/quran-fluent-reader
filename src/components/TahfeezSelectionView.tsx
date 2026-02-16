@@ -40,8 +40,8 @@ export function TahfeezSelectionView({ page, hidePageBadge }: TahfeezSelectionVi
   const textAlign = useSettingsStore((s) => s.settings.display?.textAlign || 'justify');
   const minWordsPerLine = useSettingsStore((s) => s.settings.display?.minWordsPerLine || 5);
   const balanceLastLine = useSettingsStore((s) => s.settings.display?.balanceLastLine ?? false);
-  const isAutoFlow15 = displayMode === 'autoFlow15';
-  const isLines15 = isAutoFlow15;
+  const isAutoFlow15 = false;
+  const isLines15 = false;
   const [selectionType, setSelectionType] = useState<'word' | 'phrase'>('word');
   const fontFamilyCSS = (() => {
     const fontMap: Record<string, string> = {
