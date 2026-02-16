@@ -3,7 +3,7 @@ import { QuranPage } from '@/types/quran';
 import { normalizeArabic } from '@/utils/quranParser';
 import { useSettingsStore } from '@/stores/settingsStore';
 import { TahfeezItem } from '@/stores/tahfeezStore';
-import { useAutoFitFont } from '@/hooks/useAutoFitFont';
+import { useAutoFlowFit } from '@/hooks/useAutoFlowFit';
 import { redistributeLines, shouldRedistribute } from '@/utils/lineRedistributor';
 import { formatBismillah, shouldNoJustify, bindVerseNumbersSimple } from '@/utils/lineTokenUtils';
 
@@ -52,12 +52,25 @@ export function TahfeezQuizView({
   const desktopLinesPerPage = settings.display?.desktopLinesPerPage || 15;
   const textAlign = settings.display?.textAlign || 'justify';
   const minWordsPerLine = settings.display?.minWordsPerLine || 5;
-  const isLines15 = false;
+  const isAutoFlow15 = displayMode === 'autoFlow15';
+  const isLines15 = isAutoFlow15;
   const pageBackgroundColor = (settings.colors as any).pageBackgroundColor || '';
   const pageFrameStyle = pageBackgroundColor ? { background: `hsl(${pageBackgroundColor})` } : undefined;
   const highlightStyle = (settings.colors as any).highlightStyle || 'background';
   const balanceLastLine = useSettingsStore((s) => s.settings.display?.balanceLastLine ?? false);
-  const { containerRef: autoFitRef, fittedFontSize } = useAutoFitFont(page.text);
+  const fontFamilyCSS = (() => {
+    const fontMap: Record<string, string> = {
+      amiri: "'Amiri', serif", amiriQuran: "'Amiri Quran', serif",
+      notoNaskh: "'Noto Naskh Arabic', serif", scheherazade: "'Scheherazade New', serif",
+      uthman: "'KFGQPC HAFS Uthmanic Script', serif", uthmanicHafs: "'UthmanicHafs', serif",
+      meQuran: "'me_quran', serif", qalam: "'Al Qalam Quran', serif",
+      custom: settings.fonts.customFontFamily ? `'${settings.fonts.customFontFamily}', serif` : "'Amiri', serif",
+    };
+    return fontMap[settings.fonts.fontFamily] || fontMap.uthman;
+  })();
+  const { containerRef: autoFlowRef, fittedFontSize: autoFlowFontSize } = useAutoFlowFit(
+    page.text, fontFamilyCSS, settings.fonts.fontWeight, settings.fonts.lineHeight, 15, isAutoFlow15, undefined
+  );
 
   // Redistribute lines based on device
   const effectiveText = useMemo(() => {
@@ -368,12 +381,12 @@ export function TahfeezQuizView({
 
     return isLines15 
       ? <div className="quran-lines-container">{elements}</div>
-      : <div className="quran-page" style={{ textAlign: 'justify', textAlignLast: 'right' }}>{elements}</div>;
+      : <div className="quran-page">{elements}</div>;
   }, [lines, blankedKeys, activeBlankKey, revealedKeys, showAll, isLines15]);
 
 
   return (
-    <div ref={autoFitRef} className="page-frame p-4 sm:p-8" style={{ ...pageFrameStyle, ...(fittedFontSize ? { fontSize: `${fittedFontSize}rem` } : {}) }} dir={textDirection}>
+    <div ref={autoFlowRef} className="page-frame p-4 sm:p-6" style={{ ...pageFrameStyle, ...(isAutoFlow15 ? { aspectRatio: '3 / 4.2', overflow: 'hidden' } : {}) }} dir={textDirection}>
       <div id="tahfeez-blanked-keys" className="hidden" />
       <div className="flex justify-center mb-5">
         <span className="bg-secondary/80 text-secondary-foreground px-4 py-1.5 rounded-full text-sm font-arabic shadow-sm">
