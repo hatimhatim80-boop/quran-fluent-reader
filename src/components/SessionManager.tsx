@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { BookOpen, GraduationCap, Plus, Play, Archive, Trash2, RotateCcw, Clock, ChevronDown, ChevronUp, Save, FolderOpen } from 'lucide-react';
-import { useSessionsStore, Session, SessionSection } from '@/stores/sessionsStore';
+import { BookOpen, GraduationCap, Plus, Play, Archive, Trash2, RotateCcw, Clock, ChevronDown, ChevronUp, Save, FolderOpen, FolderPlus, ArrowRightLeft, Pencil } from 'lucide-react';
+import { useSessionsStore, Session, SessionSection, SessionGroup } from '@/stores/sessionsStore';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
 import { pickSaveFile, autoSaveToFile, downloadAsFile, isFileSystemAccessSupported, hasActiveFileHandle } from '@/services/fileAutoSave';
 
@@ -90,34 +91,126 @@ function SectionsList({ session }: { session: Session }) {
   );
 }
 
+function SessionCard({ session, onContinue }: { session: Session; onContinue: (s: Session) => void }) {
+  const { archiveSession, groups, moveSessionToGroup } = useSessionsStore();
+  const [showMove, setShowMove] = useState(false);
+
+  return (
+    <div className="page-frame p-3 space-y-1 group">
+      <div className="flex items-center gap-3">
+        <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
+          session.type === 'ghareeb' ? 'bg-primary/10' : 'bg-accent/50'
+        }`}>
+          {session.type === 'ghareeb' 
+            ? <BookOpen className="w-4 h-4 text-primary" />
+            : <GraduationCap className="w-4 h-4 text-primary" />
+          }
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-arabic font-semibold text-foreground truncate">{session.name}</p>
+          <p className="text-[10px] font-arabic text-muted-foreground">
+            ص {session.currentPage}
+            {session.endPage && ` → ${session.endPage}`}
+            {' · '}
+            <Clock className="w-2.5 h-2.5 inline" /> {timeAgo(session.updatedAt)}
+          </p>
+          <SectionsList session={session} />
+        </div>
+        <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+          {groups.length > 0 && (
+            <button
+              onClick={() => setShowMove(!showMove)}
+              className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
+              title="نقل لمجموعة"
+            >
+              <ArrowRightLeft className="w-3.5 h-3.5" />
+            </button>
+          )}
+          <button
+            onClick={() => archiveSession(session.id)}
+            className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
+            title="أرشفة"
+          >
+            <Archive className="w-3.5 h-3.5" />
+          </button>
+        </div>
+        <Button size="sm" variant="ghost" onClick={() => onContinue(session)} className="shrink-0 gap-1 text-xs font-arabic">
+          <Play className="w-3 h-3" />
+          متابعة
+        </Button>
+      </div>
+      {showMove && groups.length > 0 && (
+        <div className="flex flex-wrap gap-1 mt-2 pt-2 border-t border-border/50">
+          <button
+            onClick={() => { moveSessionToGroup(session.id, undefined); setShowMove(false); }}
+            className={`text-[9px] font-arabic px-2 py-1 rounded-md border transition-colors ${!session.groupId ? 'bg-primary/10 border-primary text-primary' : 'border-border text-muted-foreground hover:text-foreground'}`}
+          >
+            بدون مجموعة
+          </button>
+          {groups.map(g => (
+            <button
+              key={g.id}
+              onClick={() => { moveSessionToGroup(session.id, g.id); setShowMove(false); }}
+              className={`text-[9px] font-arabic px-2 py-1 rounded-md border transition-colors ${session.groupId === g.id ? 'bg-primary/10 border-primary text-primary' : 'border-border text-muted-foreground hover:text-foreground'}`}
+            >
+              {g.name}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function SessionManager() {
-  const { sessions, createSession, archiveSession, unarchiveSession, deleteSession, setActiveSession } = useSessionsStore();
+  const { sessions, groups, createSession, archiveSession, unarchiveSession, deleteSession, setActiveSession, addGroup, renameGroup, deleteGroup } = useSessionsStore();
   const navigate = useNavigate();
   const [showCreate, setShowCreate] = useState(false);
   const [showArchived, setShowArchived] = useState(false);
+  const [showGroupCreate, setShowGroupCreate] = useState(false);
+  const [newGroupName, setNewGroupName] = useState('');
+  const [editingGroupId, setEditingGroupId] = useState<string | null>(null);
+  const [editGroupName, setEditGroupName] = useState('');
   const [newName, setNewName] = useState('');
   const [newType, setNewType] = useState<'ghareeb' | 'tahfeez'>('ghareeb');
   const [newStartPage, setNewStartPage] = useState('1');
   const [newEndPage, setNewEndPage] = useState('');
+  const [newGroupId, setNewGroupId] = useState<string>('');
 
   const activeSessions = sessions.filter(s => !s.archived);
   const archivedSessions = sessions.filter(s => s.archived);
+
+  // Group sessions
+  const ungroupedSessions = activeSessions.filter(s => !s.groupId);
+  const groupedSessions = groups.map(g => ({
+    group: g,
+    sessions: activeSessions.filter(s => s.groupId === g.id),
+  }));
 
   const handleCreate = () => {
     if (!newName.trim()) return;
     const start = parseInt(newStartPage) || 1;
     const end = newEndPage ? parseInt(newEndPage) || undefined : undefined;
-    createSession(newName.trim(), newType, start, end);
+    createSession(newName.trim(), newType, start, end, newGroupId || undefined);
     setShowCreate(false);
     setNewName('');
     setNewStartPage('1');
     setNewEndPage('');
+    setNewGroupId('');
     navigate(newType === 'ghareeb' ? '/mushaf' : '/tahfeez');
   };
 
   const handleContinue = (session: Session) => {
     setActiveSession(session.id);
     navigate(session.type === 'ghareeb' ? '/mushaf' : '/tahfeez');
+  };
+
+  const handleAddGroup = () => {
+    if (!newGroupName.trim()) return;
+    addGroup(newGroupName.trim());
+    setNewGroupName('');
+    setShowGroupCreate(false);
+    toast.success('تم إنشاء المجموعة');
   };
 
   const handleSaveToFile = async () => {
@@ -140,6 +233,12 @@ export function SessionManager() {
     }
   };
 
+  const renderSessionList = (sessionList: Session[]) => (
+    sessionList.map(session => (
+      <SessionCard key={session.id} session={session} onContinue={handleContinue} />
+    ))
+  );
+
   return (
     <div className="space-y-3">
       {/* Header */}
@@ -153,6 +252,14 @@ export function SessionManager() {
           >
             <Save className="w-3 h-3" />
             حفظ
+          </button>
+          <button
+            onClick={() => setShowGroupCreate(true)}
+            className="text-[10px] font-arabic text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"
+            title="إضافة مجموعة"
+          >
+            <FolderPlus className="w-3 h-3" />
+            مجموعة
           </button>
           {archivedSessions.length > 0 && (
             <button
@@ -173,44 +280,82 @@ export function SessionManager() {
         </div>
       </div>
 
-      {/* Active sessions */}
-      {activeSessions.map(session => (
-        <div key={session.id} className="page-frame p-3 space-y-1 group">
-          <div className="flex items-center gap-3">
-            <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
-              session.type === 'ghareeb' ? 'bg-primary/10' : 'bg-accent/50'
-            }`}>
-              {session.type === 'ghareeb' 
-                ? <BookOpen className="w-4 h-4 text-primary" />
-                : <GraduationCap className="w-4 h-4 text-primary" />
-              }
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-arabic font-semibold text-foreground truncate">{session.name}</p>
-              <p className="text-[10px] font-arabic text-muted-foreground">
-                ص {session.currentPage}
-                {session.endPage && ` → ${session.endPage}`}
-                {' · '}
-                <Clock className="w-2.5 h-2.5 inline" /> {timeAgo(session.updatedAt)}
-              </p>
-              <SectionsList session={session} />
-            </div>
-            <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-              <button
-                onClick={() => archiveSession(session.id)}
-                className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
-                title="أرشفة"
-              >
-                <Archive className="w-3.5 h-3.5" />
-              </button>
-            </div>
-            <Button size="sm" variant="ghost" onClick={() => handleContinue(session)} className="shrink-0 gap-1 text-xs font-arabic">
-              <Play className="w-3 h-3" />
-              متابعة
-            </Button>
+      {/* Group create inline */}
+      {showGroupCreate && (
+        <div className="flex gap-2 items-center">
+          <Input
+            value={newGroupName}
+            onChange={e => setNewGroupName(e.target.value)}
+            placeholder="اسم المجموعة"
+            className="h-8 text-xs font-arabic flex-1"
+            dir="rtl"
+            onKeyDown={e => e.key === 'Enter' && handleAddGroup()}
+          />
+          <Button size="sm" variant="default" onClick={handleAddGroup} disabled={!newGroupName.trim()} className="h-8 text-xs font-arabic px-3">
+            إضافة
+          </Button>
+          <Button size="sm" variant="ghost" onClick={() => setShowGroupCreate(false)} className="h-8 text-xs font-arabic px-2">
+            إلغاء
+          </Button>
+        </div>
+      )}
+
+      {/* Grouped sessions */}
+      {groupedSessions.map(({ group, sessions: groupSessions }) => (
+        <div key={group.id} className="space-y-2">
+          <div className="flex items-center gap-2">
+            <FolderOpen className="w-3.5 h-3.5 text-primary" />
+            {editingGroupId === group.id ? (
+              <div className="flex gap-1 items-center flex-1">
+                <Input
+                  value={editGroupName}
+                  onChange={e => setEditGroupName(e.target.value)}
+                  className="h-6 text-xs font-arabic flex-1"
+                  dir="rtl"
+                  onKeyDown={e => {
+                    if (e.key === 'Enter') { renameGroup(group.id, editGroupName); setEditingGroupId(null); }
+                    if (e.key === 'Escape') setEditingGroupId(null);
+                  }}
+                  autoFocus
+                />
+              </div>
+            ) : (
+              <span className="text-xs font-arabic font-bold text-foreground flex-1">{group.name}</span>
+            )}
+            <button
+              onClick={() => { setEditingGroupId(group.id); setEditGroupName(group.name); }}
+              className="text-muted-foreground hover:text-foreground"
+              title="تعديل"
+            >
+              <Pencil className="w-3 h-3" />
+            </button>
+            <button
+              onClick={() => { if (confirm('حذف المجموعة؟ ستبقى الجلسات بدون مجموعة.')) deleteGroup(group.id); }}
+              className="text-muted-foreground hover:text-destructive"
+              title="حذف المجموعة"
+            >
+              <Trash2 className="w-3 h-3" />
+            </button>
+          </div>
+          <div className="mr-4 space-y-2">
+            {groupSessions.length === 0 && (
+              <p className="text-[10px] font-arabic text-muted-foreground">لا توجد جلسات في هذه المجموعة</p>
+            )}
+            {renderSessionList(groupSessions)}
           </div>
         </div>
       ))}
+
+      {/* Ungrouped sessions */}
+      {ungroupedSessions.length > 0 && groups.length > 0 && (
+        <div className="space-y-2">
+          <span className="text-xs font-arabic font-bold text-muted-foreground">بدون مجموعة</span>
+          {renderSessionList(ungroupedSessions)}
+        </div>
+      )}
+
+      {/* If no groups, show all sessions flat */}
+      {groups.length === 0 && renderSessionList(ungroupedSessions)}
 
       {/* Archived sessions */}
       {showArchived && archivedSessions.map(session => (
@@ -263,6 +408,23 @@ export function SessionManager() {
                 dir="rtl"
               />
             </div>
+
+            {groups.length > 0 && (
+              <div>
+                <Label className="font-arabic text-xs">المجموعة (اختياري)</Label>
+                <Select value={newGroupId} onValueChange={setNewGroupId}>
+                  <SelectTrigger className="mt-1 font-arabic text-sm">
+                    <SelectValue placeholder="بدون مجموعة" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">بدون مجموعة</SelectItem>
+                    {groups.map(g => (
+                      <SelectItem key={g.id} value={g.id}>{g.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
 
             <div>
               <Label className="font-arabic text-xs">النوع</Label>

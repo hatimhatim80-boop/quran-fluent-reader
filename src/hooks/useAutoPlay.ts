@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { GhareebWord } from '@/types/quran';
+import { useSettingsStore } from '@/stores/settingsStore';
 
 interface UseAutoPlayProps {
   words: GhareebWord[];
@@ -17,6 +18,8 @@ export function useAutoPlay({
   const [isPlaying, setIsPlaying] = useState(false);
   const [speed, setSpeed] = useState(4); // seconds per word
   const thinkingGap = 800; // 0.8s gap before showing meaning
+  const pageRepeatCount = useSettingsStore(s => s.settings.autoplay.pageRepeatCount) || 1;
+  const repeatCountRef = useRef(0);
   
   // Use refs to avoid stale closures in setTimeout
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -119,11 +122,23 @@ export function useAutoPlay({
         // Schedule the next step - ALWAYS continue
         scheduleNext();
       } else {
-        // Reached end
-        console.log('[autoplay] ✅ Finished all', totalWords, 'words');
-        setIsPlaying(false);
-        isPlayingRef.current = false;
-        onPageEnd?.();
+        // Reached end of page - check repeat
+        repeatCountRef.current += 1;
+        if (repeatCountRef.current < pageRepeatCount) {
+          // Restart from beginning
+          console.log('[autoplay] 🔁 Repeating page, round', repeatCountRef.current + 1, 'of', pageRepeatCount);
+          setCurrentWordIndex(0);
+          currentIndexRef.current = 0;
+          scrollToActiveWord(0);
+          scheduleNext();
+        } else {
+          // Done with all repeats
+          console.log('[autoplay] ✅ Finished all', totalWords, 'words ×', pageRepeatCount, 'repeats');
+          repeatCountRef.current = 0;
+          setIsPlaying(false);
+          isPlayingRef.current = false;
+          onPageEnd?.();
+        }
       }
     }, delayMs);
   }, [setCurrentWordIndex, onPageEnd, scrollToActiveWord]);
@@ -143,7 +158,8 @@ export function useAutoPlay({
     clearTimer();
     
     // Always start from beginning
-    console.log('[autoplay] ▶️ Starting playback, total words:', wordsRef.current.length);
+    console.log('[autoplay] ▶️ Starting playback, total words:', wordsRef.current.length, '× repeats:', pageRepeatCount);
+    repeatCountRef.current = 0;
     setCurrentWordIndex(0);
     currentIndexRef.current = 0;
     setIsPlaying(true);

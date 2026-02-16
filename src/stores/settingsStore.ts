@@ -61,6 +61,7 @@ export interface AutoplaySettings {
   thinkingGap: number;
   autoAdvancePage: boolean;
   pauseOnMissingMeaning: boolean;
+  pageRepeatCount: number;
 }
 
 // Update settings
@@ -114,6 +115,7 @@ const defaultSettings: AppSettings = {
     thinkingGap: 800,
     autoAdvancePage: false,
     pauseOnMissingMeaning: false,
+    pageRepeatCount: 1,
   },
   display: {
     mode: 'continuous',

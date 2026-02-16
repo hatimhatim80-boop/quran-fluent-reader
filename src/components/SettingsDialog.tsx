@@ -756,6 +756,20 @@ export function SettingsDialog({ children }: SettingsDialogProps) {
               </p>
             </div>
 
+            <div className="space-y-3">
+              <Label className="font-arabic">تكرار الصفحة: <span className="text-primary font-bold">{settings.autoplay.pageRepeatCount || 1} مرة</span></Label>
+              <Slider
+                value={[settings.autoplay.pageRepeatCount || 1]}
+                onValueChange={([v]) => setAutoplay({ pageRepeatCount: v })}
+                min={1}
+                max={10}
+                step={1}
+              />
+              <p className="text-xs text-muted-foreground font-arabic">
+                عدد مرات تكرار الصفحة قبل الانتقال للتالية
+              </p>
+            </div>
+
             <div className="flex items-center justify-between p-3 rounded-lg border">
               <div>
                 <Label className="font-arabic">الانتقال التلقائي للصفحة التالية</Label>
