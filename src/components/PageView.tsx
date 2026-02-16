@@ -712,7 +712,7 @@ export function PageView({
 
       {/* Sub Header: Surah Name - Juz Name */}
       {!hidePageBadge && (
-        <div className="flex items-center justify-between pb-2 border-b font-arabic" style={{ borderColor: 'hsl(145 45% 55% / 0.35)' }}>
+        <div className="flex items-center justify-between pb-2 border-b border-ornament/20 font-arabic">
           <span className="text-sm sm:text-base font-bold text-foreground">{pageMeta.surahName}</span>
           <span className="text-sm sm:text-base font-bold text-foreground">{pageMeta.juzName}</span>
         </div>
@@ -725,7 +725,7 @@ export function PageView({
 
       {/* Footer: Page Number - Hizb */}
       {!hidePageBadge && (
-        <div className="flex items-center justify-between pt-2 border-t font-arabic text-xs sm:text-sm text-muted-foreground/70" style={{ borderColor: 'hsl(145 45% 55% / 0.35)' }}>
+        <div className="flex items-center justify-between pt-2 border-t border-ornament/20 font-arabic text-xs sm:text-sm text-muted-foreground/70">
           <span>{pageMeta.pageNumberArabic}</span>
           <span>الحزب {pageMeta.hizbNumberArabic}</span>
         </div>
