@@ -194,30 +194,11 @@
   .fullscreen-page-frame .quran-page {
     min-height: auto !important;
     flex: 1;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    text-align: justify;
-    text-align-last: justify;
-    text-justify: inter-word;
   }
 
-  /* 15-line grid: fixed equal rows, vertically centered */
+  /* 15-line grid: keep same layout as normal mode */
   .fullscreen-page-frame .quran-lines-container {
-    display: grid !important;
-    grid-template-rows: repeat(15, 1fr);
-    align-content: center;
-    gap: 0;
     flex: 1;
-  }
-
-  .fullscreen-page-frame .quran-line {
-    display: flex;
-    align-items: center;
-    overflow: hidden;
-    min-height: 0 !important;
-    padding-top: 0 !important;
-    padding-bottom: 0 !important;
   }
 
   /* Better mobile text containment */
