@@ -7,6 +7,7 @@ import { useSettingsApplier } from '@/hooks/useSettingsApplier';
 import { useSettingsStore } from '@/stores/settingsStore';
 import { Link, useNavigate } from 'react-router-dom';
 import { BookOpen, Play, Pause, Eye, EyeOff, ArrowRight, Save, Trash2, GraduationCap, ListChecks, Zap, Book, Layers, Hash, FileText, Search, X, ChevronLeft, Download, Upload, Settings2, ChevronsRight } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Slider } from '@/components/ui/slider';
 import { Switch } from '@/components/ui/switch';
 import { Button } from '@/components/ui/button';
@@ -53,6 +54,9 @@ export default function TahfeezPage() {
     activeTab, setActiveTab,
     selectionMode, setSelectionMode,
     rangeAnchor, setRangeAnchor,
+    quizScope, setQuizScope,
+    quizScopeFrom, setQuizScopeFrom,
+    quizScopeTo, setQuizScopeTo,
   } = useTahfeezStore();
 
   const { currentPage, getCurrentPageData, goToPage, totalPages } = useQuranData();
@@ -92,6 +96,66 @@ export default function TahfeezPage() {
   const [pinchScale, setPinchScale] = useState(1);
   const pinchRef = useRef<{ startDist: number; startScale: number } | null>(null);
   const contentRef = useRef<HTMLDivElement>(null);
+  const [quizPageIdx, setQuizPageIdx] = useState(0);
+
+  // Compute pages range for multi-page quiz
+  const quizPagesRange = useMemo(() => {
+    if (quizScope === 'current-page') return [currentPage];
+    if (quizScope === 'page-range') {
+      const from = Math.min(quizScopeFrom, quizScopeTo);
+      const to = Math.max(quizScopeFrom, quizScopeTo);
+      const pages: number[] = [];
+      for (let p = from; p <= Math.min(to, 604); p++) pages.push(p);
+      return pages;
+    }
+    if (quizScope === 'surah') {
+      const surahNum = quizScopeFrom;
+      const surahInfo = SURAH_INFO[surahNum];
+      if (!surahInfo) return [currentPage];
+      const startPage = surahInfo[0];
+      // Find end page: next surah start - 1, or 604
+      const nextSurah = SURAHS.find(s => s.number === surahNum + 1);
+      const endPage = nextSurah ? nextSurah.startPage - 1 : 604;
+      const pages: number[] = [];
+      for (let p = startPage; p <= endPage; p++) pages.push(p);
+      return pages;
+    }
+    if (quizScope === 'juz') {
+      const fromJuz = Math.min(quizScopeFrom, quizScopeTo);
+      const toJuz = Math.max(quizScopeFrom, quizScopeTo);
+      const startPage = JUZ_DATA[Math.max(0, fromJuz - 1)]?.page || 1;
+      const endPage = toJuz < 30 ? (JUZ_DATA[toJuz]?.page || 605) - 1 : 604;
+      const pages: number[] = [];
+      for (let p = startPage; p <= endPage; p++) pages.push(p);
+      return pages;
+    }
+    if (quizScope === 'hizb') {
+      const fromHizb = Math.min(quizScopeFrom, quizScopeTo);
+      const toHizb = Math.max(quizScopeFrom, quizScopeTo);
+      // Each juz has 2 hizbs
+      const fromJuzIdx = Math.floor((fromHizb - 1) / 2);
+      const fromJuz = JUZ_DATA[fromJuzIdx];
+      const toJuzIdx = Math.floor((toHizb - 1) / 2);
+      const isSecondHalf = (fromHizb - 1) % 2 === 1;
+      const toIsSecondHalf = (toHizb - 1) % 2 === 1;
+      
+      const startPage = isSecondHalf
+        ? Math.floor((fromJuz.page + (JUZ_DATA[fromJuzIdx + 1]?.page || 605)) / 2)
+        : fromJuz.page;
+      
+      let endPage: number;
+      if (toIsSecondHalf) {
+        endPage = (toJuzIdx + 1 < 30 ? JUZ_DATA[toJuzIdx + 1].page : 605) - 1;
+      } else {
+        const juzEnd = JUZ_DATA[toJuzIdx + 1]?.page || 605;
+        endPage = Math.floor((JUZ_DATA[toJuzIdx].page + juzEnd) / 2) - 1;
+      }
+      const pages: number[] = [];
+      for (let p = startPage; p <= Math.min(endPage, 604); p++) pages.push(p);
+      return pages;
+    }
+    return [currentPage];
+  }, [quizScope, quizScopeFrom, quizScopeTo, currentPage]);
 
   // Pinch-to-zoom handler
   useEffect(() => {
@@ -201,6 +265,15 @@ export default function TahfeezPage() {
     setActiveBlankKey(null);
     setCurrentRevealIdx(-1);
     setBlankedKeysList([]);
+    setQuizPageIdx(0);
+  };
+
+  const handleStartMultiPage = () => {
+    // Navigate to first page in range
+    if (quizPagesRange.length > 0) {
+      goToPage(quizPagesRange[0]);
+    }
+    handleStart();
   };
 
   const handlePauseResume = () => {
@@ -525,13 +598,14 @@ export default function TahfeezPage() {
             <div className="space-y-3">
               <label className="text-sm font-arabic text-muted-foreground">نمط الإخفاء</label>
               <div className="flex flex-wrap gap-2">
-                {[
+              {[
                   { value: 'beginning' as const, label: 'أول الآية' },
                   { value: 'middle' as const, label: 'وسط الآية' },
                   { value: 'end' as const, label: 'آخر الآية' },
                   { value: 'beginning-middle' as const, label: 'أول + وسط' },
                   { value: 'middle-end' as const, label: 'وسط + آخر' },
                   { value: 'beginning-end' as const, label: 'أول + آخر' },
+                  { value: 'beginning-middle-end' as const, label: 'أول + وسط + آخر' },
                   { value: 'full-ayah' as const, label: 'آية كاملة' },
                   { value: 'ayah-count' as const, label: 'عدد آيات' },
                   { value: 'full-page' as const, label: 'صفحة كاملة' },
@@ -548,7 +622,7 @@ export default function TahfeezPage() {
                 ))}
               </div>
 
-              {(['beginning', 'middle', 'end', 'beginning-middle', 'middle-end', 'beginning-end'] as const).includes(autoBlankMode as any) && (
+              {(['beginning', 'middle', 'end', 'beginning-middle', 'middle-end', 'beginning-end', 'beginning-middle-end'] as const).includes(autoBlankMode as any) && (
                 <div className="space-y-1">
                   <label className="text-xs font-arabic text-muted-foreground">عدد الكلمات: {blankCount}</label>
                   <Slider value={[blankCount]} onValueChange={([v]) => setBlankCount(v)} min={1} max={10} step={1} />
@@ -563,6 +637,88 @@ export default function TahfeezPage() {
               )}
             </div>
 
+            {/* Quiz scope */}
+            <div className="space-y-3">
+              <label className="text-sm font-arabic text-muted-foreground">نطاق الاختبار</label>
+              <div className="flex flex-wrap gap-2">
+                {[
+                  { value: 'current-page' as const, label: 'الصفحة الحالية' },
+                  { value: 'page-range' as const, label: 'نطاق صفحات' },
+                  { value: 'surah' as const, label: 'سورة' },
+                  { value: 'juz' as const, label: 'جزء' },
+                  { value: 'hizb' as const, label: 'حزب' },
+                ].map(opt => (
+                  <Button
+                    key={opt.value}
+                    variant={quizScope === opt.value ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => {
+                      setQuizScope(opt.value);
+                      if (opt.value === 'current-page') {
+                        setQuizScopeFrom(currentPage);
+                        setQuizScopeTo(currentPage);
+                      }
+                    }}
+                    className="font-arabic text-xs"
+                  >
+                    {opt.label}
+                  </Button>
+                ))}
+              </div>
+
+              {quizScope === 'page-range' && (
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <label className="text-xs font-arabic text-muted-foreground whitespace-nowrap">من صفحة:</label>
+                    <Input type="number" min={1} max={604} value={quizScopeFrom} onChange={e => setQuizScopeFrom(Math.max(1, Math.min(604, parseInt(e.target.value) || 1)))} className="h-8 text-xs w-20" />
+                    <label className="text-xs font-arabic text-muted-foreground whitespace-nowrap">إلى صفحة:</label>
+                    <Input type="number" min={1} max={604} value={quizScopeTo} onChange={e => setQuizScopeTo(Math.max(1, Math.min(604, parseInt(e.target.value) || 1)))} className="h-8 text-xs w-20" />
+                  </div>
+                </div>
+              )}
+
+              {quizScope === 'surah' && (
+                <div className="space-y-2">
+                  <Select value={String(quizScopeFrom)} onValueChange={v => {
+                    const num = parseInt(v);
+                    setQuizScopeFrom(num);
+                    setQuizScopeTo(num);
+                  }}>
+                    <SelectTrigger className="h-8 text-xs font-arabic">
+                      <SelectValue placeholder="اختر سورة" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {SURAHS.map(s => (
+                        <SelectItem key={s.number} value={String(s.number)} className="text-xs font-arabic">{s.number}. {s.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+
+              {quizScope === 'juz' && (
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <label className="text-xs font-arabic text-muted-foreground whitespace-nowrap">من جزء:</label>
+                    <Input type="number" min={1} max={30} value={quizScopeFrom} onChange={e => setQuizScopeFrom(Math.max(1, Math.min(30, parseInt(e.target.value) || 1)))} className="h-8 text-xs w-16" />
+                    <label className="text-xs font-arabic text-muted-foreground whitespace-nowrap">إلى جزء:</label>
+                    <Input type="number" min={1} max={30} value={quizScopeTo} onChange={e => setQuizScopeTo(Math.max(1, Math.min(30, parseInt(e.target.value) || 1)))} className="h-8 text-xs w-16" />
+                  </div>
+                </div>
+              )}
+
+              {quizScope === 'hizb' && (
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <label className="text-xs font-arabic text-muted-foreground whitespace-nowrap">من حزب:</label>
+                    <Input type="number" min={1} max={60} value={quizScopeFrom} onChange={e => setQuizScopeFrom(Math.max(1, Math.min(60, parseInt(e.target.value) || 1)))} className="h-8 text-xs w-16" />
+                    <label className="text-xs font-arabic text-muted-foreground whitespace-nowrap">إلى حزب:</label>
+                    <Input type="number" min={1} max={60} value={quizScopeTo} onChange={e => setQuizScopeTo(Math.max(1, Math.min(60, parseInt(e.target.value) || 1)))} className="h-8 text-xs w-16" />
+                  </div>
+                </div>
+              )}
+            </div>
+
             <div className="space-y-1">
               <label className="text-xs font-arabic text-muted-foreground">مهلة التفكير قبل الكلمة الأولى: {firstWordTimerSeconds} ثانية</label>
               <Slider value={[firstWordTimerSeconds]} onValueChange={([v]) => setFirstWordTimerSeconds(v)} min={1} max={30} step={1} />
@@ -573,9 +729,9 @@ export default function TahfeezPage() {
               <Slider value={[timerSeconds]} onValueChange={([v]) => setTimerSeconds(v)} min={1} max={10} step={1} />
             </div>
 
-            <Button onClick={() => { setQuizSource('auto'); handleStart(); }} className="w-full font-arabic" disabled={!pageData}>
+            <Button onClick={() => { setQuizSource('auto'); handleStartMultiPage(); }} className="w-full font-arabic" disabled={!pageData}>
               <Play className="w-4 h-4 ml-2" />
-              ابدأ الاختبار (صفحة {currentPage})
+              ابدأ الاختبار {quizScope === 'current-page' ? `(صفحة ${currentPage})` : `(${quizPagesRange.length} صفحة)`}
             </Button>
           </div>
         )}
@@ -583,6 +739,15 @@ export default function TahfeezPage() {
         {/* Quiz view */}
         {quizStarted && pageData && (
           <div className="space-y-4 animate-fade-in">
+            {/* Multi-page progress */}
+            {quizPagesRange.length > 1 && (
+              <div className="page-frame p-2 flex items-center justify-center gap-2">
+                <span className="text-xs font-arabic text-muted-foreground">
+                  صفحة {quizPagesRange.indexOf(currentPage) + 1} من {quizPagesRange.length}
+                </span>
+              </div>
+            )}
+
             {/* Progress */}
             <div className="page-frame p-3 flex items-center justify-between">
               <span className="text-sm font-arabic text-muted-foreground">
@@ -622,6 +787,24 @@ export default function TahfeezPage() {
                 <Eye className="w-4 h-4 ml-1" />
                 كشف الكل
               </Button>
+              {/* Next page in multi-page quiz */}
+              {quizPagesRange.length > 1 && showAll && quizPagesRange.indexOf(currentPage) < quizPagesRange.length - 1 && (
+                <Button variant="default" size="sm" onClick={() => {
+                  const nextIdx = quizPagesRange.indexOf(currentPage) + 1;
+                  if (nextIdx < quizPagesRange.length) {
+                    goToPage(quizPagesRange[nextIdx]);
+                    setQuizPageIdx(nextIdx);
+                    setShowAll(false);
+                    setRevealedKeys(new Set());
+                    setActiveBlankKey(null);
+                    setCurrentRevealIdx(-1);
+                    setBlankedKeysList([]);
+                  }
+                }} className="font-arabic">
+                  <ChevronsRight className="w-4 h-4 ml-1" />
+                  الصفحة التالية
+                </Button>
+              )}
               <Button variant="outline" size="sm" onClick={() => { setQuizStarted(false); if (revealTimerRef.current) clearTimeout(revealTimerRef.current); }} className="font-arabic">
                 إعادة
               </Button>

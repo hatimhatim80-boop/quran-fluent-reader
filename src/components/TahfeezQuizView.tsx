@@ -11,7 +11,7 @@ interface TahfeezQuizViewProps {
   page: QuranPage;
   quizSource: 'custom' | 'auto';
   storedItems: TahfeezItem[];
-  autoBlankMode: 'beginning' | 'middle' | 'end' | 'beginning-middle' | 'middle-end' | 'beginning-end' | 'full-ayah' | 'full-page' | 'ayah-count';
+  autoBlankMode: 'beginning' | 'middle' | 'end' | 'beginning-middle' | 'middle-end' | 'beginning-end' | 'beginning-middle-end' | 'full-ayah' | 'full-page' | 'ayah-count';
   blankCount: number;
   ayahCount: number;
   activeBlankKey: string | null;       // Currently active blank (highlighted)
@@ -172,25 +172,29 @@ export function TahfeezQuizView({
               for (let i = start; i < start + n && i < wc; i++) {
                 keys.add(group[i].key);
               }
+            } else if (autoBlankMode === 'beginning-middle-end') {
+              // All three regions
+              const n = Math.min(blankCount, Math.floor(wc / 3));
+              // Beginning
+              for (let i = 0; i < n && i < wc; i++) keys.add(group[i].key);
+              // Middle
+              const midStart = Math.max(0, Math.floor(wc / 2) - Math.floor(n / 2));
+              for (let i = midStart; i < midStart + n && i < wc; i++) keys.add(group[i].key);
+              // End
+              for (let i = Math.max(0, wc - n); i < wc; i++) keys.add(group[i].key);
             } else {
               // Combined modes: beginning-middle, middle-end, beginning-end
               const n = Math.min(blankCount, Math.floor(wc / 2));
               if (autoBlankMode === 'beginning-middle') {
-                // Beginning
                 for (let i = 0; i < n && i < wc; i++) keys.add(group[i].key);
-                // Middle
                 const midStart = Math.max(0, Math.floor(wc / 2) - Math.floor(n / 2));
                 for (let i = midStart; i < midStart + n && i < wc; i++) keys.add(group[i].key);
               } else if (autoBlankMode === 'middle-end') {
-                // Middle
                 const midStart = Math.max(0, Math.floor(wc / 2) - Math.floor(n / 2));
                 for (let i = midStart; i < midStart + n && i < wc; i++) keys.add(group[i].key);
-                // End
                 for (let i = Math.max(0, wc - n); i < wc; i++) keys.add(group[i].key);
               } else if (autoBlankMode === 'beginning-end') {
-                // Beginning
                 for (let i = 0; i < n && i < wc; i++) keys.add(group[i].key);
-                // End
                 for (let i = Math.max(0, wc - n); i < wc; i++) keys.add(group[i].key);
               }
             }

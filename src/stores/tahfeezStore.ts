@@ -107,8 +107,16 @@ interface TahfeezState {
   // Quiz settings
   quizSource: 'custom' | 'auto';
   setQuizSource: (src: 'custom' | 'auto') => void;
-  autoBlankMode: 'beginning' | 'middle' | 'end' | 'beginning-middle' | 'middle-end' | 'beginning-end' | 'full-ayah' | 'full-page' | 'ayah-count';
+  autoBlankMode: 'beginning' | 'middle' | 'end' | 'beginning-middle' | 'middle-end' | 'beginning-end' | 'beginning-middle-end' | 'full-ayah' | 'full-page' | 'ayah-count';
   setAutoBlankMode: (mode: TahfeezState['autoBlankMode']) => void;
+
+  // Quiz scope
+  quizScope: 'current-page' | 'page-range' | 'hizb' | 'surah' | 'juz';
+  setQuizScope: (scope: TahfeezState['quizScope']) => void;
+  quizScopeFrom: number;
+  setQuizScopeFrom: (n: number) => void;
+  quizScopeTo: number;
+  setQuizScopeTo: (n: number) => void;
   blankCount: number;
   setBlankCount: (n: number) => void;
   ayahCount: number;
@@ -197,6 +205,13 @@ export const useTahfeezStore = create<TahfeezState>()(
       revealMode: 'all',
       setRevealMode: (m) => set({ revealMode: m }),
 
+      quizScope: 'current-page',
+      setQuizScope: (scope) => set({ quizScope: scope }),
+      quizScopeFrom: 1,
+      setQuizScopeFrom: (n) => set({ quizScopeFrom: n }),
+      quizScopeTo: 1,
+      setQuizScopeTo: (n) => set({ quizScopeTo: n }),
+
       activeTab: 'store',
       setActiveTab: (tab) => set({ activeTab: tab }),
     }),
@@ -213,6 +228,9 @@ export const useTahfeezStore = create<TahfeezState>()(
         firstWordTimerSeconds: state.firstWordTimerSeconds,
         revealMode: state.revealMode,
         activeTab: state.activeTab,
+        quizScope: state.quizScope,
+        quizScopeFrom: state.quizScopeFrom,
+        quizScopeTo: state.quizScopeTo,
       }),
     }
   )
