@@ -183,7 +183,7 @@ export function TahfeezSelectionView({ page, hidePageBadge }: TahfeezSelectionVi
         continue;
       }
       if (lineTokens.length === 1 && lineTokens[0].isBismillah) {
-        elements.push(<div key={`b-${li}`} className="bismillah bismillah-compact font-arabic">{formatBismillah(lineTokens[0].text)}</div>);
+        elements.push(<div key={`b-${li}`} className="bismillah bismillah-compact font-arabic" style={{ display: 'block', textAlign: 'center', textAlignLast: 'center' }}>{formatBismillah(lineTokens[0].text)}</div>);
         continue;
       }
 
