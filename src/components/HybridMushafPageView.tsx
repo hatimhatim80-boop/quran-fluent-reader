@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import { useQuranData } from '@/hooks/useQuranData';
 import { useQuranComWords, QuranComWord } from '@/hooks/useQuranComWords';
+import { useSvgWordBoxes } from '@/hooks/useSvgWordBoxes';
 import { PageView } from './PageView';
 import { GhareebWord } from '@/types/quran';
 import { MeaningBox } from './MeaningBox';
@@ -198,6 +199,9 @@ function ApiWordOverlay({
     setCurrentWordIndex,
   } = useQuranData();
 
+  // Load SVG word boxes for precise coordinates
+  const { data: svgBoxes } = useSvgWordBoxes(pageNumber, true);
+
   const ghareebWords = getPageGhareebWords;
   const [hoveredIndex, setHoveredIndex] = useState(-1);
   const [renderedWords, setRenderedWords] = useState<GhareebWord[]>([]);
@@ -206,73 +210,131 @@ function ApiWordOverlay({
   const ghareebByLocation = useMemo(() => {
     const map = new Map<string, { word: GhareebWord; index: number }>();
     ghareebWords.forEach((gw, idx) => {
-      // Try exact location match
       const key = buildLocationKey(gw.surahNumber, gw.verseNumber, gw.wordIndex);
       map.set(key, { word: gw, index: idx });
     });
     return map;
   }, [ghareebWords]);
 
+  // Build SVG boxes lookup by key for O(1) matching
+  const svgBoxByKey = useMemo(() => {
+    if (!svgBoxes) return null;
+    const map = new Map<string, { x: number; y: number; w: number; h: number }>();
+    for (const w of svgBoxes.words) {
+      map.set(w.key, w.box);
+    }
+    return map;
+  }, [svgBoxes]);
+
+  const useSvgPositions = !!svgBoxByKey && svgBoxByKey.size > 0;
+
   // Build word boxes with ghareeb matching
   const wordBoxes = useMemo(() => {
     const boxes: Array<{
       apiWord: QuranComWord;
-      lineIndex: number; // 0-based
+      lineIndex: number;
       top: number; // %
       left: number; // %
       width: number; // %
       height: number; // %
       ghareeb: { word: GhareebWord; index: number } | null;
       globalIndex: number;
+      svgMatched: boolean;
     }> = [];
 
     let globalIdx = 0;
-    const area = getTextArea(pageNumber);
-    const areaWidth = area.right - area.left;
-    
-    // Use actual line number range from API for proper mapping
-    const minLine = Math.min(...apiWords.lines.map(l => l.lineNumber));
-    const maxLine = Math.max(...apiWords.lines.map(l => l.lineNumber));
-    const lineSpan = maxLine - minLine + 1;
 
-    for (const line of apiWords.lines) {
-      // Map line number to 0-based slot index relative to the actual range
-      const slotIndex = line.lineNumber - minLine;
+    if (useSvgPositions) {
+      // === SVG-based precise positioning ===
+      for (const line of apiWords.lines) {
+        for (const apiWord of line.words) {
+          const svgBox = svgBoxByKey!.get(apiWord.location);
+          const ghareeb = ghareebByLocation.get(apiWord.location) ?? null;
 
-      const top = getLineTop(pageNumber, slotIndex, lineSpan);
-      const height = getLineHeight(pageNumber, lineSpan);
-      const wordsInLine = line.words.length;
+          if (svgBox) {
+            boxes.push({
+              apiWord,
+              lineIndex: line.lineNumber - 1,
+              top: svgBox.y * 100,
+              left: svgBox.x * 100,
+              width: svgBox.w * 100,
+              height: svgBox.h * 100,
+              ghareeb,
+              globalIndex: globalIdx++,
+              svgMatched: true,
+            });
+          } else {
+            // SVG box not found for this word — use fallback estimation for this word
+            const area = getTextArea(pageNumber);
+            const minLine = Math.min(...apiWords.lines.map(l => l.lineNumber));
+            const maxLine = Math.max(...apiWords.lines.map(l => l.lineNumber));
+            const lineSpan = maxLine - minLine + 1;
+            const slotIndex = line.lineNumber - minLine;
+            const top = getLineTop(pageNumber, slotIndex, lineSpan);
+            const height = getLineHeight(pageNumber, lineSpan);
+            const wordsInLine = line.words.length;
+            const wordIdx = line.words.indexOf(apiWord);
+            const wordWidth = (area.right - area.left) / wordsInLine;
+            const left = area.right - (wordIdx + 1) * wordWidth;
 
-      // Calculate proportional widths based on character weight
-      const weights = line.words.map((w) => estimateWordWeight(w.text_uthmani));
-      const totalWeight = weights.reduce((a, b) => a + b, 0);
+            boxes.push({
+              apiWord,
+              lineIndex: slotIndex,
+              top,
+              left,
+              width: wordWidth,
+              height,
+              ghareeb,
+              globalIndex: globalIdx++,
+              svgMatched: false,
+            });
+          }
+        }
+      }
+    } else {
+      // === Fallback: approximate character-weight positioning ===
+      const area = getTextArea(pageNumber);
+      const areaWidth = area.right - area.left;
+      const minLine = Math.min(...apiWords.lines.map(l => l.lineNumber));
+      const maxLine = Math.max(...apiWords.lines.map(l => l.lineNumber));
+      const lineSpan = maxLine - minLine + 1;
 
-      let cursorRight = area.right; // Start from right edge (RTL)
+      for (const line of apiWords.lines) {
+        const slotIndex = line.lineNumber - minLine;
+        const top = getLineTop(pageNumber, slotIndex, lineSpan);
+        const height = getLineHeight(pageNumber, lineSpan);
 
-      for (let i = 0; i < wordsInLine; i++) {
-        const apiWord = line.words[i];
-        const proportion = weights[i] / totalWeight;
-        const wordWidth = areaWidth * proportion;
-        const left = cursorRight - wordWidth;
-        cursorRight = left; // Move cursor left
+        const weights = line.words.map((w) => estimateWordWeight(w.text_uthmani));
+        const totalWeight = weights.reduce((a, b) => a + b, 0);
 
-        const ghareeb = ghareebByLocation.get(apiWord.location) ?? null;
+        let cursorRight = area.right;
 
-        boxes.push({
-          apiWord,
-          lineIndex: slotIndex,
-          top,
-          left,
-          width: wordWidth,
-          height,
-          ghareeb,
-          globalIndex: globalIdx++,
-        });
+        for (let i = 0; i < line.words.length; i++) {
+          const apiWord = line.words[i];
+          const proportion = weights[i] / totalWeight;
+          const wordWidth = areaWidth * proportion;
+          const left = cursorRight - wordWidth;
+          cursorRight = left;
+
+          const ghareeb = ghareebByLocation.get(apiWord.location) ?? null;
+
+          boxes.push({
+            apiWord,
+            lineIndex: slotIndex,
+            top,
+            left,
+            width: wordWidth,
+            height,
+            ghareeb,
+            globalIndex: globalIdx++,
+            svgMatched: false,
+          });
+        }
       }
     }
 
     return boxes;
-  }, [apiWords, ghareebByLocation, pageNumber]);
+  }, [apiWords, ghareebByLocation, pageNumber, useSvgPositions, svgBoxByKey]);
 
   // Build rendered ghareeb words list (in reading order)
   useEffect(() => {
@@ -364,6 +426,7 @@ function ApiWordOverlay({
           <div className="font-mono text-muted-foreground">
             Line: {wordBoxes[hoveredIndex].lineIndex + 1} | 
             {wordBoxes[hoveredIndex].ghareeb ? ' ✅ غريب' : ' ○ عادي'}
+            {wordBoxes[hoveredIndex].svgMatched ? ' | 📐 SVG' : ' | 📏 Est'}
           </div>
         </div>
       )}
