@@ -3,7 +3,7 @@ import { useQuranData } from '@/hooks/useQuranData';
 import { useAutoPlay } from '@/hooks/useAutoPlay';
 import { GhareebWord } from '@/types/quran';
 import { PageView } from './PageView';
-
+import { HybridMushafPageView } from './HybridMushafPageView';
 
 
 import { PageNavigation } from './PageNavigation';
@@ -224,7 +224,12 @@ export function QuranReader() {
           )}
 
           <div style={{ transform: pinchScale !== 1 ? `scale(${pinchScale})` : undefined, transformOrigin: 'center center', transition: 'transform 0.1s ease-out' }}>
-            {pageData && (
+            {pageData && settings.display?.mode === 'image' ? (
+              <HybridMushafPageView
+                pageNumber={currentPage}
+                hidePageBadge={false}
+              />
+            ) : pageData ? (
               <PageView
                 page={pageData}
                 ghareebWords={pageWords}
@@ -235,7 +240,7 @@ export function QuranReader() {
                 onRenderedWordsChange={handleRenderedWordsChange}
                 hidePageBadge={false}
               />
-            )}
+            ) : null}
           </div>
         </div>
 

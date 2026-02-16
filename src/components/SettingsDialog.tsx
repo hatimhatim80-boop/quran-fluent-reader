@@ -282,9 +282,35 @@ export function SettingsDialog({ children }: SettingsDialogProps) {
                 الافتراضي
               </Button>
             </div>
-            <div className="p-3 rounded-lg bg-muted/30 text-sm font-arabic text-muted-foreground">
-              <Check className="w-4 h-4 inline ml-1 text-green-600" />
-              وضع التدفق المستمر — نص متصل حر بمحاذاة من الجانبين
+            {/* Display Mode Selector */}
+            <div className="space-y-2">
+              <Label className="font-arabic text-sm font-medium">وضع العرض</Label>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  onClick={() => setDisplay({ mode: 'continuous' })}
+                  className={`p-3 rounded-lg border-2 text-center font-arabic text-sm transition-all ${
+                    settings.display.mode === 'continuous'
+                      ? 'border-primary bg-primary/10 text-primary'
+                      : 'border-border bg-muted/30 text-muted-foreground hover:border-primary/50'
+                  }`}
+                >
+                  <span className="block text-lg mb-1">📝</span>
+                  تدفق مستمر
+                  <span className="block text-[10px] mt-0.5 opacity-70">نص متصل حر</span>
+                </button>
+                <button
+                  onClick={() => setDisplay({ mode: 'image' })}
+                  className={`p-3 rounded-lg border-2 text-center font-arabic text-sm transition-all ${
+                    settings.display.mode === 'image'
+                      ? 'border-primary bg-primary/10 text-primary'
+                      : 'border-border bg-muted/30 text-muted-foreground hover:border-primary/50'
+                  }`}
+                >
+                  <span className="block text-lg mb-1">🖼️</span>
+                  صورة المصحف
+                  <span className="block text-[10px] mt-0.5 opacity-70">صورة + تظليل تفاعلي</span>
+                </button>
+              </div>
             </div>
           </TabsContent>
 
