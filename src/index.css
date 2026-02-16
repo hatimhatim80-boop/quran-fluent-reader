@@ -165,6 +165,8 @@
     justify-content: center;
     min-height: 100dvh;
     box-sizing: border-box;
+    padding-top: 4px !important;
+    padding-bottom: 4px !important;
   }
   .fullscreen-page-frame .quran-page {
     min-height: auto !important;

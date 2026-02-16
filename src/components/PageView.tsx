@@ -118,7 +118,7 @@ export function PageView({
     if (!fullscreen) { setViewportHeight(undefined); return; }
     const update = () => {
       // Subtract some padding for the container
-      setViewportHeight(window.innerHeight - 24);
+      setViewportHeight(window.innerHeight - 8);
     };
     update();
     window.addEventListener('resize', update);
