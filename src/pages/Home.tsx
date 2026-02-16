@@ -13,7 +13,7 @@ export default function Home() {
       <div className="max-w-lg w-full space-y-8">
         {/* Title */}
         <div className="text-center space-y-2">
-          <h1 className="text-3xl font-bold font-arabic text-foreground">الميسر في غريب القرآن</h1>
+          <h1 className="text-3xl font-bold font-arabic text-foreground">حفظ وفهم القرآن والمتون</h1>
           <p className="text-sm font-arabic text-muted-foreground">اختر البوابة التي تريد الدخول إليها</p>
         </div>
 
