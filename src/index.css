@@ -196,13 +196,17 @@
     flex: 1;
     display: flex;
     flex-direction: column;
+    justify-content: center;
+    text-align: justify;
+    text-align-last: justify;
+    text-justify: inter-word;
   }
 
-  /* 15-line grid: fixed equal rows */
+  /* 15-line grid: fixed equal rows, vertically centered */
   .fullscreen-page-frame .quran-lines-container {
     display: grid !important;
     grid-template-rows: repeat(15, 1fr);
-    align-content: stretch;
+    align-content: center;
     gap: 0;
     flex: 1;
   }
