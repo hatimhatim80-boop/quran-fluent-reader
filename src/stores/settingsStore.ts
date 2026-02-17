@@ -64,6 +64,10 @@ export interface AutoplaySettings {
   autoAdvanceDelay: number;
   pauseOnMissingMeaning: boolean;
   pageRepeatCount: number;
+  autoPlayOnWordClick: boolean;
+  ghareebRangeType: 'all' | 'page-range' | 'surah' | 'juz' | 'hizb';
+  ghareebRangeFrom: number;
+  ghareebRangeTo: number;
 }
 
 // Update settings
@@ -120,6 +124,10 @@ const defaultSettings: AppSettings = {
     autoAdvanceDelay: 1.5,
     pauseOnMissingMeaning: false,
     pageRepeatCount: 1,
+    autoPlayOnWordClick: false,
+    ghareebRangeType: 'all' as const,
+    ghareebRangeFrom: 1,
+    ghareebRangeTo: 604,
   },
   display: {
     mode: 'continuous',

@@ -211,8 +211,9 @@ export default function TahfeezPage() {
     };
   }, [pinchScale, nextPage, prevPage]);
 
-  // Reset quiz state when page changes during an active quiz
+  // Reset quiz state when page changes during an active quiz AND auto-restart
   const prevPageRef = useRef(currentPage);
+  const autoResumeQuizRef = useRef(false);
   useEffect(() => {
     if (!quizStarted) return;
     if (prevPageRef.current !== currentPage) {
@@ -226,6 +227,9 @@ export default function TahfeezPage() {
       setCurrentRevealIdx(-1);
       setBlankedKeysList([]);
       setFirstKeysSet(new Set());
+      setIsPaused(false);
+      // Flag to auto-start when blanked keys are loaded
+      autoResumeQuizRef.current = true;
     }
   }, [currentPage, quizStarted]);
 
@@ -241,11 +245,16 @@ export default function TahfeezPage() {
           if (keys.length > 0 && JSON.stringify(keys) !== JSON.stringify(blankedKeysList)) {
             setBlankedKeysList(keys);
             setFirstKeysSet(new Set(fKeys));
+            // Auto-resume if flagged (after page transition)
+            if (autoResumeQuizRef.current) {
+              autoResumeQuizRef.current = false;
+              setCurrentRevealIdx(0);
+            }
           }
         } catch {}
       }
     };
-    const timer = setTimeout(readKeys, 150);
+    const timer = setTimeout(readKeys, 200);
     return () => clearTimeout(timer);
   }, [quizStarted, pageData]);
 
@@ -262,14 +271,17 @@ export default function TahfeezPage() {
         if (autoplaySettings.autoAdvancePage) {
           const delayMs = (autoplaySettings.autoAdvanceDelay || 1.5) * 1000;
           revealTimerRef.current = setTimeout(() => {
-            // Navigate - the page-change useEffect will handle the state reset
-            const nextIdx = quizPagesRange.indexOf(currentPage) + 1;
-            if (quizPagesRange.length > 1 && nextIdx < quizPagesRange.length) {
-              goToPage(quizPagesRange[nextIdx]);
-              setQuizPageIdx(nextIdx);
-            } else {
+            const currentPageIdx = quizPagesRange.indexOf(currentPage);
+            if (quizPagesRange.length > 1 && currentPageIdx >= 0 && currentPageIdx < quizPagesRange.length - 1) {
+              // Navigate within defined range
+              const nextPageInRange = quizPagesRange[currentPageIdx + 1];
+              setQuizPageIdx(currentPageIdx + 1);
+              goToPage(nextPageInRange);
+            } else if (quizPagesRange.length === 1) {
+              // Single page (current-page scope) - still advance to next
               nextPage();
             }
+            // else: end of range reached - stop
           }, delayMs);
         }
         return;
@@ -278,13 +290,10 @@ export default function TahfeezPage() {
       const isFirstKey = firstKeysSet.has(key);
 
       if (isFirstKey) {
-        // First word of each ayah/phrase: wait the "thinking" delay BEFORE showing it
-        setActiveBlankKey(null); // keep hidden during thinking delay
+        setActiveBlankKey(null);
         setCurrentRevealIdx(idx);
         revealTimerRef.current = setTimeout(() => {
-          // Now highlight it as active
           setActiveBlankKey(key);
-          // Then reveal after normal timer
           revealTimerRef.current = setTimeout(() => {
             setRevealedKeys(prev => new Set([...prev, key]));
             setActiveBlankKey(null);
@@ -310,7 +319,7 @@ export default function TahfeezPage() {
     return () => {
       if (revealTimerRef.current) clearTimeout(revealTimerRef.current);
     };
-  }, [quizStarted, isPaused, showAll, blankedKeysList, timerSeconds, firstWordTimerSeconds, firstKeysSet]);
+  }, [quizStarted, isPaused, showAll, blankedKeysList, timerSeconds, firstWordTimerSeconds, firstKeysSet, currentRevealIdx]);
 
   const handleStart = () => {
     setQuizStarted(true);
