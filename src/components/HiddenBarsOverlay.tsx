@@ -8,25 +8,23 @@ interface HiddenBarsOverlayProps {
 }
 
 /**
- * Invisible overlay that shows "إظهار الأزرار" button for 3 seconds on double-tap.
+ * Invisible overlay that shows "إظهار الأزرار" button for 3 seconds on single tap.
+ * Also supports swipe left/right for page navigation.
  */
 export function HiddenBarsOverlay({ onShow, onNextPage, onPrevPage }: HiddenBarsOverlayProps) {
   const [visible, setVisible] = useState(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const lastTapRef = useRef(0);
   const swipeRef = useRef<{ startX: number; startY: number; startTime: number } | null>(null);
+  const didSwipeRef = useRef(false);
 
-  const handleTap = useCallback(() => {
-    const now = Date.now();
-    if (now - lastTapRef.current < 400) {
-      setVisible(true);
-      if (timerRef.current) clearTimeout(timerRef.current);
-      timerRef.current = setTimeout(() => setVisible(false), 3000);
-    }
-    lastTapRef.current = now;
+  const showButton = useCallback(() => {
+    setVisible(true);
+    if (timerRef.current) clearTimeout(timerRef.current);
+    timerRef.current = setTimeout(() => setVisible(false), 3000);
   }, []);
 
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    didSwipeRef.current = false;
     if (e.touches.length === 1) {
       swipeRef.current = { startX: e.touches[0].clientX, startY: e.touches[0].clientY, startTime: Date.now() };
     }
@@ -39,12 +37,20 @@ export function HiddenBarsOverlay({ onShow, onNextPage, onPrevPage }: HiddenBars
       const elapsed = Date.now() - swipeRef.current.startTime;
       const absDx = Math.abs(dx);
       if (absDx > 60 && elapsed < 400 && absDx > dy * 1.5) {
+        didSwipeRef.current = true;
         if (dx < 0) onNextPage?.();
         else onPrevPage?.();
       }
     }
     swipeRef.current = null;
   }, [onNextPage, onPrevPage]);
+
+  // Single tap → show button (only if not a swipe)
+  const handleClick = useCallback(() => {
+    if (!didSwipeRef.current) {
+      showButton();
+    }
+  }, [showButton]);
 
   useEffect(() => {
     return () => { if (timerRef.current) clearTimeout(timerRef.current); };
@@ -54,12 +60,12 @@ export function HiddenBarsOverlay({ onShow, onNextPage, onPrevPage }: HiddenBars
     <>
       <div
         className="fixed inset-0 z-40"
-        onClick={handleTap}
+        onClick={handleClick}
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
         style={{ touchAction: 'pan-y' }}
       />
-      {/* Button appears for 3s after double-tap */}
+      {/* Button appears for 3s after single tap */}
       {visible && (
         <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 animate-fade-in">
           <button

@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useEffect } from 'react';
 import { QuranPage } from '@/types/quran';
 import { normalizeArabic } from '@/utils/quranParser';
 import { useSettingsStore } from '@/stores/settingsStore';
@@ -357,7 +357,7 @@ export function TahfeezQuizView({
         } else if (shouldShowAsActive) {
           const activeClass = highlightStyle === 'text-only' ? 'tahfeez-active-blank--text-only' : 'tahfeez-active-blank';
           lineElements.push(
-            <span key={`${lineIdx}-${tokenIdx}`} className={activeClass}>{t}</span>
+            <span key={`${lineIdx}-${tokenIdx}`} className={activeClass} data-tahfeez-active="true">{t}</span>
           );
         } else if (shouldShowAsRevealed) {
           const revealedClass = highlightStyle === 'text-only' ? 'tahfeez-revealed--text-only' : 'tahfeez-revealed';
@@ -386,6 +386,22 @@ export function TahfeezQuizView({
       : <div className="quran-page">{elements}</div>;
   }, [lines, blankedKeys, activeBlankKey, revealedKeys, showAll, isLines15]);
 
+
+  // Auto-scroll active blank word into view when it's near the bottom
+  useEffect(() => {
+    if (!activeBlankKey) return;
+    const el = document.querySelector<HTMLElement>('[data-tahfeez-active="true"]');
+    if (!el) return;
+    const container = el.closest('.quran-page, .quran-lines-container');
+    if (container) {
+      const containerRect = container.getBoundingClientRect();
+      const elRect = el.getBoundingClientRect();
+      const bottomThreshold = containerRect.bottom - (containerRect.height * 0.2);
+      if (elRect.top > bottomThreshold) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
+      }
+    }
+  }, [activeBlankKey]);
 
   return (
     <div ref={autoFlowRef} className="page-frame p-4 sm:p-6" style={{ ...pageFrameStyle, ...(isAutoFlow15 ? { aspectRatio: '3 / 4.2', overflow: 'hidden' } : {}) }} dir={textDirection}>

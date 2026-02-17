@@ -7,6 +7,7 @@ import { useSettingsApplier } from '@/hooks/useSettingsApplier';
 import { useSettingsStore } from '@/stores/settingsStore';
 import { Link, useNavigate } from 'react-router-dom';
 import { BookOpen, Play, Pause, Eye, EyeOff, ArrowRight, Save, Trash2, GraduationCap, ListChecks, Zap, Book, Layers, Hash, FileText, Search, X, ChevronLeft, Download, Upload, Settings2, ChevronsRight } from 'lucide-react';
+import { HiddenBarsOverlay } from '@/components/HiddenBarsOverlay';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Slider } from '@/components/ui/slider';
 import { Switch } from '@/components/ui/switch';
@@ -59,7 +60,7 @@ export default function TahfeezPage() {
     quizScopeTo, setQuizScopeTo,
   } = useTahfeezStore();
 
-  const { currentPage, getCurrentPageData, goToPage, totalPages } = useQuranData();
+  const { currentPage, getCurrentPageData, goToPage, totalPages, nextPage, prevPage } = useQuranData();
   useSettingsApplier(); // Apply font/display settings globally
   const displayMode = useSettingsStore((s) => s.settings.display?.mode || 'auto15');
   const pageData = getCurrentPageData();
@@ -96,6 +97,7 @@ export default function TahfeezPage() {
   const [pinchScale, setPinchScale] = useState(1);
   const pinchRef = useRef<{ startDist: number; startScale: number } | null>(null);
   const contentRef = useRef<HTMLDivElement>(null);
+  const swipeRef = useRef<{ startX: number; startY: number; startTime: number } | null>(null);
   const [quizPageIdx, setQuizPageIdx] = useState(0);
 
   // Compute pages range for multi-page quiz
@@ -157,7 +159,7 @@ export default function TahfeezPage() {
     return [currentPage];
   }, [quizScope, quizScopeFrom, quizScopeTo, currentPage]);
 
-  // Pinch-to-zoom handler
+  // Pinch-to-zoom + swipe handler
   useEffect(() => {
     const el = contentRef.current;
     if (!el) return;
@@ -166,6 +168,8 @@ export default function TahfeezPage() {
         const dx = e.touches[0].clientX - e.touches[1].clientX;
         const dy = e.touches[0].clientY - e.touches[1].clientY;
         pinchRef.current = { startDist: Math.hypot(dx, dy), startScale: pinchScale };
+      } else if (e.touches.length === 1) {
+        swipeRef.current = { startX: e.touches[0].clientX, startY: e.touches[0].clientY, startTime: Date.now() };
       }
     };
     const onTouchMove = (e: TouchEvent) => {
@@ -177,8 +181,26 @@ export default function TahfeezPage() {
         const newScale = Math.min(3, Math.max(0.5, pinchRef.current.startScale * (dist / pinchRef.current.startDist)));
         setPinchScale(newScale);
       }
+      if (e.touches.length === 1 && swipeRef.current) {
+        const dy = Math.abs(e.touches[0].clientY - swipeRef.current.startY);
+        const dx = Math.abs(e.touches[0].clientX - swipeRef.current.startX);
+        if (dy > dx * 1.5) swipeRef.current = null;
+      }
     };
-    const onTouchEnd = () => { pinchRef.current = null; };
+    const onTouchEnd = (e: TouchEvent) => {
+      if (swipeRef.current && e.changedTouches.length === 1) {
+        const dx = e.changedTouches[0].clientX - swipeRef.current.startX;
+        const dy = Math.abs(e.changedTouches[0].clientY - swipeRef.current.startY);
+        const elapsed = Date.now() - swipeRef.current.startTime;
+        const absDx = Math.abs(dx);
+        if (absDx > 60 && elapsed < 400 && absDx > dy * 1.5) {
+          if (dx < 0) nextPage();
+          else prevPage();
+        }
+      }
+      swipeRef.current = null;
+      pinchRef.current = null;
+    };
     el.addEventListener('touchstart', onTouchStart, { passive: false });
     el.addEventListener('touchmove', onTouchMove, { passive: false });
     el.addEventListener('touchend', onTouchEnd);
@@ -187,7 +209,7 @@ export default function TahfeezPage() {
       el.removeEventListener('touchmove', onTouchMove);
       el.removeEventListener('touchend', onTouchEnd);
     };
-  }, [pinchScale]);
+  }, [pinchScale, nextPage, prevPage]);
 
   // Read blanked keys from the quiz view after it renders
   useEffect(() => {
@@ -453,18 +475,9 @@ export default function TahfeezPage() {
         </div>
       )}
 
-      {/* Show bars button - floating when bars are hidden */}
+      {/* Show bars overlay - floating when bars are hidden, with swipe support */}
       {hideBars && (
-        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 animate-fade-in">
-          <button
-            onClick={() => setHideBars(false)}
-            className="bg-background/90 backdrop-blur-md border border-border rounded-full px-4 py-2 flex items-center gap-2 shadow-lg"
-            title="إظهار الأزرار"
-          >
-            <Eye className="w-4 h-4 text-foreground" />
-            <span className="font-arabic text-sm text-foreground">إظهار الأزرار</span>
-          </button>
-        </div>
+        <HiddenBarsOverlay onShow={() => setHideBars(false)} onNextPage={nextPage} onPrevPage={prevPage} />
       )}
 
       {/* Tab icons */}
