@@ -49,6 +49,16 @@ export function useSettingsApplier() {
     root.style.setProperty('--highlight-color', settings.colors.highlightColor);
     root.style.setProperty('--highlight-style', settings.colors.highlightStyle || 'background');
     
+    // Word background color for ghareeb words
+    if (settings.colors.highlightColor && settings.colors.highlightStyle !== 'text-only') {
+      root.style.setProperty('--ghareeb-bg-color', `hsl(${settings.colors.highlightColor} / 0.55)`);
+      // Parse hue from the HSL string for a darker border
+      root.style.setProperty('--ghareeb-border-color', `hsl(${settings.colors.highlightColor} / 0.5)`);
+    } else {
+      root.style.removeProperty('--ghareeb-bg-color');
+      root.style.removeProperty('--ghareeb-border-color');
+    }
+    
     // Page background color
     if (settings.colors.pageBackgroundColor) {
       root.style.setProperty('--page-bg-custom', settings.colors.pageBackgroundColor);

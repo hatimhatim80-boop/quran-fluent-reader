@@ -826,30 +826,38 @@
     transition: all 0.2s ease;
   }
 
-  /* Background highlight style (default) - rotating colors for variety */
+  /* Background highlight style (default) - supports custom single color or rotating colors */
   .ghareeb-word:not(.ghareeb-word--text-only) {
     border-radius: 6px;
     padding: 1px 4px;
     margin: 0 -2px;
     border: 1px solid transparent;
   }
-  .ghareeb-word:not(.ghareeb-word--text-only):nth-child(5n+1) {
+
+  /* Custom single color via CSS variable - overrides rotating colors */
+  .ghareeb-word:not(.ghareeb-word--text-only) {
+    background-color: var(--ghareeb-bg-color);
+    border-color: var(--ghareeb-border-color);
+  }
+
+  /* Rotating colors - only when no custom color is set (var falls back to initial/transparent) */
+  :root:not([style*="--ghareeb-bg-color"]) .ghareeb-word:not(.ghareeb-word--text-only):nth-child(5n+1) {
     background-color: hsl(48 80% 75% / 0.55);
     border-color: hsl(48 80% 55% / 0.5);
   }
-  .ghareeb-word:not(.ghareeb-word--text-only):nth-child(5n+2) {
+  :root:not([style*="--ghareeb-bg-color"]) .ghareeb-word:not(.ghareeb-word--text-only):nth-child(5n+2) {
     background-color: hsl(200 70% 80% / 0.5);
     border-color: hsl(200 70% 60% / 0.45);
   }
-  .ghareeb-word:not(.ghareeb-word--text-only):nth-child(5n+3) {
+  :root:not([style*="--ghareeb-bg-color"]) .ghareeb-word:not(.ghareeb-word--text-only):nth-child(5n+3) {
     background-color: hsl(340 60% 85% / 0.5);
     border-color: hsl(340 60% 65% / 0.45);
   }
-  .ghareeb-word:not(.ghareeb-word--text-only):nth-child(5n+4) {
+  :root:not([style*="--ghareeb-bg-color"]) .ghareeb-word:not(.ghareeb-word--text-only):nth-child(5n+4) {
     background-color: hsl(140 55% 78% / 0.5);
     border-color: hsl(140 55% 55% / 0.45);
   }
-  .ghareeb-word:not(.ghareeb-word--text-only):nth-child(5n+5) {
+  :root:not([style*="--ghareeb-bg-color"]) .ghareeb-word:not(.ghareeb-word--text-only):nth-child(5n+5) {
     background-color: hsl(270 50% 82% / 0.5);
     border-color: hsl(270 50% 62% / 0.45);
   }
@@ -876,23 +884,23 @@
   }
 
   /* Dark mode background highlights */
-  .dark .ghareeb-word:not(.ghareeb-word--text-only):nth-child(5n+1) {
+  .dark:not([style*="--ghareeb-bg-color"]) .ghareeb-word:not(.ghareeb-word--text-only):nth-child(5n+1) {
     background-color: hsl(48 50% 30% / 0.45);
     border-color: hsl(48 50% 40% / 0.4);
   }
-  .dark .ghareeb-word:not(.ghareeb-word--text-only):nth-child(5n+2) {
+  .dark:not([style*="--ghareeb-bg-color"]) .ghareeb-word:not(.ghareeb-word--text-only):nth-child(5n+2) {
     background-color: hsl(200 45% 30% / 0.45);
     border-color: hsl(200 45% 40% / 0.4);
   }
-  .dark .ghareeb-word:not(.ghareeb-word--text-only):nth-child(5n+3) {
+  .dark:not([style*="--ghareeb-bg-color"]) .ghareeb-word:not(.ghareeb-word--text-only):nth-child(5n+3) {
     background-color: hsl(340 40% 32% / 0.45);
     border-color: hsl(340 40% 42% / 0.4);
   }
-  .dark .ghareeb-word:not(.ghareeb-word--text-only):nth-child(5n+4) {
+  .dark:not([style*="--ghareeb-bg-color"]) .ghareeb-word:not(.ghareeb-word--text-only):nth-child(5n+4) {
     background-color: hsl(140 40% 28% / 0.45);
     border-color: hsl(140 40% 38% / 0.4);
   }
-  .dark .ghareeb-word:not(.ghareeb-word--text-only):nth-child(5n+5) {
+  .dark:not([style*="--ghareeb-bg-color"]) .ghareeb-word:not(.ghareeb-word--text-only):nth-child(5n+5) {
     background-color: hsl(270 35% 32% / 0.45);
     border-color: hsl(270 35% 42% / 0.4);
   }
