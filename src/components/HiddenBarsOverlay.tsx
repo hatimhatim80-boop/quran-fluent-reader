@@ -3,20 +3,22 @@ import { Eye } from 'lucide-react';
 
 interface HiddenBarsOverlayProps {
   onShow: () => void;
+  onNextPage?: () => void;
+  onPrevPage?: () => void;
 }
 
 /**
  * Invisible overlay that shows "إظهار الأزرار" button for 3 seconds on double-tap.
  */
-export function HiddenBarsOverlay({ onShow }: HiddenBarsOverlayProps) {
+export function HiddenBarsOverlay({ onShow, onNextPage, onPrevPage }: HiddenBarsOverlayProps) {
   const [visible, setVisible] = useState(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastTapRef = useRef(0);
+  const swipeRef = useRef<{ startX: number; startY: number; startTime: number } | null>(null);
 
   const handleTap = useCallback(() => {
     const now = Date.now();
     if (now - lastTapRef.current < 400) {
-      // Double-tap detected
       setVisible(true);
       if (timerRef.current) clearTimeout(timerRef.current);
       timerRef.current = setTimeout(() => setVisible(false), 3000);
@@ -24,17 +26,38 @@ export function HiddenBarsOverlay({ onShow }: HiddenBarsOverlayProps) {
     lastTapRef.current = now;
   }, []);
 
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    if (e.touches.length === 1) {
+      swipeRef.current = { startX: e.touches[0].clientX, startY: e.touches[0].clientY, startTime: Date.now() };
+    }
+  }, []);
+
+  const handleTouchEnd = useCallback((e: React.TouchEvent) => {
+    if (swipeRef.current && e.changedTouches.length === 1) {
+      const dx = e.changedTouches[0].clientX - swipeRef.current.startX;
+      const dy = Math.abs(e.changedTouches[0].clientY - swipeRef.current.startY);
+      const elapsed = Date.now() - swipeRef.current.startTime;
+      const absDx = Math.abs(dx);
+      if (absDx > 60 && elapsed < 400 && absDx > dy * 1.5) {
+        if (dx < 0) onNextPage?.();
+        else onPrevPage?.();
+      }
+    }
+    swipeRef.current = null;
+  }, [onNextPage, onPrevPage]);
+
   useEffect(() => {
     return () => { if (timerRef.current) clearTimeout(timerRef.current); };
   }, []);
 
   return (
     <>
-      {/* Full-screen invisible tap zone */}
       <div
         className="fixed inset-0 z-40"
         onClick={handleTap}
-        style={{ touchAction: 'manipulation' }}
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
+        style={{ touchAction: 'pan-y' }}
       />
       {/* Button appears for 3s after double-tap */}
       {visible && (
