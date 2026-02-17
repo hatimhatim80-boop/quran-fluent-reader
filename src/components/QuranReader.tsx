@@ -389,7 +389,7 @@ export function QuranReader() {
 
         {/* Show bars button - floating when bars are hidden, appears on double-tap for 3s */}
         {hideBars && (
-          <HiddenBarsOverlay onShow={() => setHideBars(false)} />
+          <HiddenBarsOverlay onShow={() => setHideBars(false)} onNextPage={nextPage} onPrevPage={prevPage} />
         )}
 
         {/* Footer */}
