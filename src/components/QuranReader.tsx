@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useQuranData } from '@/hooks/useQuranData';
 import { useAutoPlay } from '@/hooks/useAutoPlay';
 import { GhareebWord } from '@/types/quran';
@@ -19,8 +19,27 @@ import { useDiagnosticModeStore } from '@/stores/diagnosticModeStore';
 import { useHighlightOverrideStore } from '@/stores/highlightOverrideStore';
 import { useTahfeezStore } from '@/stores/tahfeezStore';
 import { useSessionsStore } from '@/stores/sessionsStore';
-import { Loader2, List, SlidersHorizontal, ChevronRight, ChevronLeft, Eye, EyeOff, GraduationCap, Save, X, ChevronsRight, ChevronsLeft } from 'lucide-react';
+import { SURAH_INFO, SURAH_NAMES } from '@/utils/quranPageIndex';
+import { Loader2, List, SlidersHorizontal, ChevronRight, ChevronLeft, Eye, EyeOff, GraduationCap, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+
+const JUZ_DATA_READER = [
+  { number: 1, page: 1 }, { number: 2, page: 22 }, { number: 3, page: 42 },
+  { number: 4, page: 62 }, { number: 5, page: 82 }, { number: 6, page: 102 },
+  { number: 7, page: 121 }, { number: 8, page: 142 }, { number: 9, page: 162 },
+  { number: 10, page: 182 }, { number: 11, page: 201 }, { number: 12, page: 222 },
+  { number: 13, page: 242 }, { number: 14, page: 262 }, { number: 15, page: 282 },
+  { number: 16, page: 302 }, { number: 17, page: 322 }, { number: 18, page: 342 },
+  { number: 19, page: 362 }, { number: 20, page: 382 }, { number: 21, page: 402 },
+  { number: 22, page: 422 }, { number: 23, page: 442 }, { number: 24, page: 462 },
+  { number: 25, page: 482 }, { number: 26, page: 502 }, { number: 27, page: 522 },
+  { number: 28, page: 542 }, { number: 29, page: 562 }, { number: 30, page: 582 },
+];
+
+const SURAHS_READER = Object.entries(SURAH_NAMES).map(([name, number]) => ({
+  number, name,
+  startPage: SURAH_INFO[number]?.[0] || 1,
+})).sort((a, b) => a.number - b.number);
 
 export function QuranReader() {
   const {
@@ -79,16 +98,96 @@ export function QuranReader() {
   }, [currentPage, pageData, pageWords, renderedWords, setDevDebugContext, isDiagnosticEnabled, isDev, pages, ghareebPageMap, goToPage]);
 
   const autoAdvancePage = useSettingsStore(s => s.settings.autoplay.autoAdvancePage);
+  const ghareebRangeType = useSettingsStore(s => s.settings.autoplay.ghareebRangeType);
+  const ghareebRangeFrom = useSettingsStore(s => s.settings.autoplay.ghareebRangeFrom);
+  const ghareebRangeTo = useSettingsStore(s => s.settings.autoplay.ghareebRangeTo);
+  const autoPlayOnWordClick = useSettingsStore(s => s.settings.autoplay.autoPlayOnWordClick);
+
+  // Compute pages range for Ghareeb auto-advance
+  const ghareebPagesRange = useMemo(() => {
+    if (ghareebRangeType === 'all') return null; // no restriction
+    if (ghareebRangeType === 'page-range') {
+      const from = Math.min(ghareebRangeFrom, ghareebRangeTo);
+      const to = Math.max(ghareebRangeFrom, ghareebRangeTo);
+      const pages: number[] = [];
+      for (let p = from; p <= Math.min(to, 604); p++) pages.push(p);
+      return pages;
+    }
+    if (ghareebRangeType === 'surah') {
+      const surahInfo = SURAH_INFO[ghareebRangeFrom];
+      if (!surahInfo) return null;
+      const startPage = surahInfo[0];
+      const nextSurah = SURAHS_READER.find(s => s.number === ghareebRangeFrom + 1);
+      const endPage = nextSurah ? nextSurah.startPage - 1 : 604;
+      const pages: number[] = [];
+      for (let p = startPage; p <= endPage; p++) pages.push(p);
+      return pages;
+    }
+    if (ghareebRangeType === 'juz') {
+      const from = Math.min(ghareebRangeFrom, ghareebRangeTo);
+      const to = Math.max(ghareebRangeFrom, ghareebRangeTo);
+      const startPage = JUZ_DATA_READER[Math.max(0, from - 1)]?.page || 1;
+      const endPage = to < 30 ? (JUZ_DATA_READER[to]?.page || 605) - 1 : 604;
+      const pages: number[] = [];
+      for (let p = startPage; p <= endPage; p++) pages.push(p);
+      return pages;
+    }
+    if (ghareebRangeType === 'hizb') {
+      const from = Math.min(ghareebRangeFrom, ghareebRangeTo);
+      const to = Math.max(ghareebRangeFrom, ghareebRangeTo);
+      const fromJuzIdx = Math.floor((from - 1) / 2);
+      const toJuzIdx = Math.floor((to - 1) / 2);
+      const isSecondHalf = (from - 1) % 2 === 1;
+      const toIsSecondHalf = (to - 1) % 2 === 1;
+      const fromJuz = JUZ_DATA_READER[fromJuzIdx];
+      const startPage = isSecondHalf
+        ? Math.floor((fromJuz.page + (JUZ_DATA_READER[fromJuzIdx + 1]?.page || 605)) / 2)
+        : fromJuz.page;
+      let endPage: number;
+      if (toIsSecondHalf) {
+        endPage = (toJuzIdx + 1 < 30 ? JUZ_DATA_READER[toJuzIdx + 1].page : 605) - 1;
+      } else {
+        const juzEnd = JUZ_DATA_READER[toJuzIdx + 1]?.page || 605;
+        endPage = Math.floor((JUZ_DATA_READER[toJuzIdx].page + juzEnd) / 2) - 1;
+      }
+      const pages: number[] = [];
+      for (let p = startPage; p <= Math.min(endPage, 604); p++) pages.push(p);
+      return pages;
+    }
+    return null;
+  }, [ghareebRangeType, ghareebRangeFrom, ghareebRangeTo]);
+
+  // Determine what nextPage to call based on range
+  const handlePageEnd = useCallback(() => {
+    if (!autoAdvancePage) return;
+    if (ghareebPagesRange) {
+      const idx = ghareebPagesRange.indexOf(currentPage);
+      if (idx >= 0 && idx < ghareebPagesRange.length - 1) {
+        goToPage(ghareebPagesRange[idx + 1]);
+      }
+      // else: stop at end of range
+    } else {
+      nextPage();
+    }
+  }, [autoAdvancePage, ghareebPagesRange, currentPage, goToPage, nextPage]);
+
   const {
     isPlaying, speed, setSpeed, play, pause, stop, nextWord, prevWord, jumpTo,
-  } = useAutoPlay({ words: renderedWords, currentWordIndex, setCurrentWordIndex, onPageEnd: autoAdvancePage ? nextPage : undefined });
+  } = useAutoPlay({ words: renderedWords, currentWordIndex, setCurrentWordIndex, onPageEnd: autoAdvancePage ? handlePageEnd : undefined });
 
   const handleRenderedWordsChange = useCallback((words: GhareebWord[]) => {
     if (settings.debugMode) console.log('[QuranReader] Rendered words:', words.length);
     setRenderedWords(words);
   }, [settings.debugMode]);
 
-  const handleWordClick = useCallback((_: GhareebWord, index: number) => { jumpTo(index); }, [jumpTo]);
+  const handleWordClick = useCallback((_: GhareebWord, index: number) => {
+    jumpTo(index);
+    // If autoPlayOnWordClick is enabled and not already playing, start playing
+    if (autoPlayOnWordClick && !isPlaying) {
+      // Small delay to let jumpTo settle
+      setTimeout(() => play(), 50);
+    }
+  }, [jumpTo, autoPlayOnWordClick, isPlaying, play]);
 
   const handlePlayPause = useCallback(() => {
     isPlaying ? pause() : play();

@@ -7,6 +7,8 @@ interface UseAutoPlayProps {
   currentWordIndex: number;
   setCurrentWordIndex: (index: number) => void;
   onPageEnd?: () => void;
+  /** Called when a new page loads while playing - used to restart auto-play */
+  onPageStart?: () => void;
 }
 
 export function useAutoPlay({
@@ -14,6 +16,7 @@ export function useAutoPlay({
   currentWordIndex,
   setCurrentWordIndex,
   onPageEnd,
+  onPageStart,
 }: UseAutoPlayProps) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [speed, setSpeed] = useState(4); // seconds per word
@@ -272,14 +275,17 @@ export function useAutoPlay({
     isPlayingRef.current = true;
     scrollToActiveWord(0);
     
+    // Notify parent that a new page started (so Tahfeez can reset quiz state)
+    onPageStart?.();
+
     // Small delay to ensure DOM is updated with new words before scheduling
     const t = setTimeout(() => {
       if (isPlayingRef.current) {
         scheduleNext();
       }
-    }, 300);
+    }, 400);
     return () => clearTimeout(t);
-  }, [words, isPlaying, clearTimer, setCurrentWordIndex, scheduleNext, scrollToActiveWord]);
+  }, [words, isPlaying, clearTimer, setCurrentWordIndex, scheduleNext, scrollToActiveWord, onPageStart]);
 
   // Cleanup on unmount
   useEffect(() => {
