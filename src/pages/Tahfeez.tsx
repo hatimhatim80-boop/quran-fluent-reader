@@ -239,6 +239,11 @@ export default function TahfeezPage() {
       if (idx >= blankedKeysList.length) {
         setShowAll(true);
         setActiveBlankKey(null);
+        // Auto-advance to next page if enabled
+        const autoAdvance = useSettingsStore.getState().settings.autoplay.autoAdvancePage;
+        if (autoAdvance) {
+          setTimeout(() => nextPage(), 1500);
+        }
         return;
       }
       const key = blankedKeysList[idx];
