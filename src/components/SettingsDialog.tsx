@@ -214,7 +214,7 @@ export function SettingsDialog({ children }: SettingsDialogProps) {
               <Slider
                 value={[settings.fonts.quranFontSize]}
                 onValueChange={([v]) => setFonts({ quranFontSize: v })}
-                min={1}
+                min={0.8}
                 max={3.5}
                 step={0.05}
               />
@@ -375,6 +375,45 @@ export function SettingsDialog({ children }: SettingsDialogProps) {
                 ))}
               </div>
             </div>
+
+            {/* Word background color chooser - only for background highlight mode */}
+            {(settings.colors.highlightStyle !== 'text-only') && (
+              <div className="space-y-3">
+                <Label className="font-arabic font-bold">لون خلفية الكلمة الغريبة</Label>
+                <div className="grid grid-cols-4 gap-2">
+                  {[
+                    { label: 'متنوع', value: '' },
+                    { label: 'ذهبي', value: '48 80% 75%' },
+                    { label: 'أزرق', value: '200 70% 80%' },
+                    { label: 'وردي', value: '340 60% 85%' },
+                    { label: 'أخضر', value: '140 55% 78%' },
+                    { label: 'بنفسجي', value: '270 50% 82%' },
+                    { label: 'برتقالي', value: '25 80% 78%' },
+                    { label: 'رمادي', value: '0 0% 88%' },
+                  ].map((c) => (
+                    <button
+                      key={c.label}
+                      onClick={() => setColors({ highlightColor: c.value })}
+                      className={`p-1.5 rounded-lg border transition-all ${
+                        (settings.colors.highlightColor || '') === c.value
+                          ? 'border-primary ring-2 ring-primary/20'
+                          : 'border-border hover:border-muted-foreground/50'
+                      }`}
+                    >
+                      <div 
+                        className="w-full h-5 rounded-md mb-1" 
+                        style={{ 
+                          background: c.value 
+                            ? `hsl(${c.value} / 0.55)` 
+                            : 'linear-gradient(90deg, hsl(48 80% 75% / 0.55), hsl(200 70% 80% / 0.5), hsl(340 60% 85% / 0.5), hsl(140 55% 78% / 0.5), hsl(270 50% 82% / 0.5))'
+                        }} 
+                      />
+                      <span className="font-arabic text-[9px]">{c.label}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Color preview */}
             <div className="space-y-2">

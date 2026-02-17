@@ -10,6 +10,8 @@ import { AutoPlayControls } from './AutoPlayControls';
 import { Toolbar } from './Toolbar';
 import { QuranIndex } from './QuranIndex';
 import { DiagnosticModeBadge } from './DiagnosticModeActivator';
+import { HiddenBarsOverlay } from './HiddenBarsOverlay';
+import { FirstTimeSetupDialog } from './FirstTimeSetupDialog';
 import { useSettingsApplier } from '@/hooks/useSettingsApplier';
 import { useSettingsStore } from '@/stores/settingsStore';
 import { useDevDebugContextStore } from '@/stores/devDebugContextStore';
@@ -47,6 +49,7 @@ export function QuranReader() {
   const [hideBars, setHideBars] = useState(false);
   const [pinchScale, setPinchScale] = useState(1);
   const pinchRef = React.useRef<{ startDist: number; startScale: number } | null>(null);
+  const [showFirstTimeSetup, setShowFirstTimeSetup] = useState(() => !localStorage.getItem('quran-app-setup-done'));
   const contentRef = React.useRef<HTMLDivElement>(null);
   const pageContentRef = React.useRef<HTMLDivElement>(null);
   const swipeRef = React.useRef<{ startX: number; startY: number; startTime: number } | null>(null);
@@ -175,6 +178,7 @@ export function QuranReader() {
   return (
     <div className="bg-background flex min-h-screen" dir="rtl" ref={contentRef}>
       <DiagnosticModeBadge />
+      <FirstTimeSetupDialog open={showFirstTimeSetup} onClose={() => setShowFirstTimeSetup(false)} />
 
       {/* Index Sidebar */}
       {showIndex && (
@@ -383,18 +387,9 @@ export function QuranReader() {
         </div>
         )}
 
-        {/* Show bars button - floating when bars are hidden */}
+        {/* Show bars button - floating when bars are hidden, appears on double-tap for 3s */}
         {hideBars && (
-          <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 animate-fade-in">
-            <button
-              onClick={() => setHideBars(false)}
-              className="bg-background/90 backdrop-blur-md border border-border rounded-full px-4 py-2 flex items-center gap-2 shadow-lg"
-              title="إظهار الأزرار"
-            >
-              <Eye className="w-4 h-4 text-foreground" />
-              <span className="font-arabic text-sm text-foreground">إظهار الأزرار</span>
-            </button>
-          </div>
+          <HiddenBarsOverlay onShow={() => setHideBars(false)} />
         )}
 
         {/* Footer */}
