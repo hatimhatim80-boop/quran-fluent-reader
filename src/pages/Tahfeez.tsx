@@ -240,9 +240,25 @@ export default function TahfeezPage() {
         setShowAll(true);
         setActiveBlankKey(null);
         // Auto-advance to next page if enabled
-        const autoAdvance = useSettingsStore.getState().settings.autoplay.autoAdvancePage;
-        if (autoAdvance) {
-          setTimeout(() => nextPage(), 1500);
+        const autoplaySettings = useSettingsStore.getState().settings.autoplay;
+        if (autoplaySettings.autoAdvancePage) {
+          const delayMs = (autoplaySettings.autoAdvanceDelay || 1.5) * 1000;
+          revealTimerRef.current = setTimeout(() => {
+            // Check if we're in multi-page quiz
+            const nextIdx = quizPagesRange.indexOf(currentPage) + 1;
+            if (quizPagesRange.length > 1 && nextIdx < quizPagesRange.length) {
+              goToPage(quizPagesRange[nextIdx]);
+              setQuizPageIdx(nextIdx);
+            } else {
+              nextPage();
+            }
+            // Reset quiz state for the new page
+            setShowAll(false);
+            setRevealedKeys(new Set());
+            setActiveBlankKey(null);
+            setCurrentRevealIdx(-1);
+            setBlankedKeysList([]);
+          }, delayMs);
         }
         return;
       }
