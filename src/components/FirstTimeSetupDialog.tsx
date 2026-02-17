@@ -4,7 +4,8 @@ import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
 import { Label } from '@/components/ui/label';
 import { useSettingsStore, FontSettings } from '@/stores/settingsStore';
-import { Settings2, Check } from 'lucide-react';
+import { Settings2, Check, Maximize } from 'lucide-react';
+import { Switch } from '@/components/ui/switch';
 
 const FONT_PRESETS = [
   { value: 'uthman', label: 'خط حفص العثماني', family: "'KFGQPC HAFS Uthmanic Script', serif" },
@@ -25,7 +26,7 @@ interface FirstTimeSetupDialogProps {
 }
 
 export function FirstTimeSetupDialog({ open, onClose }: FirstTimeSetupDialogProps) {
-  const { settings, setFonts, setColors } = useSettingsStore();
+  const { settings, setFonts, setColors, setDisplay } = useSettingsStore();
   const [step, setStep] = useState(0);
 
   const handleFinish = () => {
@@ -119,6 +120,22 @@ export function FirstTimeSetupDialog({ open, onClose }: FirstTimeSetupDialogProp
                 <div className="w-full h-5 rounded mb-1 flex items-center justify-center font-arabic text-sm font-bold" style={{ color: 'hsl(48 80% 40%)' }}>كلمة</div>
                 <span className="font-arabic text-xs">نص ملون فقط</span>
               </button>
+            </div>
+
+            <Label className="font-arabic font-bold">ملاءمة الصفحة مع الشاشة</Label>
+            <div
+              onClick={() => setDisplay({ autoFitFont: !settings.display.autoFitFont })}
+              className={`flex items-center justify-between p-3 rounded-lg border cursor-pointer transition-all ${
+                settings.display.autoFitFont
+                  ? 'border-primary bg-primary/10 ring-2 ring-primary/20'
+                  : 'border-border hover:border-muted-foreground/50'
+              }`}
+            >
+              <div className="flex items-center gap-2">
+                <Maximize className="w-4 h-4" />
+                <span className="font-arabic text-sm">تثبيت حجم النص مع عرض الشاشة</span>
+              </div>
+              <Switch checked={settings.display.autoFitFont} onCheckedChange={(v) => setDisplay({ autoFitFont: v })} />
             </div>
 
             <div className="flex justify-end mt-4">
