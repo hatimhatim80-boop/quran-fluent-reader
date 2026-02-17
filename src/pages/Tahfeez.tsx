@@ -211,6 +211,24 @@ export default function TahfeezPage() {
     };
   }, [pinchScale, nextPage, prevPage]);
 
+  // Reset quiz state when page changes during an active quiz
+  const prevPageRef = useRef(currentPage);
+  useEffect(() => {
+    if (!quizStarted) return;
+    if (prevPageRef.current !== currentPage) {
+      prevPageRef.current = currentPage;
+      // Clear all timers first
+      if (revealTimerRef.current) clearTimeout(revealTimerRef.current);
+      // Full state reset for the new page
+      setShowAll(false);
+      setRevealedKeys(new Set());
+      setActiveBlankKey(null);
+      setCurrentRevealIdx(-1);
+      setBlankedKeysList([]);
+      setFirstKeysSet(new Set());
+    }
+  }, [currentPage, quizStarted]);
+
   // Read blanked keys from the quiz view after it renders
   useEffect(() => {
     if (!quizStarted) return;
@@ -227,7 +245,7 @@ export default function TahfeezPage() {
         } catch {}
       }
     };
-    const timer = setTimeout(readKeys, 100);
+    const timer = setTimeout(readKeys, 150);
     return () => clearTimeout(timer);
   }, [quizStarted, pageData]);
 
@@ -244,7 +262,7 @@ export default function TahfeezPage() {
         if (autoplaySettings.autoAdvancePage) {
           const delayMs = (autoplaySettings.autoAdvanceDelay || 1.5) * 1000;
           revealTimerRef.current = setTimeout(() => {
-            // Check if we're in multi-page quiz
+            // Navigate - the page-change useEffect will handle the state reset
             const nextIdx = quizPagesRange.indexOf(currentPage) + 1;
             if (quizPagesRange.length > 1 && nextIdx < quizPagesRange.length) {
               goToPage(quizPagesRange[nextIdx]);
@@ -252,12 +270,6 @@ export default function TahfeezPage() {
             } else {
               nextPage();
             }
-            // Reset quiz state for the new page
-            setShowAll(false);
-            setRevealedKeys(new Set());
-            setActiveBlankKey(null);
-            setCurrentRevealIdx(-1);
-            setBlankedKeysList([]);
           }, delayMs);
         }
         return;

@@ -874,7 +874,10 @@
   .ghareeb-word--active:not(.ghareeb-word--text-only) {
     background-color: hsl(200 70% 80% / 0.45) !important;
     border-color: hsl(200 70% 50% / 0.6) !important;
-    box-shadow: 0 0 10px 3px hsl(200 70% 60% / 0.35);
+    box-shadow: 0 0 10px 3px hsl(200 70% 60% / 0.35) !important;
+    /* Force override even when --ghareeb-bg-color is set */
+    --ghareeb-bg-color: hsl(200 70% 80% / 0.45) !important;
+    --ghareeb-border-color: hsl(200 70% 50% / 0.6) !important;
   }
 
   /* Word that was already shown during autoplay - subtle green tint */
@@ -917,7 +920,9 @@
   .dark .ghareeb-word--active:not(.ghareeb-word--text-only) {
     background-color: hsl(200 50% 35% / 0.5) !important;
     border-color: hsl(200 50% 50% / 0.6) !important;
-    box-shadow: 0 0 10px 3px hsl(200 50% 40% / 0.4);
+    box-shadow: 0 0 10px 3px hsl(200 50% 40% / 0.4) !important;
+    --ghareeb-bg-color: hsl(200 50% 35% / 0.5) !important;
+    --ghareeb-border-color: hsl(200 50% 50% / 0.6) !important;
   }
 
   .dark .ghareeb-word--text-only:nth-child(5n+1) { color: hsl(210 70% 65%); }

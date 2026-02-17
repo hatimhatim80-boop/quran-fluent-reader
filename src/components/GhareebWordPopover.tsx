@@ -134,12 +134,16 @@ export function GhareebWordPopover({
     const h = rect.height;
     const w = rect.width;
     if (h > 0 && (h !== measuredHeight || w !== measuredWidth)) {
-      setMeasuredHeight(h);
-      setMeasuredWidth(w);
-      const pos = calculatePosition(h, w);
+      const newH = h;
+      const newW = w;
+      setMeasuredHeight(newH);
+      setMeasuredWidth(newW);
+      const pos = calculatePosition(newH, newW);
       if (pos) setPosition(pos);
     }
-  });
+  // Only re-run when open state or popover ref changes, not on every render
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen]);
 
   // AUTO-PLAY: Calculate position when forceOpen becomes true
   useEffect(() => {
