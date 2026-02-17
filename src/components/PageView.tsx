@@ -118,12 +118,27 @@ export function PageView({
 
   // Per-line auto-shrink removed — page-level font fit handles everything
 
+  // Auto-scroll: always scroll highlighted word into view when it's in the last 3 lines
   useEffect(() => {
     if (highlightedWordIndex < 0) return;
     const el = document.querySelector<HTMLElement>(
       `[data-ghareeb-index="${highlightedWordIndex}"]`,
     );
-    // Don't scroll if inside a fixed mushaf page
+    if (!el) return;
+    
+    // Check if the word is in the last 3 lines of the visible page
+    const container = el.closest('.quran-page, .quran-lines-container');
+    if (container) {
+      const containerRect = container.getBoundingClientRect();
+      const elRect = el.getBoundingClientRect();
+      const bottomThreshold = containerRect.bottom - (containerRect.height * 0.2); // last ~20% ≈ 3 lines
+      if (elRect.top > bottomThreshold) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
+        return;
+      }
+    }
+    
+    // Don't scroll if inside a fixed mushaf page (unless in bottom zone above)
     if (el?.closest('.mushafPage')) return;
     el?.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
   }, [highlightedWordIndex]);
