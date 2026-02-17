@@ -826,72 +826,84 @@
     transition: all 0.2s ease;
   }
 
-  /* Background highlight style (default) - bold & visible */
+  /* Background highlight style (default) - rotating colors for variety */
   .ghareeb-word:not(.ghareeb-word--text-only) {
-    background-color: hsl(var(--highlight-color, 48 80% 70%) / var(--highlight-opacity, 0.55));
-    border: 1px solid hsl(var(--highlight-color, 48 80% 50%) / 0.55);
     border-radius: 6px;
     padding: 1px 4px;
     margin: 0 -2px;
+    border: 1px solid transparent;
+  }
+  .ghareeb-word:not(.ghareeb-word--text-only):nth-child(5n+1) {
+    background-color: hsl(48 80% 75% / 0.55);
+    border-color: hsl(48 80% 55% / 0.5);
+  }
+  .ghareeb-word:not(.ghareeb-word--text-only):nth-child(5n+2) {
+    background-color: hsl(200 70% 80% / 0.5);
+    border-color: hsl(200 70% 60% / 0.45);
+  }
+  .ghareeb-word:not(.ghareeb-word--text-only):nth-child(5n+3) {
+    background-color: hsl(340 60% 85% / 0.5);
+    border-color: hsl(340 60% 65% / 0.45);
+  }
+  .ghareeb-word:not(.ghareeb-word--text-only):nth-child(5n+4) {
+    background-color: hsl(140 55% 78% / 0.5);
+    border-color: hsl(140 55% 55% / 0.45);
+  }
+  .ghareeb-word:not(.ghareeb-word--text-only):nth-child(5n+5) {
+    background-color: hsl(270 50% 82% / 0.5);
+    border-color: hsl(270 50% 62% / 0.45);
   }
 
   .ghareeb-word:not(.ghareeb-word--text-only):hover {
-    background-color: hsl(var(--highlight-color, 48 80% 65%) / calc(var(--highlight-opacity, 0.55) + 0.2));
-    border-color: hsl(var(--highlight-color, 48 80% 45%) / 0.7);
+    filter: brightness(0.92);
   }
 
   .ghareeb-word--active:not(.ghareeb-word--text-only) {
-    background-color: hsl(200 70% 80% / 0.45);
-    border-color: hsl(200 70% 50% / 0.6);
+    background-color: hsl(200 70% 80% / 0.45) !important;
+    border-color: hsl(200 70% 50% / 0.6) !important;
     box-shadow: 0 0 10px 3px hsl(200 70% 60% / 0.35);
-  }
-
-  /* Text-only highlight style — rotating colors for variety */
-  .ghareeb-word--text-only {
-    font-weight: 700;
-  }
-  .ghareeb-word--text-only:nth-child(5n+1) { color: hsl(210 80% 35%); }
-  .ghareeb-word--text-only:nth-child(5n+2) { color: hsl(340 70% 40%); }
-  .ghareeb-word--text-only:nth-child(5n+3) { color: hsl(160 65% 30%); }
-  .ghareeb-word--text-only:nth-child(5n+4) { color: hsl(30 75% 38%); }
-  .ghareeb-word--text-only:nth-child(5n+5) { color: hsl(270 60% 40%); }
-
-  .ghareeb-word--text-only:hover {
-    filter: brightness(0.8);
-  }
-
-  .ghareeb-word--text-only.ghareeb-word--active {
-    color: hsl(200 90% 30%);
-    text-shadow: 0 0 6px hsl(200 70% 50% / 0.4);
   }
 
   /* Word that was already shown during autoplay - subtle green tint */
   .ghareeb-word--seen:not(.ghareeb-word--text-only) {
-    background-color: hsl(140 45% 85% / 0.7);
+    background-color: hsl(140 45% 85% / 0.7) !important;
+    border-color: hsl(140 45% 65% / 0.5) !important;
     border-radius: 3px;
   }
 
   .ghareeb-word--seen:not(.ghareeb-word--text-only):hover {
-    background-color: hsl(140 50% 80% / 0.8);
+    background-color: hsl(140 50% 80% / 0.8) !important;
   }
 
-  .ghareeb-word--text-only.ghareeb-word--seen {
-    color: hsl(140 55% 40%);
+  /* Dark mode background highlights */
+  .dark .ghareeb-word:not(.ghareeb-word--text-only):nth-child(5n+1) {
+    background-color: hsl(48 50% 30% / 0.45);
+    border-color: hsl(48 50% 40% / 0.4);
   }
-
-  .dark .ghareeb-word:not(.ghareeb-word--text-only) {
-    background-color: hsl(48 60% 30% / 0.45);
-    border-color: hsl(48 60% 40% / 0.5);
+  .dark .ghareeb-word:not(.ghareeb-word--text-only):nth-child(5n+2) {
+    background-color: hsl(200 45% 30% / 0.45);
+    border-color: hsl(200 45% 40% / 0.4);
+  }
+  .dark .ghareeb-word:not(.ghareeb-word--text-only):nth-child(5n+3) {
+    background-color: hsl(340 40% 32% / 0.45);
+    border-color: hsl(340 40% 42% / 0.4);
+  }
+  .dark .ghareeb-word:not(.ghareeb-word--text-only):nth-child(5n+4) {
+    background-color: hsl(140 40% 28% / 0.45);
+    border-color: hsl(140 40% 38% / 0.4);
+  }
+  .dark .ghareeb-word:not(.ghareeb-word--text-only):nth-child(5n+5) {
+    background-color: hsl(270 35% 32% / 0.45);
+    border-color: hsl(270 35% 42% / 0.4);
   }
 
   .dark .ghareeb-word:not(.ghareeb-word--text-only):hover {
-    background-color: hsl(48 60% 35% / 0.55);
-    border-color: hsl(48 60% 45% / 0.6);
+    filter: brightness(1.15);
   }
 
   .dark .ghareeb-word--active:not(.ghareeb-word--text-only) {
-    background-color: hsl(200 50% 35% / 0.5);
-    border-color: hsl(200 50% 50% / 0.6);
+    background-color: hsl(200 50% 35% / 0.5) !important;
+    border-color: hsl(200 50% 50% / 0.6) !important;
     box-shadow: 0 0 10px 3px hsl(200 50% 40% / 0.4);
   }
 
