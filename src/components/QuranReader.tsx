@@ -80,7 +80,7 @@ export function QuranReader() {
 
   const {
     isPlaying, speed, setSpeed, play, pause, stop, nextWord, prevWord, jumpTo,
-  } = useAutoPlay({ words: renderedWords, currentWordIndex, setCurrentWordIndex });
+  } = useAutoPlay({ words: renderedWords, currentWordIndex, setCurrentWordIndex, onPageEnd: nextPage });
 
   const handleRenderedWordsChange = useCallback((words: GhareebWord[]) => {
     if (settings.debugMode) console.log('[QuranReader] Rendered words:', words.length);
