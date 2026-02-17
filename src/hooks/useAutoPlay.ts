@@ -263,17 +263,23 @@ export function useAutoPlay({
   // Reset when words change (page change) while playing
   useEffect(() => {
     if (!isPlaying) return;
+    if (words.length === 0) return;
     
-    console.log('[autoplay] Page changed while playing, resetting to 0');
+    console.log('[autoplay] Page changed while playing, resetting to 0, words:', words.length);
     clearTimer();
     setCurrentWordIndex(0);
     currentIndexRef.current = 0;
+    isPlayingRef.current = true;
+    scrollToActiveWord(0);
     
-    // Restart playback from beginning of new page
-    if (words.length > 0) {
-      scheduleNext();
-    }
-  }, [words, isPlaying, clearTimer, setCurrentWordIndex, scheduleNext]);
+    // Small delay to ensure DOM is updated with new words before scheduling
+    const t = setTimeout(() => {
+      if (isPlayingRef.current) {
+        scheduleNext();
+      }
+    }, 300);
+    return () => clearTimeout(t);
+  }, [words, isPlaying, clearTimer, setCurrentWordIndex, scheduleNext, scrollToActiveWord]);
 
   // Cleanup on unmount
   useEffect(() => {

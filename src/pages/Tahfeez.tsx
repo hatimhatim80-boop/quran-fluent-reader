@@ -613,12 +613,79 @@ export default function TahfeezPage() {
               </p>
             ) : (
               <>
-                <p className="text-xs font-arabic text-muted-foreground">
-                  سيتم إخفاء {pageItems.length} عنصر في صفحة {currentPage}
-                </p>
+                {/* Quiz scope for custom quiz */}
+                <div className="space-y-3">
+                  <label className="text-sm font-arabic text-muted-foreground">نطاق الاختبار</label>
+                  <div className="flex flex-wrap gap-2">
+                    {[
+                      { value: 'current-page' as const, label: 'الصفحة الحالية' },
+                      { value: 'page-range' as const, label: 'نطاق صفحات' },
+                      { value: 'surah' as const, label: 'سورة' },
+                      { value: 'juz' as const, label: 'جزء' },
+                    ].map(opt => (
+                      <Button
+                        key={opt.value}
+                        variant={quizScope === opt.value ? 'default' : 'outline'}
+                        size="sm"
+                        onClick={() => {
+                          setQuizScope(opt.value);
+                          if (opt.value === 'current-page') {
+                            setQuizScopeFrom(currentPage);
+                            setQuizScopeTo(currentPage);
+                          }
+                        }}
+                        className="font-arabic text-xs"
+                      >
+                        {opt.label}
+                      </Button>
+                    ))}
+                  </div>
+
+                  {quizScope === 'page-range' && (
+                    <div className="flex items-center gap-2">
+                      <label className="text-xs font-arabic text-muted-foreground whitespace-nowrap">من صفحة:</label>
+                      <Input type="number" min={1} max={604} value={quizScopeFrom} onChange={e => setQuizScopeFrom(Math.max(1, Math.min(604, parseInt(e.target.value) || 1)))} className="h-8 text-xs w-20" />
+                      <label className="text-xs font-arabic text-muted-foreground whitespace-nowrap">إلى صفحة:</label>
+                      <Input type="number" min={1} max={604} value={quizScopeTo} onChange={e => setQuizScopeTo(Math.max(1, Math.min(604, parseInt(e.target.value) || 1)))} className="h-8 text-xs w-20" />
+                    </div>
+                  )}
+
+                  {quizScope === 'surah' && (
+                    <Select value={String(quizScopeFrom)} onValueChange={v => {
+                      const num = parseInt(v);
+                      setQuizScopeFrom(num);
+                      setQuizScopeTo(num);
+                    }}>
+                      <SelectTrigger className="h-8 text-xs font-arabic">
+                        <SelectValue placeholder="اختر سورة" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {SURAHS.map(s => (
+                          <SelectItem key={s.number} value={String(s.number)} className="text-xs font-arabic">{s.number}. {s.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+
+                  {quizScope === 'juz' && (
+                    <div className="flex items-center gap-2">
+                      <label className="text-xs font-arabic text-muted-foreground whitespace-nowrap">من جزء:</label>
+                      <Input type="number" min={1} max={30} value={quizScopeFrom} onChange={e => setQuizScopeFrom(Math.max(1, Math.min(30, parseInt(e.target.value) || 1)))} className="h-8 text-xs w-16" />
+                      <label className="text-xs font-arabic text-muted-foreground whitespace-nowrap">إلى جزء:</label>
+                      <Input type="number" min={1} max={30} value={quizScopeTo} onChange={e => setQuizScopeTo(Math.max(1, Math.min(30, parseInt(e.target.value) || 1)))} className="h-8 text-xs w-16" />
+                    </div>
+                  )}
+
+                  <p className="text-xs font-arabic text-muted-foreground">
+                    {quizScope === 'current-page'
+                      ? `سيتم إخفاء ${pageItems.length} عنصر في صفحة ${currentPage}`
+                      : `نطاق من ${quizPagesRange.length} صفحة — المخزّن: ${storedItems.filter(i => quizPagesRange.includes(i.data.page)).length} عنصر`
+                    }
+                  </p>
+                </div>
 
                 <div className="space-y-1">
-              <label className="text-xs font-arabic text-muted-foreground">مهلة التفكير قبل الكلمة الأولى: {firstWordTimerSeconds} ثانية</label>
+                  <label className="text-xs font-arabic text-muted-foreground">مهلة التفكير قبل الكلمة الأولى: {firstWordTimerSeconds} ثانية</label>
                   <Slider value={[firstWordTimerSeconds]} onValueChange={([v]) => setFirstWordTimerSeconds(v)} min={1} max={30} step={1} />
                 </div>
 
@@ -627,9 +694,13 @@ export default function TahfeezPage() {
                   <Slider value={[timerSeconds]} onValueChange={([v]) => setTimerSeconds(v)} min={1} max={10} step={1} />
                 </div>
 
-                <Button onClick={() => { setQuizSource('custom'); handleStart(); }} className="w-full font-arabic" disabled={!pageData || pageItems.length === 0}>
+                <Button
+                  onClick={() => { setQuizSource('custom'); handleStartMultiPage(); }}
+                  className="w-full font-arabic"
+                  disabled={!pageData || (quizScope === 'current-page' ? pageItems.length === 0 : storedItems.filter(i => quizPagesRange.includes(i.data.page)).length === 0)}
+                >
                   <Play className="w-4 h-4 ml-2" />
-                  ابدأ الاختبار (صفحة {currentPage})
+                  ابدأ الاختبار {quizScope === 'current-page' ? `(صفحة ${currentPage})` : `(${quizPagesRange.length} صفحة)`}
                 </Button>
               </>
             )}

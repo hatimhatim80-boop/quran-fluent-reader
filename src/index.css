@@ -880,6 +880,18 @@
     --ghareeb-border-color: hsl(200 70% 50% / 0.6) !important;
   }
 
+  /* Active word in text-only mode: change text color to golden */
+  .ghareeb-word--active.ghareeb-word--text-only {
+    color: hsl(36 80% 38%) !important;
+    text-shadow: 0 0 8px hsl(36 80% 55% / 0.5);
+    font-weight: bold;
+  }
+
+  .dark .ghareeb-word--active.ghareeb-word--text-only {
+    color: hsl(48 90% 65%) !important;
+    text-shadow: 0 0 8px hsl(48 90% 60% / 0.6);
+  }
+
   /* Word that was already shown during autoplay - subtle green tint */
   .ghareeb-word--seen:not(.ghareeb-word--text-only) {
     background-color: hsl(140 45% 85% / 0.7) !important;
