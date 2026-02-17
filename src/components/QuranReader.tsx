@@ -78,9 +78,10 @@ export function QuranReader() {
     });
   }, [currentPage, pageData, pageWords, renderedWords, setDevDebugContext, isDiagnosticEnabled, isDev, pages, ghareebPageMap, goToPage]);
 
+  const autoAdvancePage = useSettingsStore(s => s.settings.autoplay.autoAdvancePage);
   const {
     isPlaying, speed, setSpeed, play, pause, stop, nextWord, prevWord, jumpTo,
-  } = useAutoPlay({ words: renderedWords, currentWordIndex, setCurrentWordIndex, onPageEnd: nextPage });
+  } = useAutoPlay({ words: renderedWords, currentWordIndex, setCurrentWordIndex, onPageEnd: autoAdvancePage ? nextPage : undefined });
 
   const handleRenderedWordsChange = useCallback((words: GhareebWord[]) => {
     if (settings.debugMode) console.log('[QuranReader] Rendered words:', words.length);
