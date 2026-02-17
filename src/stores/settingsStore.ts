@@ -27,6 +27,7 @@ export interface DisplaySettings {
 // Color settings
 export interface ColorSettings {
   highlightColor: string;
+  highlightTextColor: string;
   highlightIntensity: 'soft' | 'medium' | 'strong';
   highlightStyle: 'background' | 'text-only';
   pageBackgroundColor: string;
@@ -93,6 +94,7 @@ const defaultSettings: AppSettings = {
   },
   colors: {
     highlightColor: '48 80% 90%',
+    highlightTextColor: '',
     highlightIntensity: 'medium',
     highlightStyle: 'background',
     pageBackgroundColor: '',

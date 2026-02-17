@@ -826,6 +826,11 @@
     transition: all 0.2s ease;
   }
 
+  /* Custom text color for text-only mode via CSS variable */
+  .ghareeb-word--text-only {
+    color: var(--ghareeb-text-color, hsl(210 80% 35%));
+  }
+
   /* Background highlight style (default) - supports custom single color or rotating colors */
   .ghareeb-word:not(.ghareeb-word--text-only) {
     border-radius: 6px;
