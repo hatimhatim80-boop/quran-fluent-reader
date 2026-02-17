@@ -415,6 +415,43 @@ export function SettingsDialog({ children }: SettingsDialogProps) {
               </div>
             )}
 
+            {/* Word text color chooser - only for text-only highlight mode */}
+            {(settings.colors.highlightStyle === 'text-only') && (
+              <div className="space-y-3">
+                <Label className="font-arabic font-bold">لون الكلمة الغريبة</Label>
+                <div className="grid grid-cols-4 gap-2">
+                  {[
+                    { label: 'أزرق', value: '210 80% 35%' },
+                    { label: 'أحمر', value: '0 75% 40%' },
+                    { label: 'أخضر', value: '140 60% 30%' },
+                    { label: 'بنفسجي', value: '270 60% 40%' },
+                    { label: 'برتقالي', value: '25 80% 40%' },
+                    { label: 'وردي', value: '340 65% 45%' },
+                    { label: 'ذهبي', value: '45 80% 35%' },
+                    { label: 'فيروزي', value: '180 60% 30%' },
+                  ].map((c) => (
+                    <button
+                      key={c.label}
+                      onClick={() => setColors({ highlightTextColor: c.value })}
+                      className={`p-1.5 rounded-lg border transition-all ${
+                        (settings.colors.highlightTextColor || '210 80% 35%') === c.value
+                          ? 'border-primary ring-2 ring-primary/20'
+                          : 'border-border hover:border-muted-foreground/50'
+                      }`}
+                    >
+                      <div 
+                        className="w-full h-5 rounded-md mb-1 flex items-center justify-center font-arabic text-sm font-bold"
+                        style={{ color: `hsl(${c.value})` }}
+                      >
+                        كلمة
+                      </div>
+                      <span className="font-arabic text-[9px]">{c.label}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* Color preview */}
             <div className="space-y-2">
               <Label className="font-arabic">معاينة التمييز</Label>

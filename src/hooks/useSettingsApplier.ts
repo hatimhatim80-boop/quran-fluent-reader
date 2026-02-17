@@ -52,11 +52,17 @@ export function useSettingsApplier() {
     // Word background color for ghareeb words
     if (settings.colors.highlightColor && settings.colors.highlightStyle !== 'text-only') {
       root.style.setProperty('--ghareeb-bg-color', `hsl(${settings.colors.highlightColor} / 0.55)`);
-      // Parse hue from the HSL string for a darker border
       root.style.setProperty('--ghareeb-border-color', `hsl(${settings.colors.highlightColor} / 0.5)`);
     } else {
       root.style.removeProperty('--ghareeb-bg-color');
       root.style.removeProperty('--ghareeb-border-color');
+    }
+
+    // Word text color for text-only highlight mode
+    if (settings.colors.highlightTextColor && settings.colors.highlightStyle === 'text-only') {
+      root.style.setProperty('--ghareeb-text-color', `hsl(${settings.colors.highlightTextColor})`);
+    } else {
+      root.style.removeProperty('--ghareeb-text-color');
     }
     
     // Page background color
