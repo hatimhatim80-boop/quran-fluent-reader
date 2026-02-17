@@ -982,7 +982,6 @@
 
   /* Word display - larger and bolder */
   .ghareeb-popover__word {
-    font-size: 1.5rem;
     font-weight: 700;
     color: var(--popover-text-resolved, hsl(var(--foreground)));
     line-height: 1.4;
@@ -992,7 +991,6 @@
 
   /* Meaning display - single instance, readable */
   .ghareeb-popover__meaning {
-    font-size: var(--meaning-font-size, 1.15rem);
     font-weight: 500;
     color: var(--popover-text-resolved, hsl(var(--accent-foreground)));
     line-height: 1.7;
@@ -1003,15 +1001,6 @@
     text-overflow: unset;
     font-family: var(--quran-font-family, 'Amiri', 'Noto Naskh Arabic', serif);
     opacity: 0.95;
-  }
-
-  @media (max-width: 640px) {
-    .ghareeb-popover__word {
-      font-size: 1.35rem;
-    }
-    .ghareeb-popover__meaning {
-      font-size: var(--meaning-font-size, 1.1rem);
-    }
   }
 
   .ghareeb-popover__arrow {

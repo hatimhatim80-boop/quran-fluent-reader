@@ -61,6 +61,7 @@ export interface AutoplaySettings {
   speed: number;
   thinkingGap: number;
   autoAdvancePage: boolean;
+  autoAdvanceDelay: number;
   pauseOnMissingMeaning: boolean;
   pageRepeatCount: number;
 }
@@ -116,6 +117,7 @@ const defaultSettings: AppSettings = {
     speed: 4,
     thinkingGap: 800,
     autoAdvancePage: false,
+    autoAdvanceDelay: 1.5,
     pauseOnMissingMeaning: false,
     pageRepeatCount: 1,
   },

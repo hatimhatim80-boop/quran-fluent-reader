@@ -793,6 +793,19 @@ export function SettingsDialog({ children }: SettingsDialogProps) {
               />
             </div>
 
+            {settings.autoplay.autoAdvancePage && (
+              <div className="space-y-3">
+                <Label className="font-arabic">مدة الانتظار قبل الانتقال: <span className="text-primary font-bold">{settings.autoplay.autoAdvanceDelay || 1.5} ثانية</span></Label>
+                <Slider
+                  value={[settings.autoplay.autoAdvanceDelay || 1.5]}
+                  onValueChange={([v]) => setAutoplay({ autoAdvanceDelay: v })}
+                  min={0.5}
+                  max={10}
+                  step={0.5}
+                />
+              </div>
+            )}
+
             <div className="h-px bg-border my-4" />
 
             <div className="flex items-center justify-between p-3 rounded-lg border">

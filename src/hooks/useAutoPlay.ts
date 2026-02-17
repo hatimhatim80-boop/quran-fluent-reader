@@ -137,7 +137,12 @@ export function useAutoPlay({
           repeatCountRef.current = 0;
           setIsPlaying(false);
           isPlayingRef.current = false;
-          onPageEnd?.();
+          if (onPageEnd) {
+            const advanceDelay = (useSettingsStore.getState().settings.autoplay.autoAdvanceDelay || 1.5) * 1000;
+            timeoutRef.current = setTimeout(() => {
+              onPageEnd();
+            }, advanceDelay);
+          }
         }
       }
     }, delayMs);
