@@ -5,7 +5,7 @@ import { useAutoPlay } from '@/hooks/useAutoPlay';
 import { useKeepAwake } from '@/hooks/useKeepAwake';
 import { GhareebWord } from '@/types/quran';
 import { PageView } from './PageView';
-
+import { PageEndBanner } from './PageEndBanner';
 
 import { PageNavigation } from './PageNavigation';
 import { AutoPlayControls } from './AutoPlayControls';
@@ -73,6 +73,7 @@ export function QuranReader() {
   const [showControls, setShowControls] = useState(false);
   const [hideBars, setHideBars] = useState(false);
   const [showEntryDialog, setShowEntryDialog] = useState(false);
+  const [showPageEndBanner, setShowPageEndBanner] = useState(false);
   const [pinchScale, setPinchScale] = useState(1);
   const pinchRef = React.useRef<{ startDist: number; startScale: number } | null>(null);
   const [showFirstTimeSetup, setShowFirstTimeSetup] = useState(() => !localStorage.getItem('quran-app-setup-done'));
@@ -183,8 +184,23 @@ export function QuranReader() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // ── Check if current page is last in range ─────────────────────────────────
+  const isLastPageInRange = useCallback((): boolean => {
+    const range = getGhareebPagesRange();
+    if (!range) return currentPage >= totalPages;
+    const idx = range.indexOf(currentPageRef.current);
+    return idx === range.length - 1;
+  }, [getGhareebPagesRange, currentPage, totalPages]);
+
+  // ── handlePageFinished: called by useAutoPlay when words end (banner mode) ──
+  const handlePageFinished = useCallback(() => {
+    console.log('[handlePageFinished] Showing end-of-page banner');
+    setShowPageEndBanner(true);
+  }, []);
+
   const handlePageEnd = useCallback(() => {
     const curPage = currentPageRef.current;
+    setShowPageEndBanner(false);
     // Always read LIVE from store — no stale closure possible
     const range = getGhareebPagesRange();
     const hasRange = range !== null;
@@ -201,16 +217,12 @@ export function QuranReader() {
     if (range) {
       const idx = range.indexOf(curPage);
       if (idx >= 0 && idx < range.length - 1) {
-        // Normal: advance to next page in range
         console.log('[handlePageEnd] → going to page', range[idx + 1]);
         goToPage(range[idx + 1]);
       } else if (idx < 0) {
-        // Current page is NOT in range (e.g. user was on page 1 but range starts at page 50)
-        // Jump to first page in range
         console.log('[handlePageEnd] ⚠️ page not in range → jumping to range start:', range[0]);
         goToPage(range[0]);
       } else {
-        // idx === range.length - 1: end of range, stop naturally
         console.log('[handlePageEnd] ⛔ end of range reached at page', curPage);
       }
     } else {
@@ -222,7 +234,15 @@ export function QuranReader() {
 
   const {
     isPlaying, speed, setSpeed, play, pause, stop, nextWord, prevWord, jumpTo,
-  } = useAutoPlay({ words: renderedWords, currentWordIndex, setCurrentWordIndex, onPageEnd: handlePageEnd, portal: 'غريب', currentPage });
+  } = useAutoPlay({
+    words: renderedWords,
+    currentWordIndex,
+    setCurrentWordIndex,
+    onPageEnd: handlePageEnd,
+    onPageFinished: handlePageFinished,
+    portal: 'غريب',
+    currentPage,
+  });
 
   useKeepAwake(keepScreenAwake && isPlaying);
 
@@ -243,6 +263,27 @@ export function QuranReader() {
   const handlePlayPause = useCallback(() => {
     isPlaying ? pause() : play();
   }, [isPlaying, play, pause]);
+
+  // ── Banner action handlers ────────────────────────────────────────────────
+  const handleBannerRepeat = useCallback(() => {
+    setShowPageEndBanner(false);
+    play();
+  }, [play]);
+
+  const handleBannerNextPage = useCallback(() => {
+    setShowPageEndBanner(false);
+    handlePageEnd();
+  }, [handlePageEnd]);
+
+  const handleBannerRevealAll = useCallback(() => {
+    const lastIdx = renderedWords.length - 1;
+    if (lastIdx >= 0) jumpTo(lastIdx);
+  }, [renderedWords.length, jumpTo]);
+
+  const handleBannerStop = useCallback(() => {
+    setShowPageEndBanner(false);
+    stop();
+  }, [stop]);
 
   // Pinch-to-zoom handler
   useEffect(() => {
@@ -542,6 +583,16 @@ export function QuranReader() {
           </div>
         </div>
         )}
+
+        {/* Page End Banner - shows when autoplay finishes a page */}
+        <PageEndBanner
+          visible={showPageEndBanner}
+          onRepeat={handleBannerRepeat}
+          onNextPage={handleBannerNextPage}
+          onRevealAll={handleBannerRevealAll}
+          onStop={handleBannerStop}
+          isLastPage={isLastPageInRange()}
+        />
 
         {/* Show bars button - floating when bars are hidden, appears on double-tap for 3s */}
         {hideBars && (

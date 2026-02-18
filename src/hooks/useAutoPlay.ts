@@ -43,6 +43,9 @@ interface UseAutoPlayProps {
   setCurrentWordIndex: (index: number) => void;
   onPageEnd?: () => void;
   onPageStart?: () => void;
+  /** Called when the last word finishes — before deciding to advance page.
+   *  If provided, the hook will NOT auto-advance; caller must call goNext() manually. */
+  onPageFinished?: () => void;
   /** Portal label shown in debug panel */
   portal?: string;
   /** Current page number for debug panel */
@@ -55,6 +58,7 @@ export function useAutoPlay({
   setCurrentWordIndex,
   onPageEnd,
   onPageStart,
+  onPageFinished,
   portal = '?',
   currentPage = 0,
 }: UseAutoPlayProps) {
@@ -72,6 +76,7 @@ export function useAutoPlay({
   const speedRef = useRef(speed);
   const isPlayingRef = useRef(isPlaying);
   const onPageEndRef = useRef(onPageEnd);
+  const onPageFinishedRef = useRef(onPageFinished);
   // wasAutoPlaying: captures state BEFORE goNextPage() is called so we can restore it.
   const wasAutoPlayingRef = useRef(false);
   // Guard: true while waiting for page transition to complete
@@ -83,6 +88,7 @@ export function useAutoPlay({
   useEffect(() => { speedRef.current = speed; }, [speed]);
   useEffect(() => { isPlayingRef.current = isPlaying; }, [isPlaying]);
   useEffect(() => { onPageEndRef.current = onPageEnd; }, [onPageEnd]);
+  useEffect(() => { onPageFinishedRef.current = onPageFinished; }, [onPageFinished]);
 
   // ── Timer helpers ─────────────────────────────────────────────────────────
   const clearTimer = useCallback(() => {
@@ -154,26 +160,41 @@ export function useAutoPlay({
           scheduleNext();
         }, repeatDelay);
       } else {
-        // All repeats done → go to next page
+        // All repeats done
         repeatCountRef.current = 0;
         const lastWordDuration = speedRef.current * 1000;
-        const advanceDelay = (useSettingsStore.getState().settings.autoplay.autoAdvanceDelay || 1.5) * 1000;
 
-        console.log('[autoplay][advance] End of page. Calling goNextPage in', lastWordDuration + advanceDelay, 'ms');
-        wasAutoPlayingRef.current = true;   // preserve autoplay across transition
-        pageTransitioningRef.current = true;
+        emitDebug({ endDetected: true, goNextCalled: false, autoPlayBefore: true });
 
-        emitDebug({ endDetected: true, goNextCalled: true, autoPlayBefore: true });
+        // If onPageFinished is provided → pause and show banner (manual control)
+        if (onPageFinishedRef.current) {
+          console.log('[autoplay][advance] End of page → calling onPageFinished (banner mode)');
+          timeoutRef.current = setTimeout(() => {
+            // Pause playing state so no timers continue
+            setIsPlaying(false);
+            isPlayingRef.current = false;
+            clearTimer();
+            onPageFinishedRef.current?.();
+          }, lastWordDuration);
+        } else {
+          // Auto-advance mode
+          const advanceDelay = (useSettingsStore.getState().settings.autoplay.autoAdvanceDelay || 1.5) * 1000;
+          console.log('[autoplay][advance] End of page. Calling goNextPage in', lastWordDuration + advanceDelay, 'ms');
+          wasAutoPlayingRef.current = true;
+          pageTransitioningRef.current = true;
 
-        timeoutRef.current = setTimeout(() => {
-          if (!isPlayingRef.current) { pageTransitioningRef.current = false; return; }
+          emitDebug({ endDetected: true, goNextCalled: true, autoPlayBefore: true });
+
           timeoutRef.current = setTimeout(() => {
             if (!isPlayingRef.current) { pageTransitioningRef.current = false; return; }
-            const fn = onPageEndRef.current;
-            console.log('[autoplay][advance] goNextPage() called, fn:', !!fn);
-            if (fn) fn();
-          }, advanceDelay);
-        }, lastWordDuration);
+            timeoutRef.current = setTimeout(() => {
+              if (!isPlayingRef.current) { pageTransitioningRef.current = false; return; }
+              const fn = onPageEndRef.current;
+              console.log('[autoplay][advance] goNextPage() called, fn:', !!fn);
+              if (fn) fn();
+            }, advanceDelay);
+          }, lastWordDuration);
+        }
       }
     } else {
       // ── Normal advance ───────────────────────────────────────────────────
