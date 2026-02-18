@@ -158,19 +158,36 @@ export function GhareebWordPopover({
     }
   }, [forceOpen, isManualOpen, calculatePosition, position]);
 
-  // Keep position updated during autoplay (word may scroll)
+  // Keep position updated during autoplay — only recalculate on scroll/resize,
+  // NOT on every animation frame, to prevent vibration/shaking.
   useEffect(() => {
     if (!forceOpen) return;
-    let rafId: number;
-    const updatePos = () => {
-      const h = popoverRef.current?.getBoundingClientRect().height;
-      const pos = calculatePosition(h || undefined);
-      if (pos) setPosition(pos);
-      rafId = requestAnimationFrame(updatePos);
+
+    // Calculate once immediately when forceOpen fires
+    const recalc = () => {
+      const h = popoverRef.current?.getBoundingClientRect().height || undefined;
+      const pos = calculatePosition(h);
+      if (pos) setPosition(prev => {
+        // Only update if position actually changed (prevent unnecessary re-renders)
+        if (!prev) return pos;
+        if (Math.abs(prev.x - pos.x) < 1 && Math.abs(prev.y - pos.y) < 1) return prev;
+        return pos;
+      });
     };
-    rafId = requestAnimationFrame(updatePos);
-    return () => cancelAnimationFrame(rafId);
-  }, [forceOpen, calculatePosition]);
+
+    recalc();
+
+    // Listen to scroll on the container (word may scroll with the page)
+    const container = containerRef.current;
+    const scrollParent = container?.closest('[class*="overflow"]') || window;
+    scrollParent.addEventListener('scroll', recalc, { passive: true });
+    window.addEventListener('resize', recalc, { passive: true });
+
+    return () => {
+      scrollParent.removeEventListener('scroll', recalc);
+      window.removeEventListener('resize', recalc);
+    };
+  }, [forceOpen, calculatePosition, containerRef]);
 
   const handleClick = (e: React.MouseEvent) => {
     e.stopPropagation();
