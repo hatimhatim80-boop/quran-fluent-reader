@@ -95,6 +95,11 @@ interface TahfeezState {
   clearAllItems: () => void;
   getItemKey: (item: TahfeezItem) => string;
 
+  // Undo history
+  undoStack: TahfeezItem[][];
+  undo: () => void;
+  canUndo: boolean;
+
   // Legacy compat
   selectedWords: TahfeezWord[];
   toggleWord: (word: TahfeezWord) => void;
@@ -143,16 +148,31 @@ export const useTahfeezStore = create<TahfeezState>()(
       setRangeAnchor: (anchor) => set({ rangeAnchor: anchor }),
 
       storedItems: [],
+      undoStack: [],
+      canUndo: false,
       addItem: (item) => {
         const key = itemKey(item);
         const existing = get().storedItems;
         if (existing.some(i => itemKey(i) === key)) return;
-        set({ storedItems: [...existing, item] });
+        const stack = get().undoStack;
+        set({ storedItems: [...existing, item], undoStack: [...stack, existing], canUndo: true });
       },
       removeItem: (key) => {
-        set({ storedItems: get().storedItems.filter(i => itemKey(i) !== key) });
+        const existing = get().storedItems;
+        const stack = get().undoStack;
+        set({ storedItems: existing.filter(i => itemKey(i) !== key), undoStack: [...stack, existing], canUndo: true });
       },
-      clearAllItems: () => set({ storedItems: [] }),
+      clearAllItems: () => {
+        const existing = get().storedItems;
+        const stack = get().undoStack;
+        set({ storedItems: [], undoStack: [...stack, existing], canUndo: true });
+      },
+      undo: () => {
+        const stack = get().undoStack;
+        if (stack.length === 0) return;
+        const prev = stack[stack.length - 1];
+        set({ storedItems: prev, undoStack: stack.slice(0, -1), canUndo: stack.length > 1 });
+      },
       getItemKey: itemKey,
 
       // Legacy

@@ -7,7 +7,7 @@ import { useSettingsApplier } from '@/hooks/useSettingsApplier';
 import { useSettingsStore } from '@/stores/settingsStore';
 import { useKeepAwake } from '@/hooks/useKeepAwake';
 import { Link, useNavigate } from 'react-router-dom';
-import { BookOpen, Play, Pause, Eye, EyeOff, ArrowRight, Save, Trash2, GraduationCap, ListChecks, Zap, Book, Layers, Hash, FileText, Search, X, ChevronLeft, Download, Upload, Settings2, ChevronsRight } from 'lucide-react';
+import { BookOpen, Play, Pause, Eye, EyeOff, ArrowRight, Save, Trash2, GraduationCap, ListChecks, Zap, Book, Layers, Hash, FileText, Search, X, ChevronLeft, Download, Upload, Settings2, ChevronsRight, Undo2 } from 'lucide-react';
 import { HiddenBarsOverlay } from '@/components/HiddenBarsOverlay';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Slider } from '@/components/ui/slider';
@@ -60,6 +60,7 @@ export default function TahfeezPage() {
     quizScope, setQuizScope,
     quizScopeFrom, setQuizScopeFrom,
     quizScopeTo, setQuizScopeTo,
+    undo, canUndo,
   } = useTahfeezStore();
 
   const { currentPage, getCurrentPageData, goToPage, totalPages, nextPage, prevPage } = useQuranData();
@@ -659,6 +660,10 @@ export default function TahfeezPage() {
                     المخزون ({storedItems.length})
                   </h3>
                   <div className="flex items-center gap-1">
+                    <Button variant="ghost" size="sm" onClick={undo} disabled={!canUndo} className="font-arabic text-xs h-7 px-2" title="تراجع عن آخر تغيير">
+                      <Undo2 className="w-3 h-3 ml-1" />
+                      تراجع
+                    </Button>
                     <Button variant="ghost" size="sm" onClick={() => {
                       const data = JSON.stringify({ version: '1.0', exportedAt: new Date().toISOString(), items: storedItems }, null, 2);
                       const blob = new Blob([data], { type: 'application/json' });
