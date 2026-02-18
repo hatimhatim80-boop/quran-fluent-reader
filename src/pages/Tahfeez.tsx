@@ -5,6 +5,7 @@ import { toast } from 'sonner';
 import { useQuranData } from '@/hooks/useQuranData';
 import { useSettingsApplier } from '@/hooks/useSettingsApplier';
 import { useSettingsStore } from '@/stores/settingsStore';
+import { useKeepAwake } from '@/hooks/useKeepAwake';
 import { Link, useNavigate } from 'react-router-dom';
 import { BookOpen, Play, Pause, Eye, EyeOff, ArrowRight, Save, Trash2, GraduationCap, ListChecks, Zap, Book, Layers, Hash, FileText, Search, X, ChevronLeft, Download, Upload, Settings2, ChevronsRight } from 'lucide-react';
 import { HiddenBarsOverlay } from '@/components/HiddenBarsOverlay';
@@ -64,6 +65,7 @@ export default function TahfeezPage() {
   const { currentPage, getCurrentPageData, goToPage, totalPages, nextPage, prevPage } = useQuranData();
   useSettingsApplier(); // Apply font/display settings globally
   const displayMode = useSettingsStore((s) => s.settings.display?.mode || 'auto15');
+  const keepScreenAwake = useSettingsStore((s) => s.settings.autoplay.keepScreenAwake ?? false);
   const pageData = getCurrentPageData();
 
   // Auto-save session progress
@@ -84,6 +86,7 @@ export default function TahfeezPage() {
 
   const [quizStarted, setQuizStarted] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
+  useKeepAwake(keepScreenAwake && quizStarted && !isPaused);
   const [showAll, setShowAll] = useState(false);
   const [activeBlankKey, setActiveBlankKey] = useState<string | null>(null);
   const [revealedKeys, setRevealedKeys] = useState<Set<string>>(new Set());
@@ -755,6 +758,18 @@ export default function TahfeezPage() {
                   <Slider value={[timerSeconds]} onValueChange={([v]) => setTimerSeconds(v)} min={1} max={10} step={1} />
                 </div>
 
+                {/* Keep Screen Awake */}
+                <div className="flex items-center justify-between p-3 rounded-lg border">
+                  <div>
+                    <label className="text-sm font-arabic font-medium text-foreground">تثبيت الشاشة</label>
+                    <p className="text-xs font-arabic text-muted-foreground mt-0.5">منع إطفاء الشاشة أثناء الاختبار</p>
+                  </div>
+                  <Switch
+                    checked={keepScreenAwake}
+                    onCheckedChange={(v) => useSettingsStore.getState().setAutoplay({ keepScreenAwake: v })}
+                  />
+                </div>
+
                 <Button
                   onClick={() => { setQuizSource('custom'); handleStartMultiPage(); }}
                   className="w-full font-arabic"
@@ -905,6 +920,18 @@ export default function TahfeezPage() {
             <div className="space-y-1">
               <label className="text-xs font-arabic text-muted-foreground">مدة ظهور كل كلمة: {timerSeconds} ثانية</label>
               <Slider value={[timerSeconds]} onValueChange={([v]) => setTimerSeconds(v)} min={1} max={10} step={1} />
+            </div>
+
+            {/* Keep Screen Awake */}
+            <div className="flex items-center justify-between p-3 rounded-lg border">
+              <div>
+                <label className="text-sm font-arabic font-medium text-foreground">تثبيت الشاشة</label>
+                <p className="text-xs font-arabic text-muted-foreground mt-0.5">منع إطفاء الشاشة أثناء الاختبار</p>
+              </div>
+              <Switch
+                checked={keepScreenAwake}
+                onCheckedChange={(v) => useSettingsStore.getState().setAutoplay({ keepScreenAwake: v })}
+              />
             </div>
 
             <Button onClick={() => { setQuizSource('auto'); handleStartMultiPage(); }} className="w-full font-arabic" disabled={!pageData}>
