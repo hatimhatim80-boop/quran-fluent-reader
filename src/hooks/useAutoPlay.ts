@@ -20,9 +20,11 @@ export function useAutoPlay({
 }: UseAutoPlayProps) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [speed, setSpeed] = useState(4); // seconds per word
-  const thinkingGap = 800; // 0.8s gap before showing meaning
   const pageRepeatCount = useSettingsStore(s => s.settings.autoplay.pageRepeatCount) || 1;
   const repeatCountRef = useRef(0);
+  // Keep pageRepeatCount in a ref so scheduleNext always reads latest value
+  const pageRepeatCountRef = useRef(pageRepeatCount);
+  useEffect(() => { pageRepeatCountRef.current = pageRepeatCount; }, [pageRepeatCount]);
   
   // Use refs to avoid stale closures in setTimeout
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -133,8 +135,9 @@ export function useAutoPlay({
       } else {
         // Reached end of page - the LAST word is still active.
         repeatCountRef.current += 1;
-        if (repeatCountRef.current < pageRepeatCount) {
-          console.log('[autoplay] 🔁 Repeating page, round', repeatCountRef.current + 1, 'of', pageRepeatCount);
+        const currentRepeatLimit = pageRepeatCountRef.current;
+        if (repeatCountRef.current < currentRepeatLimit) {
+          console.log('[autoplay] 🔁 Repeating page, round', repeatCountRef.current + 1, 'of', currentRepeatLimit);
           const repeatDelay = speedRef.current * 1000;
           timeoutRef.current = setTimeout(() => {
             if (!isPlayingRef.current) return;
@@ -144,18 +147,20 @@ export function useAutoPlay({
             scheduleNext();
           }, repeatDelay);
         } else {
-          // Done with all repeats — wait full word duration, then call onPageEnd.
-          // DO NOT set isPlaying=false here: the page-change effect will keep playing on the new page.
+          // Done with all repeats.
+          // Wait full word duration then advance delay, then call onPageEnd.
+          // CRITICAL: do NOT set isPlaying=false — page-change effect will auto-resume.
           const lastWordDuration = speedRef.current * 1000;
           const advanceDelay = (useSettingsStore.getState().settings.autoplay.autoAdvanceDelay || 1.5) * 1000;
-          console.log('[autoplay] ✅ Last word. Waiting', lastWordDuration, 'ms then', advanceDelay, 'ms before page end');
+          console.log('[autoplay] ✅ End of page. lastWordDuration:', lastWordDuration, 'advanceDelay:', advanceDelay);
           timeoutRef.current = setTimeout(() => {
             if (!isPlayingRef.current) return;
             repeatCountRef.current = 0;
-            // Use ref to always call the latest onPageEnd (avoids stale closure)
             const pageEndFn = onPageEndRef.current;
+            console.log('[autoplay] 📞 Calling onPageEnd, fn exists:', !!pageEndFn);
             if (pageEndFn) {
               timeoutRef.current = setTimeout(() => {
+                if (!isPlayingRef.current) return;
                 pageEndFn();
               }, advanceDelay);
             }
@@ -277,28 +282,38 @@ export function useAutoPlay({
     }
   }, [setCurrentWordIndex, clearTimer, scheduleNext]);
 
-  // Reset when words change (page change) while playing
-  // Use ref to avoid stale closure - isPlayingRef always has latest value
+  // Reset when words change (page change) while playing.
+  // When a new page loads, words array is replaced with a new reference.
+  // This effect detects that and restarts playback from index 0.
   useEffect(() => {
+    // CRITICAL: read isPlayingRef directly (not state) to avoid stale closure
     if (!isPlayingRef.current) return;
     if (words.length === 0) return;
-    
-    console.log('[autoplay] Page changed while playing, resetting to 0, words:', words.length);
-    clearTimer();
+
+    console.log('[autoplay] 🔄 words changed while playing → restarting from 0. count:', words.length);
+    // Cancel any pending timers from previous page
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
+    }
+
+    // Reset repeat counter for new page
+    repeatCountRef.current = 0;
+
+    // Reset index to 0
     setCurrentWordIndex(0);
     currentIndexRef.current = 0;
     scrollToActiveWord(0);
-    
-    // Notify parent that a new page started (so Tahfeez can reset quiz state)
+
+    // Notify parent that a new page started
     onPageStart?.();
 
-    // Delay to ensure DOM is updated with new words before scheduling
+    // Wait for DOM to settle after page change, then resume
     const t = setTimeout(() => {
-      if (isPlayingRef.current) {
-        console.log('[autoplay] Auto-resuming after page change, words:', wordsRef.current.length);
-        scheduleNext();
-      }
-    }, 500);
+      if (!isPlayingRef.current) return;
+      console.log('[autoplay] ▶️ Auto-resuming on new page, words:', wordsRef.current.length);
+      scheduleNext();
+    }, 600);
     return () => clearTimeout(t);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [words]);
@@ -306,9 +321,9 @@ export function useAutoPlay({
   // Cleanup on unmount
   useEffect(() => {
     return () => {
-      clearTimer();
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
     };
-  }, [clearTimer]);
+  }, []);
 
   return {
     isPlaying,
