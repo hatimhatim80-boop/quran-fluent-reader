@@ -293,8 +293,83 @@ export function SettingsDialog({ children }: SettingsDialogProps) {
                 الافتراضي
               </Button>
             </div>
-            {/* Display Mode Selector */}
-            {/* Display mode is fixed to continuous - image mode hidden */}
+
+            {/* Lines per page */}
+            <div className="space-y-3">
+              <Label className="font-arabic">عدد الأسطر (جوال): <span className="text-primary font-bold">{settings.display.mobileLinesPerPage}</span></Label>
+              <Slider
+                value={[settings.display.mobileLinesPerPage]}
+                onValueChange={([v]) => setDisplay({ mobileLinesPerPage: v })}
+                min={10} max={20} step={1}
+              />
+            </div>
+            <div className="space-y-3">
+              <Label className="font-arabic">عدد الأسطر (سطح المكتب): <span className="text-primary font-bold">{settings.display.desktopLinesPerPage}</span></Label>
+              <Slider
+                value={[settings.display.desktopLinesPerPage]}
+                onValueChange={([v]) => setDisplay({ desktopLinesPerPage: v })}
+                min={10} max={20} step={1}
+              />
+            </div>
+
+            {/* Text direction */}
+            <div className="space-y-3">
+              <Label className="font-arabic font-bold">اتجاه النص</Label>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setDisplay({ textDirection: 'rtl' })}
+                  className={`flex-1 py-2 rounded-lg border text-sm font-arabic transition-all ${settings.display.textDirection === 'rtl' ? 'border-primary bg-primary/10 ring-2 ring-primary/20' : 'border-border hover:border-muted-foreground/50'}`}
+                >
+                  يمين لليسار (RTL)
+                </button>
+                <button
+                  onClick={() => setDisplay({ textDirection: 'ltr' })}
+                  className={`flex-1 py-2 rounded-lg border text-sm font-arabic transition-all ${settings.display.textDirection === 'ltr' ? 'border-primary bg-primary/10 ring-2 ring-primary/20' : 'border-border hover:border-muted-foreground/50'}`}
+                >
+                  يسار لليمين (LTR)
+                </button>
+              </div>
+            </div>
+
+            {/* Text align */}
+            <div className="space-y-3">
+              <Label className="font-arabic font-bold">محاذاة النص</Label>
+              <div className="grid grid-cols-4 gap-2">
+                {(['right', 'left', 'center', 'justify'] as const).map((align) => (
+                  <button
+                    key={align}
+                    onClick={() => setDisplay({ textAlign: align })}
+                    className={`py-2 rounded-lg border text-xs font-arabic transition-all ${settings.display.textAlign === align ? 'border-primary bg-primary/10 ring-2 ring-primary/20' : 'border-border hover:border-muted-foreground/50'}`}
+                  >
+                    {align === 'right' ? 'يمين' : align === 'left' ? 'يسار' : align === 'center' ? 'وسط' : 'ضبط'}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Balance last line */}
+            <div className="flex items-center justify-between p-3 rounded-lg border">
+              <div>
+                <Label className="font-arabic">توازن السطر الأخير</Label>
+                <p className="text-xs text-muted-foreground font-arabic mt-1">ضبط توزيع كلمات السطر الأخير</p>
+              </div>
+              <Switch
+                checked={settings.display.balanceLastLine ?? false}
+                onCheckedChange={(v) => setDisplay({ balanceLastLine: v })}
+              />
+            </div>
+
+            {/* Auto-fit font */}
+            <div className="flex items-center justify-between p-3 rounded-lg border">
+              <div>
+                <Label className="font-arabic">ضبط الخط تلقائياً</Label>
+                <p className="text-xs text-muted-foreground font-arabic mt-1">يضبط حجم الخط ليناسب عرض الشاشة</p>
+              </div>
+              <Switch
+                checked={settings.display.autoFitFont ?? false}
+                onCheckedChange={(v) => setDisplay({ autoFitFont: v })}
+              />
+            </div>
           </TabsContent>
 
           {/* Colors Tab */}
@@ -790,6 +865,37 @@ export function SettingsDialog({ children }: SettingsDialogProps) {
                 عدد مرات تكرار الصفحة قبل الانتقال للتالية
               </p>
             </div>
+
+            {/* Auto Next Page */}
+            <div className="flex items-center justify-between p-3 rounded-lg border">
+              <div>
+                <Label className="font-arabic">انتقال تلقائي للصفحة التالية</Label>
+                <p className="text-xs text-muted-foreground font-arabic mt-1">
+                  ينتقل تلقائياً بعد انتهاء الصفحة الحالية
+                </p>
+              </div>
+              <Switch
+                checked={settings.autoplay.autoAdvancePage ?? false}
+                onCheckedChange={(v) => setAutoplay({ autoAdvancePage: v })}
+              />
+            </div>
+
+            {/* Auto-advance delay — only shown when autoAdvancePage is enabled */}
+            {settings.autoplay.autoAdvancePage && (
+              <div className="space-y-3">
+                <Label className="font-arabic">تأخير الانتقال: <span className="text-primary font-bold">{settings.autoplay.autoAdvanceDelay ?? 1.5} ثانية</span></Label>
+                <Slider
+                  value={[settings.autoplay.autoAdvanceDelay ?? 1.5]}
+                  onValueChange={([v]) => setAutoplay({ autoAdvanceDelay: v })}
+                  min={0.5}
+                  max={10}
+                  step={0.5}
+                />
+                <p className="text-xs text-muted-foreground font-arabic">
+                  المدة بين نهاية الصفحة والانتقال للتالية
+                </p>
+              </div>
+            )}
 
             {/* Keep Screen Awake */}
             <div className="flex items-center justify-between p-3 rounded-lg border">
