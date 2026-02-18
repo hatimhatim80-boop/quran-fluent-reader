@@ -239,7 +239,7 @@ export default function TahfeezPage() {
     if (!quizStarted) return;
 
     let attempts = 0;
-    const maxAttempts = 20; // 20 × 150ms = 3s max
+    const maxAttempts = 30; // 30 × 150ms = 4.5s max
 
     const readKeys = () => {
       const el = document.getElementById('tahfeez-blanked-keys');
@@ -248,26 +248,29 @@ export default function TahfeezPage() {
           const keys = JSON.parse(el.getAttribute('data-keys') || '[]');
           const fKeys = JSON.parse(el.getAttribute('data-first-keys') || '[]');
           if (keys.length > 0) {
-            const keysStr = JSON.stringify(keys);
-            const currentStr = JSON.stringify(blankedKeysList);
-            if (keysStr !== currentStr) {
-              setBlankedKeysList(keys);
-              setFirstKeysSet(new Set(fKeys));
-            }
-            // Auto-resume if flagged (after page transition) - set idx AFTER keys are set
+            setBlankedKeysList(keys);
+            setFirstKeysSet(new Set(fKeys));
+
+            // Auto-resume if flagged (after page transition)
             if (autoResumeQuizRef.current) {
               autoResumeQuizRef.current = false;
-              // Small delay so setBlankedKeysList state is committed before reveal starts
+              console.log('[tahfeez] Auto-resuming quiz, keys count:', keys.length);
+              // Force reset to -1 first, then set to 0 after a tick to ensure the
+              // reveal effect re-fires even if currentRevealIdx was already 0
+              setCurrentRevealIdx(-1);
               setTimeout(() => {
+                setRevealedKeys(new Set());
+                setShowAll(false);
+                setActiveBlankKey(null);
                 setCurrentRevealIdx(0);
-              }, 80);
+              }, 100);
             }
             return; // done
           }
         } catch {}
       }
-      // Keys not ready yet — retry if auto-resume is pending
-      if (autoResumeQuizRef.current && attempts < maxAttempts) {
+      // Keys not ready yet — retry if auto-resume is pending OR for initial load
+      if (attempts < maxAttempts) {
         attempts++;
         pollTimer = setTimeout(readKeys, 150);
       }
@@ -275,6 +278,7 @@ export default function TahfeezPage() {
 
     let pollTimer: ReturnType<typeof setTimeout> = setTimeout(readKeys, 200);
     return () => clearTimeout(pollTimer);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [quizStarted, pageData, currentPage]);
 
   // Auto-reveal sequencing
