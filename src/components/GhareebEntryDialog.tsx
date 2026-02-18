@@ -147,7 +147,7 @@ export function GhareebEntryDialog({ open, onClose }: GhareebEntryDialogProps) {
   ];
 
   return (
-    <Dialog open={open} onOpenChange={() => {}}>
+      <Dialog open={open} onOpenChange={(open) => { if (!open) onClose(); }}>
       <DialogContent
         className="max-w-sm w-full p-0 overflow-hidden rounded-2xl border-border"
         dir="rtl"
