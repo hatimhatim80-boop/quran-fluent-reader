@@ -195,11 +195,13 @@ export function QuranReader() {
   useEffect(() => { autoAdvancePageRef.current = autoAdvancePage; }, [autoAdvancePage]);
 
   const handlePageEnd = useCallback(() => {
+    // Respect autoAdvancePage setting — if disabled, do nothing
+    if (!autoAdvancePageRef.current) return;
+
     const curPage = currentPageRef.current;
     const range = ghareebPagesRangeRef.current;
     console.log('[handlePageEnd] ✅ called. curPage:', curPage, 'range:', range ? `${range[0]}-${range[range.length-1]}` : 'all');
 
-    // Always advance to next page when autoplay ends a page.
     // If a range is defined, advance within the range; otherwise go to next page unconditionally.
     if (range) {
       const idx = range.indexOf(curPage);
