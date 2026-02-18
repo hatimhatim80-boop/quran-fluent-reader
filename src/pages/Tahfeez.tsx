@@ -100,6 +100,11 @@ export default function TahfeezPage() {
   const swipeRef = useRef<{ startX: number; startY: number; startTime: number } | null>(null);
   const [quizPageIdx, setQuizPageIdx] = useState(0);
 
+  // Refs to always read latest values inside setTimeout chains (avoids stale closures)
+  const currentPageRef = useRef(currentPage);
+  useEffect(() => { currentPageRef.current = currentPage; }, [currentPage]);
+  const quizPagesRangeRef = useRef<number[]>([]);
+
   // Compute pages range for multi-page quiz
   const quizPagesRange = useMemo(() => {
     if (quizScope === 'current-page') return [currentPage];
@@ -158,6 +163,9 @@ export default function TahfeezPage() {
     }
     return [currentPage];
   }, [quizScope, quizScopeFrom, quizScopeTo, currentPage]);
+
+  // Keep quizPagesRange in a ref so setTimeout callbacks always read the latest array
+  useEffect(() => { quizPagesRangeRef.current = quizPagesRange; }, [quizPagesRange]);
 
   // Pinch-to-zoom + swipe handler
   useEffect(() => {
@@ -291,26 +299,26 @@ export default function TahfeezPage() {
       if (idx >= blankedKeysList.length) {
         setShowAll(true);
         setActiveBlankKey(null);
-        // Auto-advance to next page if enabled
+        // Auto-advance to next page when quiz finishes current page
         const autoplaySettings = useSettingsStore.getState().settings.autoplay;
-        if (autoplaySettings.autoAdvancePage) {
-          const delayMs = (autoplaySettings.autoAdvanceDelay || 1.5) * 1000;
-          revealTimerRef.current = setTimeout(() => {
-            // Read currentPage fresh from quizPagesRange
-            const curPage = prevPageRef.current;
-            const currentPageIdx = quizPagesRange.indexOf(curPage);
-            if (quizPagesRange.length > 1 && currentPageIdx >= 0 && currentPageIdx < quizPagesRange.length - 1) {
-              // Navigate within defined range
-              const nextPageInRange = quizPagesRange[currentPageIdx + 1];
-              setQuizPageIdx(currentPageIdx + 1);
-              goToPage(nextPageInRange);
-            } else if (quizPagesRange.length === 1) {
-              // Single page (current-page scope) - still advance to next
-              nextPage();
-            }
-            // else: end of range reached - stop
-          }, delayMs);
-        }
+        const delayMs = (autoplaySettings.autoAdvanceDelay || 1.5) * 1000;
+        revealTimerRef.current = setTimeout(() => {
+          // Use refs to always get fresh values (avoids stale closure)
+          const curPage = currentPageRef.current;
+          const range = quizPagesRangeRef.current;
+          const currentPageIdx = range.indexOf(curPage);
+          console.log('[tahfeez] Auto-advance: curPage=', curPage, 'range=', range, 'idx=', currentPageIdx);
+          if (range.length > 1 && currentPageIdx >= 0 && currentPageIdx < range.length - 1) {
+            // Navigate within defined range
+            const nextPageInRange = range[currentPageIdx + 1];
+            setQuizPageIdx(currentPageIdx + 1);
+            goToPage(nextPageInRange);
+          } else if (range.length === 1 || currentPageIdx < 0) {
+            // Single page scope or page not in range - advance to next page
+            nextPage();
+          }
+          // else: end of range reached - stop naturally
+        }, delayMs);
         return;
       }
       const key = blankedKeysList[idx];
