@@ -234,8 +234,13 @@ export default function TahfeezPage() {
   }, [currentPage, quizStarted]);
 
   // Read blanked keys from the quiz view after it renders
+  // Polls until keys are available, then auto-starts if flagged
   useEffect(() => {
     if (!quizStarted) return;
+
+    let attempts = 0;
+    const maxAttempts = 20; // 20 × 150ms = 3s max
+
     const readKeys = () => {
       const el = document.getElementById('tahfeez-blanked-keys');
       if (el) {
@@ -252,18 +257,24 @@ export default function TahfeezPage() {
             // Auto-resume if flagged (after page transition) - set idx AFTER keys are set
             if (autoResumeQuizRef.current) {
               autoResumeQuizRef.current = false;
-              // Small extra delay so blankedKeysList state is committed
+              // Small delay so setBlankedKeysList state is committed before reveal starts
               setTimeout(() => {
                 setCurrentRevealIdx(0);
-              }, 100);
+              }, 80);
             }
+            return; // done
           }
         } catch {}
       }
+      // Keys not ready yet — retry if auto-resume is pending
+      if (autoResumeQuizRef.current && attempts < maxAttempts) {
+        attempts++;
+        pollTimer = setTimeout(readKeys, 150);
+      }
     };
-    // Give the quiz view time to render and expose keys
-    const timer = setTimeout(readKeys, 300);
-    return () => clearTimeout(timer);
+
+    let pollTimer: ReturnType<typeof setTimeout> = setTimeout(readKeys, 200);
+    return () => clearTimeout(pollTimer);
   }, [quizStarted, pageData, currentPage]);
 
   // Auto-reveal sequencing
