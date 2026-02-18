@@ -140,15 +140,17 @@ export function QuranReader() {
       const isSecondHalf = (from - 1) % 2 === 1;
       const toIsSecondHalf = (to - 1) % 2 === 1;
       const fromJuz = JUZ_DATA_READER[fromJuzIdx];
+      const toJuzEntry = JUZ_DATA_READER[toJuzIdx];
+      if (!fromJuz || !toJuzEntry) return null;
       const startPage = isSecondHalf
         ? Math.floor((fromJuz.page + (JUZ_DATA_READER[fromJuzIdx + 1]?.page || 605)) / 2)
         : fromJuz.page;
       let endPage: number;
       if (toIsSecondHalf) {
-        endPage = (toJuzIdx + 1 < 30 ? JUZ_DATA_READER[toJuzIdx + 1].page : 605) - 1;
+        endPage = (toJuzIdx + 1 < 30 ? (JUZ_DATA_READER[toJuzIdx + 1]?.page || 605) : 605) - 1;
       } else {
         const juzEnd = JUZ_DATA_READER[toJuzIdx + 1]?.page || 605;
-        endPage = Math.floor((JUZ_DATA_READER[toJuzIdx].page + juzEnd) / 2) - 1;
+        endPage = Math.floor((toJuzEntry.page + juzEnd) / 2) - 1;
       }
       const pages: number[] = [];
       for (let p = startPage; p <= Math.min(endPage, 604); p++) pages.push(p);
