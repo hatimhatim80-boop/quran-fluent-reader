@@ -121,7 +121,7 @@ const defaultSettings: AppSettings = {
   autoplay: {
     speed: 4,
     thinkingGap: 800,
-    autoAdvancePage: false,
+    autoAdvancePage: true,
     autoAdvanceDelay: 1.5,
     pauseOnMissingMeaning: false,
     pageRepeatCount: 1,

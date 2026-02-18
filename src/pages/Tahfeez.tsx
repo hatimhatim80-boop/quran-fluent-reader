@@ -108,6 +108,8 @@ export default function TahfeezPage() {
   const currentPageRef = useRef(currentPage);
   useEffect(() => { currentPageRef.current = currentPage; }, [currentPage]);
   const quizPagesRangeRef = useRef<number[]>([]);
+  // Flag: true when quiz just started for the first time (not a page transition)
+  const isFirstStartRef = useRef(false);
 
   // Compute pages range for multi-page quiz
   const quizPagesRange = useMemo(() => {
@@ -264,17 +266,19 @@ export default function TahfeezPage() {
             setBlankedKeysList(keys);
             setFirstKeysSet(new Set(fKeys));
 
-            // Auto-resume if flagged (after page transition)
-            if (autoResumeQuizRef.current) {
+            // Auto-resume after page transition OR first start
+            if (autoResumeQuizRef.current || isFirstStartRef.current) {
+              const wasFirst = isFirstStartRef.current;
               autoResumeQuizRef.current = false;
-              console.log('[tahfeez] Auto-resuming quiz, keys count:', keys.length);
+              isFirstStartRef.current = false;
+              console.log('[tahfeez] Starting quiz, keys count:', keys.length, 'firstStart:', wasFirst);
               setCurrentRevealIdx(-1);
               setTimeout(() => {
                 setRevealedKeys(new Set());
                 setShowAll(false);
                 setActiveBlankKey(null);
                 setCurrentRevealIdx(0);
-              }, 100);
+              }, wasFirst ? 300 : 100);
             }
             return; // done
           }
@@ -284,9 +288,10 @@ export default function TahfeezPage() {
       if (attempts < maxAttempts) {
         attempts++;
         pollTimer = setTimeout(readKeys, 150);
-      } else if (autoResumeQuizRef.current) {
+      } else if (autoResumeQuizRef.current || isFirstStartRef.current) {
         // Max attempts reached — page has no blanked items → auto-advance to next page
         autoResumeQuizRef.current = false;
+        isFirstStartRef.current = false;
         const autoplaySettings = useSettingsStore.getState().settings.autoplay;
         const delayMs = (autoplaySettings.autoAdvanceDelay || 1.5) * 1000;
         console.log('[tahfeez] No blanked keys on page', currentPageRef.current, '— skipping to next in', delayMs, 'ms');
@@ -395,6 +400,8 @@ export default function TahfeezPage() {
   }, [quizStarted, isPaused, showAll, blankedKeysList, timerSeconds, firstWordTimerSeconds, firstKeysSet, currentRevealIdx]);
 
   const handleStart = () => {
+    isFirstStartRef.current = true;
+    autoResumeQuizRef.current = false;
     setQuizStarted(true);
     setIsPaused(false);
     setShowAll(false);
