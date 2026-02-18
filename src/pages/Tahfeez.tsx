@@ -377,14 +377,18 @@ export default function TahfeezPage() {
 
           console.log('[tahfeez][advance] END OF PAGE → curPage:', curPage, 'rangeIdx:', currentPageIdx, '/', range.length - 1);
 
-          if (range.length > 1 && currentPageIdx >= 0 && currentPageIdx < range.length - 1) {
+          if (currentPageIdx >= 0 && currentPageIdx < range.length - 1) {
+            // Move to next page in range (auto-advance)
             const nextPageInRange = range[currentPageIdx + 1];
             setQuizPageIdx(currentPageIdx + 1);
+            autoResumeQuizRef.current = true;
             goToPage(nextPageInRange);
-          } else {
-            // Single page or end of range → go to next page
+          } else if (range.length <= 1) {
+            // Single page mode → advance to next page and continue quiz
+            autoResumeQuizRef.current = true;
             nextPage();
           }
+          // else: end of multi-page range → stop (already showing showAll)
         }, delayMs);
         return;
       }
@@ -826,6 +830,18 @@ export default function TahfeezPage() {
                   <Slider value={[timerSeconds]} onValueChange={([v]) => setTimerSeconds(v)} min={1} max={10} step={1} />
                 </div>
 
+                <div className="space-y-1">
+                  <label className="text-xs font-arabic text-muted-foreground">
+                    الانتقال التلقائي للصفحة التالية بعد: {useSettingsStore.getState().settings.autoplay.autoAdvanceDelay ?? 1.5} ثانية
+                  </label>
+                  <Slider
+                    value={[useSettingsStore.getState().settings.autoplay.autoAdvanceDelay ?? 1.5]}
+                    onValueChange={([v]) => useSettingsStore.getState().setAutoplay({ autoAdvanceDelay: v })}
+                    min={0.5} max={10} step={0.5}
+                  />
+                  <p className="text-[11px] font-arabic text-muted-foreground">ينتقل تلقائياً إلى الصفحة التالية بعد انتهاء الصفحة الحالية</p>
+                </div>
+
                 {/* Keep Screen Awake */}
                 <div className="flex items-center justify-between p-3 rounded-lg border">
                   <div>
@@ -990,6 +1006,18 @@ export default function TahfeezPage() {
               <Slider value={[timerSeconds]} onValueChange={([v]) => setTimerSeconds(v)} min={1} max={10} step={1} />
             </div>
 
+            <div className="space-y-1">
+              <label className="text-xs font-arabic text-muted-foreground">
+                الانتقال التلقائي للصفحة التالية بعد: {useSettingsStore.getState().settings.autoplay.autoAdvanceDelay ?? 1.5} ثانية
+              </label>
+              <Slider
+                value={[useSettingsStore.getState().settings.autoplay.autoAdvanceDelay ?? 1.5]}
+                onValueChange={([v]) => useSettingsStore.getState().setAutoplay({ autoAdvanceDelay: v })}
+                min={0.5} max={10} step={0.5}
+              />
+              <p className="text-[11px] font-arabic text-muted-foreground">ينتقل تلقائياً إلى الصفحة التالية بعد انتهاء الصفحة الحالية</p>
+            </div>
+
             {/* Keep Screen Awake */}
             <div className="flex items-center justify-between p-3 rounded-lg border">
               <div>
@@ -1061,18 +1089,15 @@ export default function TahfeezPage() {
                 <Eye className="w-4 h-4 ml-1" />
                 كشف الكل
               </Button>
-              {/* Next page in multi-page quiz */}
-              {quizPagesRange.length > 1 && showAll && quizPagesRange.indexOf(currentPage) < quizPagesRange.length - 1 && (
+              {/* Next page button — shown only at end of range for manual override */}
+              {showAll && quizPagesRange.indexOf(currentPage) < quizPagesRange.length - 1 && (
                 <Button variant="default" size="sm" onClick={() => {
+                  if (revealTimerRef.current) clearTimeout(revealTimerRef.current);
                   const nextIdx = quizPagesRange.indexOf(currentPage) + 1;
                   if (nextIdx < quizPagesRange.length) {
+                    autoResumeQuizRef.current = true;
                     goToPage(quizPagesRange[nextIdx]);
                     setQuizPageIdx(nextIdx);
-                    setShowAll(false);
-                    setRevealedKeys(new Set());
-                    setActiveBlankKey(null);
-                    setCurrentRevealIdx(-1);
-                    setBlankedKeysList([]);
                   }
                 }} className="font-arabic">
                   <ChevronsRight className="w-4 h-4 ml-1" />
