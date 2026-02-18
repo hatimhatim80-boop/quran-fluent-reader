@@ -40,15 +40,27 @@ export function useQuranData() {
           setPages(loadedPages);
           setGhareebPageMap(ghareebMap);
           
-          // Load saved progress
-          const saved = localStorage.getItem(STORAGE_KEY);
-          if (saved) {
-            try {
-              const progress: SavedProgress = JSON.parse(saved);
-              setCurrentPage(Math.min(progress.currentPage || 1, loadedPages.length));
-              setCurrentWordIndex(progress.currentWordIndex ?? -1);
-            } catch (e) {
-              console.error('Failed to load progress:', e);
+          // Check if there's a ghareeb range start page (set by GhareebEntryDialog)
+          // Must be read BEFORE saved progress so it takes priority
+          const ghareebStartPage = localStorage.getItem('quran-app-ghareeb-start-page');
+          if (ghareebStartPage) {
+            localStorage.removeItem('quran-app-ghareeb-start-page');
+            const pageNum = parseInt(ghareebStartPage, 10);
+            if (!isNaN(pageNum) && pageNum >= 1 && pageNum <= 604) {
+              setCurrentPage(Math.min(pageNum, loadedPages.length));
+              setCurrentWordIndex(-1);
+            }
+          } else {
+            // Load saved progress
+            const saved = localStorage.getItem(STORAGE_KEY);
+            if (saved) {
+              try {
+                const progress: SavedProgress = JSON.parse(saved);
+                setCurrentPage(Math.min(progress.currentPage || 1, loadedPages.length));
+                setCurrentWordIndex(progress.currentWordIndex ?? -1);
+              } catch (e) {
+                console.error('Failed to load progress:', e);
+              }
             }
           }
         }

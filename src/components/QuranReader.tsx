@@ -55,19 +55,8 @@ export function QuranReader() {
   const clearAllOverrides = useHighlightOverrideStore((s) => s.clearAllOverrides);
   useEffect(() => { clearAllOverrides(); }, [clearAllOverrides]);
 
-  // Navigate to ghareeb range start page if set
-  useEffect(() => {
-    const startPage = localStorage.getItem('quran-app-ghareeb-start-page');
-    if (startPage) {
-      localStorage.removeItem('quran-app-ghareeb-start-page');
-      const pageNum = parseInt(startPage, 10);
-      if (!isNaN(pageNum) && pageNum >= 1 && pageNum <= 604) {
-        goToPage(pageNum);
-      }
-    }
-  // Only run once on mount
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  // Note: ghareeb-start-page is now handled inside useQuranData loadData
+  // to avoid race condition with async setCurrentPage from saved progress
 
   // Auto-save session progress
   const activeSessionId = useSessionsStore((s) => s.activeSessionId);
