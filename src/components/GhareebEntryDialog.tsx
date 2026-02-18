@@ -11,8 +11,46 @@ const SURAHS = Object.entries(SURAH_NAMES)
   .map(([name, number]) => ({ number, name, startPage: SURAH_INFO[number]?.[0] || 1 }))
   .sort((a, b) => a.number - b.number);
 
-const JUZ_LIST = Array.from({ length: 30 }, (_, i) => ({ number: i + 1, name: `الجزء ${i + 1}` }));
+const JUZ_DATA: { number: number; page: number }[] = [
+  { number: 1, page: 1 }, { number: 2, page: 22 }, { number: 3, page: 42 },
+  { number: 4, page: 62 }, { number: 5, page: 82 }, { number: 6, page: 102 },
+  { number: 7, page: 121 }, { number: 8, page: 142 }, { number: 9, page: 162 },
+  { number: 10, page: 182 }, { number: 11, page: 201 }, { number: 12, page: 222 },
+  { number: 13, page: 242 }, { number: 14, page: 262 }, { number: 15, page: 282 },
+  { number: 16, page: 302 }, { number: 17, page: 322 }, { number: 18, page: 342 },
+  { number: 19, page: 362 }, { number: 20, page: 382 }, { number: 21, page: 402 },
+  { number: 22, page: 422 }, { number: 23, page: 442 }, { number: 24, page: 462 },
+  { number: 25, page: 482 }, { number: 26, page: 502 }, { number: 27, page: 522 },
+  { number: 28, page: 542 }, { number: 29, page: 562 }, { number: 30, page: 582 },
+];
+
+const JUZ_LIST = JUZ_DATA.map(j => ({ number: j.number, name: `الجزء ${j.number}` }));
 const HIZB_LIST = Array.from({ length: 60 }, (_, i) => ({ number: i + 1, name: `الحزب ${i + 1}` }));
+
+/** حساب أول صفحة في النطاق المحدد */
+function calcFirstPage(rangeType: string, from: number, to: number, pageFrom: number): number {
+  if (rangeType === 'page-range') return Math.min(from, to);
+  if (rangeType === 'surah') {
+    const f = Math.min(from, to);
+    return SURAH_INFO[f]?.[0] || 1;
+  }
+  if (rangeType === 'juz') {
+    const f = Math.min(from, to);
+    return JUZ_DATA[Math.max(0, f - 1)]?.page || 1;
+  }
+  if (rangeType === 'hizb') {
+    const f = Math.min(from, to);
+    const juzIdx = Math.floor((f - 1) / 2);
+    const isSecond = (f - 1) % 2 === 1;
+    const juz = JUZ_DATA[juzIdx];
+    if (!juz) return 1;
+    if (isSecond) {
+      return Math.floor((juz.page + (JUZ_DATA[juzIdx + 1]?.page || 605)) / 2);
+    }
+    return juz.page;
+  }
+  return pageFrom;
+}
 
 const STORAGE_KEY_CHOICE = 'ghareeb_entry_choice';
 const STORAGE_KEY_REMEMBER = 'ghareeb_entry_remember';
@@ -54,24 +92,38 @@ export function GhareebEntryDialog({ open, onClose }: GhareebEntryDialogProps) {
   };
 
   const handleRangeConfirm = () => {
+    let rangeTypeVal: 'surah' | 'page-range' | 'juz' | 'hizb';
+    let from: number, to: number;
+
     if (rangeType === 'surah') {
-      setAutoplay({ ghareebRangeType: 'surah', ghareebRangeFrom: surahFrom, ghareebRangeTo: surahTo });
+      rangeTypeVal = 'surah';
+      from = surahFrom; to = surahTo;
     } else if (rangeType === 'pages') {
-      setAutoplay({ ghareebRangeType: 'page-range', ghareebRangeFrom: pageFrom, ghareebRangeTo: pageTo });
+      rangeTypeVal = 'page-range';
+      from = pageFrom; to = pageTo;
     } else if (rangeType === 'juz') {
-      setAutoplay({ ghareebRangeType: 'juz', ghareebRangeFrom: juzFrom, ghareebRangeTo: juzTo });
-    } else if (rangeType === 'hizb') {
-      setAutoplay({ ghareebRangeType: 'hizb', ghareebRangeFrom: hizbFrom, ghareebRangeTo: hizbTo });
+      rangeTypeVal = 'juz';
+      from = juzFrom; to = juzTo;
+    } else {
+      rangeTypeVal = 'hizb';
+      from = hizbFrom; to = hizbTo;
     }
+
+    setAutoplay({ ghareebRangeType: rangeTypeVal, ghareebRangeFrom: from, ghareebRangeTo: to });
 
     if (remember) {
       localStorage.setItem(STORAGE_KEY_CHOICE, 'range');
       localStorage.setItem(STORAGE_KEY_REMEMBER, 'true');
     }
 
+    // احسب أول صفحة في النطاق وخزّنها لـ QuranReader يبدأ منها
+    const firstPage = calcFirstPage(rangeTypeVal, from, to, pageFrom);
+    localStorage.setItem('quran-app-ghareeb-start-page', String(firstPage));
+
     onClose();
     navigate('/mushaf');
   };
+
 
   const handleBack = () => setStep('choose');
 
