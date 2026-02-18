@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { SettingsLivePreview } from './SettingsLivePreview';
-import { Type, Palette, LayoutGrid, Settings2, RotateCcw, Download, Upload, Zap, Bug, Check, Rows3, RefreshCw } from 'lucide-react';
+import { Type, Palette, LayoutGrid, Settings2, RotateCcw, Download, Upload, Zap, Bug, Check, Rows3, RefreshCw, Trash2 } from 'lucide-react';
+import { hardRefreshClean } from '@/utils/hardRefreshClean';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Slider } from '@/components/ui/slider';
@@ -947,6 +948,32 @@ export function SettingsDialog({ children }: SettingsDialogProps) {
           {/* Update Tab */}
           <TabsContent value="update" className="space-y-5 mt-4">
             <DataUpdatePanel />
+
+            {/* Hard Refresh */}
+            <div className="mt-4 p-4 rounded-lg border border-destructive/30 bg-destructive/5 space-y-3">
+              <div>
+                <p className="font-arabic font-bold text-sm text-destructive flex items-center gap-2">
+                  <Trash2 className="w-4 h-4" />
+                  تنظيف الكاش وإعادة التحميل
+                </p>
+                <p className="text-xs text-muted-foreground font-arabic mt-1">
+                  يمسح Service Worker + Cache + localStorage + IndexedDB ثم يُعيد تحميل التطبيق من الصفر. مفيد عند ظهور أخطاء بسبب نسخة قديمة.
+                </p>
+              </div>
+              <Button
+                variant="destructive"
+                size="sm"
+                className="w-full gap-2 font-arabic"
+                onClick={async () => {
+                  if (confirm('سيتم مسح جميع البيانات المحفوظة وإعادة تحميل التطبيق. هل أنت متأكد؟')) {
+                    await hardRefreshClean();
+                  }
+                }}
+              >
+                <Trash2 className="w-4 h-4" />
+                تنظيف الكاش وإعادة التحميل
+              </Button>
+            </div>
           </TabsContent>
         </Tabs>
 

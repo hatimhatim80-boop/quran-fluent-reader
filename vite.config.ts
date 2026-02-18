@@ -20,6 +20,11 @@ export default defineConfig(({ mode }) => ({
       registerType: "autoUpdate",
       includeAssets: ["favicon.ico", "data/**/*"],
       workbox: {
+        // تحديث فوري: لا تنتظر إغلاق كل التبويبات
+        clientsClaim: true,
+        skipWaiting: true,
+        // حذف caches النسخ القديمة تلقائيًا
+        cleanupOutdatedCaches: true,
         globPatterns: ["**/*.{js,css,html,ico,png,svg,woff,woff2,txt,xml,json}"],
         maximumFileSizeToCacheInBytes: 10 * 1024 * 1024, // 10MB for large data files
         navigateFallbackDenylist: [/^\/~oauth/],
