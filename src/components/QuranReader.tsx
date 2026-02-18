@@ -105,6 +105,10 @@ export function QuranReader() {
   const ghareebRangeTo = useSettingsStore(s => s.settings.autoplay.ghareebRangeTo);
   const autoPlayOnWordClick = useSettingsStore(s => s.settings.autoplay.autoPlayOnWordClick);
 
+  // Keep currentPage in a ref so handlePageEnd always reads the latest value (avoids stale closure)
+  const currentPageRef = React.useRef(currentPage);
+  useEffect(() => { currentPageRef.current = currentPage; }, [currentPage]);
+
   // Compute pages range for Ghareeb auto-advance
   const ghareebPagesRange = useMemo(() => {
     if (ghareebRangeType === 'all') return null; // no restriction
@@ -161,23 +165,35 @@ export function QuranReader() {
     return null;
   }, [ghareebRangeType, ghareebRangeFrom, ghareebRangeTo]);
 
-  // Determine what nextPage to call based on range
+  // Determine what nextPage to call based on range.
+  // Uses currentPageRef (not currentPage state) to always read the LATEST page
+  // and avoid stale closure bugs in setTimeout chains.
+  const ghareebPagesRangeRef = React.useRef(ghareebPagesRange);
+  useEffect(() => { ghareebPagesRangeRef.current = ghareebPagesRange; }, [ghareebPagesRange]);
+  const autoAdvancePageRef = React.useRef(autoAdvancePage);
+  useEffect(() => { autoAdvancePageRef.current = autoAdvancePage; }, [autoAdvancePage]);
+
   const handlePageEnd = useCallback(() => {
-    if (!autoAdvancePage) return;
-    if (ghareebPagesRange) {
-      const idx = ghareebPagesRange.indexOf(currentPage);
-      if (idx >= 0 && idx < ghareebPagesRange.length - 1) {
-        goToPage(ghareebPagesRange[idx + 1]);
+    if (!autoAdvancePageRef.current) return;
+    const curPage = currentPageRef.current;
+    const range = ghareebPagesRangeRef.current;
+    console.log('[handlePageEnd] curPage:', curPage, 'range:', range ? `${range[0]}-${range[range.length-1]}` : 'all');
+    if (range) {
+      const idx = range.indexOf(curPage);
+      if (idx >= 0 && idx < range.length - 1) {
+        goToPage(range[idx + 1]);
       }
-      // else: stop at end of range
+      // else: end of range - stop
     } else {
       nextPage();
     }
-  }, [autoAdvancePage, ghareebPagesRange, currentPage, goToPage, nextPage]);
+  // goToPage and nextPage are stable from useQuranData
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [goToPage, nextPage]);
 
   const {
     isPlaying, speed, setSpeed, play, pause, stop, nextWord, prevWord, jumpTo,
-  } = useAutoPlay({ words: renderedWords, currentWordIndex, setCurrentWordIndex, onPageEnd: autoAdvancePage ? handlePageEnd : undefined });
+  } = useAutoPlay({ words: renderedWords, currentWordIndex, setCurrentWordIndex, onPageEnd: handlePageEnd });
 
   const handleRenderedWordsChange = useCallback((words: GhareebWord[]) => {
     if (settings.debugMode) console.log('[QuranReader] Rendered words:', words.length);

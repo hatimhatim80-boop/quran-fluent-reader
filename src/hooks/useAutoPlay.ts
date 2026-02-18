@@ -30,6 +30,8 @@ export function useAutoPlay({
   const wordsRef = useRef(words);
   const speedRef = useRef(speed);
   const isPlayingRef = useRef(isPlaying);
+  // onPageEnd ref so scheduleNext always calls the latest version (no stale closure)
+  const onPageEndRef = useRef(onPageEnd);
 
   // Keep refs in sync
   useEffect(() => {
@@ -48,6 +50,10 @@ export function useAutoPlay({
   useEffect(() => {
     isPlayingRef.current = isPlaying;
   }, [isPlaying]);
+
+  useEffect(() => {
+    onPageEndRef.current = onPageEnd;
+  }, [onPageEnd]);
 
   const clearTimer = useCallback(() => {
     if (timeoutRef.current) {
@@ -146,17 +152,18 @@ export function useAutoPlay({
           timeoutRef.current = setTimeout(() => {
             if (!isPlayingRef.current) return;
             repeatCountRef.current = 0;
-            // Keep isPlaying=true so the page-change effect auto-resumes on the new page
-            if (onPageEnd) {
+            // Use ref to always call the latest onPageEnd (avoids stale closure)
+            const pageEndFn = onPageEndRef.current;
+            if (pageEndFn) {
               timeoutRef.current = setTimeout(() => {
-                onPageEnd();
+                pageEndFn();
               }, advanceDelay);
             }
           }, lastWordDuration);
         }
       }
     }, delayMs);
-  }, [setCurrentWordIndex, onPageEnd, scrollToActiveWord]);
+  }, [setCurrentWordIndex, scrollToActiveWord]);
 
   const play = useCallback(() => {
     // IGNORE if already playing - prevent double timers
