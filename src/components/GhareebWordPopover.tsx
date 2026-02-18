@@ -240,11 +240,22 @@ export function GhareebWordPopover({
     .filter(Boolean)
     .join(" ");
 
+  // When active: force inline style to override CSS variables set on :root
+  // CSS class !important cannot override inline CSS variables on :root
+  const activeWordStyle: React.CSSProperties = isHighlighted && highlightStyle !== 'text-only'
+    ? {
+        backgroundColor: 'hsl(200 70% 78% / 0.7)',
+        borderColor: 'hsl(200 70% 45% / 0.8)',
+        boxShadow: '0 0 10px 3px hsl(200 70% 60% / 0.45)',
+      }
+    : {};
+
   return (
     <>
       <span
         ref={wordRef}
         className={wordClasses}
+        style={activeWordStyle}
         data-ghareeb-index={index}
         data-ghareeb-key={word.uniqueKey}
         data-surah-number={word.surahNumber}

@@ -264,28 +264,30 @@ export function useAutoPlay({
   }, [setCurrentWordIndex, clearTimer, scheduleNext]);
 
   // Reset when words change (page change) while playing
+  // Use ref to avoid stale closure - isPlayingRef always has latest value
   useEffect(() => {
-    if (!isPlaying) return;
+    if (!isPlayingRef.current) return;
     if (words.length === 0) return;
     
     console.log('[autoplay] Page changed while playing, resetting to 0, words:', words.length);
     clearTimer();
     setCurrentWordIndex(0);
     currentIndexRef.current = 0;
-    isPlayingRef.current = true;
     scrollToActiveWord(0);
     
     // Notify parent that a new page started (so Tahfeez can reset quiz state)
     onPageStart?.();
 
-    // Small delay to ensure DOM is updated with new words before scheduling
+    // Delay to ensure DOM is updated with new words before scheduling
     const t = setTimeout(() => {
       if (isPlayingRef.current) {
+        console.log('[autoplay] Auto-resuming after page change, words:', wordsRef.current.length);
         scheduleNext();
       }
-    }, 400);
+    }, 500);
     return () => clearTimeout(t);
-  }, [words, isPlaying, clearTimer, setCurrentWordIndex, scheduleNext, scrollToActiveWord, onPageStart]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [words]);
 
   // Cleanup on unmount
   useEffect(() => {

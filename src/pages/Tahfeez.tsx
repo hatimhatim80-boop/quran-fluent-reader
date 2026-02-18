@@ -228,7 +228,7 @@ export default function TahfeezPage() {
       setBlankedKeysList([]);
       setFirstKeysSet(new Set());
       setIsPaused(false);
-      // Flag to auto-start when blanked keys are loaded
+      // Flag to auto-start when blanked keys are loaded from DOM
       autoResumeQuizRef.current = true;
     }
   }, [currentPage, quizStarted]);
@@ -242,25 +242,35 @@ export default function TahfeezPage() {
         try {
           const keys = JSON.parse(el.getAttribute('data-keys') || '[]');
           const fKeys = JSON.parse(el.getAttribute('data-first-keys') || '[]');
-          if (keys.length > 0 && JSON.stringify(keys) !== JSON.stringify(blankedKeysList)) {
-            setBlankedKeysList(keys);
-            setFirstKeysSet(new Set(fKeys));
-            // Auto-resume if flagged (after page transition)
+          if (keys.length > 0) {
+            const keysStr = JSON.stringify(keys);
+            const currentStr = JSON.stringify(blankedKeysList);
+            if (keysStr !== currentStr) {
+              setBlankedKeysList(keys);
+              setFirstKeysSet(new Set(fKeys));
+            }
+            // Auto-resume if flagged (after page transition) - set idx AFTER keys are set
             if (autoResumeQuizRef.current) {
               autoResumeQuizRef.current = false;
-              setCurrentRevealIdx(0);
+              // Small extra delay so blankedKeysList state is committed
+              setTimeout(() => {
+                setCurrentRevealIdx(0);
+              }, 100);
             }
           }
         } catch {}
       }
     };
-    const timer = setTimeout(readKeys, 200);
+    // Give the quiz view time to render and expose keys
+    const timer = setTimeout(readKeys, 300);
     return () => clearTimeout(timer);
-  }, [quizStarted, pageData]);
+  }, [quizStarted, pageData, currentPage]);
 
   // Auto-reveal sequencing
   useEffect(() => {
     if (!quizStarted || isPaused || showAll || blankedKeysList.length === 0) return;
+    // Don't start if currentRevealIdx is still -1 (waiting for auto-resume)
+    if (currentRevealIdx < 0) return;
 
     const revealNext = (idx: number) => {
       if (idx >= blankedKeysList.length) {
@@ -271,7 +281,9 @@ export default function TahfeezPage() {
         if (autoplaySettings.autoAdvancePage) {
           const delayMs = (autoplaySettings.autoAdvanceDelay || 1.5) * 1000;
           revealTimerRef.current = setTimeout(() => {
-            const currentPageIdx = quizPagesRange.indexOf(currentPage);
+            // Read currentPage fresh from quizPagesRange
+            const curPage = prevPageRef.current;
+            const currentPageIdx = quizPagesRange.indexOf(curPage);
             if (quizPagesRange.length > 1 && currentPageIdx >= 0 && currentPageIdx < quizPagesRange.length - 1) {
               // Navigate within defined range
               const nextPageInRange = quizPagesRange[currentPageIdx + 1];
@@ -311,7 +323,7 @@ export default function TahfeezPage() {
       }
     };
 
-    const startIdx = currentRevealIdx < 0 ? 0 : currentRevealIdx;
+    const startIdx = currentRevealIdx;
     if (startIdx < blankedKeysList.length && !revealedKeys.has(blankedKeysList[startIdx])) {
       revealNext(startIdx);
     }
