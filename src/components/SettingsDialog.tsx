@@ -928,6 +928,93 @@ export function SettingsDialog({ children }: SettingsDialogProps) {
 
             <div className="h-px bg-border my-4" />
 
+            {/* Ghareeb Range */}
+            <div className="space-y-3">
+              <Label className="font-arabic font-bold">نطاق بوابة الغريب</Label>
+              <p className="text-xs text-muted-foreground font-arabic">يحدد نطاق التشغيل التلقائي وانتقال الصفحات في بوابة الغريب</p>
+              <div className="flex flex-wrap gap-2">
+                {([
+                  { value: 'all', label: 'كل القرآن' },
+                  { value: 'page-range', label: 'نطاق صفحات' },
+                  { value: 'surah', label: 'سورة' },
+                  { value: 'juz', label: 'جزء' },
+                  { value: 'hizb', label: 'حزب' },
+                ] as const).map(opt => (
+                  <Button
+                    key={opt.value}
+                    variant={settings.autoplay.ghareebRangeType === opt.value ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setAutoplay({ ghareebRangeType: opt.value })}
+                    className="font-arabic text-xs"
+                  >
+                    {opt.label}
+                  </Button>
+                ))}
+              </div>
+
+              {settings.autoplay.ghareebRangeType === 'page-range' && (
+                <div className="flex items-center gap-2">
+                  <label className="text-xs font-arabic text-muted-foreground whitespace-nowrap">من:</label>
+                  <Input type="number" min={1} max={604}
+                    value={settings.autoplay.ghareebRangeFrom}
+                    onChange={e => setAutoplay({ ghareebRangeFrom: Math.max(1, Math.min(604, parseInt(e.target.value) || 1)) })}
+                    className="h-8 text-xs w-20" />
+                  <label className="text-xs font-arabic text-muted-foreground whitespace-nowrap">إلى:</label>
+                  <Input type="number" min={1} max={604}
+                    value={settings.autoplay.ghareebRangeTo}
+                    onChange={e => setAutoplay({ ghareebRangeTo: Math.max(1, Math.min(604, parseInt(e.target.value) || 1)) })}
+                    className="h-8 text-xs w-20" />
+                </div>
+              )}
+
+              {settings.autoplay.ghareebRangeType === 'surah' && (
+                <div className="flex items-center gap-2">
+                  <label className="text-xs font-arabic text-muted-foreground whitespace-nowrap">من:</label>
+                  <Select value={String(settings.autoplay.ghareebRangeFrom)} onValueChange={v => setAutoplay({ ghareebRangeFrom: parseInt(v) })}>
+                    <SelectTrigger className="h-8 text-xs font-arabic flex-1"><SelectValue /></SelectTrigger>
+                    <SelectContent>{SURAHS_SETTINGS.map(s => <SelectItem key={s.number} value={String(s.number)} className="text-xs font-arabic">{s.number}. {s.name}</SelectItem>)}</SelectContent>
+                  </Select>
+                  <label className="text-xs font-arabic text-muted-foreground whitespace-nowrap">إلى:</label>
+                  <Select value={String(settings.autoplay.ghareebRangeTo)} onValueChange={v => setAutoplay({ ghareebRangeTo: parseInt(v) })}>
+                    <SelectTrigger className="h-8 text-xs font-arabic flex-1"><SelectValue /></SelectTrigger>
+                    <SelectContent>{SURAHS_SETTINGS.map(s => <SelectItem key={s.number} value={String(s.number)} className="text-xs font-arabic">{s.number}. {s.name}</SelectItem>)}</SelectContent>
+                  </Select>
+                </div>
+              )}
+
+              {settings.autoplay.ghareebRangeType === 'juz' && (
+                <div className="flex items-center gap-2">
+                  <label className="text-xs font-arabic text-muted-foreground whitespace-nowrap">من جزء:</label>
+                  <Input type="number" min={1} max={30}
+                    value={settings.autoplay.ghareebRangeFrom}
+                    onChange={e => setAutoplay({ ghareebRangeFrom: Math.max(1, Math.min(30, parseInt(e.target.value) || 1)) })}
+                    className="h-8 text-xs w-16" />
+                  <label className="text-xs font-arabic text-muted-foreground whitespace-nowrap">إلى جزء:</label>
+                  <Input type="number" min={1} max={30}
+                    value={settings.autoplay.ghareebRangeTo}
+                    onChange={e => setAutoplay({ ghareebRangeTo: Math.max(1, Math.min(30, parseInt(e.target.value) || 1)) })}
+                    className="h-8 text-xs w-16" />
+                </div>
+              )}
+
+              {settings.autoplay.ghareebRangeType === 'hizb' && (
+                <div className="flex items-center gap-2">
+                  <label className="text-xs font-arabic text-muted-foreground whitespace-nowrap">من حزب:</label>
+                  <Input type="number" min={1} max={60}
+                    value={settings.autoplay.ghareebRangeFrom}
+                    onChange={e => setAutoplay({ ghareebRangeFrom: Math.max(1, Math.min(60, parseInt(e.target.value) || 1)) })}
+                    className="h-8 text-xs w-16" />
+                  <label className="text-xs font-arabic text-muted-foreground whitespace-nowrap">إلى حزب:</label>
+                  <Input type="number" min={1} max={60}
+                    value={settings.autoplay.ghareebRangeTo}
+                    onChange={e => setAutoplay({ ghareebRangeTo: Math.max(1, Math.min(60, parseInt(e.target.value) || 1)) })}
+                    className="h-8 text-xs w-16" />
+                </div>
+              )}
+            </div>
+
+            <div className="h-px bg-border my-4" />
+
             <div className="flex items-center justify-between p-3 rounded-lg border">
               <div>
                 <Label className="font-arabic flex items-center gap-2">
