@@ -41,8 +41,9 @@ export async function hardRefreshClean(): Promise<void> {
       }
     }
   } finally {
-    // إعادة التحميل بدون cache (force-reload)
-    window.location.href = window.location.href;
-    location.reload();
+    // إعادة التحميل بدون cache — أضف timestamp لكسر أي cache في المتصفح
+    const url = new URL(window.location.href);
+    url.searchParams.set('_nocache', Date.now().toString());
+    window.location.replace(url.toString());
   }
 }

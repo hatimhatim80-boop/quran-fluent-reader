@@ -10,6 +10,7 @@ import NotFound from "./pages/NotFound";
 import ValidationReport from "./pages/ValidationReport";
 import Tahfeez from "./pages/Tahfeez";
 import { initOTA } from "./services/otaUpdateService";
+import { UpdateBanner } from "./components/UpdateBanner";
 
 const queryClient = new QueryClient();
 
@@ -21,6 +22,7 @@ const App = () => {
   return (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
+      <UpdateBanner />
       <Toaster />
       <Sonner />
       <BrowserRouter>
