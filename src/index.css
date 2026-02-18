@@ -871,13 +871,17 @@
     filter: brightness(0.92);
   }
 
+  /* Active word: override ALL colors with !important - must override CSS variables too */
   .ghareeb-word--active:not(.ghareeb-word--text-only) {
-    background-color: hsl(200 70% 80% / 0.45) !important;
-    border-color: hsl(200 70% 50% / 0.6) !important;
-    box-shadow: 0 0 10px 3px hsl(200 70% 60% / 0.35) !important;
-    /* Force override even when --ghareeb-bg-color is set */
-    --ghareeb-bg-color: hsl(200 70% 80% / 0.45) !important;
-    --ghareeb-border-color: hsl(200 70% 50% / 0.6) !important;
+    background-color: hsl(200 70% 78% / 0.7) !important;
+    border-color: hsl(200 70% 45% / 0.8) !important;
+    box-shadow: 0 0 10px 3px hsl(200 70% 60% / 0.45) !important;
+  }
+  /* Also override the CSS variable selectors for active words */
+  .ghareeb-word--active:not(.ghareeb-word--text-only)[style*="background"],
+  [style*="--ghareeb-bg-color"] .ghareeb-word--active:not(.ghareeb-word--text-only) {
+    background-color: hsl(200 70% 78% / 0.7) !important;
+    border-color: hsl(200 70% 45% / 0.8) !important;
   }
 
   /* Active word in text-only mode: change text color to golden */
