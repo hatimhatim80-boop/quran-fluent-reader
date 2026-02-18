@@ -239,7 +239,6 @@ export function QuranReader() {
     currentWordIndex,
     setCurrentWordIndex,
     onPageEnd: handlePageEnd,
-    onPageFinished: handlePageFinished,
     portal: 'غريب',
     currentPage,
   });
