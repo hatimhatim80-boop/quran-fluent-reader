@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { BookOpen, Map, ArrowLeft, Settings } from 'lucide-react';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
@@ -11,18 +11,14 @@ const SURAHS = Object.entries(SURAH_NAMES)
   .map(([name, number]) => ({ number, name, startPage: SURAH_INFO[number]?.[0] || 1 }))
   .sort((a, b) => a.number - b.number);
 
+const JUZ_LIST = Array.from({ length: 30 }, (_, i) => ({ number: i + 1, name: `الجزء ${i + 1}` }));
+const HIZB_LIST = Array.from({ length: 60 }, (_, i) => ({ number: i + 1, name: `الحزب ${i + 1}` }));
+
 const STORAGE_KEY_CHOICE = 'ghareeb_entry_choice';
 const STORAGE_KEY_REMEMBER = 'ghareeb_entry_remember';
 
 type EntryChoice = 'range' | 'direct';
-
-interface RangeConfig {
-  type: 'surah' | 'pages';
-  surahFrom?: number;
-  surahTo?: number;
-  pageFrom?: number;
-  pageTo?: number;
-}
+type RangeTabType = 'surah' | 'pages' | 'juz' | 'hizb';
 
 interface GhareebEntryDialogProps {
   open: boolean;
@@ -34,11 +30,15 @@ export function GhareebEntryDialog({ open, onClose }: GhareebEntryDialogProps) {
   const setAutoplay = useSettingsStore((s) => s.setAutoplay);
   const [remember, setRemember] = useState(false);
   const [step, setStep] = useState<'choose' | 'range'>('choose');
-  const [rangeType, setRangeType] = useState<'surah' | 'pages'>('surah');
+  const [rangeType, setRangeType] = useState<RangeTabType>('surah');
   const [surahFrom, setSurahFrom] = useState(1);
   const [surahTo, setSurahTo] = useState(1);
   const [pageFrom, setPageFrom] = useState(1);
   const [pageTo, setPageTo] = useState(10);
+  const [juzFrom, setJuzFrom] = useState(1);
+  const [juzTo, setJuzTo] = useState(1);
+  const [hizbFrom, setHizbFrom] = useState(1);
+  const [hizbTo, setHizbTo] = useState(1);
 
   const handleDirectEntry = () => {
     if (remember) {
@@ -54,19 +54,14 @@ export function GhareebEntryDialog({ open, onClose }: GhareebEntryDialogProps) {
   };
 
   const handleRangeConfirm = () => {
-    // Apply range to autoplay settings
     if (rangeType === 'surah') {
-      setAutoplay({
-        ghareebRangeType: 'surah',
-        ghareebRangeFrom: surahFrom,
-        ghareebRangeTo: surahTo,
-      });
-    } else {
-      setAutoplay({
-        ghareebRangeType: 'page-range',
-        ghareebRangeFrom: pageFrom,
-        ghareebRangeTo: pageTo,
-      });
+      setAutoplay({ ghareebRangeType: 'surah', ghareebRangeFrom: surahFrom, ghareebRangeTo: surahTo });
+    } else if (rangeType === 'pages') {
+      setAutoplay({ ghareebRangeType: 'page-range', ghareebRangeFrom: pageFrom, ghareebRangeTo: pageTo });
+    } else if (rangeType === 'juz') {
+      setAutoplay({ ghareebRangeType: 'juz', ghareebRangeFrom: juzFrom, ghareebRangeTo: juzTo });
+    } else if (rangeType === 'hizb') {
+      setAutoplay({ ghareebRangeType: 'hizb', ghareebRangeFrom: hizbFrom, ghareebRangeTo: hizbTo });
     }
 
     if (remember) {
@@ -80,12 +75,18 @@ export function GhareebEntryDialog({ open, onClose }: GhareebEntryDialogProps) {
 
   const handleBack = () => setStep('choose');
 
+  const RANGE_TABS: { id: RangeTabType; label: string }[] = [
+    { id: 'surah', label: 'سورة' },
+    { id: 'pages', label: 'صفحات' },
+    { id: 'juz', label: 'جزء' },
+    { id: 'hizb', label: 'حزب' },
+  ];
+
   return (
     <Dialog open={open} onOpenChange={() => {}}>
       <DialogContent
         className="max-w-sm w-full p-0 overflow-hidden rounded-2xl border-border"
         dir="rtl"
-        // prevent closing on outside click
         onPointerDownOutside={(e) => e.preventDefault()}
         onEscapeKeyDown={(e) => e.preventDefault()}
       >
@@ -102,7 +103,6 @@ export function GhareebEntryDialog({ open, onClose }: GhareebEntryDialogProps) {
 
             {/* Options */}
             <div className="p-5 space-y-3">
-              {/* Range option */}
               <button
                 onClick={handleRangeChoice}
                 className="w-full p-4 rounded-xl border-2 border-border hover:border-primary/60 hover:bg-primary/5 transition-all text-right flex items-center gap-4 group"
@@ -112,12 +112,11 @@ export function GhareebEntryDialog({ open, onClose }: GhareebEntryDialogProps) {
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="font-bold font-arabic text-foreground text-sm">اختيار نطاق</div>
-                  <div className="text-xs font-arabic text-muted-foreground mt-0.5">حدد السور أو الصفحات التي تريد مراجعتها</div>
+                  <div className="text-xs font-arabic text-muted-foreground mt-0.5">حدد السور أو الصفحات أو الجزء أو الحزب</div>
                 </div>
                 <ArrowLeft className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors" />
               </button>
 
-              {/* Direct entry */}
               <button
                 onClick={handleDirectEntry}
                 className="w-full p-4 rounded-xl border-2 border-border hover:border-primary/60 hover:bg-primary/5 transition-all text-right flex items-center gap-4 group"
@@ -171,39 +170,31 @@ export function GhareebEntryDialog({ open, onClose }: GhareebEntryDialogProps) {
 
             {/* Range selector */}
             <div className="p-5 space-y-4">
-              {/* Type tabs */}
+              {/* Type tabs - 4 options */}
               <div className="flex rounded-lg border border-border overflow-hidden">
-                <button
-                  onClick={() => setRangeType('surah')}
-                  className={`flex-1 py-2 text-sm font-arabic transition-colors ${
-                    rangeType === 'surah' ? 'bg-primary text-primary-foreground' : 'hover:bg-muted text-muted-foreground'
-                  }`}
-                >
-                  بالسورة
-                </button>
-                <button
-                  onClick={() => setRangeType('pages')}
-                  className={`flex-1 py-2 text-sm font-arabic transition-colors ${
-                    rangeType === 'pages' ? 'bg-primary text-primary-foreground' : 'hover:bg-muted text-muted-foreground'
-                  }`}
-                >
-                  بالصفحات
-                </button>
+                {RANGE_TABS.map((tab) => (
+                  <button
+                    key={tab.id}
+                    onClick={() => setRangeType(tab.id)}
+                    className={`flex-1 py-2 text-xs font-arabic transition-colors ${
+                      rangeType === tab.id ? 'bg-primary text-primary-foreground' : 'hover:bg-muted text-muted-foreground'
+                    }`}
+                  >
+                    {tab.label}
+                  </button>
+                ))}
               </div>
 
-              {rangeType === 'surah' ? (
+              {/* Surah */}
+              {rangeType === 'surah' && (
                 <div className="space-y-3">
                   <div className="space-y-1">
                     <Label className="font-arabic text-xs text-muted-foreground">من سورة</Label>
                     <Select value={String(surahFrom)} onValueChange={(v) => setSurahFrom(Number(v))}>
-                      <SelectTrigger className="font-arabic">
-                        <SelectValue />
-                      </SelectTrigger>
+                      <SelectTrigger className="font-arabic"><SelectValue /></SelectTrigger>
                       <SelectContent className="max-h-60">
                         {SURAHS.map((s) => (
-                          <SelectItem key={s.number} value={String(s.number)} className="font-arabic">
-                            {s.number}. {s.name}
-                          </SelectItem>
+                          <SelectItem key={s.number} value={String(s.number)} className="font-arabic">{s.number}. {s.name}</SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
@@ -211,28 +202,24 @@ export function GhareebEntryDialog({ open, onClose }: GhareebEntryDialogProps) {
                   <div className="space-y-1">
                     <Label className="font-arabic text-xs text-muted-foreground">إلى سورة</Label>
                     <Select value={String(surahTo)} onValueChange={(v) => setSurahTo(Number(v))}>
-                      <SelectTrigger className="font-arabic">
-                        <SelectValue />
-                      </SelectTrigger>
+                      <SelectTrigger className="font-arabic"><SelectValue /></SelectTrigger>
                       <SelectContent className="max-h-60">
                         {SURAHS.filter((s) => s.number >= surahFrom).map((s) => (
-                          <SelectItem key={s.number} value={String(s.number)} className="font-arabic">
-                            {s.number}. {s.name}
-                          </SelectItem>
+                          <SelectItem key={s.number} value={String(s.number)} className="font-arabic">{s.number}. {s.name}</SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
                   </div>
                 </div>
-              ) : (
+              )}
+
+              {/* Pages */}
+              {rangeType === 'pages' && (
                 <div className="space-y-3">
                   <div className="space-y-1">
                     <Label className="font-arabic text-xs text-muted-foreground">من صفحة</Label>
                     <input
-                      type="number"
-                      min={1}
-                      max={604}
-                      value={pageFrom}
+                      type="number" min={1} max={604} value={pageFrom}
                       onChange={(e) => setPageFrom(Math.min(604, Math.max(1, Number(e.target.value))))}
                       className="w-full h-10 rounded-md border border-input bg-background px-3 py-2 text-base text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                       dir="ltr"
@@ -241,14 +228,67 @@ export function GhareebEntryDialog({ open, onClose }: GhareebEntryDialogProps) {
                   <div className="space-y-1">
                     <Label className="font-arabic text-xs text-muted-foreground">إلى صفحة</Label>
                     <input
-                      type="number"
-                      min={pageFrom}
-                      max={604}
-                      value={pageTo}
+                      type="number" min={pageFrom} max={604} value={pageTo}
                       onChange={(e) => setPageTo(Math.min(604, Math.max(pageFrom, Number(e.target.value))))}
                       className="w-full h-10 rounded-md border border-input bg-background px-3 py-2 text-base text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                       dir="ltr"
                     />
+                  </div>
+                </div>
+              )}
+
+              {/* Juz */}
+              {rangeType === 'juz' && (
+                <div className="space-y-3">
+                  <div className="space-y-1">
+                    <Label className="font-arabic text-xs text-muted-foreground">من جزء</Label>
+                    <Select value={String(juzFrom)} onValueChange={(v) => { const n = Number(v); setJuzFrom(n); if (juzTo < n) setJuzTo(n); }}>
+                      <SelectTrigger className="font-arabic"><SelectValue /></SelectTrigger>
+                      <SelectContent className="max-h-60">
+                        {JUZ_LIST.map((j) => (
+                          <SelectItem key={j.number} value={String(j.number)} className="font-arabic">{j.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="font-arabic text-xs text-muted-foreground">إلى جزء</Label>
+                    <Select value={String(juzTo)} onValueChange={(v) => setJuzTo(Number(v))}>
+                      <SelectTrigger className="font-arabic"><SelectValue /></SelectTrigger>
+                      <SelectContent className="max-h-60">
+                        {JUZ_LIST.filter((j) => j.number >= juzFrom).map((j) => (
+                          <SelectItem key={j.number} value={String(j.number)} className="font-arabic">{j.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              )}
+
+              {/* Hizb */}
+              {rangeType === 'hizb' && (
+                <div className="space-y-3">
+                  <div className="space-y-1">
+                    <Label className="font-arabic text-xs text-muted-foreground">من حزب</Label>
+                    <Select value={String(hizbFrom)} onValueChange={(v) => { const n = Number(v); setHizbFrom(n); if (hizbTo < n) setHizbTo(n); }}>
+                      <SelectTrigger className="font-arabic"><SelectValue /></SelectTrigger>
+                      <SelectContent className="max-h-60">
+                        {HIZB_LIST.map((h) => (
+                          <SelectItem key={h.number} value={String(h.number)} className="font-arabic">{h.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="font-arabic text-xs text-muted-foreground">إلى حزب</Label>
+                    <Select value={String(hizbTo)} onValueChange={(v) => setHizbTo(Number(v))}>
+                      <SelectTrigger className="font-arabic"><SelectValue /></SelectTrigger>
+                      <SelectContent className="max-h-60">
+                        {HIZB_LIST.filter((h) => h.number >= hizbFrom).map((h) => (
+                          <SelectItem key={h.number} value={String(h.number)} className="font-arabic">{h.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
               )}
@@ -310,21 +350,12 @@ export function GhareebEntryResetButton({ onReset }: { onReset: () => void }) {
 export function useGhareebEntry() {
   const [showDialog, setShowDialog] = useState(false);
   const navigate = useNavigate();
-  const setAutoplay = useSettingsStore((s) => s.setAutoplay);
 
   const triggerEntry = () => {
     const remember = localStorage.getItem(STORAGE_KEY_REMEMBER) === 'true';
     if (remember) {
-      const choice = localStorage.getItem(STORAGE_KEY_CHOICE) as EntryChoice | null;
-      if (choice === 'direct') {
-        navigate('/mushaf');
-        return;
-      }
-      if (choice === 'range') {
-        // Go directly with whatever range is saved in settings store
-        navigate('/mushaf');
-        return;
-      }
+      navigate('/mushaf');
+      return;
     }
     setShowDialog(true);
   };

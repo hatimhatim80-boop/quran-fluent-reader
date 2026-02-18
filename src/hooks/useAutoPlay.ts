@@ -125,11 +125,9 @@ export function useAutoPlay({
         // Schedule the next step - ALWAYS continue
         scheduleNext();
       } else {
-        // Reached end of page - the LAST word (currentIndexRef.current = totalWords-1) is still active.
-        // Keep it highlighted for its full duration before doing anything.
+        // Reached end of page - the LAST word is still active.
         repeatCountRef.current += 1;
         if (repeatCountRef.current < pageRepeatCount) {
-          // Wait the full word duration before repeating from beginning
           console.log('[autoplay] 🔁 Repeating page, round', repeatCountRef.current + 1, 'of', pageRepeatCount);
           const repeatDelay = speedRef.current * 1000;
           timeoutRef.current = setTimeout(() => {
@@ -140,16 +138,15 @@ export function useAutoPlay({
             scheduleNext();
           }, repeatDelay);
         } else {
-          // Done with all repeats — wait full word duration, THEN advance delay, THEN call onPageEnd
+          // Done with all repeats — wait full word duration, then call onPageEnd.
+          // DO NOT set isPlaying=false here: the page-change effect will keep playing on the new page.
           const lastWordDuration = speedRef.current * 1000;
           const advanceDelay = (useSettingsStore.getState().settings.autoplay.autoAdvanceDelay || 1.5) * 1000;
-          console.log('[autoplay] ✅ Last word displayed. Waiting', lastWordDuration, 'ms then', advanceDelay, 'ms before page end');
+          console.log('[autoplay] ✅ Last word. Waiting', lastWordDuration, 'ms then', advanceDelay, 'ms before page end');
           timeoutRef.current = setTimeout(() => {
             if (!isPlayingRef.current) return;
             repeatCountRef.current = 0;
-            setIsPlaying(false);
-            isPlayingRef.current = false;
-            // Keep last word highlighted during advance delay
+            // Keep isPlaying=true so the page-change effect auto-resumes on the new page
             if (onPageEnd) {
               timeoutRef.current = setTimeout(() => {
                 onPageEnd();
