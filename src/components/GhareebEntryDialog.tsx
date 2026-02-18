@@ -109,14 +109,26 @@ export function GhareebEntryDialog({ open, onClose }: GhareebEntryDialogProps) {
       from = hizbFrom; to = hizbTo;
     }
 
-    setAutoplay({ ghareebRangeType: rangeTypeVal, ghareebRangeFrom: from, ghareebRangeTo: to });
+    // ⚠️ مهم: نكتب النطاق في localStorage مباشرة قبل navigate
+    // لأن setAutoplay (zustand persist) غير متزامن ولن يكون جاهزاً عند تحميل QuranReader
+    const rangePayload = {
+      ghareebRangeType: rangeTypeVal,
+      ghareebRangeFrom: from,
+      ghareebRangeTo: to,
+    };
+
+    // 1. حدّث الـ store (للجلسة الحالية بعد العودة)
+    setAutoplay(rangePayload);
+
+    // 2. اكتب النطاق مباشرة في localStorage حتى يقرأه QuranReader فور التحميل
+    localStorage.setItem('quran-app-ghareeb-pending-range', JSON.stringify(rangePayload));
 
     if (remember) {
       localStorage.setItem(STORAGE_KEY_CHOICE, 'range');
       localStorage.setItem(STORAGE_KEY_REMEMBER, 'true');
     }
 
-    // احسب أول صفحة في النطاق وخزّنها لـ QuranReader يبدأ منها
+    // 3. احسب أول صفحة في النطاق وخزّنها لـ useQuranData يبدأ منها
     const firstPage = calcFirstPage(rangeTypeVal, from, to, pageFrom);
     localStorage.setItem('quran-app-ghareeb-start-page', String(firstPage));
 

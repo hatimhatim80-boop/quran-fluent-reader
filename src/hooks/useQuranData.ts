@@ -4,6 +4,7 @@ import { parseMushafText } from '@/utils/quranParser';
 import { loadGhareebData, getWordsForPage } from '@/utils/ghareebLoader';
 import { useDataStore } from '@/stores/dataStore';
 import { getData } from '@/services/dataSource';
+import { useSettingsStore } from '@/stores/settingsStore';
 
 const STORAGE_KEY = 'quran-app-progress';
 
@@ -40,6 +41,22 @@ export function useQuranData() {
           setPages(loadedPages);
           setGhareebPageMap(ghareebMap);
           
+          // ── 1. تطبيق النطاق المؤقت على الـ store قبل أي شيء آخر ──
+          // يُخزَّن بواسطة GhareebEntryDialog لتجاوز مشكلة zustand persist غير المتزامن
+          const pendingRange = localStorage.getItem('quran-app-ghareeb-pending-range');
+          if (pendingRange) {
+            localStorage.removeItem('quran-app-ghareeb-pending-range');
+            try {
+              const rangePayload = JSON.parse(pendingRange);
+              // طبّق على الـ store مباشرة (getState().setAutoplay متزامن)
+              useSettingsStore.getState().setAutoplay(rangePayload);
+              console.log('[useQuranData] ✅ Applied pending ghareeb range:', rangePayload);
+            } catch (e) {
+              console.warn('[useQuranData] Failed to parse pending range:', e);
+            }
+          }
+
+          // ── 2. تحديد الصفحة الابتدائية ──
           // Check if there's a ghareeb range start page (set by GhareebEntryDialog)
           // Must be read BEFORE saved progress so it takes priority
           const ghareebStartPage = localStorage.getItem('quran-app-ghareeb-start-page');
