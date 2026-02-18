@@ -245,8 +245,9 @@ export default function TahfeezPage() {
     }
   }, [currentPage, quizStarted]);
 
-  // Read blanked keys from the quiz view after it renders
-  // Polls until keys are available, then auto-starts if flagged
+  // Read blanked keys from the quiz view after it renders.
+  // Polls until keys are available, then auto-starts if flagged.
+  // If page has no blanked items after max attempts → skip to next page automatically.
   useEffect(() => {
     if (!quizStarted) return;
 
@@ -267,8 +268,6 @@ export default function TahfeezPage() {
             if (autoResumeQuizRef.current) {
               autoResumeQuizRef.current = false;
               console.log('[tahfeez] Auto-resuming quiz, keys count:', keys.length);
-              // Force reset to -1 first, then set to 0 after a tick to ensure the
-              // reveal effect re-fires even if currentRevealIdx was already 0
               setCurrentRevealIdx(-1);
               setTimeout(() => {
                 setRevealedKeys(new Set());
@@ -281,10 +280,29 @@ export default function TahfeezPage() {
           }
         } catch {}
       }
-      // Keys not ready yet — retry if auto-resume is pending OR for initial load
+
       if (attempts < maxAttempts) {
         attempts++;
         pollTimer = setTimeout(readKeys, 150);
+      } else if (autoResumeQuizRef.current) {
+        // Max attempts reached — page has no blanked items → auto-advance to next page
+        autoResumeQuizRef.current = false;
+        const autoplaySettings = useSettingsStore.getState().settings.autoplay;
+        const delayMs = (autoplaySettings.autoAdvanceDelay || 1.5) * 1000;
+        console.log('[tahfeez] No blanked keys on page', currentPageRef.current, '— skipping to next in', delayMs, 'ms');
+
+        setTimeout(() => {
+          const curPage = currentPageRef.current;
+          const range = quizPagesRangeRef.current;
+          const currentPageIdx = range.indexOf(curPage);
+
+          if (range.length > 1 && currentPageIdx >= 0 && currentPageIdx < range.length - 1) {
+            setQuizPageIdx(prev => prev + 1);
+            goToPage(range[currentPageIdx + 1]);
+          } else {
+            nextPage();
+          }
+        }, delayMs);
       }
     };
 

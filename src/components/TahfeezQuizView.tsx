@@ -83,13 +83,17 @@ export function TahfeezQuizView({
     return redistributeLines(originalLines, targetLines, minWordsPerLine, balanceLastLine).join('\n');
   }, [page.text, displayMode, mobileLinesPerPage, desktopLinesPerPage, minWordsPerLine, balanceLastLine]);
 
-  // Parse all word tokens (excluding headers, bismillah, spaces, verse numbers)
+  // Parse all word tokens (excluding headers, bismillah-as-separator, spaces, verse numbers)
+  // Exception: page 1 (Al-Fatiha) — bismillah IS the first ayah and must be tokenized.
+  const isFatihaPage = page.pageNumber === 1;
   const { lines, allWordTokens } = useMemo(() => {
     const lines = effectiveText.split('\n');
     const allWordTokens: TokenInfo[] = [];
     for (let lineIdx = 0; lineIdx < lines.length; lineIdx++) {
       const line = lines[lineIdx];
-      if (isSurahHeader(line) || isBismillah(line)) continue;
+      // Skip surah headers always; skip bismillah ONLY if it's a separator (not Al-Fatiha page)
+      if (isSurahHeader(line)) continue;
+      if (!isFatihaPage && isBismillah(line)) continue;
       const tokens = line.split(/(\s+)/);
       for (let tokenIdx = 0; tokenIdx < tokens.length; tokenIdx++) {
         const t = tokens[tokenIdx];
@@ -144,7 +148,7 @@ export function TahfeezQuizView({
         const rawLines = effectiveText.split('\n');
         for (let lineIdx = 0; lineIdx < rawLines.length; lineIdx++) {
           const line = rawLines[lineIdx];
-          if (isSurahHeader(line) || isBismillah(line)) continue;
+          if (isSurahHeader(line) || (!isFatihaPage && isBismillah(line))) continue;
           const tokens = line.split(/(\s+)/);
           for (let tokenIdx = 0; tokenIdx < tokens.length; tokenIdx++) {
             const t = tokens[tokenIdx];
@@ -257,7 +261,7 @@ export function TahfeezQuizView({
       const groups: TokenInfo[][] = [];
       for (let lineIdx = 0; lineIdx < rawLines.length; lineIdx++) {
         const line = rawLines[lineIdx];
-        if (isSurahHeader(line) || isBismillah(line)) continue;
+        if (isSurahHeader(line) || (!isFatihaPage && isBismillah(line))) continue;
         const tokens = line.split(/(\s+)/);
         for (let tokenIdx = 0; tokenIdx < tokens.length; tokenIdx++) {
           const t = tokens[tokenIdx];
@@ -316,7 +320,9 @@ export function TahfeezQuizView({
         );
         continue;
       }
-      if (isBismillah(line)) {
+      // In Al-Fatiha (page 1), bismillah is verse 1 — render as tokenizable line, not header.
+      // In all other pages, bismillah is a chapter separator and rendered as a visual header.
+      if (isBismillah(line) && !isFatihaPage) {
         elements.push(
           <div key={`bismillah-${lineIdx}`} className="bismillah bismillah-compact font-arabic" style={{ display: 'block', textAlign: 'center', textAlignLast: 'center' }}>{formatBismillah(line)}</div>
         );
