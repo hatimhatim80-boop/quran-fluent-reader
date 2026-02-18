@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { AutoPlayDebugPanel } from './AutoPlayDebugPanel';
 import { useQuranData } from '@/hooks/useQuranData';
 import { useAutoPlay } from '@/hooks/useAutoPlay';
 import { GhareebWord } from '@/types/quran';
@@ -195,7 +196,7 @@ export function QuranReader() {
 
   const {
     isPlaying, speed, setSpeed, play, pause, stop, nextWord, prevWord, jumpTo,
-  } = useAutoPlay({ words: renderedWords, currentWordIndex, setCurrentWordIndex, onPageEnd: handlePageEnd });
+  } = useAutoPlay({ words: renderedWords, currentWordIndex, setCurrentWordIndex, onPageEnd: handlePageEnd, portal: 'غريب', currentPage });
 
   const handleRenderedWordsChange = useCallback((words: GhareebWord[]) => {
     if (settings.debugMode) console.log('[QuranReader] Rendered words:', words.length);
@@ -347,10 +348,11 @@ export function QuranReader() {
           ref={pageContentRef}
         >
           {settings.debugMode && isPlaying && (
-            <div className="fixed top-16 left-4 z-50 bg-black/80 text-white text-xs px-3 py-2 rounded-lg font-mono">
+            <div className="fixed top-16 right-4 z-50 bg-black/80 text-white text-xs px-3 py-2 rounded-lg font-mono">
               Running {currentWordIndex + 1} / {renderedWords.length}
             </div>
           )}
+          <AutoPlayDebugPanel visible={!!settings.debugMode} />
 
           <div style={{ transform: pinchScale !== 1 ? `scale(${pinchScale})` : undefined, transformOrigin: 'center center', transition: 'transform 0.1s ease-out' }}>
             {pageData ? (
