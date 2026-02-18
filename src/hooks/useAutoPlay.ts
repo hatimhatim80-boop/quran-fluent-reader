@@ -125,27 +125,37 @@ export function useAutoPlay({
         // Schedule the next step - ALWAYS continue
         scheduleNext();
       } else {
-        // Reached end of page - check repeat
+        // Reached end of page - the LAST word (currentIndexRef.current = totalWords-1) is still active.
+        // Keep it highlighted for its full duration before doing anything.
         repeatCountRef.current += 1;
         if (repeatCountRef.current < pageRepeatCount) {
-          // Restart from beginning
+          // Wait the full word duration before repeating from beginning
           console.log('[autoplay] 🔁 Repeating page, round', repeatCountRef.current + 1, 'of', pageRepeatCount);
-          setCurrentWordIndex(0);
-          currentIndexRef.current = 0;
-          scrollToActiveWord(0);
-          scheduleNext();
+          const repeatDelay = speedRef.current * 1000;
+          timeoutRef.current = setTimeout(() => {
+            if (!isPlayingRef.current) return;
+            setCurrentWordIndex(0);
+            currentIndexRef.current = 0;
+            scrollToActiveWord(0);
+            scheduleNext();
+          }, repeatDelay);
         } else {
-          // Done with all repeats
-          console.log('[autoplay] ✅ Finished all', totalWords, 'words ×', pageRepeatCount, 'repeats');
-          repeatCountRef.current = 0;
-          setIsPlaying(false);
-          isPlayingRef.current = false;
-          if (onPageEnd) {
-            const advanceDelay = (useSettingsStore.getState().settings.autoplay.autoAdvanceDelay || 1.5) * 1000;
-            timeoutRef.current = setTimeout(() => {
-              onPageEnd();
-            }, advanceDelay);
-          }
+          // Done with all repeats — wait full word duration, THEN advance delay, THEN call onPageEnd
+          const lastWordDuration = speedRef.current * 1000;
+          const advanceDelay = (useSettingsStore.getState().settings.autoplay.autoAdvanceDelay || 1.5) * 1000;
+          console.log('[autoplay] ✅ Last word displayed. Waiting', lastWordDuration, 'ms then', advanceDelay, 'ms before page end');
+          timeoutRef.current = setTimeout(() => {
+            if (!isPlayingRef.current) return;
+            repeatCountRef.current = 0;
+            setIsPlaying(false);
+            isPlayingRef.current = false;
+            // Keep last word highlighted during advance delay
+            if (onPageEnd) {
+              timeoutRef.current = setTimeout(() => {
+                onPageEnd();
+              }, advanceDelay);
+            }
+          }, lastWordDuration);
         }
       }
     }, delayMs);
