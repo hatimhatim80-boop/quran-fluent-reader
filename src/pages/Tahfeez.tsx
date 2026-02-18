@@ -95,6 +95,7 @@ export default function TahfeezPage() {
   const [firstKeysSet, setFirstKeysSet] = useState<Set<string>>(new Set());
   const [currentRevealIdx, setCurrentRevealIdx] = useState(-1);
   const revealTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const autoAdvanceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [showIndex, setShowIndex] = useState(false);
   const [indexSearch, setIndexSearch] = useState('');
   const [indexTab, setIndexTab] = useState('surahs');
@@ -469,6 +470,26 @@ export default function TahfeezPage() {
     if (revealTimerRef.current) clearTimeout(revealTimerRef.current);
     setShowAll(true);
     setActiveBlankKey(null);
+    // Trigger auto-advance after reveal-all using a separate ref so useEffect cleanup doesn't cancel it
+    if (quizStarted) {
+      const autoplaySettings = useSettingsStore.getState().settings.autoplay;
+      const delayMs = (autoplaySettings.autoAdvanceDelay || 1.5) * 1000;
+      if (autoAdvanceTimerRef.current) clearTimeout(autoAdvanceTimerRef.current);
+      autoAdvanceTimerRef.current = setTimeout(() => {
+        const curPage = currentPageRef.current;
+        const range = quizPagesRangeRef.current;
+        const currentPageIdx = range.indexOf(curPage);
+        if (currentPageIdx >= 0 && currentPageIdx < range.length - 1) {
+          const nextPageInRange = range[currentPageIdx + 1];
+          setQuizPageIdx(currentPageIdx + 1);
+          autoResumeQuizRef.current = true;
+          goToPage(nextPageInRange);
+        } else if (range.length <= 1) {
+          autoResumeQuizRef.current = true;
+          nextPage();
+        }
+      }, delayMs);
+    }
   };
 
   const handleGoToMushaf = () => {
