@@ -18,6 +18,7 @@ import { TahfeezSelectionView } from '@/components/TahfeezSelectionView';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { SURAH_INFO, SURAH_NAMES } from '@/utils/quranPageIndex';
 import { SettingsDialog } from '@/components/SettingsDialog';
+import { AutoPlayDebugPanel } from '@/components/AutoPlayDebugPanel';
 // ---- Quran Index Data ----
 const SURAHS = Object.entries(SURAH_NAMES).map(([name, number]) => ({
   number, name,
@@ -295,29 +296,45 @@ export default function TahfeezPage() {
     // Don't start if currentRevealIdx is still -1 (waiting for auto-resume)
     if (currentRevealIdx < 0) return;
 
-    const revealNext = (idx: number) => {
-      if (idx >= blankedKeysList.length) {
+    // ── advance() for Tahfeez ────────────────────────────────────────────────
+    // Single function: detects isEndOfPage and calls goNextPage() immediately.
+    const advance = (idx: number) => {
+      const total = blankedKeysList.length;
+      const isEndOfPage = idx >= total;
+
+      // Debug log (mirrors Ghareeb debug panel)
+      console.log('[tahfeez][advance]', JSON.stringify({
+        portal: 'تحفيظ',
+        currentPage: currentPageRef.current,
+        itemsCount: total,
+        index: idx,
+        endDetected: isEndOfPage,
+        goNextCalled: false,  // updated below
+        autoPlayBefore: true,
+        autoPlayAfter: true,
+      }));
+
+      if (isEndOfPage) {
         setShowAll(true);
         setActiveBlankKey(null);
-        // Auto-advance to next page when quiz finishes current page
         const autoplaySettings = useSettingsStore.getState().settings.autoplay;
         const delayMs = (autoplaySettings.autoAdvanceDelay || 1.5) * 1000;
+
         revealTimerRef.current = setTimeout(() => {
-          // Use refs to always get fresh values (avoids stale closure)
           const curPage = currentPageRef.current;
           const range = quizPagesRangeRef.current;
           const currentPageIdx = range.indexOf(curPage);
-          console.log('[tahfeez] Auto-advance: curPage=', curPage, 'range=', range, 'idx=', currentPageIdx);
+
+          console.log('[tahfeez][advance] isEndOfPage=true, goNextCalled=true, curPage=', curPage, 'rangeIdx=', currentPageIdx, '/', range.length - 1);
+
           if (range.length > 1 && currentPageIdx >= 0 && currentPageIdx < range.length - 1) {
-            // Navigate within defined range
             const nextPageInRange = range[currentPageIdx + 1];
             setQuizPageIdx(currentPageIdx + 1);
             goToPage(nextPageInRange);
-          } else if (range.length === 1 || currentPageIdx < 0) {
-            // Single page scope or page not in range - advance to next page
+          } else {
+            // Single page or end of range → always call nextPage as fallback
             nextPage();
           }
-          // else: end of range reached - stop naturally
         }, delayMs);
         return;
       }
@@ -332,7 +349,7 @@ export default function TahfeezPage() {
           revealTimerRef.current = setTimeout(() => {
             setRevealedKeys(prev => new Set([...prev, key]));
             setActiveBlankKey(null);
-            revealTimerRef.current = setTimeout(() => revealNext(idx + 1), 300);
+            revealTimerRef.current = setTimeout(() => advance(idx + 1), 300);
           }, timerSeconds * 1000);
         }, firstWordTimerSeconds * 1000);
       } else {
@@ -341,14 +358,14 @@ export default function TahfeezPage() {
         revealTimerRef.current = setTimeout(() => {
           setRevealedKeys(prev => new Set([...prev, key]));
           setActiveBlankKey(null);
-          revealTimerRef.current = setTimeout(() => revealNext(idx + 1), 300);
+          revealTimerRef.current = setTimeout(() => advance(idx + 1), 300);
         }, timerSeconds * 1000);
       }
     };
 
     const startIdx = currentRevealIdx;
     if (startIdx < blankedKeysList.length && !revealedKeys.has(blankedKeysList[startIdx])) {
-      revealNext(startIdx);
+      advance(startIdx);
     }
 
     return () => {
@@ -898,6 +915,7 @@ export default function TahfeezPage() {
         )}
 
         {/* Quiz view */}
+        <AutoPlayDebugPanel visible={process.env.NODE_ENV !== 'production'} />
         {quizStarted && pageData && (
           <div className="space-y-4 animate-fade-in">
             {/* Multi-page progress */}
