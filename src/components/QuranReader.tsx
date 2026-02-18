@@ -20,8 +20,9 @@ import { useHighlightOverrideStore } from '@/stores/highlightOverrideStore';
 import { useTahfeezStore } from '@/stores/tahfeezStore';
 import { useSessionsStore } from '@/stores/sessionsStore';
 import { SURAH_INFO, SURAH_NAMES } from '@/utils/quranPageIndex';
-import { Loader2, List, SlidersHorizontal, ChevronRight, ChevronLeft, Eye, EyeOff, GraduationCap, X } from 'lucide-react';
+import { Loader2, List, SlidersHorizontal, ChevronRight, ChevronLeft, Eye, EyeOff, GraduationCap, X, Settings } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { GhareebEntryDialog, GhareebEntryResetButton } from './GhareebEntryDialog';
 
 const JUZ_DATA_READER = [
   { number: 1, page: 1 }, { number: 2, page: 22 }, { number: 3, page: 42 },
@@ -66,6 +67,7 @@ export function QuranReader() {
   const [showIndex, setShowIndex] = useState(false);
   const [showControls, setShowControls] = useState(false);
   const [hideBars, setHideBars] = useState(false);
+  const [showEntryDialog, setShowEntryDialog] = useState(false);
   const [pinchScale, setPinchScale] = useState(1);
   const pinchRef = React.useRef<{ startDist: number; startScale: number } | null>(null);
   const [showFirstTimeSetup, setShowFirstTimeSetup] = useState(() => !localStorage.getItem('quran-app-setup-done'));
@@ -281,6 +283,7 @@ export function QuranReader() {
     <div className="bg-background flex min-h-screen" dir="rtl" ref={contentRef}>
       <DiagnosticModeBadge />
       <FirstTimeSetupDialog open={showFirstTimeSetup} onClose={() => setShowFirstTimeSetup(false)} />
+      <GhareebEntryDialog open={showEntryDialog} onClose={() => setShowEntryDialog(false)} />
 
       {/* Index Sidebar */}
       {showIndex && (
@@ -298,21 +301,24 @@ export function QuranReader() {
         {!hideBars && (
           <div className="sticky top-0 z-30 bg-background/95 backdrop-blur-md border-b border-border/50" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
             <div className="max-w-2xl mx-auto px-3 py-2">
-              <Toolbar
-                isPlaying={isPlaying}
-                onPlayPause={handlePlayPause}
-                wordsCount={renderedWords.length}
-                currentWordIndex={currentWordIndex}
-                currentPage={currentPage}
-                pages={pages}
-                pageWords={renderedWords}
-                allWords={allGhareebWords}
-                renderedWords={renderedWords}
-                onNavigateToPage={goToPage}
-                onHighlightWord={jumpTo}
-                onRefreshData={() => window.location.reload()}
-                onForceRebuild={() => window.location.reload()}
-              />
+              <div className="flex items-center justify-between gap-2">
+                <Toolbar
+                  isPlaying={isPlaying}
+                  onPlayPause={handlePlayPause}
+                  wordsCount={renderedWords.length}
+                  currentWordIndex={currentWordIndex}
+                  currentPage={currentPage}
+                  pages={pages}
+                  pageWords={renderedWords}
+                  allWords={allGhareebWords}
+                  renderedWords={renderedWords}
+                  onNavigateToPage={goToPage}
+                  onHighlightWord={jumpTo}
+                  onRefreshData={() => window.location.reload()}
+                  onForceRebuild={() => window.location.reload()}
+                />
+                <GhareebEntryResetButton onReset={() => setShowEntryDialog(true)} />
+              </div>
             </div>
           </div>
         )}
