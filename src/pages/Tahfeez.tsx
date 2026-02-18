@@ -744,6 +744,7 @@ export default function TahfeezPage() {
                       { value: 'page-range' as const, label: 'نطاق صفحات' },
                       { value: 'surah' as const, label: 'سورة' },
                       { value: 'juz' as const, label: 'جزء' },
+                      { value: 'hizb' as const, label: 'حزب' },
                     ].map(opt => (
                       <Button
                         key={opt.value}
@@ -795,6 +796,15 @@ export default function TahfeezPage() {
                       <Input type="number" min={1} max={30} value={quizScopeFrom} onChange={e => setQuizScopeFrom(Math.max(1, Math.min(30, parseInt(e.target.value) || 1)))} className="h-8 text-xs w-16" />
                       <label className="text-xs font-arabic text-muted-foreground whitespace-nowrap">إلى جزء:</label>
                       <Input type="number" min={1} max={30} value={quizScopeTo} onChange={e => setQuizScopeTo(Math.max(1, Math.min(30, parseInt(e.target.value) || 1)))} className="h-8 text-xs w-16" />
+                    </div>
+                  )}
+
+                  {quizScope === 'hizb' && (
+                    <div className="flex items-center gap-2">
+                      <label className="text-xs font-arabic text-muted-foreground whitespace-nowrap">من حزب:</label>
+                      <Input type="number" min={1} max={60} value={quizScopeFrom} onChange={e => setQuizScopeFrom(Math.max(1, Math.min(60, parseInt(e.target.value) || 1)))} className="h-8 text-xs w-16" />
+                      <label className="text-xs font-arabic text-muted-foreground whitespace-nowrap">إلى حزب:</label>
+                      <Input type="number" min={1} max={60} value={quizScopeTo} onChange={e => setQuizScopeTo(Math.max(1, Math.min(60, parseInt(e.target.value) || 1)))} className="h-8 text-xs w-16" />
                     </div>
                   )}
 
