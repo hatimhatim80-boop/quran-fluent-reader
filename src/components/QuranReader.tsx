@@ -55,6 +55,20 @@ export function QuranReader() {
   const clearAllOverrides = useHighlightOverrideStore((s) => s.clearAllOverrides);
   useEffect(() => { clearAllOverrides(); }, [clearAllOverrides]);
 
+  // Navigate to ghareeb range start page if set
+  useEffect(() => {
+    const startPage = localStorage.getItem('quran-app-ghareeb-start-page');
+    if (startPage) {
+      localStorage.removeItem('quran-app-ghareeb-start-page');
+      const pageNum = parseInt(startPage, 10);
+      if (!isNaN(pageNum) && pageNum >= 1 && pageNum <= 604) {
+        goToPage(pageNum);
+      }
+    }
+  // Only run once on mount
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Auto-save session progress
   const activeSessionId = useSessionsStore((s) => s.activeSessionId);
   const updateSession = useSessionsStore((s) => s.updateSession);
@@ -123,13 +137,17 @@ export function QuranReader() {
       return pages;
     }
     if (ghareebRangeType === 'surah') {
-      const surahInfo = SURAH_INFO[ghareebRangeFrom];
-      if (!surahInfo) return null;
-      const startPage = surahInfo[0];
-      const nextSurah = SURAHS_READER.find(s => s.number === ghareebRangeFrom + 1);
+      const from = Math.min(ghareebRangeFrom, ghareebRangeTo);
+      const to = Math.max(ghareebRangeFrom, ghareebRangeTo);
+      // startPage = first page of surahFrom
+      const startSurahInfo = SURAH_INFO[from];
+      if (!startSurahInfo) return null;
+      const startPage = startSurahInfo[0];
+      // endPage = last page of surahTo (= startPage of next surah - 1)
+      const nextSurah = SURAHS_READER.find(s => s.number === to + 1);
       const endPage = nextSurah ? nextSurah.startPage - 1 : 604;
       const pages: number[] = [];
-      for (let p = startPage; p <= endPage; p++) pages.push(p);
+      for (let p = startPage; p <= Math.min(endPage, 604); p++) pages.push(p);
       return pages;
     }
     if (ghareebRangeType === 'juz') {
