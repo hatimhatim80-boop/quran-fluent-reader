@@ -142,33 +142,54 @@ export function TahfeezQuizView({
       if (autoBlankMode === 'full-page') {
         allWordTokens.forEach(t => keys.add(t.key));
       } else {
-        // Group tokens into ayahs by verse numbers
+      // Group tokens into ayahs by verse numbers
         const ayahGroups: TokenInfo[][] = [];
-        let currentGroup: TokenInfo[] = [];
         const rawLines = effectiveText.split('\n');
-        for (let lineIdx = 0; lineIdx < rawLines.length; lineIdx++) {
-          const line = rawLines[lineIdx];
-          if (isSurahHeader(line) || (!isFatihaPage && isBismillah(line))) continue;
-          const tokens = line.split(/(\s+)/);
-          for (let tokenIdx = 0; tokenIdx < tokens.length; tokenIdx++) {
-            const t = tokens[tokenIdx];
-            const isSpace = /^\s+$/.test(t);
-            const clean = t.replace(/[﴿﴾()[\]{}۝۞٭؟،۔ۣۖۗۘۙۚۛۜ۟۠ۡۢۤۥۦۧۨ۩۪ۭ۫۬]/g, '').trim();
-            const isVerseNumber = !isSpace && /^[٠-٩0-9۰-۹]+$/.test(clean);
-            if (isSpace) continue;
-            if (isVerseNumber) {
-              if (currentGroup.length > 0) {
-                ayahGroups.push(currentGroup);
-                currentGroup = [];
+
+        if (isFatihaPage) {
+          // For Al-Fatiha (page 1): each line that is not a header is its own ayah group.
+          // Verse numbers appear at END of each ayah line (﴿١﴾ etc.), so we treat each
+          // content line as one group, stripped of verse numbers.
+          for (let lineIdx = 0; lineIdx < rawLines.length; lineIdx++) {
+            const line = rawLines[lineIdx];
+            if (isSurahHeader(line)) continue;
+            const tokens = line.split(/(\s+)/);
+            const lineGroup: TokenInfo[] = [];
+            for (let tokenIdx = 0; tokenIdx < tokens.length; tokenIdx++) {
+              const t = tokens[tokenIdx];
+              const isSpace = /^\s+$/.test(t);
+              const clean = t.replace(/[﴿﴾()[\]{}۝۞٭؟،۔ۣۖۗۘۙۚۛۜ۟۠ۡۢۤۥۦۧۨ۩۪ۭ۫۬]/g, '').trim();
+              const isVerseNumber = !isSpace && /^[٠-٩0-9۰-۹]+$/.test(clean);
+              if (isSpace || isVerseNumber) continue;
+              lineGroup.push({ text: t, lineIdx, tokenIdx, key: `${lineIdx}_${tokenIdx}` });
+            }
+            if (lineGroup.length > 0) ayahGroups.push(lineGroup);
+          }
+        } else {
+          // All other pages: verse numbers appear at END of each ayah, acting as delimiters.
+          let currentGroup: TokenInfo[] = [];
+          for (let lineIdx = 0; lineIdx < rawLines.length; lineIdx++) {
+            const line = rawLines[lineIdx];
+            if (isSurahHeader(line) || isBismillah(line)) continue;
+            const tokens = line.split(/(\s+)/);
+            for (let tokenIdx = 0; tokenIdx < tokens.length; tokenIdx++) {
+              const t = tokens[tokenIdx];
+              const isSpace = /^\s+$/.test(t);
+              const clean = t.replace(/[﴿﴾()[\]{}۝۞٭؟،۔ۣۖۗۘۙۚۛۜ۟۠ۡۢۤۥۦۧۨ۩۪ۭ۫۬]/g, '').trim();
+              const isVerseNumber = !isSpace && /^[٠-٩0-9۰-۹]+$/.test(clean);
+              if (isSpace) continue;
+              if (isVerseNumber) {
+                if (currentGroup.length > 0) {
+                  ayahGroups.push(currentGroup);
+                  currentGroup = [];
+                }
+              } else {
+                currentGroup.push({ text: t, lineIdx, tokenIdx, key: `${lineIdx}_${tokenIdx}` });
               }
-            } else {
-              currentGroup.push({
-                text: t, lineIdx, tokenIdx, key: `${lineIdx}_${tokenIdx}`,
-              });
             }
           }
+          if (currentGroup.length > 0) ayahGroups.push(currentGroup);
         }
-        if (currentGroup.length > 0) ayahGroups.push(currentGroup);
 
         if (autoBlankMode === 'ayah-count') {
           const count = Math.min(ayahCount, ayahGroups.length);
@@ -257,26 +278,46 @@ export function TahfeezQuizView({
     } else {
       // For auto: find first blanked key of each contiguous blank group within each ayah
       const rawLines = effectiveText.split('\n');
-      let currentGroup: TokenInfo[] = [];
       const groups: TokenInfo[][] = [];
-      for (let lineIdx = 0; lineIdx < rawLines.length; lineIdx++) {
-        const line = rawLines[lineIdx];
-        if (isSurahHeader(line) || (!isFatihaPage && isBismillah(line))) continue;
-        const tokens = line.split(/(\s+)/);
-        for (let tokenIdx = 0; tokenIdx < tokens.length; tokenIdx++) {
-          const t = tokens[tokenIdx];
-          const isSpace = /^\s+$/.test(t);
-          const clean = t.replace(/[﴿﴾()[\]{}۝۞٭؟،۔ۣۖۗۘۙۚۛۜ۟۠ۡۢۤۥۦۧۨ۩۪ۭ۫۬]/g, '').trim();
-          const isVerseNumber = !isSpace && /^[٠-٩0-9۰-۹]+$/.test(clean);
-          if (isSpace) continue;
-          if (isVerseNumber) {
-            if (currentGroup.length > 0) { groups.push(currentGroup); currentGroup = []; }
-          } else {
-            currentGroup.push({ text: t, lineIdx, tokenIdx, key: `${lineIdx}_${tokenIdx}` });
+
+      if (isFatihaPage) {
+        // For Al-Fatiha: each content line is its own ayah group
+        for (let lineIdx = 0; lineIdx < rawLines.length; lineIdx++) {
+          const line = rawLines[lineIdx];
+          if (isSurahHeader(line)) continue;
+          const tokens = line.split(/(\s+)/);
+          const lineGroup: TokenInfo[] = [];
+          for (let tokenIdx = 0; tokenIdx < tokens.length; tokenIdx++) {
+            const t = tokens[tokenIdx];
+            const isSpace = /^\s+$/.test(t);
+            const clean = t.replace(/[﴿﴾()[\]{}۝۞٭؟،۔ۣۖۗۘۙۚۛۜ۟۠ۡۢۤۥۦۧۨ۩۪ۭ۫۬]/g, '').trim();
+            const isVerseNumber = !isSpace && /^[٠-٩0-9۰-۹]+$/.test(clean);
+            if (isSpace || isVerseNumber) continue;
+            lineGroup.push({ text: t, lineIdx, tokenIdx, key: `${lineIdx}_${tokenIdx}` });
+          }
+          if (lineGroup.length > 0) groups.push(lineGroup);
+        }
+      } else {
+        let currentGroup: TokenInfo[] = [];
+        for (let lineIdx = 0; lineIdx < rawLines.length; lineIdx++) {
+          const line = rawLines[lineIdx];
+          if (isSurahHeader(line) || isBismillah(line)) continue;
+          const tokens = line.split(/(\s+)/);
+          for (let tokenIdx = 0; tokenIdx < tokens.length; tokenIdx++) {
+            const t = tokens[tokenIdx];
+            const isSpace = /^\s+$/.test(t);
+            const clean = t.replace(/[﴿﴾()[\]{}۝۞٭؟،۔ۣۖۗۘۙۚۛۜ۟۠ۡۢۤۥۦۧۨ۩۪ۭ۫۬]/g, '').trim();
+            const isVerseNumber = !isSpace && /^[٠-٩0-9۰-۹]+$/.test(clean);
+            if (isSpace) continue;
+            if (isVerseNumber) {
+              if (currentGroup.length > 0) { groups.push(currentGroup); currentGroup = []; }
+            } else {
+              currentGroup.push({ text: t, lineIdx, tokenIdx, key: `${lineIdx}_${tokenIdx}` });
+            }
           }
         }
+        if (currentGroup.length > 0) groups.push(currentGroup);
       }
-      if (currentGroup.length > 0) groups.push(currentGroup);
       
       // For each ayah group, find first key of each contiguous blank sequence
       for (const group of groups) {
