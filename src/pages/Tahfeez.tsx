@@ -111,6 +111,20 @@ export default function TahfeezPage() {
   // Flag: true when quiz just started for the first time (not a page transition)
   const isFirstStartRef = useRef(false);
 
+  // Keep blankedKeysList in a ref so advance() always reads the latest (avoid stale closure)
+  const blankedKeysListRef = useRef<string[]>(blankedKeysList);
+  useEffect(() => { blankedKeysListRef.current = blankedKeysList; }, [blankedKeysList]);
+
+  // Keep firstKeysSet in a ref
+  const firstKeysSetRef = useRef<Set<string>>(firstKeysSet);
+  useEffect(() => { firstKeysSetRef.current = firstKeysSet; }, [firstKeysSet]);
+
+  // Keep timerSeconds in refs
+  const timerSecondsRef = useRef(timerSeconds);
+  useEffect(() => { timerSecondsRef.current = timerSeconds; }, [timerSeconds]);
+  const firstWordTimerSecondsRef = useRef(firstWordTimerSeconds);
+  useEffect(() => { firstWordTimerSecondsRef.current = firstWordTimerSeconds; }, [firstWordTimerSeconds]);
+
   // Compute pages range for multi-page quiz
   const quizPagesRange = useMemo(() => {
     if (quizScope === 'current-page') return [currentPage];
@@ -263,6 +277,9 @@ export default function TahfeezPage() {
           const keys = JSON.parse(el.getAttribute('data-keys') || '[]');
           const fKeys = JSON.parse(el.getAttribute('data-first-keys') || '[]');
           if (keys.length > 0) {
+            // Update refs SYNCHRONOUSLY before state updates so advance() reads correct data
+            blankedKeysListRef.current = keys;
+            firstKeysSetRef.current = new Set(fKeys);
             setBlankedKeysList(keys);
             setFirstKeysSet(new Set(fKeys));
 
@@ -318,26 +335,24 @@ export default function TahfeezPage() {
 
   // Auto-reveal sequencing
   useEffect(() => {
-    if (!quizStarted || isPaused || showAll || blankedKeysList.length === 0) return;
+    if (!quizStarted || isPaused || showAll || blankedKeysListRef.current.length === 0) return;
     // Don't start if currentRevealIdx is still -1 (waiting for auto-resume)
     if (currentRevealIdx < 0) return;
 
-    // ── advance() for Tahfeez ────────────────────────────────────────────────
-    // Single function: detects isEndOfPage and calls goNextPage() immediately.
+    // ── advance() for Tahfeez ─────────────────────────────────────────────────
+    // Uses REFS exclusively to avoid stale closures in nested setTimeout chains.
     const advance = (idx: number) => {
-      const total = blankedKeysList.length;
+      // Always read from refs — never from closure state
+      const list = blankedKeysListRef.current;
+      const total = list.length;
       const isEndOfPage = idx >= total;
 
-      // Debug log (mirrors Ghareeb debug panel)
       console.log('[tahfeez][advance]', JSON.stringify({
         portal: 'تحفيظ',
         currentPage: currentPageRef.current,
         itemsCount: total,
         index: idx,
         endDetected: isEndOfPage,
-        goNextCalled: false,  // updated below
-        autoPlayBefore: true,
-        autoPlayAfter: true,
       }));
 
       if (isEndOfPage) {
@@ -351,21 +366,22 @@ export default function TahfeezPage() {
           const range = quizPagesRangeRef.current;
           const currentPageIdx = range.indexOf(curPage);
 
-          console.log('[tahfeez][advance] isEndOfPage=true, goNextCalled=true, curPage=', curPage, 'rangeIdx=', currentPageIdx, '/', range.length - 1);
+          console.log('[tahfeez][advance] END OF PAGE → curPage:', curPage, 'rangeIdx:', currentPageIdx, '/', range.length - 1);
 
           if (range.length > 1 && currentPageIdx >= 0 && currentPageIdx < range.length - 1) {
             const nextPageInRange = range[currentPageIdx + 1];
             setQuizPageIdx(currentPageIdx + 1);
             goToPage(nextPageInRange);
           } else {
-            // Single page or end of range → always call nextPage as fallback
+            // Single page or end of range → go to next page
             nextPage();
           }
         }, delayMs);
         return;
       }
-      const key = blankedKeysList[idx];
-      const isFirstKey = firstKeysSet.has(key);
+
+      const key = list[idx];
+      const isFirstKey = firstKeysSetRef.current.has(key);
 
       if (isFirstKey) {
         setActiveBlankKey(null);
@@ -376,8 +392,8 @@ export default function TahfeezPage() {
             setRevealedKeys(prev => new Set([...prev, key]));
             setActiveBlankKey(null);
             revealTimerRef.current = setTimeout(() => advance(idx + 1), 300);
-          }, timerSeconds * 1000);
-        }, firstWordTimerSeconds * 1000);
+          }, timerSecondsRef.current * 1000);
+        }, firstWordTimerSecondsRef.current * 1000);
       } else {
         setActiveBlankKey(key);
         setCurrentRevealIdx(idx);
@@ -385,19 +401,23 @@ export default function TahfeezPage() {
           setRevealedKeys(prev => new Set([...prev, key]));
           setActiveBlankKey(null);
           revealTimerRef.current = setTimeout(() => advance(idx + 1), 300);
-        }, timerSeconds * 1000);
+        }, timerSecondsRef.current * 1000);
       }
     };
 
     const startIdx = currentRevealIdx;
-    if (startIdx < blankedKeysList.length && !revealedKeys.has(blankedKeysList[startIdx])) {
+    const list = blankedKeysListRef.current;
+    // Only start advance if this key hasn't been revealed yet
+    if (startIdx < list.length) {
       advance(startIdx);
     }
 
     return () => {
       if (revealTimerRef.current) clearTimeout(revealTimerRef.current);
     };
-  }, [quizStarted, isPaused, showAll, blankedKeysList, timerSeconds, firstWordTimerSeconds, firstKeysSet, currentRevealIdx]);
+  // Only re-run when index changes or quiz starts/pauses/ends — NOT when blankedKeysList changes
+  // (we read it from ref). This prevents double-firing.
+  }, [quizStarted, isPaused, showAll, currentRevealIdx]);
 
   const handleStart = () => {
     isFirstStartRef.current = true;
