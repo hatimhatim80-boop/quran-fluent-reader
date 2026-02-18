@@ -68,6 +68,7 @@ export interface AutoplaySettings {
   ghareebRangeType: 'all' | 'page-range' | 'surah' | 'juz' | 'hizb';
   ghareebRangeFrom: number;
   ghareebRangeTo: number;
+  keepScreenAwake: boolean;
 }
 
 // Update settings
@@ -128,6 +129,7 @@ const defaultSettings: AppSettings = {
     ghareebRangeType: 'all' as const,
     ghareebRangeFrom: 1,
     ghareebRangeTo: 604,
+    keepScreenAwake: false,
   },
   display: {
     mode: 'continuous',

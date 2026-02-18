@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { AutoPlayDebugPanel } from './AutoPlayDebugPanel';
 import { useQuranData } from '@/hooks/useQuranData';
 import { useAutoPlay } from '@/hooks/useAutoPlay';
+import { useKeepAwake } from '@/hooks/useKeepAwake';
 import { GhareebWord } from '@/types/quran';
 import { PageView } from './PageView';
 
@@ -105,6 +106,7 @@ export function QuranReader() {
   const ghareebRangeFrom = useSettingsStore(s => s.settings.autoplay.ghareebRangeFrom);
   const ghareebRangeTo = useSettingsStore(s => s.settings.autoplay.ghareebRangeTo);
   const autoPlayOnWordClick = useSettingsStore(s => s.settings.autoplay.autoPlayOnWordClick);
+  const keepScreenAwake = useSettingsStore(s => s.settings.autoplay.keepScreenAwake ?? false);
 
   // Keep currentPage in a ref so handlePageEnd always reads the latest value (avoids stale closure)
   const currentPageRef = React.useRef(currentPage);
@@ -197,6 +199,8 @@ export function QuranReader() {
   const {
     isPlaying, speed, setSpeed, play, pause, stop, nextWord, prevWord, jumpTo,
   } = useAutoPlay({ words: renderedWords, currentWordIndex, setCurrentWordIndex, onPageEnd: handlePageEnd, portal: 'غريب', currentPage });
+
+  useKeepAwake(keepScreenAwake && isPlaying);
 
   const handleRenderedWordsChange = useCallback((words: GhareebWord[]) => {
     if (settings.debugMode) console.log('[QuranReader] Rendered words:', words.length);
