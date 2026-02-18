@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { AutoPlayDebugPanel } from './AutoPlayDebugPanel';
 import { useQuranData } from '@/hooks/useQuranData';
 import { useAutoPlay } from '@/hooks/useAutoPlay';
@@ -116,9 +116,6 @@ export function QuranReader() {
   }, [currentPage, pageData, pageWords, renderedWords, setDevDebugContext, isDiagnosticEnabled, isDev, pages, ghareebPageMap, goToPage]);
 
   const autoAdvancePage = useSettingsStore(s => s.settings.autoplay.autoAdvancePage);
-  const ghareebRangeType = useSettingsStore(s => s.settings.autoplay.ghareebRangeType);
-  const ghareebRangeFrom = useSettingsStore(s => s.settings.autoplay.ghareebRangeFrom);
-  const ghareebRangeTo = useSettingsStore(s => s.settings.autoplay.ghareebRangeTo);
   const autoPlayOnWordClick = useSettingsStore(s => s.settings.autoplay.autoPlayOnWordClick);
   const keepScreenAwake = useSettingsStore(s => s.settings.autoplay.keepScreenAwake ?? false);
 
@@ -126,42 +123,52 @@ export function QuranReader() {
   const currentPageRef = React.useRef(currentPage);
   useEffect(() => { currentPageRef.current = currentPage; }, [currentPage]);
 
-  // Compute pages range for Ghareeb auto-advance
-  const ghareebPagesRange = useMemo(() => {
-    if (ghareebRangeType === 'all') return null; // no restriction
-    if (ghareebRangeType === 'page-range') {
-      const from = Math.min(ghareebRangeFrom, ghareebRangeTo);
-      const to = Math.max(ghareebRangeFrom, ghareebRangeTo);
+  // ── ALWAYS use refs for range settings to avoid stale closures in setTimeout chains ──
+  const autoAdvancePageRef = React.useRef(autoAdvancePage);
+  useEffect(() => { autoAdvancePageRef.current = autoAdvancePage; }, [autoAdvancePage]);
+
+  // Read range settings ALWAYS from store directly (never stale)
+  const getGhareebPagesRange = useCallback((): number[] | null => {
+    const s = useSettingsStore.getState().settings.autoplay;
+    const rangeType = s.ghareebRangeType;
+    const rangeFrom = s.ghareebRangeFrom;
+    const rangeTo = s.ghareebRangeTo;
+
+    console.log('[getGhareebPagesRange] type:', rangeType, 'from:', rangeFrom, 'to:', rangeTo);
+
+    if (rangeType === 'all') return null;
+
+    if (rangeType === 'page-range') {
+      const from = Math.min(rangeFrom, rangeTo);
+      const to = Math.max(rangeFrom, rangeTo);
       const pages: number[] = [];
       for (let p = from; p <= Math.min(to, 604); p++) pages.push(p);
       return pages;
     }
-    if (ghareebRangeType === 'surah') {
-      const from = Math.min(ghareebRangeFrom, ghareebRangeTo);
-      const to = Math.max(ghareebRangeFrom, ghareebRangeTo);
-      // startPage = first page of surahFrom
+    if (rangeType === 'surah') {
+      const from = Math.min(rangeFrom, rangeTo);
+      const to = Math.max(rangeFrom, rangeTo);
       const startSurahInfo = SURAH_INFO[from];
       if (!startSurahInfo) return null;
       const startPage = startSurahInfo[0];
-      // endPage = last page of surahTo (= startPage of next surah - 1)
       const nextSurah = SURAHS_READER.find(s => s.number === to + 1);
       const endPage = nextSurah ? nextSurah.startPage - 1 : 604;
       const pages: number[] = [];
       for (let p = startPage; p <= Math.min(endPage, 604); p++) pages.push(p);
       return pages;
     }
-    if (ghareebRangeType === 'juz') {
-      const from = Math.min(ghareebRangeFrom, ghareebRangeTo);
-      const to = Math.max(ghareebRangeFrom, ghareebRangeTo);
+    if (rangeType === 'juz') {
+      const from = Math.min(rangeFrom, rangeTo);
+      const to = Math.max(rangeFrom, rangeTo);
       const startPage = JUZ_DATA_READER[Math.max(0, from - 1)]?.page || 1;
       const endPage = to < 30 ? (JUZ_DATA_READER[to]?.page || 605) - 1 : 604;
       const pages: number[] = [];
       for (let p = startPage; p <= endPage; p++) pages.push(p);
       return pages;
     }
-    if (ghareebRangeType === 'hizb') {
-      const from = Math.min(ghareebRangeFrom, ghareebRangeTo);
-      const to = Math.max(ghareebRangeFrom, ghareebRangeTo);
+    if (rangeType === 'hizb') {
+      const from = Math.min(rangeFrom, rangeTo);
+      const to = Math.max(rangeFrom, rangeTo);
       const fromJuzIdx = Math.floor((from - 1) / 2);
       const toJuzIdx = Math.floor((to - 1) / 2);
       const isSecondHalf = (from - 1) % 2 === 1;
@@ -184,39 +191,45 @@ export function QuranReader() {
       return pages;
     }
     return null;
-  }, [ghareebRangeType, ghareebRangeFrom, ghareebRangeTo]);
-
-  // Determine what nextPage to call based on range.
-  // Uses currentPageRef (not currentPage state) to always read the LATEST page
-  // and avoid stale closure bugs in setTimeout chains.
-  const ghareebPagesRangeRef = React.useRef(ghareebPagesRange);
-  useEffect(() => { ghareebPagesRangeRef.current = ghareebPagesRange; }, [ghareebPagesRange]);
-  const autoAdvancePageRef = React.useRef(autoAdvancePage);
-  useEffect(() => { autoAdvancePageRef.current = autoAdvancePage; }, [autoAdvancePage]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handlePageEnd = useCallback(() => {
     const curPage = currentPageRef.current;
-    const range = ghareebPagesRangeRef.current;
+    // Always read LIVE from store — no stale closure possible
+    const range = getGhareebPagesRange();
     const hasRange = range !== null;
 
     // If a specific range is defined, always advance within it (regardless of autoAdvancePage setting)
     // If no range (all), respect the autoAdvancePage setting
-    if (!hasRange && !autoAdvancePageRef.current) return;
+    if (!hasRange && !autoAdvancePageRef.current) {
+      console.log('[handlePageEnd] ⛔ blocked: no range and autoAdvancePage is off');
+      return;
+    }
 
-    console.log('[handlePageEnd] ✅ called. curPage:', curPage, 'range:', range ? `${range[0]}-${range[range.length-1]}` : 'all');
+    console.log('[handlePageEnd] ✅ called. curPage:', curPage, 'range:', range ? `${range[0]}-${range[range.length-1]} (${range.length} pages)` : 'all', 'curPageInRange:', range?.indexOf(curPage));
 
     if (range) {
       const idx = range.indexOf(curPage);
       if (idx >= 0 && idx < range.length - 1) {
+        // Normal: advance to next page in range
+        console.log('[handlePageEnd] → going to page', range[idx + 1]);
         goToPage(range[idx + 1]);
+      } else if (idx < 0) {
+        // Current page is NOT in range (e.g. user was on page 1 but range starts at page 50)
+        // Jump to first page in range
+        console.log('[handlePageEnd] ⚠️ page not in range → jumping to range start:', range[0]);
+        goToPage(range[0]);
+      } else {
+        // idx === range.length - 1: end of range, stop naturally
+        console.log('[handlePageEnd] ⛔ end of range reached at page', curPage);
       }
-      // else: end of defined range - stop naturally
     } else {
       nextPage();
     }
   // goToPage and nextPage are stable from useQuranData
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [goToPage, nextPage]);
+  }, [goToPage, nextPage, getGhareebPagesRange]);
 
   const {
     isPlaying, speed, setSpeed, play, pause, stop, nextWord, prevWord, jumpTo,
