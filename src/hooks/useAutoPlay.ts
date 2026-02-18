@@ -34,6 +34,8 @@ export function useAutoPlay({
   const isPlayingRef = useRef(isPlaying);
   // onPageEnd ref so scheduleNext always calls the latest version (no stale closure)
   const onPageEndRef = useRef(onPageEnd);
+  // Flag: true while waiting for page transition (prevents double-start from words useEffect)
+  const pageTransitioningRef = useRef(false);
 
   // Keep refs in sync
   useEffect(() => {
@@ -153,16 +155,21 @@ export function useAutoPlay({
           const lastWordDuration = speedRef.current * 1000;
           const advanceDelay = (useSettingsStore.getState().settings.autoplay.autoAdvanceDelay || 1.5) * 1000;
           console.log('[autoplay] ✅ End of page. lastWordDuration:', lastWordDuration, 'advanceDelay:', advanceDelay);
+          // Mark that we're transitioning so the words-change effect doesn't fire concurrently
+          pageTransitioningRef.current = true;
           timeoutRef.current = setTimeout(() => {
-            if (!isPlayingRef.current) return;
+            if (!isPlayingRef.current) { pageTransitioningRef.current = false; return; }
             repeatCountRef.current = 0;
             const pageEndFn = onPageEndRef.current;
             console.log('[autoplay] 📞 Calling onPageEnd, fn exists:', !!pageEndFn);
             if (pageEndFn) {
               timeoutRef.current = setTimeout(() => {
-                if (!isPlayingRef.current) return;
+                if (!isPlayingRef.current) { pageTransitioningRef.current = false; return; }
                 pageEndFn();
+                // pageTransitioningRef stays true until words-change effect handles it
               }, advanceDelay);
+            } else {
+              pageTransitioningRef.current = false;
             }
           }, lastWordDuration);
         }
@@ -288,32 +295,56 @@ export function useAutoPlay({
   useEffect(() => {
     // CRITICAL: read isPlayingRef directly (not state) to avoid stale closure
     if (!isPlayingRef.current) return;
-    if (words.length === 0) return;
 
-    console.log('[autoplay] 🔄 words changed while playing → restarting from 0. count:', words.length);
-    // Cancel any pending timers from previous page
+    // If the new words array is empty, it means page transition is in progress.
+    // Do NOT abort — the next call to this effect (with actual words) will resume.
+    if (words.length === 0) {
+      // Cancel any lingering timers from old page so they don't fire unexpectedly
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
+      }
+      console.log('[autoplay] ⏳ words became empty (page transitioning), waiting…');
+      return;
+    }
+
+    // Cancel any pending timers (including any onPageEnd timeout that's still counting)
     if (timeoutRef.current) {
       clearTimeout(timeoutRef.current);
       timeoutRef.current = null;
     }
 
+    // Mark transition complete
+    pageTransitioningRef.current = false;
+
+    console.log('[autoplay] 🔄 words changed while playing → restarting from 0. count:', words.length);
+
     // Reset repeat counter for new page
     repeatCountRef.current = 0;
 
-    // Reset index to 0
-    setCurrentWordIndex(0);
-    currentIndexRef.current = 0;
-    scrollToActiveWord(0);
+    // Capture the new words locally so the timeout closure reads the correct array
+    const newWords = words;
 
     // Notify parent that a new page started
     onPageStart?.();
 
-    // Wait for DOM to settle after page change, then resume
+    // Wait for DOM to settle after page change, then resume.
+    // IMPORTANT: set index INSIDE the timeout (after goToPage's setCurrentWordIndex(-1)
+    // has already been processed) so that currentIndexRef is set to 0 correctly.
     const t = setTimeout(() => {
       if (!isPlayingRef.current) return;
+      if (newWords.length === 0) {
+        console.log('[autoplay] ⚠️ words still empty after settle, aborting');
+        return;
+      }
+      // Sync refs now that the DOM has settled
+      wordsRef.current = newWords;
+      currentIndexRef.current = 0;
+      setCurrentWordIndex(0);
+      scrollToActiveWord(0);
       console.log('[autoplay] ▶️ Auto-resuming on new page, words:', wordsRef.current.length);
       scheduleNext();
-    }, 600);
+    }, 500);
     return () => clearTimeout(t);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [words]);
