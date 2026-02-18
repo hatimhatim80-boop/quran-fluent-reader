@@ -128,13 +128,21 @@ export default function TahfeezPage() {
 
   // Compute pages range for multi-page quiz
   const quizPagesRange = useMemo(() => {
+    // Helper: get pages with stored items (for custom quiz source)
+    const filterToStoredPages = (pages: number[]) => {
+      if (quizSource !== 'custom' || storedItems.length === 0) return pages;
+      const storedPageSet = new Set(storedItems.map(i => i.data.page));
+      const filtered = pages.filter(p => storedPageSet.has(p));
+      return filtered.length > 0 ? filtered : pages;
+    };
+
     if (quizScope === 'current-page') return [currentPage];
     if (quizScope === 'page-range') {
       const from = Math.min(quizScopeFrom, quizScopeTo);
       const to = Math.max(quizScopeFrom, quizScopeTo);
       const pages: number[] = [];
       for (let p = from; p <= Math.min(to, 604); p++) pages.push(p);
-      return pages;
+      return filterToStoredPages(pages);
     }
     if (quizScope === 'surah') {
       const surahNum = quizScopeFrom;
@@ -146,7 +154,7 @@ export default function TahfeezPage() {
       const endPage = nextSurah ? nextSurah.startPage - 1 : 604;
       const pages: number[] = [];
       for (let p = startPage; p <= endPage; p++) pages.push(p);
-      return pages;
+      return filterToStoredPages(pages);
     }
     if (quizScope === 'juz') {
       const fromJuz = Math.min(quizScopeFrom, quizScopeTo);
@@ -155,7 +163,7 @@ export default function TahfeezPage() {
       const endPage = toJuz < 30 ? (JUZ_DATA[toJuz]?.page || 605) - 1 : 604;
       const pages: number[] = [];
       for (let p = startPage; p <= endPage; p++) pages.push(p);
-      return pages;
+      return filterToStoredPages(pages);
     }
     if (quizScope === 'hizb') {
       const fromHizb = Math.min(quizScopeFrom, quizScopeTo);
@@ -180,10 +188,10 @@ export default function TahfeezPage() {
       }
       const pages: number[] = [];
       for (let p = startPage; p <= Math.min(endPage, 604); p++) pages.push(p);
-      return pages;
+      return filterToStoredPages(pages);
     }
     return [currentPage];
-  }, [quizScope, quizScopeFrom, quizScopeTo, currentPage]);
+  }, [quizScope, quizScopeFrom, quizScopeTo, currentPage, quizSource, storedItems]);
 
   // Keep quizPagesRange in a ref so setTimeout callbacks always read the latest array
   useEffect(() => { quizPagesRangeRef.current = quizPagesRange; }, [quizPagesRange]);
