@@ -352,70 +352,83 @@ export default function TahfeezPage() {
     // ── advance() for Tahfeez ─────────────────────────────────────────────────
     // Uses REFS exclusively to avoid stale closures in nested setTimeout chains.
     const advance = (idx: number) => {
-      // Always read from refs — never from closure state
-      const list = blankedKeysListRef.current;
-      const total = list.length;
-      const isEndOfPage = idx >= total;
+      try {
+        // Always read from refs — never from closure state
+        const list = blankedKeysListRef.current;
+        const total = list.length;
+        const isEndOfPage = idx >= total;
 
-      console.log('[tahfeez][advance]', JSON.stringify({
-        portal: 'تحفيظ',
-        currentPage: currentPageRef.current,
-        itemsCount: total,
-        index: idx,
-        endDetected: isEndOfPage,
-      }));
+        console.log('[tahfeez][advance]', JSON.stringify({
+          portal: 'تحفيظ',
+          currentPage: currentPageRef.current,
+          itemsCount: total,
+          index: idx,
+          endDetected: isEndOfPage,
+        }));
 
-      if (isEndOfPage) {
-        setShowAll(true);
-        setActiveBlankKey(null);
-        const autoplaySettings = useSettingsStore.getState().settings.autoplay;
-        const delayMs = (autoplaySettings.autoAdvanceDelay || 1.5) * 1000;
+        if (isEndOfPage) {
+          setShowAll(true);
+          setActiveBlankKey(null);
+          const autoplaySettings = useSettingsStore.getState().settings.autoplay;
+          const delayMs = (autoplaySettings.autoAdvanceDelay || 1.5) * 1000;
 
-        revealTimerRef.current = setTimeout(() => {
-          const curPage = currentPageRef.current;
-          const range = quizPagesRangeRef.current;
-          const currentPageIdx = range.indexOf(curPage);
+          revealTimerRef.current = setTimeout(() => {
+            try {
+              const curPage = currentPageRef.current;
+              const range = quizPagesRangeRef.current;
+              const currentPageIdx = range.indexOf(curPage);
 
-          console.log('[tahfeez][advance] END OF PAGE → curPage:', curPage, 'rangeIdx:', currentPageIdx, '/', range.length - 1);
+              console.log('[tahfeez][advance] END OF PAGE → curPage:', curPage, 'rangeIdx:', currentPageIdx, '/', range.length - 1);
 
-          if (currentPageIdx >= 0 && currentPageIdx < range.length - 1) {
-            // Move to next page in range (auto-advance)
-            const nextPageInRange = range[currentPageIdx + 1];
-            setQuizPageIdx(currentPageIdx + 1);
-            autoResumeQuizRef.current = true;
-            goToPage(nextPageInRange);
-          } else if (range.length <= 1) {
-            // Single page mode → advance to next page and continue quiz
-            autoResumeQuizRef.current = true;
-            nextPage();
-          }
-          // else: end of multi-page range → stop (already showing showAll)
-        }, delayMs);
-        return;
-      }
+              if (currentPageIdx >= 0 && currentPageIdx < range.length - 1) {
+                const nextPageInRange = range[currentPageIdx + 1];
+                setQuizPageIdx(currentPageIdx + 1);
+                autoResumeQuizRef.current = true;
+                goToPage(nextPageInRange);
+              } else if (range.length <= 1) {
+                autoResumeQuizRef.current = true;
+                nextPage();
+              }
+            } catch (err) {
+              console.error('[tahfeez] Error in auto-advance:', err);
+              setShowAll(true);
+            }
+          }, delayMs);
+          return;
+        }
 
-      const key = list[idx];
-      const isFirstKey = firstKeysSetRef.current.has(key);
+        const key = list[idx];
+        if (!key) {
+          console.warn('[tahfeez] No key at index', idx, '— stopping');
+          setShowAll(true);
+          return;
+        }
+        const isFirstKey = firstKeysSetRef.current.has(key);
 
-      if (isFirstKey) {
-        setActiveBlankKey(null);
-        setCurrentRevealIdx(idx);
-        revealTimerRef.current = setTimeout(() => {
+        if (isFirstKey) {
+          setActiveBlankKey(null);
+          setCurrentRevealIdx(idx);
+          revealTimerRef.current = setTimeout(() => {
+            setActiveBlankKey(key);
+            revealTimerRef.current = setTimeout(() => {
+              setRevealedKeys(prev => new Set([...prev, key]));
+              setActiveBlankKey(null);
+              revealTimerRef.current = setTimeout(() => advance(idx + 1), 300);
+            }, timerSecondsRef.current * 1000);
+          }, firstWordTimerSecondsRef.current * 1000);
+        } else {
           setActiveBlankKey(key);
+          setCurrentRevealIdx(idx);
           revealTimerRef.current = setTimeout(() => {
             setRevealedKeys(prev => new Set([...prev, key]));
             setActiveBlankKey(null);
             revealTimerRef.current = setTimeout(() => advance(idx + 1), 300);
           }, timerSecondsRef.current * 1000);
-        }, firstWordTimerSecondsRef.current * 1000);
-      } else {
-        setActiveBlankKey(key);
-        setCurrentRevealIdx(idx);
-        revealTimerRef.current = setTimeout(() => {
-          setRevealedKeys(prev => new Set([...prev, key]));
-          setActiveBlankKey(null);
-          revealTimerRef.current = setTimeout(() => advance(idx + 1), 300);
-        }, timerSecondsRef.current * 1000);
+        }
+      } catch (err) {
+        console.error('[tahfeez] Error in advance():', err);
+        setShowAll(true);
+        setActiveBlankKey(null);
       }
     };
 
@@ -434,24 +447,39 @@ export default function TahfeezPage() {
   }, [quizStarted, isPaused, showAll, currentRevealIdx]);
 
   const handleStart = () => {
-    isFirstStartRef.current = true;
-    autoResumeQuizRef.current = false;
-    setQuizStarted(true);
-    setIsPaused(false);
-    setShowAll(false);
-    setRevealedKeys(new Set());
-    setActiveBlankKey(null);
-    setCurrentRevealIdx(-1);
-    setBlankedKeysList([]);
-    setQuizPageIdx(0);
+    try {
+      // Clear any lingering timers from previous runs
+      if (revealTimerRef.current) clearTimeout(revealTimerRef.current);
+      if (autoAdvanceTimerRef.current) clearTimeout(autoAdvanceTimerRef.current);
+      revealTimerRef.current = null;
+      autoAdvanceTimerRef.current = null;
+
+      isFirstStartRef.current = true;
+      autoResumeQuizRef.current = false;
+      setQuizStarted(true);
+      setIsPaused(false);
+      setShowAll(false);
+      setRevealedKeys(new Set());
+      setActiveBlankKey(null);
+      setCurrentRevealIdx(-1);
+      setBlankedKeysList([]);
+      setQuizPageIdx(0);
+    } catch (err) {
+      console.error('[tahfeez] Error in handleStart:', err);
+      toast.error('حدث خطأ أثناء بدء الاختبار');
+    }
   };
 
   const handleStartMultiPage = () => {
-    // Navigate to first page in range
-    if (quizPagesRange.length > 0) {
-      goToPage(quizPagesRange[0]);
+    try {
+      if (quizPagesRange.length > 0) {
+        goToPage(quizPagesRange[0]);
+      }
+      handleStart();
+    } catch (err) {
+      console.error('[tahfeez] Error in handleStartMultiPage:', err);
+      toast.error('حدث خطأ أثناء بدء الاختبار');
     }
-    handleStart();
   };
 
   const handlePauseResume = () => {
@@ -467,28 +495,36 @@ export default function TahfeezPage() {
   };
 
   const handleRevealAll = () => {
-    if (revealTimerRef.current) clearTimeout(revealTimerRef.current);
-    setShowAll(true);
-    setActiveBlankKey(null);
-    // Trigger auto-advance after reveal-all using a separate ref so useEffect cleanup doesn't cancel it
-    if (quizStarted) {
-      const autoplaySettings = useSettingsStore.getState().settings.autoplay;
-      const delayMs = (autoplaySettings.autoAdvanceDelay || 1.5) * 1000;
-      if (autoAdvanceTimerRef.current) clearTimeout(autoAdvanceTimerRef.current);
-      autoAdvanceTimerRef.current = setTimeout(() => {
-        const curPage = currentPageRef.current;
-        const range = quizPagesRangeRef.current;
-        const currentPageIdx = range.indexOf(curPage);
-        if (currentPageIdx >= 0 && currentPageIdx < range.length - 1) {
-          const nextPageInRange = range[currentPageIdx + 1];
-          setQuizPageIdx(currentPageIdx + 1);
-          autoResumeQuizRef.current = true;
-          goToPage(nextPageInRange);
-        } else if (range.length <= 1) {
-          autoResumeQuizRef.current = true;
-          nextPage();
-        }
-      }, delayMs);
+    try {
+      if (revealTimerRef.current) clearTimeout(revealTimerRef.current);
+      setShowAll(true);
+      setActiveBlankKey(null);
+      // Trigger auto-advance after reveal-all using a separate ref so useEffect cleanup doesn't cancel it
+      if (quizStarted) {
+        const autoplaySettings = useSettingsStore.getState().settings.autoplay;
+        const delayMs = (autoplaySettings.autoAdvanceDelay || 1.5) * 1000;
+        if (autoAdvanceTimerRef.current) clearTimeout(autoAdvanceTimerRef.current);
+        autoAdvanceTimerRef.current = setTimeout(() => {
+          try {
+            const curPage = currentPageRef.current;
+            const range = quizPagesRangeRef.current;
+            const currentPageIdx = range.indexOf(curPage);
+            if (currentPageIdx >= 0 && currentPageIdx < range.length - 1) {
+              const nextPageInRange = range[currentPageIdx + 1];
+              setQuizPageIdx(currentPageIdx + 1);
+              autoResumeQuizRef.current = true;
+              goToPage(nextPageInRange);
+            } else if (range.length <= 1) {
+              autoResumeQuizRef.current = true;
+              nextPage();
+            }
+          } catch (err) {
+            console.error('[tahfeez] Error in handleRevealAll auto-advance:', err);
+          }
+        }, delayMs);
+      }
+    } catch (err) {
+      console.error('[tahfeez] Error in handleRevealAll:', err);
     }
   };
 
