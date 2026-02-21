@@ -9,6 +9,7 @@ import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import ValidationReport from "./pages/ValidationReport";
 import Tahfeez from "./pages/Tahfeez";
+import { TahfeezErrorBoundary } from "./components/TahfeezErrorBoundary";
 import { initOTA } from "./services/otaUpdateService";
 import { UpdateBanner } from "./components/UpdateBanner";
 
@@ -30,7 +31,7 @@ const App = () => {
           <Route path="/" element={<Home />} />
           <Route path="/mushaf" element={<Index />} />
           <Route path="/validation" element={<ValidationReport />} />
-          <Route path="/tahfeez" element={<Tahfeez />} />
+          <Route path="/tahfeez" element={<TahfeezErrorBoundary><Tahfeez /></TahfeezErrorBoundary>} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
