@@ -816,7 +816,7 @@ export function SettingsDialog({ children }: SettingsDialogProps) {
                 value={[settings.autoplay.speed]}
                 onValueChange={([v]) => setAutoplay({ speed: v })}
                 min={1}
-                max={10}
+                max={30}
                 step={0.5}
               />
             </div>
