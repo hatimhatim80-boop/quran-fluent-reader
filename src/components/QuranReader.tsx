@@ -233,7 +233,7 @@ export function QuranReader() {
   }, [goToPage, nextPage, getGhareebPagesRange]);
 
   const {
-    isPlaying, speed, setSpeed, play, pause, stop, nextWord, prevWord, jumpTo,
+    isPlaying, speed, setSpeed, play, pause, resume, stop, nextWord, prevWord, jumpTo,
   } = useAutoPlay({
     words: renderedWords,
     currentWordIndex,
@@ -254,9 +254,10 @@ export function QuranReader() {
     jumpTo(index);
     // Start autoplay on word click if setting enabled OR bars are hidden
     if ((autoPlayOnWordClick || hideBars) && !isPlaying) {
-      setTimeout(() => play(), 50);
+      // Use resume() instead of play() to start from the clicked word, not from 0
+      setTimeout(() => resume(), 50);
     }
-  }, [jumpTo, autoPlayOnWordClick, hideBars, isPlaying, play]);
+  }, [jumpTo, autoPlayOnWordClick, hideBars, isPlaying, resume]);
 
   const handlePlayPause = useCallback(() => {
     isPlaying ? pause() : play();
