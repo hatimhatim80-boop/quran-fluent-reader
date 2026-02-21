@@ -93,7 +93,7 @@ export function AutoPlayControls({
           value={[speed]}
           onValueChange={([val]) => onSpeedChange(val)}
           min={2}
-          max={10}
+          max={30}
           step={1}
           className="flex-1"
         />
