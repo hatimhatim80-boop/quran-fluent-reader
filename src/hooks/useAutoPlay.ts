@@ -63,7 +63,18 @@ export function useAutoPlay({
   currentPage = 0,
 }: UseAutoPlayProps) {
   const [isPlaying, setIsPlaying] = useState(false);
-  const [speed, setSpeed] = useState(4); // seconds per word
+  const settingsSpeed = useSettingsStore(s => s.settings.autoplay.speed);
+  const setAutoplay = useSettingsStore(s => s.setAutoplay);
+  const [speed, _setSpeedLocal] = useState(settingsSpeed); // sync from store
+
+  // Keep local speed in sync with store
+  useEffect(() => { _setSpeedLocal(settingsSpeed); }, [settingsSpeed]);
+
+  // setSpeed updates both local state and store
+  const setSpeed = useCallback((v: number) => {
+    _setSpeedLocal(v);
+    setAutoplay({ speed: v });
+  }, [setAutoplay]);
   const pageRepeatCount = useSettingsStore(s => s.settings.autoplay.pageRepeatCount) || 1;
   const repeatCountRef = useRef(0);
   const pageRepeatCountRef = useRef(pageRepeatCount);
