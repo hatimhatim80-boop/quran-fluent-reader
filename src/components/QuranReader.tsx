@@ -252,12 +252,11 @@ export function QuranReader() {
 
   const handleWordClick = useCallback((_: GhareebWord, index: number) => {
     jumpTo(index);
-    // If autoPlayOnWordClick is enabled and not already playing, start playing
-    if (autoPlayOnWordClick && !isPlaying) {
-      // Small delay to let jumpTo settle
+    // Start autoplay on word click if setting enabled OR bars are hidden
+    if ((autoPlayOnWordClick || hideBars) && !isPlaying) {
       setTimeout(() => play(), 50);
     }
-  }, [jumpTo, autoPlayOnWordClick, isPlaying, play]);
+  }, [jumpTo, autoPlayOnWordClick, hideBars, isPlaying, play]);
 
   const handlePlayPause = useCallback(() => {
     isPlaying ? pause() : play();
