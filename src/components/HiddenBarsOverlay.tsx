@@ -58,12 +58,21 @@ export function HiddenBarsOverlay({ onShow, onNextPage, onPrevPage }: HiddenBars
 
   return (
     <>
+      {/* Top strip for tap-to-show (doesn't block word clicks in center) */}
       <div
-        className="fixed inset-0 z-40"
+        className="fixed top-0 left-0 right-0 z-40"
+        style={{ height: '15%', touchAction: 'pan-y' }}
         onClick={handleClick}
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
-        style={{ touchAction: 'pan-y' }}
+      />
+      {/* Bottom strip for swipe navigation */}
+      <div
+        className="fixed bottom-0 left-0 right-0 z-40"
+        style={{ height: '15%', touchAction: 'pan-y' }}
+        onClick={handleClick}
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
       />
       {/* Button appears for 3s after single tap */}
       {visible && (
