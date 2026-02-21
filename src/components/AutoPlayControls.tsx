@@ -85,7 +85,7 @@ export function AutoPlayControls({
       </div>
 
       {/* Speed Control */}
-      <div className="flex items-center gap-4 px-4">
+      <div className="flex items-center gap-4 px-4" dir="ltr">
         <span className="text-sm font-arabic text-muted-foreground whitespace-nowrap">
           سريع
         </span>
@@ -94,7 +94,7 @@ export function AutoPlayControls({
           onValueChange={([val]) => onSpeedChange(val)}
           min={2}
           max={30}
-          step={1}
+          step={0.5}
           className="flex-1"
         />
         <span className="text-sm font-arabic text-muted-foreground whitespace-nowrap">
