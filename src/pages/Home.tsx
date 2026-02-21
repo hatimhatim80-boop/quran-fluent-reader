@@ -1,8 +1,9 @@
 import { Link } from 'react-router-dom';
-import { BookOpen, GraduationCap } from 'lucide-react';
+import { BookOpen, GraduationCap, LogOut } from 'lucide-react';
 import { SessionManager } from '@/components/SessionManager';
 import { useState } from 'react';
 import { GhareebEntryDialog, useGhareebEntry } from '@/components/GhareebEntryDialog';
+import { isNativeApp } from '@/services/otaUpdateService';
 
 export default function Home() {
   const { showDialog, triggerEntry, closeDialog } = useGhareebEntry();
@@ -53,6 +54,21 @@ export default function Home() {
 
         {/* Sessions section */}
         <SessionManager />
+
+        {/* Exit button */}
+        <button
+          onClick={() => {
+            if (isNativeApp() && (window as any).Capacitor?.Plugins?.App) {
+              (window as any).Capacitor.Plugins.App.exitApp();
+            } else {
+              window.close();
+            }
+          }}
+          className="w-full page-frame p-3 flex items-center justify-center gap-2 hover:border-destructive/50 hover:bg-destructive/5 transition-all text-muted-foreground hover:text-destructive"
+        >
+          <LogOut className="w-4 h-4" />
+          <span className="text-sm font-arabic">الخروج من التطبيق</span>
+        </button>
       </div>
 
       {/* Ghareeb entry dialog */}
