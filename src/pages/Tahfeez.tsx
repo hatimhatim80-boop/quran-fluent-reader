@@ -452,7 +452,7 @@ export default function TahfeezPage() {
           setRevealedKeys(prev => new Set([...prev, key]));
           setActiveBlankKey(null);
           // Don't stop speech between words - keep mic running for continuous recognition
-          revealTimerRef.current = setTimeout(() => advance(idx + 1), 300);
+          revealTimerRef.current = setTimeout(() => advance(idx + 1), 80);
         };
 
         const startVoiceOrTimer = () => {
@@ -541,9 +541,9 @@ export default function TahfeezPage() {
                 revealAndAdvance();
                 return;
               }
-              revealTimerRef.current = setTimeout(pollForMatch, 300);
+              revealTimerRef.current = setTimeout(pollForMatch, 100);
             };
-            revealTimerRef.current = setTimeout(pollForMatch, 400);
+            revealTimerRef.current = setTimeout(pollForMatch, 100);
           } else {
             // Timer mode: reveal after timerSeconds
             revealTimerRef.current = setTimeout(() => {
