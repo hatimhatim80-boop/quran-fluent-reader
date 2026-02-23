@@ -7,7 +7,7 @@ import { useSettingsApplier } from '@/hooks/useSettingsApplier';
 import { useSettingsStore } from '@/stores/settingsStore';
 import { useKeepAwake } from '@/hooks/useKeepAwake';
 import { useSpeech } from '@/hooks/useSpeech';
-import { matchHiddenWordsInOrder } from '@/utils/quranSpeechMatch';
+import { matchHiddenWordsInOrder, normalizeSpeechArabic, splitWords } from '@/utils/quranSpeechMatch';
 import { Link, useNavigate } from 'react-router-dom';
 import { BookOpen, Play, Pause, Eye, EyeOff, ArrowRight, Save, Trash2, GraduationCap, ListChecks, Zap, Book, Layers, Hash, FileText, Search, X, ChevronLeft, Download, Upload, Settings2, ChevronsRight, Undo2, Mic, MicOff } from 'lucide-react';
 import { HiddenBarsOverlay } from '@/components/HiddenBarsOverlay';
@@ -494,20 +494,34 @@ export default function TahfeezPage() {
               
               // Get the new portion of transcript since this word started
               const newPart = currentTranscript.substring(baseTranscriptLen).trim();
+              // Use lower threshold for short words (≤3 chars after normalization)
+              const normWord = wordText.replace(/[\u0610-\u065F\u0670\u06D6-\u06ED]/g, '').trim();
+              const shortWord = normWord.length <= 3;
+              const thresh = shortWord ? 0.45 : 0.60;
+              
               if (newPart) {
                 const targetWords = [wordText];
-                const result = matchHiddenWordsInOrder(newPart, targetWords, 0.60);
+                const result = matchHiddenWordsInOrder(newPart, targetWords, thresh);
                 if (result.success) {
                   console.log('[tahfeez] ✓ Voice match!', newPart, '→', wordText);
                   revealAndAdvance();
                   return;
                 }
+                // For short words, also check if any spoken word contains/equals the target
+                if (shortWord) {
+                  const normTarget = normalizeSpeechArabic(wordText);
+                  const spokenWords = splitWords(normalizeSpeechArabic(newPart));
+                  if (spokenWords.some(sw => sw === normTarget || sw.includes(normTarget) || normTarget.includes(sw))) {
+                    console.log('[tahfeez] ✓ Voice match (short-word)!', newPart, '→', wordText);
+                    revealAndAdvance();
+                    return;
+                  }
+                }
               }
               
               // Also try matching against the FULL current transcript as fallback
-              // (handles cases where baseline tracking drifts)
               if (currentTranscript.trim()) {
-                const fullResult = matchHiddenWordsInOrder(currentTranscript.trim(), [wordText], 0.60);
+                const fullResult = matchHiddenWordsInOrder(currentTranscript.trim(), [wordText], thresh);
                 if (fullResult.success) {
                   console.log('[tahfeez] ✓ Voice match (full)!', currentTranscript.trim(), '→', wordText);
                   revealAndAdvance();
