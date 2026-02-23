@@ -503,7 +503,7 @@ export default function TahfeezPage() {
               // Use lower threshold for short words (≤3 chars after normalization)
               const normWord = wordText.replace(/[\u0610-\u065F\u0670\u06D6-\u06ED]/g, '').trim();
               const shortWord = normWord.length <= 3;
-              const thresh = shortWord ? 0.45 : 0.60;
+              const thresh = shortWord ? 0.50 : 0.75;
               
               if (newPart) {
                 const targetWords = [wordText];
@@ -522,16 +522,6 @@ export default function TahfeezPage() {
                     revealAndAdvance();
                     return;
                   }
-                }
-              }
-              
-              // Also try matching against the FULL current transcript as fallback
-              if (currentTranscript.trim()) {
-                const fullResult = matchHiddenWordsInOrder(currentTranscript.trim(), [wordText], thresh);
-                if (fullResult.success) {
-                  console.log('[tahfeez] ✓ Voice match (full)!', currentTranscript.trim(), '→', wordText);
-                  revealAndAdvance();
-                  return;
                 }
               }
               
