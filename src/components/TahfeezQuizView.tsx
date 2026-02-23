@@ -18,6 +18,8 @@ interface TahfeezQuizViewProps {
   revealedKeys: Set<string>;           // Already revealed keys
   showAll: boolean;                     // Show all at once
   onClickActiveBlank?: () => void;     // Called when user taps the active mic icon
+  storeMode?: boolean;                 // When true, tapping words stores them
+  onStoreWord?: (lineIdx: number, tokenIdx: number, text: string) => void;
 }
 
 function isSurahHeader(line: string): boolean {
@@ -47,6 +49,8 @@ export function TahfeezQuizView({
   revealedKeys,
   showAll,
   onClickActiveBlank,
+  storeMode,
+  onStoreWord,
 }: TahfeezQuizViewProps) {
   const { settings } = useSettingsStore();
   const displayMode = settings.display?.mode || 'auto15';
@@ -412,14 +416,27 @@ export function TahfeezQuizView({
         const shouldShowAsActive = isBlanked && isActive && !isRevealed && !showAll;
         const shouldShowAsRevealed = isBlanked && (isRevealed || showAll);
 
+        // Check if this word is already stored (for store mode visual feedback)
+        const isStored = storeMode && storedItems.some(item => {
+          if (item.data.page !== page.pageNumber) return false;
+          if (item.type === 'word') {
+            const w = item.data;
+            return w.wordIndex === tokenIdx && w.originalWord === t && (w.lineIdx === undefined || w.lineIdx === lineIdx);
+          }
+          return false;
+        });
+
+        const storeClickHandler = storeMode && onStoreWord ? () => onStoreWord(lineIdx, tokenIdx, t) : undefined;
+
         if (shouldHide) {
           lineElements.push(
-            <span key={`${lineIdx}-${tokenIdx}`} className="tahfeez-blank">{t}</span>
+            <span key={`${lineIdx}-${tokenIdx}`} className={`tahfeez-blank${storeMode ? ' tahfeez-store-target' : ''}${isStored ? ' tahfeez-stored' : ''}`}
+              onClick={storeClickHandler} style={storeMode ? { cursor: 'pointer' } : undefined}>{t}</span>
           );
         } else if (shouldShowAsActive) {
           // Active blank: text stays hidden, but shows a pulsing indicator (mic icon)
           lineElements.push(
-            <span key={`${lineIdx}-${tokenIdx}`} className="tahfeez-active-indicator" data-tahfeez-active="true" onClick={onClickActiveBlank} style={{ cursor: 'pointer' }}>
+            <span key={`${lineIdx}-${tokenIdx}`} className="tahfeez-active-indicator" data-tahfeez-active="true" onClick={storeMode ? storeClickHandler : onClickActiveBlank} style={{ cursor: 'pointer' }}>
               <span className="tahfeez-active-indicator__text">{t}</span>
               <span className="tahfeez-active-indicator__icon">🎤</span>
             </span>
@@ -427,11 +444,13 @@ export function TahfeezQuizView({
         } else if (shouldShowAsRevealed) {
           const revealedClass = highlightStyle === 'text-only' ? 'tahfeez-revealed--text-only' : 'tahfeez-revealed';
           lineElements.push(
-            <span key={`${lineIdx}-${tokenIdx}`} className={revealedClass}>{t}</span>
+            <span key={`${lineIdx}-${tokenIdx}`} className={`${revealedClass}${storeMode ? ' tahfeez-store-target' : ''}${isStored ? ' tahfeez-stored' : ''}`}
+              onClick={storeClickHandler} style={storeMode ? { cursor: 'pointer' } : undefined}>{t}</span>
           );
         } else {
           lineElements.push(
-            <span key={`${lineIdx}-${tokenIdx}`}>{t}</span>
+            <span key={`${lineIdx}-${tokenIdx}`} className={`${storeMode ? 'tahfeez-store-target' : ''}${isStored ? ' tahfeez-stored' : ''}`}
+              onClick={storeClickHandler} style={storeMode ? { cursor: 'pointer' } : undefined}>{t}</span>
           );
         }
       }
@@ -449,7 +468,7 @@ export function TahfeezQuizView({
     return isLines15 
       ? <div className="quran-lines-container">{elements}</div>
       : <div className="quran-page">{elements}</div>;
-  }, [lines, blankedKeys, activeBlankKey, revealedKeys, showAll, isLines15]);
+  }, [lines, blankedKeys, activeBlankKey, revealedKeys, showAll, isLines15, storeMode, storedItems, onStoreWord, page.pageNumber]);
 
 
   // Auto-scroll active blank word into view when it's near the bottom
