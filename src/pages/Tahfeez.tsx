@@ -6,7 +6,8 @@ import { useQuranData } from '@/hooks/useQuranData';
 import { useSettingsApplier } from '@/hooks/useSettingsApplier';
 import { useSettingsStore } from '@/stores/settingsStore';
 import { useKeepAwake } from '@/hooks/useKeepAwake';
-import { useSpeechRecognition, isSpeechRecognitionSupported } from '@/hooks/useSpeechRecognition';
+import { useSpeech } from '@/hooks/useSpeech';
+import { matchHiddenWordsInOrder } from '@/utils/quranSpeechMatch';
 import { Link, useNavigate } from 'react-router-dom';
 import { BookOpen, Play, Pause, Eye, EyeOff, ArrowRight, Save, Trash2, GraduationCap, ListChecks, Zap, Book, Layers, Hash, FileText, Search, X, ChevronLeft, Download, Upload, Settings2, ChevronsRight, Undo2, Mic, MicOff } from 'lucide-react';
 import { HiddenBarsOverlay } from '@/components/HiddenBarsOverlay';
@@ -65,7 +66,7 @@ export default function TahfeezPage() {
     voiceMode, setVoiceMode,
   } = useTahfeezStore();
 
-  const speechRecognition = useSpeechRecognition();
+  const speech = useSpeech();
 
   const { currentPage, getCurrentPageData, goToPage, totalPages, nextPage, prevPage } = useQuranData();
   useSettingsApplier(); // Apply font/display settings globally
@@ -135,8 +136,8 @@ export default function TahfeezPage() {
   const voiceModeRef = useRef(voiceMode);
   useEffect(() => { voiceModeRef.current = voiceMode; }, [voiceMode]);
   const wordTextsMapRef = useRef<Record<string, string>>({});
-  const speechRecognitionRef = useRef(speechRecognition);
-  useEffect(() => { speechRecognitionRef.current = speechRecognition; }, [speechRecognition]);
+  const speechRef = useRef(speech);
+  useEffect(() => { speechRef.current = speech; }, [speech]);
 
   // Compute pages range for multi-page quiz
   const quizPagesRange = useMemo(() => {
@@ -429,19 +430,43 @@ export default function TahfeezPage() {
 
         const startVoiceOrTimer = () => {
           setActiveBlankKey(key);
-          if (useVoice && wordText) {
-            // Voice mode: listen for the word instead of using timer
-            speechRecognitionRef.current.startListening(wordText, {
-              onMatch: () => {
-                revealAndAdvance();
-              },
-              lang: 'ar-SA',
+          if (useVoice && wordText && speechRef.current.isSupported) {
+            // Voice mode: start listening, then check transcript periodically
+            const sr = speechRef.current;
+            sr.start('ar-SA').then((started) => {
+              if (!started) {
+                // Fallback to timer if speech fails
+                console.log('[tahfeez] Speech failed to start, falling back to timer');
+                revealTimerRef.current = setTimeout(() => revealAndAdvance(), timerSecondsRef.current * 1000);
+                return;
+              }
             });
-            // Also set a generous fallback timer (60s) to prevent infinite waiting
-            revealTimerRef.current = setTimeout(() => {
-              speechRecognitionRef.current.stopListening();
-              revealAndAdvance();
-            }, 60000);
+
+            // Poll transcript for match every 500ms
+            let voicePollCount = 0;
+            const maxPolls = 120; // 60 seconds max
+            const pollForMatch = () => {
+              voicePollCount++;
+              const currentTranscript = speechRef.current.transcript;
+              if (currentTranscript) {
+                const targetWords = [wordText];
+                const result = matchHiddenWordsInOrder(currentTranscript, targetWords, 0.7);
+                if (result.success) {
+                  console.log('[tahfeez] ✓ Voice match!', currentTranscript);
+                  speechRef.current.stop();
+                  revealAndAdvance();
+                  return;
+                }
+              }
+              if (voicePollCount >= maxPolls) {
+                console.log('[tahfeez] Voice timeout, revealing');
+                speechRef.current.stop();
+                revealAndAdvance();
+                return;
+              }
+              revealTimerRef.current = setTimeout(pollForMatch, 500);
+            };
+            revealTimerRef.current = setTimeout(pollForMatch, 500);
           } else {
             // Timer mode: reveal after timerSeconds
             revealTimerRef.current = setTimeout(() => {
@@ -476,7 +501,7 @@ export default function TahfeezPage() {
 
     return () => {
       if (revealTimerRef.current) clearTimeout(revealTimerRef.current);
-      speechRecognitionRef.current.stopListening();
+      speechRef.current.stop();
     };
   // Only re-run when index changes or quiz starts/pauses/ends — NOT when blankedKeysList changes
   // (we read it from ref). This prevents double-firing.
@@ -527,14 +552,14 @@ export default function TahfeezPage() {
     } else {
       setIsPaused(true);
       if (revealTimerRef.current) clearTimeout(revealTimerRef.current);
-      speechRecognition.stopListening();
+      speech.stop();
     }
   };
 
   const handleRevealAll = () => {
     try {
       if (revealTimerRef.current) clearTimeout(revealTimerRef.current);
-      speechRecognition.stopListening();
+      speech.stop();
       setShowAll(true);
       setActiveBlankKey(null);
       // Trigger auto-advance after reveal-all using a separate ref so useEffect cleanup doesn't cancel it
@@ -950,7 +975,7 @@ export default function TahfeezPage() {
                 </div>
 
                 {/* Voice Recognition Mode */}
-                {isSpeechRecognitionSupported() && (
+                {speech.isSupported && (
                   <div className="flex items-center justify-between p-3 rounded-lg border">
                     <div>
                       <label className="text-sm font-arabic font-medium text-foreground flex items-center gap-2">
@@ -1143,7 +1168,7 @@ export default function TahfeezPage() {
             </div>
 
             {/* Voice Recognition Mode */}
-            {isSpeechRecognitionSupported() && (
+            {speech.isSupported && (
               <div className="flex items-center justify-between p-3 rounded-lg border">
                 <div>
                   <label className="text-sm font-arabic font-medium text-foreground flex items-center gap-2">
@@ -1185,15 +1210,15 @@ export default function TahfeezPage() {
                 <span className="text-sm font-arabic text-muted-foreground">
                   {revealedKeys.size} / {blankedKeysList.length} كلمة
                 </span>
-                {voiceMode && speechRecognition.isListening && (
+                {voiceMode && speech.isListening && (
                   <span className="flex items-center gap-1 text-xs font-arabic text-primary animate-pulse">
                     <Mic className="w-3.5 h-3.5" />
                     يستمع...
                   </span>
                 )}
-                {voiceMode && speechRecognition.lastSpoken && !showAll && (
-                  <span className="text-xs font-arabic text-muted-foreground truncate max-w-[120px]" title={speechRecognition.lastSpoken}>
-                    «{speechRecognition.lastSpoken}»
+                {voiceMode && speech.transcript && !showAll && (
+                  <span className="text-xs font-arabic text-muted-foreground truncate max-w-[120px]" title={speech.transcript}>
+                    «{speech.transcript}»
                   </span>
                 )}
               </div>
@@ -1246,7 +1271,7 @@ export default function TahfeezPage() {
                   الصفحة التالية
                 </Button>
               )}
-              <Button variant="outline" size="sm" onClick={() => { setQuizStarted(false); if (revealTimerRef.current) clearTimeout(revealTimerRef.current); speechRecognition.stopListening(); }} className="font-arabic">
+              <Button variant="outline" size="sm" onClick={() => { setQuizStarted(false); if (revealTimerRef.current) clearTimeout(revealTimerRef.current); speech.stop(); }} className="font-arabic">
                 إعادة
               </Button>
             </div>
