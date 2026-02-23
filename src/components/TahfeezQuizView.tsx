@@ -337,13 +337,25 @@ export function TahfeezQuizView({
   }, [allWordTokens, blankedKeys, quizSource, storedItems, page.pageNumber, effectiveText]);
 
   // Attach to DOM for parent to read
+  // Also export word texts mapped by key for voice recognition
+  const blankedWordTexts = useMemo(() => {
+    const map: Record<string, string> = {};
+    for (const tok of allWordTokens) {
+      if (blankedKeys.has(tok.key)) {
+        map[tok.key] = tok.text;
+      }
+    }
+    return map;
+  }, [allWordTokens, blankedKeys]);
+
   React.useEffect(() => {
     const el = document.getElementById('tahfeez-blanked-keys');
     if (el) {
       el.setAttribute('data-keys', JSON.stringify(blankedKeysList));
       el.setAttribute('data-first-keys', JSON.stringify([...firstKeysSet]));
+      el.setAttribute('data-word-texts', JSON.stringify(blankedWordTexts));
     }
-  }, [blankedKeysList, firstKeysSet]);
+  }, [blankedKeysList, firstKeysSet, blankedWordTexts]);
 
 
   // Render

@@ -133,6 +133,10 @@ interface TahfeezState {
   revealMode: 'all' | 'gradual';
   setRevealMode: (m: 'all' | 'gradual') => void;
 
+  // Voice recognition mode
+  voiceMode: boolean;
+  setVoiceMode: (on: boolean) => void;
+
   // Active tab in tahfeez page
   activeTab: 'store' | 'custom-quiz' | 'auto-quiz';
   setActiveTab: (tab: TahfeezState['activeTab']) => void;
@@ -232,6 +236,9 @@ export const useTahfeezStore = create<TahfeezState>()(
       quizScopeTo: 1,
       setQuizScopeTo: (n) => set({ quizScopeTo: n }),
 
+      voiceMode: false,
+      setVoiceMode: (on) => set({ voiceMode: on }),
+
       activeTab: 'store',
       setActiveTab: (tab) => set({ activeTab: tab }),
     }),
@@ -248,6 +255,7 @@ export const useTahfeezStore = create<TahfeezState>()(
         firstWordTimerSeconds: state.firstWordTimerSeconds,
         revealMode: state.revealMode,
         activeTab: state.activeTab,
+        voiceMode: state.voiceMode,
         quizScope: state.quizScope,
         quizScopeFrom: state.quizScopeFrom,
         quizScopeTo: state.quizScopeTo,
