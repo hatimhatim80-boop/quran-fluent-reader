@@ -314,12 +314,13 @@ export default function TahfeezPage() {
               isFirstStartRef.current = false;
               console.log('[tahfeez] Starting quiz, keys count:', keys.length, 'firstStart:', wasFirst);
               setCurrentRevealIdx(-1);
-              setTimeout(() => {
+            // Use microtask to avoid delay on mobile
+            requestAnimationFrame(() => {
                 setRevealedKeys(new Set());
                 setShowAll(false);
                 setActiveBlankKey(null);
                 setCurrentRevealIdx(0);
-              }, wasFirst ? 300 : 100);
+            });
             }
             return; // done
           }
@@ -352,7 +353,7 @@ export default function TahfeezPage() {
       }
     };
 
-    let pollTimer: ReturnType<typeof setTimeout> = setTimeout(readKeys, 200);
+    let pollTimer: ReturnType<typeof setTimeout> = setTimeout(readKeys, 50);
     return () => clearTimeout(pollTimer);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [quizStarted, pageData, currentPage]);
@@ -491,11 +492,17 @@ export default function TahfeezPage() {
         };
 
         if (isFirstKey) {
-          setActiveBlankKey(null);
           setCurrentRevealIdx(idx);
-          revealTimerRef.current = setTimeout(() => {
+          const fwDelay = firstWordTimerSecondsRef.current * 1000;
+          if (fwDelay <= 0) {
+            // No delay — show mic immediately
             startVoiceOrTimer();
-          }, firstWordTimerSecondsRef.current * 1000);
+          } else {
+            setActiveBlankKey(null);
+            revealTimerRef.current = setTimeout(() => {
+              startVoiceOrTimer();
+            }, fwDelay);
+          }
         } else {
           setCurrentRevealIdx(idx);
           startVoiceOrTimer();
