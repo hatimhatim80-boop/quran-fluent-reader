@@ -406,7 +406,8 @@ export default function TahfeezPage() {
           const autoplaySettings = useSettingsStore.getState().settings.autoplay;
           const delayMs = (autoplaySettings.autoAdvanceDelay || 1.5) * 1000;
 
-          revealTimerRef.current = setTimeout(() => {
+          if (autoAdvanceTimerRef.current) clearTimeout(autoAdvanceTimerRef.current);
+          autoAdvanceTimerRef.current = setTimeout(() => {
             try {
               const curPage = currentPageRef.current;
               const range = quizPagesRangeRef.current;
