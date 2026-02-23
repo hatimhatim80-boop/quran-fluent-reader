@@ -356,6 +356,7 @@ export function TahfeezQuizView({
       el.setAttribute('data-keys', JSON.stringify(blankedKeysList));
       el.setAttribute('data-first-keys', JSON.stringify([...firstKeysSet]));
       el.setAttribute('data-word-texts', JSON.stringify(blankedWordTexts));
+      el.setAttribute('data-page', String(page.pageNumber));
     }
   }, [blankedKeysList, firstKeysSet, blankedWordTexts]);
 
