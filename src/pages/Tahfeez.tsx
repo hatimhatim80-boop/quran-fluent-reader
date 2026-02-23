@@ -294,6 +294,10 @@ export default function TahfeezPage() {
 
     const processKeys = (el: HTMLElement) => {
       try {
+        // Verify the element belongs to the current page (avoid stale data from previous page)
+        const elPage = el.getAttribute('data-page');
+        if (elPage && Number(elPage) !== currentPageRef.current) return false;
+        
         const keys = JSON.parse(el.getAttribute('data-keys') || '[]');
         const fKeys = JSON.parse(el.getAttribute('data-first-keys') || '[]');
         const wordTexts = JSON.parse(el.getAttribute('data-word-texts') || '{}');
