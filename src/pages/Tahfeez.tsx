@@ -433,14 +433,25 @@ export default function TahfeezPage() {
           if (useVoice && wordText && speechRef.current.isSupported) {
             // Voice mode: start listening, then check transcript periodically
             const sr = speechRef.current;
-            sr.start('ar-SA').then((started) => {
-              if (!started) {
-                // Fallback to timer if speech fails
-                console.log('[tahfeez] Speech failed to start, falling back to timer');
-                revealTimerRef.current = setTimeout(() => revealAndAdvance(), timerSecondsRef.current * 1000);
-                return;
+            try {
+              const startResult = sr.start('ar-SA');
+              // Handle both promise and non-promise returns
+              if (startResult && typeof startResult.then === 'function') {
+                startResult.then((started: boolean) => {
+                  if (!started) {
+                    console.log('[tahfeez] Speech failed to start, waiting (no auto-reveal in voice mode)');
+                    // In voice mode, DON'T fall back to timer - just wait with a long timeout
+                    revealTimerRef.current = setTimeout(() => revealAndAdvance(), 60000);
+                  }
+                }).catch(() => {
+                  console.log('[tahfeez] Speech start error, waiting');
+                  revealTimerRef.current = setTimeout(() => revealAndAdvance(), 60000);
+                });
               }
-            });
+            } catch (err) {
+              console.log('[tahfeez] Speech start exception, waiting');
+              revealTimerRef.current = setTimeout(() => revealAndAdvance(), 60000);
+            }
 
             // Poll transcript for match every 500ms
             let voicePollCount = 0;
