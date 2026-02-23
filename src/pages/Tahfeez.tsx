@@ -425,59 +425,62 @@ export default function TahfeezPage() {
         const revealAndAdvance = () => {
           setRevealedKeys(prev => new Set([...prev, key]));
           setActiveBlankKey(null);
+          // Don't stop speech between words - keep mic running for continuous recognition
           revealTimerRef.current = setTimeout(() => advance(idx + 1), 300);
         };
 
         const startVoiceOrTimer = () => {
           setActiveBlankKey(key);
           if (useVoice && wordText && speechRef.current.isSupported) {
-            // Voice mode: start listening, then check transcript periodically
             const sr = speechRef.current;
-            try {
-              const startResult = sr.start('ar-SA');
-              // Handle both promise and non-promise returns
-              if (startResult && typeof startResult.then === 'function') {
-                startResult.then((started: boolean) => {
-                  if (!started) {
-                    console.log('[tahfeez] Speech failed to start, waiting (no auto-reveal in voice mode)');
-                    // In voice mode, DON'T fall back to timer - just wait with a long timeout
+            // Capture the transcript length at the start of this word
+            // so we only check NEW speech for matching
+            const baseTranscriptLen = (sr.transcript || '').length;
+
+            // Only start speech if not already listening
+            if (!sr.isListening) {
+              try {
+                const startResult = sr.start('ar-SA');
+                if (startResult && typeof startResult.then === 'function') {
+                  startResult.then((started: boolean) => {
+                    if (!started) {
+                      console.log('[tahfeez] Speech failed to start, waiting');
+                      revealTimerRef.current = setTimeout(() => revealAndAdvance(), 60000);
+                    }
+                  }).catch(() => {
                     revealTimerRef.current = setTimeout(() => revealAndAdvance(), 60000);
-                  }
-                }).catch(() => {
-                  console.log('[tahfeez] Speech start error, waiting');
-                  revealTimerRef.current = setTimeout(() => revealAndAdvance(), 60000);
-                });
+                  });
+                }
+              } catch {
+                revealTimerRef.current = setTimeout(() => revealAndAdvance(), 60000);
               }
-            } catch (err) {
-              console.log('[tahfeez] Speech start exception, waiting');
-              revealTimerRef.current = setTimeout(() => revealAndAdvance(), 60000);
             }
 
-            // Poll transcript for match every 500ms
+            // Poll transcript for match every 400ms
             let voicePollCount = 0;
-            const maxPolls = 120; // 60 seconds max
+            const maxPolls = 150; // 60 seconds max
             const pollForMatch = () => {
               voicePollCount++;
-              const currentTranscript = speechRef.current.transcript;
-              if (currentTranscript) {
+              const currentTranscript = speechRef.current.transcript || '';
+              // Only check the new portion of transcript since this word started
+              const newPart = currentTranscript.substring(baseTranscriptLen).trim();
+              if (newPart) {
                 const targetWords = [wordText];
-                const result = matchHiddenWordsInOrder(currentTranscript, targetWords, 0.7);
+                const result = matchHiddenWordsInOrder(newPart, targetWords, 0.65);
                 if (result.success) {
-                  console.log('[tahfeez] ✓ Voice match!', currentTranscript);
-                  speechRef.current.stop();
+                  console.log('[tahfeez] ✓ Voice match!', newPart, '→', wordText);
                   revealAndAdvance();
                   return;
                 }
               }
               if (voicePollCount >= maxPolls) {
                 console.log('[tahfeez] Voice timeout, revealing');
-                speechRef.current.stop();
                 revealAndAdvance();
                 return;
               }
-              revealTimerRef.current = setTimeout(pollForMatch, 500);
+              revealTimerRef.current = setTimeout(pollForMatch, 400);
             };
-            revealTimerRef.current = setTimeout(pollForMatch, 500);
+            revealTimerRef.current = setTimeout(pollForMatch, 400);
           } else {
             // Timer mode: reveal after timerSeconds
             revealTimerRef.current = setTimeout(() => {
@@ -1257,9 +1260,8 @@ export default function TahfeezPage() {
               showAll={showAll}
               onClickActiveBlank={() => {
                 if (!activeBlankKey) return;
-                // Stop any speech/timers, reveal the word immediately, advance
+                // Stop timers, reveal the word immediately, advance (keep speech running)
                 if (revealTimerRef.current) clearTimeout(revealTimerRef.current);
-                speechRef.current.stop();
                 setRevealedKeys(prev => new Set([...prev, activeBlankKey]));
                 setActiveBlankKey(null);
                 const idx = blankedKeysList.indexOf(activeBlankKey);
