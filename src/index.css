@@ -1257,7 +1257,34 @@
     background: hsl(var(--muted) / 0.3);
   }
 
-  /* Active blank - about to be revealed, pulsing accent */
+  /* Active blank - hidden text with pulsing indicator */
+  .tahfeez-active-indicator {
+    display: inline-block;
+    position: relative;
+    border-bottom: 3px solid hsl(var(--primary));
+    border-radius: 4px;
+    padding: 0 3px;
+    margin: 0 -3px;
+    background: hsl(var(--primary) / 0.12);
+    animation: tahfeez-pulse 0.8s ease-in-out infinite;
+  }
+
+  .tahfeez-active-indicator__text {
+    color: transparent;
+    user-select: none;
+  }
+
+  .tahfeez-active-indicator__icon {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 0.7em;
+    opacity: 0.85;
+    pointer-events: none;
+  }
+
+  /* Keep old classes for backward compat */
   .tahfeez-active-blank {
     display: inline-block;
     color: hsl(var(--primary-foreground));
@@ -1269,7 +1296,6 @@
     font-weight: 700;
   }
 
-  /* Active blank text-only variant */
   .tahfeez-active-blank--text-only {
     display: inline-block;
     color: hsl(var(--primary));
