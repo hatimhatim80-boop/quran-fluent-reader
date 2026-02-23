@@ -91,6 +91,7 @@ export default function TahfeezPage() {
   }, [currentPage, storedItems, activeSessionId, updateSession, getSession]);
 
   const [quizStarted, setQuizStarted] = useState(false);
+  const [storeWhileQuiz, setStoreWhileQuiz] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   useKeepAwake(keepScreenAwake && quizStarted && !isPaused);
   const [showAll, setShowAll] = useState(false);
@@ -1327,6 +1328,35 @@ export default function TahfeezPage() {
               activeBlankKey={activeBlankKey}
               revealedKeys={revealedKeys}
               showAll={showAll}
+              storeMode={storeWhileQuiz}
+              onStoreWord={(lineIdx, tokenIdx, text) => {
+                // Toggle: if already stored, remove; otherwise add
+                const existingItem = storedItems.find(item => {
+                  if (item.data.page !== currentPage) return false;
+                  if (item.type === 'word') {
+                    const w = item.data;
+                    return w.wordIndex === tokenIdx && w.originalWord === text && (w.lineIdx === undefined || w.lineIdx === lineIdx);
+                  }
+                  return false;
+                });
+                if (existingItem) {
+                  removeItem(getItemKey(existingItem));
+                  toast('تم إزالة الكلمة من المخزون', { duration: 1000 });
+                } else {
+                  addItem({
+                    type: 'word',
+                    data: {
+                      surahNumber: 0,
+                      ayahNumber: 0,
+                      wordIndex: tokenIdx,
+                      originalWord: text,
+                      page: currentPage,
+                      lineIdx,
+                    }
+                  });
+                  toast('تم تخزين الكلمة ✓', { duration: 1000 });
+                }
+              }}
               onClickActiveBlank={() => {
                 if (!activeBlankKey) return;
                 // Stop timers, reveal the word immediately, advance (keep speech running)
@@ -1346,6 +1376,10 @@ export default function TahfeezPage() {
               <Button variant="outline" size="sm" onClick={handlePauseResume} className="font-arabic">
                 {isPaused ? <Play className="w-4 h-4 ml-1" /> : <Pause className="w-4 h-4 ml-1" />}
                 {isPaused ? 'استئناف' : 'إيقاف'}
+              </Button>
+              <Button variant={storeWhileQuiz ? 'default' : 'outline'} size="sm" onClick={() => setStoreWhileQuiz(v => !v)} className="font-arabic">
+                <Save className="w-4 h-4 ml-1" />
+                تخزين
               </Button>
               <Button variant="outline" size="sm" onClick={handleRevealAll} className="font-arabic" disabled={showAll}>
                 <Eye className="w-4 h-4 ml-1" />
