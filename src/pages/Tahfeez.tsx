@@ -453,9 +453,10 @@ export default function TahfeezPage() {
           setActiveBlankKey(key);
           if (useVoice && wordText && speechRef.current.isSupported) {
             const sr = speechRef.current;
-            // Capture the transcript length at the start of this word
-            // so we only check NEW speech for matching
-            const baseTranscriptLen = (sr.transcript || '').length;
+            // Track the transcript snapshot at the start of this word.
+            // We store the full text so we can detect resets (auto-restart clears transcript).
+            let lastKnownTranscript = sr.transcript || '';
+            let baseTranscriptLen = lastKnownTranscript.length;
 
             // Only start speech if not already listening
             if (!sr.isListening) {
@@ -476,29 +477,51 @@ export default function TahfeezPage() {
               }
             }
 
-            // Poll transcript for match every 400ms
+            // Poll transcript for match every 300ms
             let voicePollCount = 0;
-            const maxPolls = 150; // 60 seconds max
+            const maxPolls = 200; // 60 seconds max
             const pollForMatch = () => {
               voicePollCount++;
               const currentTranscript = speechRef.current.transcript || '';
-              // Only check the new portion of transcript since this word started
+              
+              // Detect transcript reset (speech engine auto-restarted)
+              // When this happens, the transcript becomes shorter or completely different
+              if (currentTranscript.length < baseTranscriptLen) {
+                // Transcript was reset — adjust baseline to 0
+                baseTranscriptLen = 0;
+                lastKnownTranscript = '';
+              }
+              
+              // Get the new portion of transcript since this word started
               const newPart = currentTranscript.substring(baseTranscriptLen).trim();
               if (newPart) {
                 const targetWords = [wordText];
-                const result = matchHiddenWordsInOrder(newPart, targetWords, 0.65);
+                const result = matchHiddenWordsInOrder(newPart, targetWords, 0.60);
                 if (result.success) {
                   console.log('[tahfeez] ✓ Voice match!', newPart, '→', wordText);
                   revealAndAdvance();
                   return;
                 }
               }
+              
+              // Also try matching against the FULL current transcript as fallback
+              // (handles cases where baseline tracking drifts)
+              if (currentTranscript.trim()) {
+                const fullResult = matchHiddenWordsInOrder(currentTranscript.trim(), [wordText], 0.60);
+                if (fullResult.success) {
+                  console.log('[tahfeez] ✓ Voice match (full)!', currentTranscript.trim(), '→', wordText);
+                  revealAndAdvance();
+                  return;
+                }
+              }
+              
+              lastKnownTranscript = currentTranscript;
               if (voicePollCount >= maxPolls) {
                 console.log('[tahfeez] Voice timeout, revealing');
                 revealAndAdvance();
                 return;
               }
-              revealTimerRef.current = setTimeout(pollForMatch, 400);
+              revealTimerRef.current = setTimeout(pollForMatch, 300);
             };
             revealTimerRef.current = setTimeout(pollForMatch, 400);
           } else {
