@@ -383,6 +383,7 @@ export default function TahfeezPage() {
         if (isEndOfPage) {
           setShowAll(true);
           setActiveBlankKey(null);
+          speechRef.current.stop(); // Stop mic at end of page
           const autoplaySettings = useSettingsStore.getState().settings.autoplay;
           const delayMs = (autoplaySettings.autoAdvanceDelay || 1.5) * 1000;
 
@@ -515,7 +516,8 @@ export default function TahfeezPage() {
 
     return () => {
       if (revealTimerRef.current) clearTimeout(revealTimerRef.current);
-      speechRef.current.stop();
+      // Don't stop speech here — stopping on every currentRevealIdx change
+      // kills the mic between words. Speech is stopped in pause/stop handlers.
     };
   // Only re-run when index changes or quiz starts/pauses/ends — NOT when blankedKeysList changes
   // (we read it from ref). This prevents double-firing.
