@@ -284,54 +284,70 @@ export default function TahfeezPage() {
   }, [currentPage, quizStarted]);
 
   // Read blanked keys from the quiz view after it renders.
-  // Polls until keys are available, then auto-starts if flagged.
-  // If page has no blanked items after max attempts → skip to next page automatically.
+  // Uses MutationObserver for instant detection instead of slow polling.
+  // If page has no blanked items after timeout → skip to next page automatically.
   useEffect(() => {
     if (!quizStarted) return;
 
-    let attempts = 0;
-    const maxAttempts = 30; // 30 × 150ms = 4.5s max
+    let settled = false;
+    let fallbackTimer: ReturnType<typeof setTimeout> | null = null;
 
-    const readKeys = () => {
-      const el = document.getElementById('tahfeez-blanked-keys');
-      if (el) {
-        try {
-          const keys = JSON.parse(el.getAttribute('data-keys') || '[]');
-          const fKeys = JSON.parse(el.getAttribute('data-first-keys') || '[]');
-          const wordTexts = JSON.parse(el.getAttribute('data-word-texts') || '{}');
-          if (keys.length > 0) {
-            // Update refs SYNCHRONOUSLY before state updates so advance() reads correct data
-            blankedKeysListRef.current = keys;
-            firstKeysSetRef.current = new Set(fKeys);
-            wordTextsMapRef.current = wordTexts;
-            setBlankedKeysList(keys);
-            setFirstKeysSet(new Set(fKeys));
+    const processKeys = (el: HTMLElement) => {
+      try {
+        const keys = JSON.parse(el.getAttribute('data-keys') || '[]');
+        const fKeys = JSON.parse(el.getAttribute('data-first-keys') || '[]');
+        const wordTexts = JSON.parse(el.getAttribute('data-word-texts') || '{}');
+        if (keys.length > 0) {
+          settled = true;
+          // Update refs SYNCHRONOUSLY before state updates so advance() reads correct data
+          blankedKeysListRef.current = keys;
+          firstKeysSetRef.current = new Set(fKeys);
+          wordTextsMapRef.current = wordTexts;
+          setBlankedKeysList(keys);
+          setFirstKeysSet(new Set(fKeys));
 
-            // Auto-resume after page transition OR first start
-            if (autoResumeQuizRef.current || isFirstStartRef.current) {
-              const wasFirst = isFirstStartRef.current;
-              autoResumeQuizRef.current = false;
-              isFirstStartRef.current = false;
-              console.log('[tahfeez] Starting quiz, keys count:', keys.length, 'firstStart:', wasFirst);
-              setCurrentRevealIdx(-1);
-            // Use microtask to avoid delay on mobile
-            requestAnimationFrame(() => {
-                setRevealedKeys(new Set());
-                setShowAll(false);
-                setActiveBlankKey(null);
-                setCurrentRevealIdx(0);
-            });
-            }
-            return; // done
+          // Auto-resume after page transition OR first start
+          if (autoResumeQuizRef.current || isFirstStartRef.current) {
+            autoResumeQuizRef.current = false;
+            isFirstStartRef.current = false;
+            console.log('[tahfeez] Starting quiz, keys count:', keys.length);
+            // Set state directly — no requestAnimationFrame delay
+            setRevealedKeys(new Set());
+            setShowAll(false);
+            setActiveBlankKey(null);
+            setCurrentRevealIdx(0);
           }
-        } catch {}
-      }
+          return true;
+        }
+      } catch {}
+      return false;
+    };
 
-      if (attempts < maxAttempts) {
-        attempts++;
-        pollTimer = setTimeout(readKeys, 150);
-      } else if (autoResumeQuizRef.current || isFirstStartRef.current) {
-        // Max attempts reached — page has no blanked items → auto-advance to next page
+    // Try immediately (element may already be rendered)
+    const el = document.getElementById('tahfeez-blanked-keys');
+    if (el && processKeys(el)) {
+      return; // done instantly
+    }
+
+    // Use MutationObserver to detect attribute changes on the hidden element
+    const observer = new MutationObserver(() => {
+      if (settled) return;
+      const el = document.getElementById('tahfeez-blanked-keys');
+      if (el && processKeys(el)) {
+        observer.disconnect();
+        if (fallbackTimer) clearTimeout(fallbackTimer);
+      }
+    });
+
+    // Observe the entire container for subtree changes and attribute mutations
+    const container = document.body;
+    observer.observe(container, { childList: true, subtree: true, attributes: true, attributeFilter: ['data-keys'] });
+
+    // Fallback timeout: if no keys after 5s, skip page
+    fallbackTimer = setTimeout(() => {
+      if (settled) return;
+      observer.disconnect();
+      if (autoResumeQuizRef.current || isFirstStartRef.current) {
         autoResumeQuizRef.current = false;
         isFirstStartRef.current = false;
         const autoplaySettings = useSettingsStore.getState().settings.autoplay;
@@ -351,10 +367,12 @@ export default function TahfeezPage() {
           }
         }, delayMs);
       }
-    };
+    }, 5000);
 
-    let pollTimer: ReturnType<typeof setTimeout> = setTimeout(readKeys, 50);
-    return () => clearTimeout(pollTimer);
+    return () => {
+      observer.disconnect();
+      if (fallbackTimer) clearTimeout(fallbackTimer);
+    };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [quizStarted, pageData, currentPage]);
 
