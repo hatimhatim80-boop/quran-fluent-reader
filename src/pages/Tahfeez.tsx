@@ -1255,6 +1255,19 @@ export default function TahfeezPage() {
               activeBlankKey={activeBlankKey}
               revealedKeys={revealedKeys}
               showAll={showAll}
+              onClickActiveBlank={() => {
+                if (!activeBlankKey) return;
+                // Stop any speech/timers, reveal the word immediately, advance
+                if (revealTimerRef.current) clearTimeout(revealTimerRef.current);
+                speechRef.current.stop();
+                setRevealedKeys(prev => new Set([...prev, activeBlankKey]));
+                setActiveBlankKey(null);
+                const idx = blankedKeysList.indexOf(activeBlankKey);
+                if (idx >= 0) {
+                  // Advance to next by updating currentRevealIdx — the effect will pick it up
+                  setTimeout(() => setCurrentRevealIdx(idx + 1), 300);
+                }
+              }}
             />
 
             {/* Controls */}

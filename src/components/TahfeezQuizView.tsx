@@ -17,6 +17,7 @@ interface TahfeezQuizViewProps {
   activeBlankKey: string | null;       // Currently active blank (highlighted)
   revealedKeys: Set<string>;           // Already revealed keys
   showAll: boolean;                     // Show all at once
+  onClickActiveBlank?: () => void;     // Called when user taps the active mic icon
 }
 
 function isSurahHeader(line: string): boolean {
@@ -45,6 +46,7 @@ export function TahfeezQuizView({
   activeBlankKey,
   revealedKeys,
   showAll,
+  onClickActiveBlank,
 }: TahfeezQuizViewProps) {
   const { settings } = useSettingsStore();
   const displayMode = settings.display?.mode || 'auto15';
@@ -416,7 +418,7 @@ export function TahfeezQuizView({
         } else if (shouldShowAsActive) {
           // Active blank: text stays hidden, but shows a pulsing indicator (mic icon)
           lineElements.push(
-            <span key={`${lineIdx}-${tokenIdx}`} className="tahfeez-active-indicator" data-tahfeez-active="true">
+            <span key={`${lineIdx}-${tokenIdx}`} className="tahfeez-active-indicator" data-tahfeez-active="true" onClick={onClickActiveBlank} style={{ cursor: 'pointer' }}>
               <span className="tahfeez-active-indicator__text">{t}</span>
               <span className="tahfeez-active-indicator__icon">🎤</span>
             </span>
