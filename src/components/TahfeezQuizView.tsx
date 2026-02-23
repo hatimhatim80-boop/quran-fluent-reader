@@ -470,7 +470,7 @@ export function TahfeezQuizView({
           صفحة {page.pageNumber}
         </span>
       </div>
-      <div className="quran-page min-h-[350px] sm:min-h-[450px]">
+      <div className="min-h-[350px] sm:min-h-[450px]">
         {renderedContent}
       </div>
     </div>

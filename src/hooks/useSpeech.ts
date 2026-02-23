@@ -35,16 +35,18 @@ function detectProvider(): SpeechProviderType {
   console.log('[useSpeech] Is Native Platform:', isNative);
 
   if (isNative) {
-    // Check if the native plugin is registered
+    // Only use native on actual native platforms (APK/iOS)
     const registered = Capacitor.isPluginAvailable('SpeechRecognition');
     console.log('[useSpeech] Native SpeechRecognition plugin available:', registered);
     if (registered) return 'native';
   }
 
-  // Check Web Speech API
-  const w = window as any;
-  if (w.SpeechRecognition || w.webkitSpeechRecognition) {
-    return 'web';
+  // Web Speech API — only for browser (never on native)
+  if (!isNative) {
+    const w = window as any;
+    if (w.SpeechRecognition || w.webkitSpeechRecognition) {
+      return 'web';
+    }
   }
 
   return 'none';
