@@ -13,6 +13,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "@capacitor-community/speech-recognition": "^7.0.1",
     "@capacitor/core": "^8.1.0",
     "@capgo/capacitor-updater": "^8.43.2",
     "@fontsource/amiri-quran": "^5.2.10",
