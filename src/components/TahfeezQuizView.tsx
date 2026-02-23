@@ -414,9 +414,12 @@ export function TahfeezQuizView({
             <span key={`${lineIdx}-${tokenIdx}`} className="tahfeez-blank">{t}</span>
           );
         } else if (shouldShowAsActive) {
-          const activeClass = highlightStyle === 'text-only' ? 'tahfeez-active-blank--text-only' : 'tahfeez-active-blank';
+          // Active blank: text stays hidden, but shows a pulsing indicator (mic icon)
           lineElements.push(
-            <span key={`${lineIdx}-${tokenIdx}`} className={activeClass} data-tahfeez-active="true">{t}</span>
+            <span key={`${lineIdx}-${tokenIdx}`} className="tahfeez-active-indicator" data-tahfeez-active="true">
+              <span className="tahfeez-active-indicator__text">{t}</span>
+              <span className="tahfeez-active-indicator__icon">🎤</span>
+            </span>
           );
         } else if (shouldShowAsRevealed) {
           const revealedClass = highlightStyle === 'text-only' ? 'tahfeez-revealed--text-only' : 'tahfeez-revealed';
