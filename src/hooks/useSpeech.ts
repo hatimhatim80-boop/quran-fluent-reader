@@ -161,16 +161,32 @@ export function useSpeech(): UseSpeechReturn {
       try {
         const plugin = await getNativeSpeechPlugin();
         if (!plugin) {
+          console.error('[useSpeech] Native speech plugin not loaded');
           setError('Native speech plugin not available');
           return false;
         }
 
-        // Request permissions
+        // Check if speech recognition is available on this device
+        try {
+          const avail = await plugin.available();
+          console.log('[useSpeech] Native available():', JSON.stringify(avail));
+          if (!avail?.available) {
+            setError('Speech recognition not available on this device');
+            return false;
+          }
+        } catch (e) {
+          console.log('[useSpeech] available() check failed:', e);
+        }
+
+        // Request permissions explicitly
+        console.log('[useSpeech] Requesting permissions...');
         const perms = await plugin.requestPermissions();
+        console.log('[useSpeech] Permission result:', JSON.stringify(perms));
         const state = perms?.speechRecognition || 'denied';
         setPermissionState(state as PermissionState);
         if (state === 'denied') {
-          setError('Speech recognition permission denied');
+          console.error('[useSpeech] Permission DENIED');
+          setError('صلاحية الميكروفون مرفوضة. افتح إعدادات التطبيق وفعّل صلاحية الميكروفون');
           return false;
         }
 
