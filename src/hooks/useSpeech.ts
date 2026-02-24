@@ -11,6 +11,23 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { Capacitor } from '@capacitor/core';
 
+// ─── Open Native App Settings (for when permission is permanently denied) ───
+
+export async function openNativeAppSettings(): Promise<void> {
+  if (!Capacitor.isNativePlatform()) return;
+  try {
+    // Re-request via speech plugin — on Android, if permanently denied,
+    // this may show a system dialog pointing user to settings
+    const plugin = await getNativeSpeechPlugin();
+    if (plugin) {
+      const result = await plugin.requestPermissions();
+      console.log('[useSpeech] Re-request permissions result:', JSON.stringify(result));
+    }
+  } catch (e) {
+    console.error('[useSpeech] openNativeAppSettings error:', e);
+  }
+}
+
 // ─── Native Microphone Permission (Android RECORD_AUDIO) ────────────────────
 
 async function requestNativeMicPermission(): Promise<boolean> {
