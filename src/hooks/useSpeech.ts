@@ -209,12 +209,15 @@ export function useSpeech(): UseSpeechReturn {
             setTimeout(async () => {
               if (!autoRestartRef.current) return;
               try {
-                await plugin.start({
+                const restartResult = await plugin.start({
                   language: nativeLangRef.current,
                   maxResults: 5,
                   partialResults: true,
-                  popup: false,
+                  popup: true,
                 });
+                if (restartResult?.matches && restartResult.matches.length > 0) {
+                  setTranscript(restartResult.matches[0]);
+                }
                 console.log('[useSpeech] Native auto-restarted');
               } catch (e) {
                 console.log('[useSpeech] Native auto-restart failed:', e);
@@ -229,10 +232,17 @@ export function useSpeech(): UseSpeechReturn {
           language: lang,
           maxResults: 5,
           partialResults: true,
-          popup: false,
+          popup: true,
         };
         console.log('[useSpeech] Native start options:', JSON.stringify(startOpts));
-        await plugin.start(startOpts);
+        
+        // On Android, start() returns matches when partialResults is true + popup
+        // We also listen via partialResults event as backup
+        const result = await plugin.start(startOpts);
+        console.log('[useSpeech] Native start() returned:', JSON.stringify(result));
+        if (result?.matches && result.matches.length > 0) {
+          setTranscript(result.matches[0]);
+        }
 
         setIsListening(true);
         console.log('[useSpeech] Native recognition started successfully, lang:', lang);
