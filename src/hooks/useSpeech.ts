@@ -187,11 +187,16 @@ export function useSpeech(): UseSpeechReturn {
 
         // Listen for partial results
         nativeListenerRef.current = await plugin.addListener('partialResults', (data: any) => {
+          console.log('[useSpeech] Native partialResults RAW:', JSON.stringify(data));
           const matches = data?.matches || data?.value;
           if (Array.isArray(matches) && matches.length > 0) {
+            console.log('[useSpeech] Native transcript update:', matches[0]);
             setTranscript(matches[0]);
           } else if (typeof matches === 'string') {
+            console.log('[useSpeech] Native transcript (string):', matches);
             setTranscript(matches);
+          } else {
+            console.log('[useSpeech] Native partialResults: no usable data');
           }
         });
 
@@ -220,15 +225,17 @@ export function useSpeech(): UseSpeechReturn {
           }
         });
 
-        await plugin.start({
+        const startOpts = {
           language: lang,
           maxResults: 5,
           partialResults: true,
           popup: false,
-        });
+        };
+        console.log('[useSpeech] Native start options:', JSON.stringify(startOpts));
+        await plugin.start(startOpts);
 
         setIsListening(true);
-        console.log('[useSpeech] Native recognition started, lang:', lang);
+        console.log('[useSpeech] Native recognition started successfully, lang:', lang);
         return true;
       } catch (err: any) {
         setError(err?.message || 'Native speech failed');
