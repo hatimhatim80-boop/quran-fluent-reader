@@ -100,7 +100,9 @@ export function useSpeech(): UseSpeechReturn {
 
   const webRecRef = useRef<WebSpeechInstance | null>(null);
   const nativeListenerRef = useRef<any>(null);
+  const nativeEndListenerRef = useRef<any>(null);
   const autoRestartRef = useRef(false);
+  const nativeLangRef = useRef('ar-SA');
 
   // ── Check permission on mount ──
   useEffect(() => {
@@ -137,6 +139,10 @@ export function useSpeech(): UseSpeechReturn {
             await nativeListenerRef.current.remove();
             nativeListenerRef.current = null;
           }
+          if (nativeEndListenerRef.current) {
+            await nativeEndListenerRef.current.remove();
+            nativeEndListenerRef.current = null;
+          }
         }
       } catch {}
     } else if (providerType === 'web') {
@@ -168,10 +174,16 @@ export function useSpeech(): UseSpeechReturn {
           return false;
         }
 
-        // Remove old listener
+        // Remove old listeners
         if (nativeListenerRef.current) {
           await nativeListenerRef.current.remove();
         }
+        if (nativeEndListenerRef.current) {
+          await nativeEndListenerRef.current.remove();
+        }
+
+        nativeLangRef.current = lang;
+        autoRestartRef.current = true;
 
         // Listen for partial results
         nativeListenerRef.current = await plugin.addListener('partialResults', (data: any) => {
@@ -180,6 +192,31 @@ export function useSpeech(): UseSpeechReturn {
             setTranscript(matches[0]);
           } else if (typeof matches === 'string') {
             setTranscript(matches);
+          }
+        });
+
+        // Auto-restart when native recognition ends (silence timeout)
+        nativeEndListenerRef.current = await plugin.addListener('listeningState', (data: any) => {
+          const status = data?.status;
+          console.log('[useSpeech] Native listeningState:', status);
+          if (status === 'stopped' && autoRestartRef.current) {
+            console.log('[useSpeech] Native ended, auto-restarting...');
+            setTimeout(async () => {
+              if (!autoRestartRef.current) return;
+              try {
+                await plugin.start({
+                  language: nativeLangRef.current,
+                  maxResults: 5,
+                  partialResults: true,
+                  popup: false,
+                });
+                console.log('[useSpeech] Native auto-restarted');
+              } catch (e) {
+                console.log('[useSpeech] Native auto-restart failed:', e);
+                setIsListening(false);
+                autoRestartRef.current = false;
+              }
+            }, 300);
           }
         });
 
@@ -196,6 +233,7 @@ export function useSpeech(): UseSpeechReturn {
       } catch (err: any) {
         setError(err?.message || 'Native speech failed');
         setIsListening(false);
+        autoRestartRef.current = false;
         return false;
       }
     }
@@ -288,6 +326,7 @@ export function useSpeech(): UseSpeechReturn {
           const plugin = await getNativeSpeechPlugin();
           if (plugin) await plugin.stop();
           if (nativeListenerRef.current) await nativeListenerRef.current.remove();
+          if (nativeEndListenerRef.current) await nativeEndListenerRef.current.remove();
         } catch {}
       })();
     };
