@@ -3,6 +3,7 @@ import { QuranPage } from '@/types/quran';
 import { normalizeArabic } from '@/utils/quranParser';
 import { useSettingsStore } from '@/stores/settingsStore';
 import { TahfeezItem } from '@/stores/tahfeezStore';
+import { useTahfeezStore } from '@/stores/tahfeezStore';
 import { useAutoFlowFit } from '@/hooks/useAutoFlowFit';
 import { redistributeLines, shouldRedistribute } from '@/utils/lineRedistributor';
 import { formatBismillah, shouldNoJustify, bindVerseNumbersSimple } from '@/utils/lineTokenUtils';
@@ -53,6 +54,7 @@ export function TahfeezQuizView({
   onStoreWord,
 }: TahfeezQuizViewProps) {
   const { settings } = useSettingsStore();
+  const revealedColor = useTahfeezStore(s => s.revealedColor);
   const displayMode = settings.display?.mode || 'auto15';
   const textDirection = settings.display?.textDirection || 'rtl';
   const mobileLinesPerPage = settings.display?.mobileLinesPerPage || 15;
@@ -442,9 +444,10 @@ export function TahfeezQuizView({
             </span>
           );
         } else if (shouldShowAsRevealed) {
-          const revealedClass = highlightStyle === 'text-only' ? 'tahfeez-revealed--text-only' : 'tahfeez-revealed';
+          const baseClass = highlightStyle === 'text-only' ? 'tahfeez-revealed--text-only' : 'tahfeez-revealed';
+          const colorClass = revealedColor !== 'green' ? ` tahfeez-revealed--${revealedColor}` : '';
           lineElements.push(
-            <span key={`${lineIdx}-${tokenIdx}`} className={`${revealedClass}${storeMode ? ' tahfeez-store-target' : ''}${isStored ? ' tahfeez-stored' : ''}`}
+            <span key={`${lineIdx}-${tokenIdx}`} className={`${baseClass}${colorClass}${storeMode ? ' tahfeez-store-target' : ''}${isStored ? ' tahfeez-stored' : ''}`}
               onClick={storeClickHandler} style={storeMode ? { cursor: 'pointer' } : undefined}>{t}</span>
           );
         } else {

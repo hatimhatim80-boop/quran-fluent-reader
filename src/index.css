@@ -1257,16 +1257,16 @@
     background: hsl(var(--muted) / 0.3);
   }
 
-  /* Active blank - hidden text with pulsing indicator */
+  /* Active blank - hidden text with underline indicator */
   .tahfeez-active-indicator {
     display: inline-block;
     position: relative;
     border-bottom: 3px solid hsl(var(--primary));
-    border-radius: 4px;
-    padding: 0 3px;
-    margin: 0 -3px;
-    background: hsl(var(--primary) / 0.12);
-    animation: tahfeez-pulse 0.8s ease-in-out infinite;
+    border-radius: 0;
+    padding: 0 1px;
+    margin: 0 -1px;
+    background: none;
+    animation: tahfeez-underline-pulse 1s ease-in-out infinite;
   }
 
   .tahfeez-active-indicator__text {
@@ -1275,13 +1275,7 @@
   }
 
   .tahfeez-active-indicator__icon {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    font-size: 0.7em;
-    opacity: 0.85;
-    pointer-events: none;
+    display: none;
   }
 
   /* Keep old classes for backward compat */
@@ -1304,7 +1298,7 @@
     font-weight: 700;
   }
 
-  /* Revealed word - success green */
+  /* Revealed word - default green */
   .tahfeez-revealed {
     display: inline-block;
     color: hsl(140 55% 35%);
@@ -1315,8 +1309,6 @@
     transition: all 0.4s ease;
     font-weight: 600;
   }
-
-  /* Revealed text-only variant */
   .tahfeez-revealed--text-only {
     display: inline-block;
     color: hsl(140 55% 35%);
@@ -1324,15 +1316,28 @@
     transition: all 0.4s ease;
     font-weight: 600;
   }
-
   .dark .tahfeez-revealed {
     color: hsl(140 60% 70%);
     background: hsl(140 30% 18%);
   }
-
   .dark .tahfeez-revealed--text-only {
     color: hsl(140 60% 70%);
   }
+
+  /* Revealed color variants */
+  .tahfeez-revealed--blue { color: hsl(210 70% 35%); background: hsl(210 60% 90%); }
+  .dark .tahfeez-revealed--blue { color: hsl(210 70% 70%); background: hsl(210 30% 18%); }
+  .tahfeez-revealed--orange { color: hsl(30 80% 35%); background: hsl(30 70% 90%); }
+  .dark .tahfeez-revealed--orange { color: hsl(30 70% 70%); background: hsl(30 30% 18%); }
+  .tahfeez-revealed--purple { color: hsl(270 60% 40%); background: hsl(270 50% 92%); }
+  .dark .tahfeez-revealed--purple { color: hsl(270 60% 70%); background: hsl(270 25% 20%); }
+  .tahfeez-revealed--primary { color: hsl(var(--primary-foreground)); background: hsl(var(--primary)); }
+
+  /* Text-only color variants */
+  .tahfeez-revealed--blue.tahfeez-revealed--text-only { background: none; }
+  .tahfeez-revealed--orange.tahfeez-revealed--text-only { background: none; }
+  .tahfeez-revealed--purple.tahfeez-revealed--text-only { background: none; }
+  .tahfeez-revealed--primary.tahfeez-revealed--text-only { background: none; color: hsl(var(--primary)); }
 
   /* Store mode - tappable words during quiz */
   .tahfeez-store-target {
@@ -1347,6 +1352,15 @@
   /* Already stored indicator */
   .tahfeez-stored {
     border-bottom: 2px solid hsl(var(--primary) / 0.6);
+  }
+
+  @keyframes tahfeez-underline-pulse {
+    0%, 100% {
+      border-bottom-color: hsl(var(--primary));
+    }
+    50% {
+      border-bottom-color: hsl(var(--primary) / 0.3);
+    }
   }
 
   @keyframes tahfeez-pulse {
