@@ -11,6 +11,28 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { Capacitor } from '@capacitor/core';
 
+// ─── Native Microphone Permission (Android RECORD_AUDIO) ────────────────────
+
+async function requestNativeMicPermission(): Promise<boolean> {
+  try {
+    // Try using the speech plugin's own permission methods first
+    const plugin = await getNativeSpeechPlugin();
+    if (!plugin) return false;
+
+    const check = await plugin.checkPermissions();
+    console.log('[useSpeech] checkPermissions result:', JSON.stringify(check));
+    if (check?.speechRecognition === 'granted') return true;
+
+    // Request permission — this triggers the native Android RECORD_AUDIO dialog
+    const result = await plugin.requestPermissions();
+    console.log('[useSpeech] requestPermissions result:', JSON.stringify(result));
+    return result?.speechRecognition === 'granted';
+  } catch (e) {
+    console.error('[useSpeech] Permission request error:', e);
+    return false;
+  }
+}
+
 // ─── Types ───────────────────────────────────────────────────────────────────
 
 export type SpeechProviderType = 'native' | 'web' | 'none';
@@ -178,17 +200,19 @@ export function useSpeech(): UseSpeechReturn {
           console.log('[useSpeech] available() check failed:', e);
         }
 
-        // Request permissions explicitly
-        console.log('[useSpeech] Requesting permissions...');
-        const perms = await plugin.requestPermissions();
-        console.log('[useSpeech] Permission result:', JSON.stringify(perms));
-        const state = perms?.speechRecognition || 'denied';
-        setPermissionState(state as PermissionState);
-        if (state === 'denied') {
-          console.error('[useSpeech] Permission DENIED');
-          setError('صلاحية الميكروفون مرفوضة. افتح إعدادات التطبيق وفعّل صلاحية الميكروفون');
+        // ── Step 1: Request RECORD_AUDIO permission explicitly ──
+        // Android requires a native in-app permission request, not just browser-level
+        console.log('[useSpeech] Requesting native microphone permission (RECORD_AUDIO)...');
+        const hasPermission = await requestNativeMicPermission();
+        console.log('[useSpeech] Native mic permission granted:', hasPermission);
+        
+        if (!hasPermission) {
+          console.error('[useSpeech] Microphone permission DENIED');
+          setPermissionState('denied');
+          setError('صلاحية الميكروفون مرفوضة. افتح إعدادات التطبيق ← الأذونات ← الميكروفون ← سماح');
           return false;
         }
+        setPermissionState('granted');
 
         // Remove old listeners
         if (nativeListenerRef.current) {
