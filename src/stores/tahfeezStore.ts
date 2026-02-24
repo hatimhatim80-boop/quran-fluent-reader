@@ -137,6 +137,14 @@ interface TahfeezState {
   voiceMode: boolean;
   setVoiceMode: (on: boolean) => void;
 
+  // Match threshold level
+  matchLevel: 'strict' | 'medium' | 'loose';
+  setMatchLevel: (level: TahfeezState['matchLevel']) => void;
+
+  // Revealed word color
+  revealedColor: 'green' | 'blue' | 'orange' | 'purple' | 'primary';
+  setRevealedColor: (color: TahfeezState['revealedColor']) => void;
+
   // Active tab in tahfeez page
   activeTab: 'store' | 'custom-quiz' | 'auto-quiz';
   setActiveTab: (tab: TahfeezState['activeTab']) => void;
@@ -239,6 +247,12 @@ export const useTahfeezStore = create<TahfeezState>()(
       voiceMode: false,
       setVoiceMode: (on) => set({ voiceMode: on }),
 
+      matchLevel: 'medium',
+      setMatchLevel: (level) => set({ matchLevel: level }),
+
+      revealedColor: 'green',
+      setRevealedColor: (color) => set({ revealedColor: color }),
+
       activeTab: 'store',
       setActiveTab: (tab) => set({ activeTab: tab }),
     }),
@@ -256,6 +270,8 @@ export const useTahfeezStore = create<TahfeezState>()(
         revealMode: state.revealMode,
         activeTab: state.activeTab,
         voiceMode: state.voiceMode,
+        matchLevel: state.matchLevel,
+        revealedColor: state.revealedColor,
         quizScope: state.quizScope,
         quizScopeFrom: state.quizScopeFrom,
         quizScopeTo: state.quizScopeTo,

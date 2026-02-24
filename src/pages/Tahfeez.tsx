@@ -9,7 +9,8 @@ import { useKeepAwake } from '@/hooks/useKeepAwake';
 import { useSpeech } from '@/hooks/useSpeech';
 import { matchHiddenWordsInOrder, normalizeSpeechArabic, splitWords } from '@/utils/quranSpeechMatch';
 import { Link, useNavigate } from 'react-router-dom';
-import { BookOpen, Play, Pause, Eye, EyeOff, ArrowRight, Save, Trash2, GraduationCap, ListChecks, Zap, Book, Layers, Hash, FileText, Search, X, ChevronLeft, Download, Upload, Settings2, ChevronsRight, Undo2, Mic, MicOff } from 'lucide-react';
+import { BookOpen, Play, Pause, Eye, EyeOff, ArrowRight, Save, Trash2, GraduationCap, ListChecks, Zap, Book, Layers, Hash, FileText, Search, X, ChevronLeft, Download, Upload, Settings2, ChevronsRight, Undo2, Mic, MicOff, SlidersHorizontal, Palette } from 'lucide-react';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuRadioGroup, DropdownMenuRadioItem } from '@/components/ui/dropdown-menu';
 import { HiddenBarsOverlay } from '@/components/HiddenBarsOverlay';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Slider } from '@/components/ui/slider';
@@ -64,6 +65,8 @@ export default function TahfeezPage() {
     quizScopeTo, setQuizScopeTo,
     undo, canUndo,
     voiceMode, setVoiceMode,
+    matchLevel, setMatchLevel,
+    revealedColor, setRevealedColor,
   } = useTahfeezStore();
 
   const speech = useSpeech();
@@ -136,6 +139,8 @@ export default function TahfeezPage() {
   // Voice mode refs
   const voiceModeRef = useRef(voiceMode);
   useEffect(() => { voiceModeRef.current = voiceMode; }, [voiceMode]);
+  const matchLevelRef = useRef(matchLevel);
+  useEffect(() => { matchLevelRef.current = matchLevel; }, [matchLevel]);
   const wordTextsMapRef = useRef<Record<string, string>>({});
   const speechRef = useRef(speech);
   useEffect(() => { speechRef.current = speech; }, [speech]);
@@ -503,7 +508,9 @@ export default function TahfeezPage() {
               // Use lower threshold for short words (≤3 chars after normalization)
               const normWord = wordText.replace(/[\u0610-\u065F\u0670\u06D6-\u06ED]/g, '').trim();
               const shortWord = normWord.length <= 3;
-              const thresh = shortWord ? 0.50 : 0.75;
+              const level = matchLevelRef.current;
+              const threshMap = { strict: shortWord ? 0.65 : 0.85, medium: shortWord ? 0.50 : 0.75, loose: shortWord ? 0.35 : 0.55 };
+              const thresh = threshMap[level] || threshMap.medium;
               
               if (newPart) {
                 const targetWords = [wordText];
@@ -1390,6 +1397,40 @@ export default function TahfeezPage() {
                   الصفحة التالية
                 </Button>
               )}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" className="font-arabic">
+                    <SlidersHorizontal className="w-4 h-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="center" className="w-48 font-arabic" style={{ direction: 'rtl' }}>
+                  <DropdownMenuLabel className="text-xs">درجة المطابقة</DropdownMenuLabel>
+                  <DropdownMenuRadioGroup value={matchLevel} onValueChange={(v) => setMatchLevel(v as any)}>
+                    <DropdownMenuRadioItem value="strict" className="text-xs">صارم</DropdownMenuRadioItem>
+                    <DropdownMenuRadioItem value="medium" className="text-xs">متوسط</DropdownMenuRadioItem>
+                    <DropdownMenuRadioItem value="loose" className="text-xs">مرن</DropdownMenuRadioItem>
+                  </DropdownMenuRadioGroup>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuLabel className="text-xs">لون الكلمة بعد ظهورها</DropdownMenuLabel>
+                  <DropdownMenuRadioGroup value={revealedColor} onValueChange={(v) => setRevealedColor(v as any)}>
+                    <DropdownMenuRadioItem value="green" className="text-xs">
+                      <span className="w-3 h-3 rounded-full ml-2 inline-block" style={{ background: 'hsl(140 55% 35%)' }} />أخضر
+                    </DropdownMenuRadioItem>
+                    <DropdownMenuRadioItem value="blue" className="text-xs">
+                      <span className="w-3 h-3 rounded-full ml-2 inline-block" style={{ background: 'hsl(210 70% 45%)' }} />أزرق
+                    </DropdownMenuRadioItem>
+                    <DropdownMenuRadioItem value="orange" className="text-xs">
+                      <span className="w-3 h-3 rounded-full ml-2 inline-block" style={{ background: 'hsl(30 80% 45%)' }} />برتقالي
+                    </DropdownMenuRadioItem>
+                    <DropdownMenuRadioItem value="purple" className="text-xs">
+                      <span className="w-3 h-3 rounded-full ml-2 inline-block" style={{ background: 'hsl(270 60% 50%)' }} />بنفسجي
+                    </DropdownMenuRadioItem>
+                    <DropdownMenuRadioItem value="primary" className="text-xs">
+                      <span className="w-3 h-3 rounded-full ml-2 inline-block bg-primary" />أساسي
+                    </DropdownMenuRadioItem>
+                  </DropdownMenuRadioGroup>
+                </DropdownMenuContent>
+              </DropdownMenu>
               <Button variant="outline" size="sm" onClick={() => { setQuizStarted(false); if (revealTimerRef.current) clearTimeout(revealTimerRef.current); speech.stop(); }} className="font-arabic">
                 إعادة
               </Button>
