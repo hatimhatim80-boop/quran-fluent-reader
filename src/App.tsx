@@ -12,12 +12,14 @@ import Tahfeez from "./pages/Tahfeez";
 import { TahfeezErrorBoundary } from "./components/TahfeezErrorBoundary";
 import { initOTA } from "./services/otaUpdateService";
 import { UpdateBanner } from "./components/UpdateBanner";
+import { requestAllNativePermissions } from "./services/nativePermissions";
 
 const queryClient = new QueryClient();
 
 const App = () => {
   useEffect(() => {
     initOTA();
+    requestAllNativePermissions();
   }, []);
 
   return (
