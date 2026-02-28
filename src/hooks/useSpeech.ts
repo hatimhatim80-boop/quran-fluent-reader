@@ -60,6 +60,7 @@ export interface UseSpeechReturn {
   start: (lang?: string) => Promise<boolean>;
   stop: () => Promise<void>;
   transcript: string;
+  transcriptRef: React.RefObject<string>;
   isListening: boolean;
   isSupported: boolean;
   permissionState: PermissionState;
@@ -132,7 +133,12 @@ export function useSpeech(): UseSpeechReturn {
     return p;
   });
 
-  const [transcript, setTranscript] = useState('');
+  const [transcript, _setTranscript] = useState('');
+  const transcriptRef = useRef('');
+  const setTranscript = useCallback((val: string) => {
+    transcriptRef.current = val;
+    _setTranscript(val);
+  }, []);
   const [isListening, setIsListening] = useState(false);
   const [permissionState, setPermissionState] = useState<PermissionState>('unknown');
   const [error, setError] = useState<string | null>(null);
@@ -419,6 +425,7 @@ export function useSpeech(): UseSpeechReturn {
     start,
     stop,
     transcript,
+    transcriptRef,
     isListening,
     isSupported: providerType !== 'none',
     permissionState,
