@@ -65,7 +65,8 @@ function VoiceDebugOverlay({ speech, activeBlankKey, wordTextsMap }: {
 
   return (
     <div className="fixed bottom-0 left-0 right-0 z-50 bg-black/80 text-white text-xs p-2 font-mono" dir="ltr">
-      <div>🎤 {speech.isListening ? '✅ listening' : '❌ not listening'} | {speech.providerType} | t={transcript.length}</div>
+      <div>🎤 {speech.isListening ? '✅ listening' : '❌ not listening'} | {speech.providerType} | perm={speech.permissionState} | t={transcript.length}</div>
+      {speech.error && <div className="text-red-400 truncate">⚠️ err: {speech.error}</div>}
       <div className="text-green-400 truncate">📝 "{last60}"</div>
       <div className="text-yellow-400">🎯 target: "{targetWord}"</div>
     </div>
