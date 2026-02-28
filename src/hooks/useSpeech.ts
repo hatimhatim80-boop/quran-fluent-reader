@@ -158,16 +158,44 @@ export function useSpeech(): UseSpeechReturn {
       (async () => {
         try {
           const plugin = await getNativeSpeechPlugin();
-          if (!plugin) { setPermissionState('denied'); return; }
+          if (!plugin) {
+            console.error('[useSpeech] Plugin not loaded on mount, setting perm=denied');
+            setPermissionState('denied');
+            return;
+          }
           const result = await plugin.checkPermissions();
+          console.log('[useSpeech] Mount checkPermissions raw:', JSON.stringify(result));
           const state = result?.speechRecognition || 'prompt';
           setPermissionState(state as PermissionState);
-        } catch {
-          setPermissionState('unknown');
+
+          // If not granted yet, request immediately on mount
+          if (state !== 'granted') {
+            console.log('[useSpeech] Perm not granted on mount, requesting...');
+            const reqResult = await plugin.requestPermissions();
+            console.log('[useSpeech] Mount requestPermissions raw:', JSON.stringify(reqResult));
+            const newState = reqResult?.speechRecognition || 'denied';
+            setPermissionState(newState as PermissionState);
+          }
+        } catch (e) {
+          console.error('[useSpeech] Mount permission check error:', e);
+          // Even if check fails, try requesting
+          try {
+            const plugin = await getNativeSpeechPlugin();
+            if (plugin) {
+              const reqResult = await plugin.requestPermissions();
+              console.log('[useSpeech] Fallback requestPermissions:', JSON.stringify(reqResult));
+              const state = reqResult?.speechRecognition || 'prompt';
+              setPermissionState(state as PermissionState);
+            } else {
+              setPermissionState('prompt');
+            }
+          } catch {
+            setPermissionState('prompt');
+          }
         }
       })();
     } else if (providerType === 'web') {
-      setPermissionState('granted'); // Web Speech doesn't have explicit permission API
+      setPermissionState('granted');
     } else {
       setPermissionState('denied');
     }
