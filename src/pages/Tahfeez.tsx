@@ -386,20 +386,33 @@ export default function TahfeezPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [quizStarted, pageData, currentPage]);
 
+  // Ref to track reveal index internally (avoids re-triggering the advance effect)
+  const currentRevealIdxRef = useRef(-1);
+
   // Auto-reveal sequencing
+  // IMPORTANT: Does NOT depend on currentRevealIdx state to avoid re-triggering.
+  // advance() chains itself via setTimeout. The effect only starts/stops the chain.
   useEffect(() => {
     if (!quizStarted || isPaused || showAll || blankedKeysListRef.current.length === 0) return;
     // Don't start if currentRevealIdx is still -1 (waiting for auto-resume)
     if (currentRevealIdx < 0) return;
 
+    // Mark: we only start the chain once per effect run
+    const startIdx = currentRevealIdx;
+    currentRevealIdxRef.current = startIdx;
+
     // ── advance() for Tahfeez ─────────────────────────────────────────────────
     // Uses REFS exclusively to avoid stale closures in nested setTimeout chains.
+    // Does NOT call setCurrentRevealIdx to avoid re-triggering this effect.
     const advance = (idx: number) => {
       try {
         // Always read from refs — never from closure state
         const list = blankedKeysListRef.current;
         const total = list.length;
         const isEndOfPage = idx >= total;
+
+        // Update ref for external tracking (no effect re-trigger)
+        currentRevealIdxRef.current = idx;
 
         console.log('[tahfeez][advance]', JSON.stringify({
           portal: 'تحفيظ',
@@ -465,7 +478,6 @@ export default function TahfeezPage() {
           if (useVoice && wordText && speechRef.current.isSupported) {
             const sr = speechRef.current;
             // Track the transcript snapshot at the start of this word.
-            // We store the full text so we can detect resets (auto-restart clears transcript).
             let lastKnownTranscript = sr.transcriptRef.current || '';
             let baseTranscriptLen = lastKnownTranscript.length;
 
@@ -488,24 +500,21 @@ export default function TahfeezPage() {
               }
             }
 
-            // Poll transcript for match every 300ms
+            // Poll transcript for match every 100ms
             let voicePollCount = 0;
-            const maxPolls = 200; // 60 seconds max
+            const maxPolls = 600; // 60 seconds max
             const pollForMatch = () => {
               voicePollCount++;
               const currentTranscript = speechRef.current.transcriptRef.current || '';
               
               // Detect transcript reset (speech engine auto-restarted)
-              // When this happens, the transcript becomes shorter or completely different
               if (currentTranscript.length < baseTranscriptLen) {
-                // Transcript was reset — adjust baseline to 0
                 baseTranscriptLen = 0;
                 lastKnownTranscript = '';
               }
               
               // Get the new portion of transcript since this word started
               const newPart = currentTranscript.substring(baseTranscriptLen).trim();
-              // Use lower threshold for short words (≤3 chars after normalization)
               const normWord = wordText.replace(/[\u0610-\u065F\u0670\u06D6-\u06ED]/g, '').trim();
               const shortWord = normWord.length <= 3;
               const level = matchLevelRef.current;
@@ -520,7 +529,6 @@ export default function TahfeezPage() {
                   revealAndAdvance();
                   return;
                 }
-                // For short words, also check if any spoken word contains/equals the target
                 if (shortWord) {
                   const normTarget = normalizeSpeechArabic(wordText);
                   const spokenWords = splitWords(normalizeSpeechArabic(newPart));
@@ -550,10 +558,8 @@ export default function TahfeezPage() {
         };
 
         if (isFirstKey) {
-          setCurrentRevealIdx(idx);
           const fwDelay = firstWordTimerSecondsRef.current * 1000;
           if (fwDelay <= 0) {
-            // No delay — show mic immediately
             startVoiceOrTimer();
           } else {
             setActiveBlankKey(null);
@@ -562,7 +568,6 @@ export default function TahfeezPage() {
             }, fwDelay);
           }
         } else {
-          setCurrentRevealIdx(idx);
           startVoiceOrTimer();
         }
       } catch (err) {
@@ -572,20 +577,19 @@ export default function TahfeezPage() {
       }
     };
 
-    const startIdx = currentRevealIdx;
+    if (revealTimerRef.current) clearTimeout(revealTimerRef.current);
+    if (autoAdvanceTimerRef.current) clearTimeout(autoAdvanceTimerRef.current);
+
     const list = blankedKeysListRef.current;
-    // Only start advance if this key hasn't been revealed yet
     if (startIdx < list.length) {
       advance(startIdx);
     }
 
     return () => {
       if (revealTimerRef.current) clearTimeout(revealTimerRef.current);
-      // Don't stop speech here — stopping on every currentRevealIdx change
-      // kills the mic between words. Speech is stopped in pause/stop handlers.
     };
-  // Only re-run when index changes or quiz starts/pauses/ends — NOT when blankedKeysList changes
-  // (we read it from ref). This prevents double-firing.
+  // CRITICAL: currentRevealIdx is here ONLY to start the chain (from -1 → 0).
+  // advance() chains itself via setTimeout and does NOT update currentRevealIdx state.
   }, [quizStarted, isPaused, showAll, currentRevealIdx]);
 
   const handleStart = () => {
