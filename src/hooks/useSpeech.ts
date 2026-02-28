@@ -33,33 +33,40 @@ export async function openNativeAppSettings(): Promise<void> {
 async function requestNativeMicPermission(): Promise<boolean> {
   try {
     const plugin = await getNativeSpeechPlugin();
-    if (!plugin) return false;
+    if (!plugin) return true; // Proceed optimistically
+
+    // Race against timeout — checkPermissions/requestPermissions may hang on some devices
+    const timeoutPromise = new Promise<null>((resolve) => setTimeout(() => resolve(null), 2000));
 
     try {
-      const check = await plugin.checkPermissions();
+      const check = await Promise.race([plugin.checkPermissions(), timeoutPromise]);
+      if (check === null) {
+        console.warn('[useSpeech] checkPermissions timed out — proceeding optimistically');
+        return true;
+      }
       console.log('[useSpeech] checkPermissions result:', JSON.stringify(check));
-      if (check?.speechRecognition === 'granted') return true;
+      if ((check as any)?.speechRecognition === 'granted') return true;
     } catch (e) {
       console.log('[useSpeech] checkPermissions threw (non-fatal):', e);
-      // Continue to request even if check fails
     }
 
     try {
-      const result = await plugin.requestPermissions();
+      const result = await Promise.race([plugin.requestPermissions(), timeoutPromise]);
+      if (result === null) {
+        console.warn('[useSpeech] requestPermissions timed out — proceeding optimistically');
+        return true;
+      }
       console.log('[useSpeech] requestPermissions result:', JSON.stringify(result));
-      if (result?.speechRecognition === 'granted') return true;
+      if ((result as any)?.speechRecognition === 'granted') return true;
     } catch (e) {
       console.log('[useSpeech] requestPermissions threw (non-fatal):', e);
     }
 
-    // If both check/request failed or returned non-granted,
-    // still return true to let start() try — permission may already be granted
-    // at OS level even if the plugin can't confirm it
     console.log('[useSpeech] Permission status unclear, proceeding optimistically');
     return true;
   } catch (e) {
     console.error('[useSpeech] Permission request fatal error:', e);
-    return true; // Still try — worst case start() will fail with a clear error
+    return true;
   }
 }
 
@@ -168,25 +175,40 @@ export function useSpeech(): UseSpeechReturn {
   // ── Check permission on mount ──
   // Note: nativePermissions.ts already requests permission on app startup,
   // so by this point permission is likely already granted at OS level.
-  // We set 'granted' optimistically if the plugin check fails.
+  // IMPORTANT: checkPermissions() may NEVER resolve on some Android devices
+  // (known plugin issue #122), so we use a timeout and default to 'granted'.
   useEffect(() => {
     if (providerType === 'native') {
+      // Set granted immediately — nativePermissions.ts already requested on startup
+      // The async check below is just a bonus confirmation
+      setPermissionState('granted');
+      
       (async () => {
         try {
           const plugin = await getNativeSpeechPlugin();
           if (!plugin) {
             console.error('[useSpeech] Plugin not loaded on mount');
-            setPermissionState('prompt'); // Don't block — start() will retry
-            return;
+            return; // Already set to 'granted' above
           }
-          const result = await plugin.checkPermissions();
+          // Race checkPermissions against a 2s timeout
+          // Some Android devices never resolve this call (plugin issue #122)
+          const result = await Promise.race([
+            plugin.checkPermissions(),
+            new Promise<null>((resolve) => setTimeout(() => resolve(null), 2000)),
+          ]);
+          if (result === null) {
+            console.warn('[useSpeech] checkPermissions timed out (2s) — assuming granted');
+            return; // Keep 'granted' from above
+          }
           console.log('[useSpeech] Mount checkPermissions:', JSON.stringify(result));
-          const state = result?.speechRecognition || 'granted'; // Default to granted
-          setPermissionState(state as PermissionState);
+          const state = (result as any)?.speechRecognition;
+          if (state === 'denied') {
+            setPermissionState('denied');
+          }
+          // Otherwise keep 'granted'
         } catch (e) {
           console.log('[useSpeech] Mount checkPermissions failed (non-fatal):', e);
-          // Permission is likely granted via nativePermissions.ts startup
-          setPermissionState('granted');
+          // Keep 'granted' from above
         }
       })();
     } else if (providerType === 'web') {
