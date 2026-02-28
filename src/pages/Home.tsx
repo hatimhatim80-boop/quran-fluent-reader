@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { BookOpen, GraduationCap, LogOut } from 'lucide-react';
+import { BookOpen, GraduationCap, LogOut, Mic } from 'lucide-react';
 import { SessionManager } from '@/components/SessionManager';
 import { useState } from 'react';
 import { GhareebEntryDialog, useGhareebEntry } from '@/components/GhareebEntryDialog';
@@ -47,6 +47,22 @@ export default function Home() {
               <h2 className="text-lg font-bold font-arabic text-foreground">بوابة التحفيظ</h2>
               <p className="text-xs font-arabic text-muted-foreground leading-relaxed">
                 اختبارات الإخفاء الزمني لتقوية الحفظ
+              </p>
+            </div>
+          </Link>
+
+          {/* Audio Diagnostics */}
+          <Link
+            to="/audio-diag"
+            className="page-frame p-4 flex items-center gap-4 hover:border-primary/50 hover:shadow-lg transition-all group"
+          >
+            <div className="w-14 h-14 rounded-2xl bg-muted flex items-center justify-center shrink-0 group-hover:bg-muted/80 transition-colors">
+              <Mic className="w-7 h-7 text-muted-foreground" />
+            </div>
+            <div className="space-y-1">
+              <h2 className="text-lg font-bold font-arabic text-foreground">تشخيص الصوت</h2>
+              <p className="text-xs font-arabic text-muted-foreground leading-relaxed">
+                فحص الميكروفون والتعرف على الكلام
               </p>
             </div>
           </Link>
