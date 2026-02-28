@@ -148,6 +148,9 @@ export function useSpeech(): UseSpeechReturn {
   const nativeEndListenerRef = useRef<any>(null);
   const autoRestartRef = useRef(false);
   const nativeLangRef = useRef('ar-SA');
+  // Accumulate transcript across native auto-restarts
+  // Native engine resets on restart, so we save previous sessions' text
+  const nativeAccumulatedRef = useRef('');
 
   // ── Check permission on mount ──
   useEffect(() => {
@@ -200,6 +203,7 @@ export function useSpeech(): UseSpeechReturn {
   const start = useCallback(async (lang = 'ar-SA'): Promise<boolean> => {
     setError(null);
     setTranscript('');
+    nativeAccumulatedRef.current = '';
 
     // ── Native ──
     if (providerType === 'native') {
@@ -248,39 +252,42 @@ export function useSpeech(): UseSpeechReturn {
         nativeLangRef.current = lang;
         autoRestartRef.current = true;
 
-        // Listen for partial results
+        // Listen for partial results — accumulate across auto-restarts
         nativeListenerRef.current = await plugin.addListener('partialResults', (data: any) => {
-          console.log('[useSpeech] Native partialResults RAW:', JSON.stringify(data));
           const matches = data?.matches || data?.value;
+          let sessionText = '';
           if (Array.isArray(matches) && matches.length > 0) {
-            console.log('[useSpeech] Native transcript update:', matches[0]);
-            setTranscript(matches[0]);
+            sessionText = matches[0];
           } else if (typeof matches === 'string') {
-            console.log('[useSpeech] Native transcript (string):', matches);
-            setTranscript(matches);
-          } else {
-            console.log('[useSpeech] Native partialResults: no usable data');
+            sessionText = matches;
+          }
+          if (sessionText) {
+            // Combine accumulated text from previous sessions + current session
+            const accumulated = nativeAccumulatedRef.current;
+            const fullTranscript = accumulated ? (accumulated + ' ' + sessionText).trim() : sessionText;
+            console.log('[useSpeech] Native transcript:', sessionText.substring(0, 40), '| full:', fullTranscript.substring(Math.max(0, fullTranscript.length - 60)));
+            setTranscript(fullTranscript);
           }
         });
 
         // Auto-restart when native recognition ends (silence timeout)
+        // Save current session text before restart so we can accumulate
         nativeEndListenerRef.current = await plugin.addListener('listeningState', (data: any) => {
           const status = data?.status;
           console.log('[useSpeech] Native listeningState:', status);
           if (status === 'stopped' && autoRestartRef.current) {
-            console.log('[useSpeech] Native ended, auto-restarting...');
+            // Save current full transcript as accumulated base for next session
+            nativeAccumulatedRef.current = transcriptRef.current || '';
+            console.log('[useSpeech] Native ended, saving accumulated:', nativeAccumulatedRef.current.substring(Math.max(0, nativeAccumulatedRef.current.length - 60)));
             setTimeout(async () => {
               if (!autoRestartRef.current) return;
               try {
-                const restartResult = await plugin.start({
+                await plugin.start({
                   language: nativeLangRef.current,
                   maxResults: 5,
                   partialResults: true,
                   popup: false,
                 });
-                if (restartResult?.matches && restartResult.matches.length > 0) {
-                  setTranscript(restartResult.matches[0]);
-                }
                 console.log('[useSpeech] Native auto-restarted');
               } catch (e) {
                 console.log('[useSpeech] Native auto-restart failed:', e);
