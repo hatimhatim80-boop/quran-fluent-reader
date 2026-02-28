@@ -270,7 +270,7 @@ export function useSpeech(): UseSpeechReturn {
                   language: nativeLangRef.current,
                   maxResults: 5,
                   partialResults: true,
-                  popup: true,
+                  popup: false,
                 });
                 if (restartResult?.matches && restartResult.matches.length > 0) {
                   setTranscript(restartResult.matches[0]);
@@ -289,12 +289,12 @@ export function useSpeech(): UseSpeechReturn {
           language: lang,
           maxResults: 5,
           partialResults: true,
-          popup: true,
+          popup: false,
         };
         console.log('[useSpeech] Native start options:', JSON.stringify(startOpts));
         
-        // On Android, start() returns matches when partialResults is true + popup
-        // We also listen via partialResults event as backup
+        // popup:false is more reliable on Android (popup:true gives intermittent error 0)
+        // Results come via partialResults listener
         const result = await plugin.start(startOpts);
         console.log('[useSpeech] Native start() returned:', JSON.stringify(result));
         if (result?.matches && result.matches.length > 0) {
@@ -335,11 +335,20 @@ export function useSpeech(): UseSpeechReturn {
       };
 
       rec.onresult = (event: any) => {
-        let full = '';
+        // Only take the latest final result + current interim
+        // to avoid accumulating duplicate text
+        let finalText = '';
+        let interimText = '';
         for (let i = 0; i < event.results.length; i++) {
-          full += event.results[i][0].transcript;
+          const t = event.results[i][0].transcript;
+          if (event.results[i].isFinal) {
+            finalText += t;
+          } else {
+            interimText += t;
+          }
         }
-        setTranscript(full.trim());
+        const combined = (finalText + interimText).trim();
+        setTranscript(combined);
       };
 
       rec.onerror = (event: any) => {
