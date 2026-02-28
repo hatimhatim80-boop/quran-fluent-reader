@@ -475,6 +475,14 @@ export default function TahfeezPage() {
 
         const startVoiceOrTimer = () => {
           setActiveBlankKey(key);
+          console.log('[tahfeez][voice-check]', JSON.stringify({
+            useVoice,
+            wordText: wordText?.substring(0, 20),
+            isSupported: speechRef.current.isSupported,
+            isListening: speechRef.current.isListening,
+            providerType: speechRef.current.providerType,
+            transcriptLen: (speechRef.current.transcriptRef.current || '').length,
+          }));
           if (useVoice && wordText && speechRef.current.isSupported) {
             const sr = speechRef.current;
             // Track the transcript snapshot at the start of this word.
@@ -503,44 +511,71 @@ export default function TahfeezPage() {
             // Poll transcript for match every 100ms
             let voicePollCount = 0;
             const maxPolls = 600; // 60 seconds max
+            // Track which words we've already matched to avoid re-matching
+            const matchedWordsSet = new Set<string>();
+            
             const pollForMatch = () => {
               voicePollCount++;
               const currentTranscript = speechRef.current.transcriptRef.current || '';
               
-              // Detect transcript reset (speech engine auto-restarted)
-              if (currentTranscript.length < baseTranscriptLen) {
-                baseTranscriptLen = 0;
-                lastKnownTranscript = '';
-              }
-              
-              // Get the new portion of transcript since this word started
-              const newPart = currentTranscript.substring(baseTranscriptLen).trim();
+              // Use FULL transcript for matching (not substring-based)
+              // Native engine resets transcript on auto-restart, so baseline approach is unreliable
               const normWord = wordText.replace(/[\u0610-\u065F\u0670\u06D6-\u06ED]/g, '').trim();
               const shortWord = normWord.length <= 3;
               const level = matchLevelRef.current;
               const threshMap = { strict: shortWord ? 0.65 : 0.85, medium: shortWord ? 0.50 : 0.75, loose: shortWord ? 0.35 : 0.55 };
               const thresh = threshMap[level] || threshMap.medium;
               
-              if (newPart) {
+              if (voicePollCount % 10 === 1) {
+                console.log('[tahfeez][poll]', JSON.stringify({
+                  poll: voicePollCount,
+                  word: wordText,
+                  normWord,
+                  transcript: currentTranscript.substring(Math.max(0, currentTranscript.length - 80)),
+                  thresh,
+                  isListening: speechRef.current.isListening,
+                }));
+              }
+              
+              if (currentTranscript) {
+                // Strategy 1: Match using the full transcript
                 const targetWords = [wordText];
-                const result = matchHiddenWordsInOrder(newPart, targetWords, thresh);
+                const result = matchHiddenWordsInOrder(currentTranscript, targetWords, thresh);
                 if (result.success) {
-                  console.log('[tahfeez] ✓ Voice match!', newPart, '→', wordText);
+                  console.log('[tahfeez] ✓ Voice match!', wordText, 'in transcript');
                   revealAndAdvance();
                   return;
                 }
-                if (shortWord) {
-                  const normTarget = normalizeSpeechArabic(wordText);
-                  const spokenWords = splitWords(normalizeSpeechArabic(newPart));
-                  if (spokenWords.some(sw => sw === normTarget || sw.includes(normTarget) || normTarget.includes(sw))) {
-                    console.log('[tahfeez] ✓ Voice match (short-word)!', newPart, '→', wordText);
+                
+                // Strategy 2: Direct normalized word search in transcript
+                const normTarget = normalizeSpeechArabic(wordText);
+                const spokenWords = splitWords(normalizeSpeechArabic(currentTranscript));
+                if (normTarget && spokenWords.some(sw => sw === normTarget || sw.includes(normTarget) || normTarget.includes(sw))) {
+                  console.log('[tahfeez] ✓ Voice match (contains)!', wordText);
+                  revealAndAdvance();
+                  return;
+                }
+                
+                // Strategy 3: Check only new portion since last poll
+                const newPart = currentTranscript.substring(baseTranscriptLen).trim();
+                if (newPart) {
+                  const newResult = matchHiddenWordsInOrder(newPart, targetWords, thresh);
+                  if (newResult.success) {
+                    console.log('[tahfeez] ✓ Voice match (new part)!', newPart, '→', wordText);
                     revealAndAdvance();
                     return;
                   }
                 }
               }
               
+              // Detect transcript reset (speech engine auto-restarted)
+              if (currentTranscript.length < baseTranscriptLen) {
+                baseTranscriptLen = 0;
+                lastKnownTranscript = '';
+              }
               lastKnownTranscript = currentTranscript;
+              baseTranscriptLen = currentTranscript.length;
+              
               if (voicePollCount >= maxPolls) {
                 console.log('[tahfeez] Voice timeout, revealing');
                 revealAndAdvance();
