@@ -47,6 +47,31 @@ const JUZ_DATA = [
   { number: 29, name: 'تبارك الذي', page: 562 }, { number: 30, name: 'عم', page: 582 },
 ];
 
+// Voice debug overlay component - shows real-time speech state on device
+function VoiceDebugOverlay({ speech, activeBlankKey, wordTextsMap }: {
+  speech: ReturnType<typeof useSpeech>;
+  activeBlankKey: string | null;
+  wordTextsMap: Record<string, string>;
+}) {
+  const [tick, setTick] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => setTick(t => t + 1), 500);
+    return () => clearInterval(id);
+  }, []);
+
+  const transcript = speech.transcriptRef.current || '';
+  const targetWord = activeBlankKey ? (wordTextsMap[activeBlankKey] || '') : '';
+  const last60 = transcript.length > 60 ? '…' + transcript.slice(-60) : transcript;
+
+  return (
+    <div className="fixed bottom-0 left-0 right-0 z-50 bg-black/80 text-white text-xs p-2 font-mono" dir="ltr">
+      <div>🎤 {speech.isListening ? '✅ listening' : '❌ not listening'} | {speech.providerType} | t={transcript.length}</div>
+      <div className="text-green-400 truncate">📝 "{last60}"</div>
+      <div className="text-yellow-400">🎯 target: "{targetWord}"</div>
+    </div>
+  );
+}
+
 export default function TahfeezPage() {
   const {
     storedItems, clearAllItems, addItem, removeItem, getItemKey,
@@ -526,14 +551,17 @@ export default function TahfeezPage() {
               const threshMap = { strict: shortWord ? 0.65 : 0.85, medium: shortWord ? 0.50 : 0.75, loose: shortWord ? 0.35 : 0.55 };
               const thresh = threshMap[level] || threshMap.medium;
               
-              if (voicePollCount % 10 === 1) {
+              // Log EVERY poll for first 5, then every 10 — critical for native debugging
+              if (voicePollCount <= 5 || voicePollCount % 10 === 1) {
                 console.log('[tahfeez][poll]', JSON.stringify({
                   poll: voicePollCount,
                   word: wordText,
                   normWord,
                   transcript: currentTranscript.substring(Math.max(0, currentTranscript.length - 80)),
+                  tLen: currentTranscript.length,
                   thresh,
                   isListening: speechRef.current.isListening,
+                  provider: speechRef.current.providerType,
                 }));
               }
               
@@ -542,7 +570,7 @@ export default function TahfeezPage() {
                 const targetWords = [wordText];
                 const result = matchHiddenWordsInOrder(currentTranscript, targetWords, thresh);
                 if (result.success) {
-                  console.log('[tahfeez] ✓ Voice match!', wordText, 'in transcript');
+                  console.log('[tahfeez] ✓ Voice match (S1)!', wordText);
                   revealAndAdvance();
                   return;
                 }
@@ -551,7 +579,7 @@ export default function TahfeezPage() {
                 const normTarget = normalizeSpeechArabic(wordText);
                 const spokenWords = splitWords(normalizeSpeechArabic(currentTranscript));
                 if (normTarget && spokenWords.some(sw => sw === normTarget || sw.includes(normTarget) || normTarget.includes(sw))) {
-                  console.log('[tahfeez] ✓ Voice match (contains)!', wordText);
+                  console.log('[tahfeez] ✓ Voice match (S2)!', wordText);
                   revealAndAdvance();
                   return;
                 }
@@ -873,6 +901,11 @@ export default function TahfeezPage() {
       {/* Show bars overlay - floating when bars are hidden, with swipe support */}
       {hideBars && (
         <HiddenBarsOverlay onShow={() => setHideBars(false)} onNextPage={nextPage} onPrevPage={prevPage} />
+      )}
+
+      {/* Voice debug overlay - shows transcript in real-time on device */}
+      {quizStarted && voiceMode && (
+        <VoiceDebugOverlay speech={speech} activeBlankKey={activeBlankKey} wordTextsMap={wordTextsMapRef.current} />
       )}
 
       {/* Tab icons */}
