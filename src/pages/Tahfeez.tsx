@@ -466,7 +466,7 @@ export default function TahfeezPage() {
             const sr = speechRef.current;
             // Track the transcript snapshot at the start of this word.
             // We store the full text so we can detect resets (auto-restart clears transcript).
-            let lastKnownTranscript = sr.transcript || '';
+            let lastKnownTranscript = sr.transcriptRef.current || '';
             let baseTranscriptLen = lastKnownTranscript.length;
 
             // Only start speech if not already listening
@@ -493,7 +493,7 @@ export default function TahfeezPage() {
             const maxPolls = 200; // 60 seconds max
             const pollForMatch = () => {
               voicePollCount++;
-              const currentTranscript = speechRef.current.transcript || '';
+              const currentTranscript = speechRef.current.transcriptRef.current || '';
               
               // Detect transcript reset (speech engine auto-restarted)
               // When this happens, the transcript becomes shorter or completely different
