@@ -32,21 +32,34 @@ export async function openNativeAppSettings(): Promise<void> {
 
 async function requestNativeMicPermission(): Promise<boolean> {
   try {
-    // Try using the speech plugin's own permission methods first
     const plugin = await getNativeSpeechPlugin();
     if (!plugin) return false;
 
-    const check = await plugin.checkPermissions();
-    console.log('[useSpeech] checkPermissions result:', JSON.stringify(check));
-    if (check?.speechRecognition === 'granted') return true;
+    try {
+      const check = await plugin.checkPermissions();
+      console.log('[useSpeech] checkPermissions result:', JSON.stringify(check));
+      if (check?.speechRecognition === 'granted') return true;
+    } catch (e) {
+      console.log('[useSpeech] checkPermissions threw (non-fatal):', e);
+      // Continue to request even if check fails
+    }
 
-    // Request permission — this triggers the native Android RECORD_AUDIO dialog
-    const result = await plugin.requestPermissions();
-    console.log('[useSpeech] requestPermissions result:', JSON.stringify(result));
-    return result?.speechRecognition === 'granted';
+    try {
+      const result = await plugin.requestPermissions();
+      console.log('[useSpeech] requestPermissions result:', JSON.stringify(result));
+      if (result?.speechRecognition === 'granted') return true;
+    } catch (e) {
+      console.log('[useSpeech] requestPermissions threw (non-fatal):', e);
+    }
+
+    // If both check/request failed or returned non-granted,
+    // still return true to let start() try — permission may already be granted
+    // at OS level even if the plugin can't confirm it
+    console.log('[useSpeech] Permission status unclear, proceeding optimistically');
+    return true;
   } catch (e) {
-    console.error('[useSpeech] Permission request error:', e);
-    return false;
+    console.error('[useSpeech] Permission request fatal error:', e);
+    return true; // Still try — worst case start() will fail with a clear error
   }
 }
 
@@ -153,45 +166,27 @@ export function useSpeech(): UseSpeechReturn {
   const nativeAccumulatedRef = useRef('');
 
   // ── Check permission on mount ──
+  // Note: nativePermissions.ts already requests permission on app startup,
+  // so by this point permission is likely already granted at OS level.
+  // We set 'granted' optimistically if the plugin check fails.
   useEffect(() => {
     if (providerType === 'native') {
       (async () => {
         try {
           const plugin = await getNativeSpeechPlugin();
           if (!plugin) {
-            console.error('[useSpeech] Plugin not loaded on mount, setting perm=denied');
-            setPermissionState('denied');
+            console.error('[useSpeech] Plugin not loaded on mount');
+            setPermissionState('prompt'); // Don't block — start() will retry
             return;
           }
           const result = await plugin.checkPermissions();
-          console.log('[useSpeech] Mount checkPermissions raw:', JSON.stringify(result));
-          const state = result?.speechRecognition || 'prompt';
+          console.log('[useSpeech] Mount checkPermissions:', JSON.stringify(result));
+          const state = result?.speechRecognition || 'granted'; // Default to granted
           setPermissionState(state as PermissionState);
-
-          // If not granted yet, request immediately on mount
-          if (state !== 'granted') {
-            console.log('[useSpeech] Perm not granted on mount, requesting...');
-            const reqResult = await plugin.requestPermissions();
-            console.log('[useSpeech] Mount requestPermissions raw:', JSON.stringify(reqResult));
-            const newState = reqResult?.speechRecognition || 'denied';
-            setPermissionState(newState as PermissionState);
-          }
         } catch (e) {
-          console.error('[useSpeech] Mount permission check error:', e);
-          // Even if check fails, try requesting
-          try {
-            const plugin = await getNativeSpeechPlugin();
-            if (plugin) {
-              const reqResult = await plugin.requestPermissions();
-              console.log('[useSpeech] Fallback requestPermissions:', JSON.stringify(reqResult));
-              const state = reqResult?.speechRecognition || 'prompt';
-              setPermissionState(state as PermissionState);
-            } else {
-              setPermissionState('prompt');
-            }
-          } catch {
-            setPermissionState('prompt');
-          }
+          console.log('[useSpeech] Mount checkPermissions failed (non-fatal):', e);
+          // Permission is likely granted via nativePermissions.ts startup
+          setPermissionState('granted');
         }
       })();
     } else if (providerType === 'web') {
