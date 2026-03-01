@@ -253,51 +253,53 @@ export function useSpeech(): UseSpeechReturn {
     // ── Native ──
     if (providerType === 'native') {
       try {
+        console.log('[useSpeech] STEP 1: Loading plugin...');
         const plugin = await getNativeSpeechPlugin();
         if (!plugin) {
-          console.error('[useSpeech] Native speech plugin not loaded');
+          console.error('[useSpeech] STEP 1 FAIL: Plugin not loaded');
           setError('Native speech plugin not available');
           return false;
         }
+        console.log('[useSpeech] STEP 1 OK: Plugin loaded');
 
-        // Check if speech recognition is available on this device
+        // Check availability with timeout — some devices hang here
+        console.log('[useSpeech] STEP 2: Checking available()...');
         try {
-          const avail = await plugin.available();
-          console.log('[useSpeech] Native available():', JSON.stringify(avail));
-          if (!avail?.available) {
-            setError('Speech recognition not available on this device');
-            return false;
+          const availResult = await Promise.race([
+            plugin.available(),
+            new Promise<null>((r) => setTimeout(() => r(null), 2000)),
+          ]);
+          if (availResult === null) {
+            console.warn('[useSpeech] STEP 2: available() timed out — skipping check');
+          } else {
+            console.log('[useSpeech] STEP 2 result:', JSON.stringify(availResult));
+            if (availResult && !(availResult as any).available) {
+              setError('Speech recognition not available on this device');
+              return false;
+            }
           }
         } catch (e) {
-          console.log('[useSpeech] available() check failed:', e);
+          console.log('[useSpeech] STEP 2: available() threw (non-fatal):', e);
         }
 
-        // ── Step 1: Request RECORD_AUDIO permission explicitly ──
-        // Android requires a native in-app permission request, not just browser-level
-        console.log('[useSpeech] Requesting native microphone permission (RECORD_AUDIO)...');
-        const hasPermission = await requestNativeMicPermission();
-        console.log('[useSpeech] Native mic permission granted:', hasPermission);
-        
-        if (!hasPermission) {
-          console.error('[useSpeech] Microphone permission DENIED');
-          setPermissionState('denied');
-          setError('صلاحية الميكروفون مرفوضة. افتح إعدادات التطبيق ← الأذونات ← الميكروفون ← سماح');
-          return false;
-        }
+        // Skip permission re-check — already granted at app startup
+        console.log('[useSpeech] STEP 3: Skipping permission (already granted on mount)');
         setPermissionState('granted');
 
         // Remove old listeners
-        if (nativeListenerRef.current) {
-          await nativeListenerRef.current.remove();
-        }
-        if (nativeEndListenerRef.current) {
-          await nativeEndListenerRef.current.remove();
+        console.log('[useSpeech] STEP 4: Removing old listeners...');
+        try {
+          if (nativeListenerRef.current) await nativeListenerRef.current.remove();
+          if (nativeEndListenerRef.current) await nativeEndListenerRef.current.remove();
+        } catch (e) {
+          console.log('[useSpeech] STEP 4: Listener cleanup error (non-fatal):', e);
         }
 
         nativeLangRef.current = lang;
         autoRestartRef.current = true;
 
         // Listen for partial results — accumulate across auto-restarts
+        console.log('[useSpeech] STEP 5: Adding partialResults listener...');
         nativeListenerRef.current = await plugin.addListener('partialResults', (data: any) => {
           const matches = data?.matches || data?.value;
           let sessionText = '';
@@ -307,7 +309,6 @@ export function useSpeech(): UseSpeechReturn {
             sessionText = matches;
           }
           if (sessionText) {
-            // Combine accumulated text from previous sessions + current session
             const accumulated = nativeAccumulatedRef.current;
             const fullTranscript = accumulated ? (accumulated + ' ' + sessionText).trim() : sessionText;
             console.log('[useSpeech] Native transcript:', sessionText.substring(0, 40), '| full:', fullTranscript.substring(Math.max(0, fullTranscript.length - 60)));
@@ -316,14 +317,12 @@ export function useSpeech(): UseSpeechReturn {
         });
 
         // Auto-restart when native recognition ends (silence timeout)
-        // Save current session text before restart so we can accumulate
+        console.log('[useSpeech] STEP 6: Adding listeningState listener...');
         nativeEndListenerRef.current = await plugin.addListener('listeningState', (data: any) => {
           const status = data?.status;
           console.log('[useSpeech] Native listeningState:', status);
           if (status === 'stopped' && autoRestartRef.current) {
-            // Save current full transcript as accumulated base for next session
             nativeAccumulatedRef.current = transcriptRef.current || '';
-            console.log('[useSpeech] Native ended, saving accumulated:', nativeAccumulatedRef.current.substring(Math.max(0, nativeAccumulatedRef.current.length - 60)));
             setTimeout(async () => {
               if (!autoRestartRef.current) return;
               try {
@@ -349,20 +348,47 @@ export function useSpeech(): UseSpeechReturn {
           partialResults: true,
           popup: false,
         };
-        console.log('[useSpeech] Native start options:', JSON.stringify(startOpts));
+        console.log('[useSpeech] STEP 7: Calling plugin.start()...', JSON.stringify(startOpts));
         
-        // popup:false is more reliable on Android (popup:true gives intermittent error 0)
-        // Results come via partialResults listener
-        const result = await plugin.start(startOpts);
-        console.log('[useSpeech] Native start() returned:', JSON.stringify(result));
-        if (result?.matches && result.matches.length > 0) {
-          setTranscript(result.matches[0]);
+        // Race start() against a 5s timeout — plugin.start() can hang on some devices
+        const startResult = await Promise.race([
+          plugin.start(startOpts).then((r: any) => ({ ok: true, result: r })),
+          new Promise<{ ok: false }>((r) => setTimeout(() => r({ ok: false }), 5000)),
+        ]);
+        
+        if (!startResult.ok) {
+          console.error('[useSpeech] STEP 7 FAIL: plugin.start() timed out after 5s');
+          // Try with popup: true as fallback
+          console.log('[useSpeech] STEP 7b: Retrying with popup: true...');
+          try {
+            const fallbackResult = await Promise.race([
+              plugin.start({ ...startOpts, popup: true }).then((r: any) => ({ ok: true, result: r })),
+              new Promise<{ ok: false }>((r) => setTimeout(() => r({ ok: false }), 5000)),
+            ]);
+            if (!fallbackResult.ok) {
+              console.error('[useSpeech] STEP 7b FAIL: popup:true also timed out');
+              setError('Speech engine timed out');
+              return false;
+            }
+            console.log('[useSpeech] STEP 7b OK: popup:true started');
+          } catch (e: any) {
+            console.error('[useSpeech] STEP 7b FAIL:', e?.message || e);
+            setError(e?.message || 'Speech start failed');
+            return false;
+          }
+        } else {
+          console.log('[useSpeech] STEP 7 OK: start() returned:', JSON.stringify((startResult as any).result));
+          const result = (startResult as any).result;
+          if (result?.matches && result.matches.length > 0) {
+            setTranscript(result.matches[0]);
+          }
         }
 
         setIsListening(true);
-        console.log('[useSpeech] Native recognition started successfully, lang:', lang);
+        console.log('[useSpeech] ✅ Native recognition started successfully, lang:', lang);
         return true;
       } catch (err: any) {
+        console.error('[useSpeech] ❌ Native start FATAL error:', err?.message || err);
         setError(err?.message || 'Native speech failed');
         setIsListening(false);
         autoRestartRef.current = false;
