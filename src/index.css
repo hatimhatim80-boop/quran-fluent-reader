@@ -1257,16 +1257,14 @@
     background: hsl(var(--muted) / 0.3);
   }
 
-  /* Active blank - hidden text with underline indicator */
+  /* Active blank - hidden text indicator (no underline) */
   .tahfeez-active-indicator {
     display: inline-block;
     position: relative;
-    border-bottom: 3px solid hsl(var(--primary));
     border-radius: 0;
     padding: 0 1px;
     margin: 0 -1px;
     background: none;
-    /* no animation — static underline */
   }
 
   .tahfeez-active-indicator__text {
