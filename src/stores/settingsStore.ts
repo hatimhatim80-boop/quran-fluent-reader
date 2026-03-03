@@ -92,8 +92,8 @@ export interface AppSettings {
 // Default settings
 const defaultSettings: AppSettings = {
   fonts: {
-    fontFamily: 'uthman',
-    quranFontSize: 1.75,
+    fontFamily: 'uthmanicHafs',
+    quranFontSize: 1,
     meaningFontSize: 1.15,
     lineHeight: 1.9,
     fontWeight: 400,
