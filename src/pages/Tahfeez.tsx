@@ -10,9 +10,9 @@ import { useSpeech } from '@/hooks/useSpeech';
 // Speech matching disabled — kept for future re-enable
 // import { matchHiddenWordsInOrder, normalizeSpeechArabic, splitWords } from '@/utils/quranSpeechMatch';
 import { Link, useNavigate } from 'react-router-dom';
-import { BookOpen, Play, Pause, Eye, EyeOff, ArrowRight, Save, Trash2, GraduationCap, ListChecks, Zap, Book, Layers, Hash, FileText, Search, X, ChevronLeft, Download, Upload, Settings2, ChevronsRight, Undo2, SlidersHorizontal, Palette } from 'lucide-react';
+import { BookOpen, Play, Pause, Eye, EyeOff, ArrowRight, Save, Trash2, GraduationCap, ListChecks, Zap, Book, Layers, Hash, FileText, Search, X, ChevronLeft, Download, Upload, ChevronsRight, Undo2, Palette } from 'lucide-react';
 import { SpeedControlWidget } from '@/components/SpeedControlWidget';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuCheckboxItem } from '@/components/ui/dropdown-menu';
+
 import { HiddenBarsOverlay } from '@/components/HiddenBarsOverlay';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Slider } from '@/components/ui/slider';
@@ -23,7 +23,7 @@ import { TahfeezQuizView } from '@/components/TahfeezQuizView';
 import { TahfeezSelectionView } from '@/components/TahfeezSelectionView';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { SURAH_INFO, SURAH_NAMES } from '@/utils/quranPageIndex';
-import { SettingsDialog } from '@/components/SettingsDialog';
+// SettingsDialog removed — Tahfeez has its own inline settings
 import { AutoPlayDebugPanel } from '@/components/AutoPlayDebugPanel';
 // ---- Quran Index Data ----
 const SURAHS = Object.entries(SURAH_NAMES).map(([name, number]) => ({
@@ -71,6 +71,8 @@ export default function TahfeezPage() {
     voiceMode, setVoiceMode,
     matchLevel, setMatchLevel,
     revealedColor, setRevealedColor,
+    revealedWithBg, setRevealedWithBg,
+    activeWordColor, setActiveWordColor,
     singleWordMode, setSingleWordMode,
   } = useTahfeezStore();
 
@@ -752,11 +754,6 @@ export default function TahfeezPage() {
               <h1 className="text-lg font-bold font-arabic text-foreground">بوابة التحفيظ</h1>
             </div>
             <div className="flex items-center gap-2">
-              <SettingsDialog>
-                <button className="nav-button w-8 h-8 rounded-full flex items-center justify-center" title="الإعدادات">
-                  <Settings2 className="w-4 h-4" />
-                </button>
-              </SettingsDialog>
               <button onClick={() => setShowIndex(true)} className="nav-button w-8 h-8 rounded-full flex items-center justify-center" title="فهرس المصحف">
                 <Book className="w-4 h-4" />
               </button>
@@ -1076,6 +1073,67 @@ export default function TahfeezPage() {
               </div>
             </div>
 
+            {/* Color settings for active word and revealed words */}
+            <div className="space-y-3">
+              <label className="text-sm font-arabic text-muted-foreground">إعدادات الألوان</label>
+              
+              {/* Active word color */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-arabic text-muted-foreground">لون الكلمة أثناء الظهور</label>
+                <div className="flex flex-wrap gap-2">
+                  {([
+                    { value: 'gold' as const, label: 'ذهبي', color: 'hsl(45 95% 55%)' },
+                    { value: 'green' as const, label: 'أخضر', color: 'hsl(140 60% 40%)' },
+                    { value: 'blue' as const, label: 'أزرق', color: 'hsl(210 70% 50%)' },
+                    { value: 'orange' as const, label: 'برتقالي', color: 'hsl(30 80% 50%)' },
+                    { value: 'purple' as const, label: 'بنفسجي', color: 'hsl(270 60% 50%)' },
+                    { value: 'red' as const, label: 'أحمر', color: 'hsl(0 70% 50%)' },
+                  ]).map(opt => (
+                    <button
+                      key={opt.value}
+                      onClick={() => setActiveWordColor(opt.value)}
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-arabic transition-all border ${activeWordColor === opt.value ? 'border-primary ring-2 ring-primary/30' : 'border-border'}`}
+                    >
+                      <span className="w-3 h-3 rounded-full" style={{ background: opt.color }} />
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Revealed word color */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-arabic text-muted-foreground">لون الكلمة بعد ظهورها</label>
+                <div className="flex flex-wrap gap-2">
+                  {([
+                    { value: 'green' as const, label: 'أخضر', color: 'hsl(140 55% 35%)' },
+                    { value: 'blue' as const, label: 'أزرق', color: 'hsl(210 70% 45%)' },
+                    { value: 'orange' as const, label: 'برتقالي', color: 'hsl(30 80% 45%)' },
+                    { value: 'purple' as const, label: 'بنفسجي', color: 'hsl(270 60% 50%)' },
+                    { value: 'primary' as const, label: 'أساسي', color: 'hsl(var(--primary))' },
+                  ]).map(opt => (
+                    <button
+                      key={opt.value}
+                      onClick={() => setRevealedColor(opt.value)}
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-arabic transition-all border ${revealedColor === opt.value ? 'border-primary ring-2 ring-primary/30' : 'border-border'}`}
+                    >
+                      <span className="w-3 h-3 rounded-full" style={{ background: opt.color }} />
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* With/without background */}
+              <div className="flex items-center justify-between p-2 rounded-lg border">
+                <label className="text-xs font-arabic text-foreground">إظهار خلفية ملونة للكلمة بعد ظهورها</label>
+                <Switch
+                  checked={revealedWithBg}
+                  onCheckedChange={(v) => setRevealedWithBg(v)}
+                />
+              </div>
+            </div>
+
             {/* Quiz scope */}
             <div className="space-y-3">
               <label className="text-sm font-arabic text-muted-foreground">نطاق الاختبار</label>
@@ -1325,40 +1383,7 @@ export default function TahfeezPage() {
                   الصفحة التالية
                 </Button>
               )}
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="sm" className="font-arabic">
-                    <SlidersHorizontal className="w-4 h-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="center" className="w-48 font-arabic" style={{ direction: 'rtl' }}>
-                  <DropdownMenuLabel className="text-xs">درجة المطابقة</DropdownMenuLabel>
-                  <DropdownMenuRadioGroup value={matchLevel} onValueChange={(v) => setMatchLevel(v as any)}>
-                    <DropdownMenuRadioItem value="strict" className="text-xs">صارم</DropdownMenuRadioItem>
-                    <DropdownMenuRadioItem value="medium" className="text-xs">متوسط</DropdownMenuRadioItem>
-                    <DropdownMenuRadioItem value="loose" className="text-xs">مرن</DropdownMenuRadioItem>
-                  </DropdownMenuRadioGroup>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuLabel className="text-xs">لون الكلمة بعد ظهورها</DropdownMenuLabel>
-                  <DropdownMenuRadioGroup value={revealedColor} onValueChange={(v) => setRevealedColor(v as any)}>
-                    <DropdownMenuRadioItem value="green" className="text-xs">
-                      <span className="w-3 h-3 rounded-full ml-2 inline-block" style={{ background: 'hsl(140 55% 35%)' }} />أخضر
-                    </DropdownMenuRadioItem>
-                    <DropdownMenuRadioItem value="blue" className="text-xs">
-                      <span className="w-3 h-3 rounded-full ml-2 inline-block" style={{ background: 'hsl(210 70% 45%)' }} />أزرق
-                    </DropdownMenuRadioItem>
-                    <DropdownMenuRadioItem value="orange" className="text-xs">
-                      <span className="w-3 h-3 rounded-full ml-2 inline-block" style={{ background: 'hsl(30 80% 45%)' }} />برتقالي
-                    </DropdownMenuRadioItem>
-                    <DropdownMenuRadioItem value="purple" className="text-xs">
-                      <span className="w-3 h-3 rounded-full ml-2 inline-block" style={{ background: 'hsl(270 60% 50%)' }} />بنفسجي
-                    </DropdownMenuRadioItem>
-                    <DropdownMenuRadioItem value="primary" className="text-xs">
-                      <span className="w-3 h-3 rounded-full ml-2 inline-block bg-primary" />أساسي
-                    </DropdownMenuRadioItem>
-                  </DropdownMenuRadioGroup>
-                </DropdownMenuContent>
-              </DropdownMenu>
+              
               <Button variant="outline" size="sm" onClick={() => { setQuizStarted(false); if (revealTimerRef.current) clearTimeout(revealTimerRef.current); speech.stop(); }} className="font-arabic">
                 إعادة
               </Button>

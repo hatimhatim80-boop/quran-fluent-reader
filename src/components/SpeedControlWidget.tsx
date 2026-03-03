@@ -64,8 +64,8 @@ export function SpeedControlWidget({
   if (!visible) {
     return (
       <div
-        className="fixed bottom-16 left-0 z-40"
-        style={{ width: '20%', height: '10%', touchAction: 'pan-y' }}
+        className="fixed bottom-0 left-1/2 -translate-x-1/2 z-40"
+        style={{ width: '40%', height: '10%', touchAction: 'pan-y' }}
         onClick={showButton}
       />
     );
@@ -73,7 +73,7 @@ export function SpeedControlWidget({
 
   if (!expanded) {
     return (
-      <div className="fixed bottom-20 left-1/2 -translate-x-1/2 z-50 animate-fade-in">
+      <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 animate-fade-in">
         <button
           onClick={() => setExpanded(true)}
           className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-background/90 backdrop-blur-md border border-border shadow-lg text-xs font-arabic"
@@ -87,7 +87,7 @@ export function SpeedControlWidget({
   }
 
   return (
-    <div className="fixed bottom-20 left-1/2 -translate-x-1/2 z-50 bg-card border border-border rounded-2xl shadow-2xl p-4 w-56 space-y-3 animate-fade-in" dir="rtl">
+    <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 bg-card border border-border rounded-2xl shadow-2xl p-4 w-56 space-y-3 animate-fade-in" dir="rtl">
       <div className="flex items-center justify-between">
         <span className="text-xs font-arabic font-bold text-foreground">{label}</span>
         <button onClick={() => { setExpanded(false); setVisible(false); }} className="w-6 h-6 rounded-full flex items-center justify-center hover:bg-muted transition-colors">
