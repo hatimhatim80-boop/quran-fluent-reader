@@ -1257,23 +1257,37 @@
     background: hsl(var(--muted) / 0.3);
   }
 
-  /* Active blank - hidden text indicator (no underline) */
+  /* Active blank - currently being revealed word with distinctive highlight */
   .tahfeez-active-indicator {
     display: inline-block;
     position: relative;
-    border-radius: 0;
-    padding: 0 1px;
-    margin: 0 -1px;
-    background: none;
+    border-radius: 6px;
+    padding: 2px 6px;
+    margin: 0 -4px;
+    background: hsl(45 95% 55%);
+    color: hsl(0 0% 10%);
+    font-weight: 700;
+    animation: tahfeez-active-glow 1.2s ease-in-out infinite;
+    box-shadow: 0 0 12px hsl(45 95% 55% / 0.5);
+  }
+  .dark .tahfeez-active-indicator {
+    background: hsl(45 90% 45%);
+    color: hsl(0 0% 5%);
+    box-shadow: 0 0 16px hsl(45 90% 45% / 0.6);
   }
 
   .tahfeez-active-indicator__text {
-    color: transparent;
+    color: inherit;
     user-select: none;
   }
 
   .tahfeez-active-indicator__icon {
     display: none;
+  }
+
+  @keyframes tahfeez-active-glow {
+    0%, 100% { box-shadow: 0 0 8px hsl(45 95% 55% / 0.4); }
+    50% { box-shadow: 0 0 20px hsl(45 95% 55% / 0.7); }
   }
 
   /* Keep old classes for backward compat */
@@ -1332,9 +1346,12 @@
   .tahfeez-revealed--primary { color: hsl(var(--primary-foreground)); background: hsl(var(--primary)); }
 
   /* Text-only color variants */
-  .tahfeez-revealed--blue.tahfeez-revealed--text-only { background: none; }
-  .tahfeez-revealed--orange.tahfeez-revealed--text-only { background: none; }
-  .tahfeez-revealed--purple.tahfeez-revealed--text-only { background: none; }
+  .tahfeez-revealed--blue.tahfeez-revealed--text-only { background: none; color: hsl(210 70% 35%); }
+  .dark .tahfeez-revealed--blue.tahfeez-revealed--text-only { background: none; color: hsl(210 70% 70%); }
+  .tahfeez-revealed--orange.tahfeez-revealed--text-only { background: none; color: hsl(30 80% 35%); }
+  .dark .tahfeez-revealed--orange.tahfeez-revealed--text-only { background: none; color: hsl(30 70% 70%); }
+  .tahfeez-revealed--purple.tahfeez-revealed--text-only { background: none; color: hsl(270 60% 40%); }
+  .dark .tahfeez-revealed--purple.tahfeez-revealed--text-only { background: none; color: hsl(270 60% 70%); }
   .tahfeez-revealed--primary.tahfeez-revealed--text-only { background: none; color: hsl(var(--primary)); }
 
   /* Store mode - tappable words during quiz */
