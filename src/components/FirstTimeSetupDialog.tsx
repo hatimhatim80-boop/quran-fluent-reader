@@ -16,7 +16,7 @@ const FONT_PRESETS = [
 
 const SIZE_PRESETS = [
   { label: 'صغير', quranSize: 1.2, meaningSize: 0.9, lineHeight: 1.6 },
-  { label: 'متوسط', quranSize: 1.75, meaningSize: 1.15, lineHeight: 1.9 },
+  { label: 'متوسط', quranSize: 1.5, meaningSize: 1.15, lineHeight: 1.9 },
   { label: 'كبير', quranSize: 2.5, meaningSize: 1.4, lineHeight: 2.2 },
 ];
 
