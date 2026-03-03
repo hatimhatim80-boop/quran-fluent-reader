@@ -91,10 +91,10 @@ export function AutoPlayControls({
         </span>
         <Slider
           value={[speed]}
-          onValueChange={([val]) => onSpeedChange(val)}
-          min={2}
+          onValueChange={([val]) => onSpeedChange(+val.toFixed(2))}
+          min={0.1}
           max={30}
-          step={0.5}
+          step={0.1}
           className="flex-1"
         />
         <span className="text-sm font-arabic text-muted-foreground whitespace-nowrap">

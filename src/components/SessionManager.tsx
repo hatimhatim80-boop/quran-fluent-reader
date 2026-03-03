@@ -202,6 +202,12 @@ export function SessionManager() {
 
   const handleContinue = (session: Session) => {
     setActiveSession(session.id);
+    // Save the session's page to localStorage so useQuranData picks it up on load
+    if (session.type === 'ghareeb') {
+      localStorage.setItem('quran-app-ghareeb-start-page', String(session.currentPage));
+    } else {
+      localStorage.setItem('quran-app-tahfeez-start-page', String(session.currentPage));
+    }
     navigate(session.type === 'ghareeb' ? '/mushaf' : '/tahfeez');
   };
 
