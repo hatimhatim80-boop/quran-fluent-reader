@@ -145,6 +145,10 @@ interface TahfeezState {
   revealedColor: 'green' | 'blue' | 'orange' | 'purple' | 'primary';
   setRevealedColor: (color: TahfeezState['revealedColor']) => void;
 
+  // Single word mode: only show one word at a time
+  singleWordMode: boolean;
+  setSingleWordMode: (on: boolean) => void;
+
   // Active tab in tahfeez page
   activeTab: 'store' | 'custom-quiz' | 'auto-quiz';
   setActiveTab: (tab: TahfeezState['activeTab']) => void;
@@ -253,6 +257,9 @@ export const useTahfeezStore = create<TahfeezState>()(
       revealedColor: 'green',
       setRevealedColor: (color) => set({ revealedColor: color }),
 
+      singleWordMode: false,
+      setSingleWordMode: (on) => set({ singleWordMode: on }),
+
       activeTab: 'store',
       setActiveTab: (tab) => set({ activeTab: tab }),
     }),
@@ -272,6 +279,7 @@ export const useTahfeezStore = create<TahfeezState>()(
         voiceMode: state.voiceMode,
         matchLevel: state.matchLevel,
         revealedColor: state.revealedColor,
+        singleWordMode: state.singleWordMode,
         quizScope: state.quizScope,
         quizScopeFrom: state.quizScopeFrom,
         quizScopeTo: state.quizScopeTo,
