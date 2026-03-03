@@ -1066,6 +1066,14 @@ export default function TahfeezPage() {
                   <Slider value={[ayahCount]} onValueChange={([v]) => setAyahCount(v)} min={1} max={15} step={1} />
                 </div>
               )}
+
+              <div className="flex items-center justify-between p-2 rounded-lg border">
+                <label className="text-xs font-arabic text-foreground">كلمة واحدة فقط (تختفي بعد ظهورها)</label>
+                <Switch
+                  checked={singleWordMode}
+                  onCheckedChange={(v) => setSingleWordMode(v)}
+                />
+              </div>
             </div>
 
             {/* Quiz scope */}
@@ -1349,14 +1357,6 @@ export default function TahfeezPage() {
                       <span className="w-3 h-3 rounded-full ml-2 inline-block bg-primary" />أساسي
                     </DropdownMenuRadioItem>
                   </DropdownMenuRadioGroup>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuCheckboxItem
-                    checked={singleWordMode}
-                    onCheckedChange={(v) => setSingleWordMode(!!v)}
-                    className="text-xs font-arabic"
-                  >
-                    كلمة واحدة فقط
-                  </DropdownMenuCheckboxItem>
                 </DropdownMenuContent>
               </DropdownMenu>
               <Button variant="outline" size="sm" onClick={() => { setQuizStarted(false); if (revealTimerRef.current) clearTimeout(revealTimerRef.current); speech.stop(); }} className="font-arabic">
