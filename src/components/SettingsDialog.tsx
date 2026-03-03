@@ -232,16 +232,6 @@ export function SettingsDialog({ children }: SettingsDialogProps) {
               />
             </div>
 
-            <div className="space-y-3">
-              <Label className="font-arabic">حجم خط المعنى: <span className="text-primary font-bold">{settings.fonts.meaningFontSize}rem</span></Label>
-              <Slider
-                value={[settings.fonts.meaningFontSize]}
-                onValueChange={([v]) => setFonts({ meaningFontSize: v })}
-                min={0.8}
-                max={2}
-                step={0.05}
-              />
-            </div>
 
             <div className="space-y-3">
               <Label className="font-arabic">ارتفاع السطر: <span className="text-primary font-bold">{settings.fonts.lineHeight}</span></Label>
@@ -627,28 +617,7 @@ export function SettingsDialog({ children }: SettingsDialogProps) {
               </div>
             </div>
 
-            {/* Meaning box font sizes */}
-            <div className="space-y-3">
-              <Label className="font-arabic font-bold">حجم خط الكلمة في الإطار: <span className="text-primary">{(settings.meaningBox?.wordFontSize || 1.4).toFixed(2)}rem</span></Label>
-              <Slider
-                value={[settings.meaningBox?.wordFontSize || 1.4]}
-                onValueChange={([v]) => setMeaningBox({ wordFontSize: v })}
-                min={0.8}
-                max={2.5}
-                step={0.05}
-              />
-            </div>
 
-            <div className="space-y-3">
-              <Label className="font-arabic font-bold">حجم خط المعنى في الإطار: <span className="text-primary">{(settings.meaningBox?.meaningFontSize || 1.1).toFixed(2)}rem</span></Label>
-              <Slider
-                value={[settings.meaningBox?.meaningFontSize || 1.1]}
-                onValueChange={([v]) => setMeaningBox({ meaningFontSize: v })}
-                min={0.6}
-                max={2}
-                step={0.05}
-              />
-            </div>
 
             {/* Container border color */}
             <div className="space-y-3">
@@ -708,6 +677,29 @@ export function SettingsDialog({ children }: SettingsDialogProps) {
                 <RotateCcw className="w-3 h-3" />
                 الافتراضي
               </Button>
+            </div>
+
+            {/* Meaning box font sizes */}
+            <div className="space-y-3">
+              <Label className="font-arabic font-bold">حجم خط الكلمة في الإطار: <span className="text-primary">{(settings.meaningBox?.wordFontSize || 1.4).toFixed(2)}rem</span></Label>
+              <Slider
+                value={[settings.meaningBox?.wordFontSize || 1.4]}
+                onValueChange={([v]) => setMeaningBox({ wordFontSize: v })}
+                min={0.8}
+                max={2.5}
+                step={0.05}
+              />
+            </div>
+
+            <div className="space-y-3">
+              <Label className="font-arabic font-bold">حجم خط المعنى في الإطار: <span className="text-primary">{(settings.meaningBox?.meaningFontSize || 1.1).toFixed(2)}rem</span></Label>
+              <Slider
+                value={[settings.meaningBox?.meaningFontSize || 1.1]}
+                onValueChange={([v]) => setMeaningBox({ meaningFontSize: v })}
+                min={0.6}
+                max={2}
+                step={0.05}
+              />
             </div>
             <div className="space-y-3">
               <Label className="font-arabic">عرض النافذة: <span className="text-primary font-bold">{settings.popover.width}px</span></Label>
