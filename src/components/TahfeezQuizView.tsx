@@ -57,6 +57,8 @@ export function TahfeezQuizView({
 }: TahfeezQuizViewProps) {
   const { settings } = useSettingsStore();
   const revealedColor = useTahfeezStore(s => s.revealedColor);
+  const revealedWithBg = useTahfeezStore(s => s.revealedWithBg);
+  const activeWordColor = useTahfeezStore(s => s.activeWordColor);
   const displayMode = settings.display?.mode || 'auto15';
   const textDirection = settings.display?.textDirection || 'rtl';
   const mobileLinesPerPage = settings.display?.mobileLinesPerPage || 15;
@@ -67,7 +69,7 @@ export function TahfeezQuizView({
   const isLines15 = false;
   const pageBackgroundColor = (settings.colors as any).pageBackgroundColor || '';
   const pageFrameStyle = pageBackgroundColor ? { background: `hsl(${pageBackgroundColor})` } : undefined;
-  const highlightStyle = (settings.colors as any).highlightStyle || 'background';
+  
   const balanceLastLine = useSettingsStore((s) => s.settings.display?.balanceLastLine ?? false);
   const fontFamilyCSS = (() => {
     const fontMap: Record<string, string> = {
@@ -441,13 +443,13 @@ export function TahfeezQuizView({
         } else if (shouldShowAsActive) {
           // Active blank: text stays hidden, but shows a pulsing indicator (mic icon)
           lineElements.push(
-            <span key={`${lineIdx}-${tokenIdx}`} className="tahfeez-active-indicator" data-tahfeez-active="true" onClick={storeMode ? storeClickHandler : onClickActiveBlank} style={{ cursor: 'pointer' }}>
+            <span key={`${lineIdx}-${tokenIdx}`} className={`tahfeez-active-indicator tahfeez-active--${activeWordColor}`} data-tahfeez-active="true" onClick={storeMode ? storeClickHandler : onClickActiveBlank} style={{ cursor: 'pointer' }}>
               <span className="tahfeez-active-indicator__text">{t}</span>
               <span className="tahfeez-active-indicator__icon">🎤</span>
             </span>
           );
         } else if (shouldShowAsRevealed) {
-          const baseClass = highlightStyle === 'text-only' ? 'tahfeez-revealed--text-only' : 'tahfeez-revealed';
+          const baseClass = !revealedWithBg ? 'tahfeez-revealed--text-only' : 'tahfeez-revealed';
           const colorClass = revealedColor !== 'green' ? ` tahfeez-revealed--${revealedColor}` : '';
           lineElements.push(
             <span key={`${lineIdx}-${tokenIdx}`} className={`${baseClass}${colorClass}${storeMode ? ' tahfeez-store-target' : ''}${isStored ? ' tahfeez-stored' : ''}`}

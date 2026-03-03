@@ -145,6 +145,14 @@ interface TahfeezState {
   revealedColor: 'green' | 'blue' | 'orange' | 'purple' | 'primary';
   setRevealedColor: (color: TahfeezState['revealedColor']) => void;
 
+  // Whether revealed words show with background highlight or text-only
+  revealedWithBg: boolean;
+  setRevealedWithBg: (on: boolean) => void;
+
+  // Active word (currently being revealed) color
+  activeWordColor: 'gold' | 'green' | 'blue' | 'orange' | 'purple' | 'red';
+  setActiveWordColor: (color: TahfeezState['activeWordColor']) => void;
+
   // Single word mode: only show one word at a time
   singleWordMode: boolean;
   setSingleWordMode: (on: boolean) => void;
@@ -257,6 +265,12 @@ export const useTahfeezStore = create<TahfeezState>()(
       revealedColor: 'green',
       setRevealedColor: (color) => set({ revealedColor: color }),
 
+      revealedWithBg: true,
+      setRevealedWithBg: (on) => set({ revealedWithBg: on }),
+
+      activeWordColor: 'gold',
+      setActiveWordColor: (color) => set({ activeWordColor: color }),
+
       singleWordMode: false,
       setSingleWordMode: (on) => set({ singleWordMode: on }),
 
@@ -279,6 +293,8 @@ export const useTahfeezStore = create<TahfeezState>()(
         voiceMode: state.voiceMode,
         matchLevel: state.matchLevel,
         revealedColor: state.revealedColor,
+        revealedWithBg: state.revealedWithBg,
+        activeWordColor: state.activeWordColor,
         singleWordMode: state.singleWordMode,
         quizScope: state.quizScope,
         quizScopeFrom: state.quizScopeFrom,
