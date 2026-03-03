@@ -12,7 +12,7 @@ import { useSpeech } from '@/hooks/useSpeech';
 import { Link, useNavigate } from 'react-router-dom';
 import { BookOpen, Play, Pause, Eye, EyeOff, ArrowRight, Save, Trash2, GraduationCap, ListChecks, Zap, Book, Layers, Hash, FileText, Search, X, ChevronLeft, Download, Upload, Settings2, ChevronsRight, Undo2, SlidersHorizontal, Palette } from 'lucide-react';
 import { SpeedControlWidget } from '@/components/SpeedControlWidget';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuRadioGroup, DropdownMenuRadioItem } from '@/components/ui/dropdown-menu';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuCheckboxItem } from '@/components/ui/dropdown-menu';
 import { HiddenBarsOverlay } from '@/components/HiddenBarsOverlay';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Slider } from '@/components/ui/slider';
@@ -71,6 +71,7 @@ export default function TahfeezPage() {
     voiceMode, setVoiceMode,
     matchLevel, setMatchLevel,
     revealedColor, setRevealedColor,
+    singleWordMode, setSingleWordMode,
   } = useTahfeezStore();
 
   const speech = useSpeech();
@@ -483,7 +484,12 @@ export default function TahfeezPage() {
         const wordText = wordTextsMapRef.current[key] || '';
 
         const revealAndAdvance = () => {
-          setRevealedKeys(prev => new Set([...prev, key]));
+          if (singleWordMode) {
+            // Single word mode: only show current word, hide all previous
+            setRevealedKeys(new Set([key]));
+          } else {
+            setRevealedKeys(prev => new Set([...prev, key]));
+          }
           setActiveBlankKey(null);
           // Don't stop speech between words - keep mic running for continuous recognition
           revealTimerRef.current = setTimeout(() => advance(idx + 1), 80);
@@ -1261,7 +1267,7 @@ export default function TahfeezPage() {
               onClickActiveBlank={() => {
                 if (!activeBlankKey) return;
                 if (revealTimerRef.current) clearTimeout(revealTimerRef.current);
-                setRevealedKeys(prev => new Set([...prev, activeBlankKey]));
+                setRevealedKeys(prev => singleWordMode ? new Set([activeBlankKey]) : new Set([...prev, activeBlankKey]));
                 setActiveBlankKey(null);
                 const idx = blankedKeysList.indexOf(activeBlankKey);
                 if (idx >= 0) {
@@ -1343,6 +1349,14 @@ export default function TahfeezPage() {
                       <span className="w-3 h-3 rounded-full ml-2 inline-block bg-primary" />أساسي
                     </DropdownMenuRadioItem>
                   </DropdownMenuRadioGroup>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuCheckboxItem
+                    checked={singleWordMode}
+                    onCheckedChange={(v) => setSingleWordMode(!!v)}
+                    className="text-xs font-arabic"
+                  >
+                    كلمة واحدة فقط
+                  </DropdownMenuCheckboxItem>
                 </DropdownMenuContent>
               </DropdownMenu>
               <Button variant="outline" size="sm" onClick={() => { setQuizStarted(false); if (revealTimerRef.current) clearTimeout(revealTimerRef.current); speech.stop(); }} className="font-arabic">
