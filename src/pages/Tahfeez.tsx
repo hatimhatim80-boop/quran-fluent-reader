@@ -1260,15 +1260,25 @@ export default function TahfeezPage() {
               }}
               onClickActiveBlank={() => {
                 if (!activeBlankKey) return;
-                // Stop timers, reveal the word immediately, advance (keep speech running)
                 if (revealTimerRef.current) clearTimeout(revealTimerRef.current);
                 setRevealedKeys(prev => new Set([...prev, activeBlankKey]));
                 setActiveBlankKey(null);
                 const idx = blankedKeysList.indexOf(activeBlankKey);
                 if (idx >= 0) {
-                  // Advance to next by updating currentRevealIdx — the effect will pick it up
                   setTimeout(() => setCurrentRevealIdx(idx + 1), 300);
                 }
+              }}
+              onClickBlankWord={(key) => {
+                // Jump quiz to start from clicked word
+                const idx = blankedKeysList.indexOf(key);
+                if (idx < 0) return;
+                if (revealTimerRef.current) clearTimeout(revealTimerRef.current);
+                if (autoAdvanceTimerRef.current) clearTimeout(autoAdvanceTimerRef.current);
+                setIsPaused(false);
+                setShowAll(false);
+                setActiveBlankKey(null);
+                // Keep already revealed words before this index
+                setCurrentRevealIdx(idx);
               }}
             />
 

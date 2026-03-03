@@ -1266,7 +1266,7 @@
     padding: 0 1px;
     margin: 0 -1px;
     background: none;
-    animation: tahfeez-underline-pulse 1s ease-in-out infinite;
+    /* no animation — static underline */
   }
 
   .tahfeez-active-indicator__text {

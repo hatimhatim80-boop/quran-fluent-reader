@@ -19,6 +19,7 @@ interface TahfeezQuizViewProps {
   revealedKeys: Set<string>;           // Already revealed keys
   showAll: boolean;                     // Show all at once
   onClickActiveBlank?: () => void;     // Called when user taps the active mic icon
+  onClickBlankWord?: (key: string) => void; // Called when user taps any blanked word to jump there
   storeMode?: boolean;                 // When true, tapping words stores them
   onStoreWord?: (lineIdx: number, tokenIdx: number, text: string) => void;
 }
@@ -50,6 +51,7 @@ export function TahfeezQuizView({
   revealedKeys,
   showAll,
   onClickActiveBlank,
+  onClickBlankWord,
   storeMode,
   onStoreWord,
 }: TahfeezQuizViewProps) {
@@ -431,9 +433,10 @@ export function TahfeezQuizView({
         const storeClickHandler = storeMode && onStoreWord ? () => onStoreWord(lineIdx, tokenIdx, t) : undefined;
 
         if (shouldHide) {
+          const blankClickHandler = !storeMode && onClickBlankWord ? () => onClickBlankWord(key) : storeClickHandler;
           lineElements.push(
             <span key={`${lineIdx}-${tokenIdx}`} className={`tahfeez-blank${storeMode ? ' tahfeez-store-target' : ''}${isStored ? ' tahfeez-stored' : ''}`}
-              onClick={storeClickHandler} style={storeMode ? { cursor: 'pointer' } : undefined}>{t}</span>
+              onClick={blankClickHandler} style={{ cursor: 'pointer' }}>{t}</span>
           );
         } else if (shouldShowAsActive) {
           // Active blank: text stays hidden, but shows a pulsing indicator (mic icon)
