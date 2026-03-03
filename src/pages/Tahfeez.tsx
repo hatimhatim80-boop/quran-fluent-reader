@@ -7,9 +7,10 @@ import { useSettingsApplier } from '@/hooks/useSettingsApplier';
 import { useSettingsStore } from '@/stores/settingsStore';
 import { useKeepAwake } from '@/hooks/useKeepAwake';
 import { useSpeech } from '@/hooks/useSpeech';
-import { matchHiddenWordsInOrder, normalizeSpeechArabic, splitWords } from '@/utils/quranSpeechMatch';
+// Speech matching disabled — kept for future re-enable
+// import { matchHiddenWordsInOrder, normalizeSpeechArabic, splitWords } from '@/utils/quranSpeechMatch';
 import { Link, useNavigate } from 'react-router-dom';
-import { BookOpen, Play, Pause, Eye, EyeOff, ArrowRight, Save, Trash2, GraduationCap, ListChecks, Zap, Book, Layers, Hash, FileText, Search, X, ChevronLeft, Download, Upload, Settings2, ChevronsRight, Undo2, Mic, MicOff, SlidersHorizontal, Palette } from 'lucide-react';
+import { BookOpen, Play, Pause, Eye, EyeOff, ArrowRight, Save, Trash2, GraduationCap, ListChecks, Zap, Book, Layers, Hash, FileText, Search, X, ChevronLeft, Download, Upload, Settings2, ChevronsRight, Undo2, SlidersHorizontal, Palette } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuRadioGroup, DropdownMenuRadioItem } from '@/components/ui/dropdown-menu';
 import { HiddenBarsOverlay } from '@/components/HiddenBarsOverlay';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -47,31 +48,7 @@ const JUZ_DATA = [
   { number: 29, name: 'تبارك الذي', page: 562 }, { number: 30, name: 'عم', page: 582 },
 ];
 
-// Voice debug overlay component - shows real-time speech state on device
-function VoiceDebugOverlay({ speech, activeBlankKey, wordTextsMap }: {
-  speech: ReturnType<typeof useSpeech>;
-  activeBlankKey: string | null;
-  wordTextsMap: Record<string, string>;
-}) {
-  const [tick, setTick] = useState(0);
-  useEffect(() => {
-    const id = setInterval(() => setTick(t => t + 1), 500);
-    return () => clearInterval(id);
-  }, []);
-
-  const transcript = speech.transcriptRef.current || '';
-  const targetWord = activeBlankKey ? (wordTextsMap[activeBlankKey] || '') : '';
-  const last60 = transcript.length > 60 ? '…' + transcript.slice(-60) : transcript;
-
-  return (
-    <div className="fixed bottom-0 left-0 right-0 z-50 bg-black/80 text-white text-xs p-2 font-mono" dir="ltr">
-      <div>🎤 {speech.isListening ? '✅ listening' : '❌ not listening'} | {speech.providerType} | perm={speech.permissionState} | t={transcript.length}</div>
-      {speech.error && <div className="text-red-400 truncate">⚠️ err: {speech.error}</div>}
-      <div className="text-green-400 truncate">📝 "{last60}"</div>
-      <div className="text-yellow-400">🎯 target: "{targetWord}"</div>
-    </div>
-  );
-}
+// VoiceDebugOverlay removed — speech recognition disabled
 
 export default function TahfeezPage() {
   const {
@@ -501,124 +478,10 @@ export default function TahfeezPage() {
 
         const startVoiceOrTimer = () => {
           setActiveBlankKey(key);
-          console.log('[tahfeez][voice-check]', JSON.stringify({
-            useVoice,
-            wordText: wordText?.substring(0, 20),
-            isSupported: speechRef.current.isSupported,
-            isListening: speechRef.current.isListening,
-            providerType: speechRef.current.providerType,
-            transcriptLen: (speechRef.current.transcriptRef.current || '').length,
-          }));
-          if (useVoice && wordText && speechRef.current.isSupported) {
-            const sr = speechRef.current;
-            // Track the transcript snapshot at the start of this word.
-            let lastKnownTranscript = sr.transcriptRef.current || '';
-            let baseTranscriptLen = lastKnownTranscript.length;
-
-            // Only start speech if not already listening
-            if (!sr.isListening) {
-              try {
-                const startResult = sr.start('ar-SA');
-                if (startResult && typeof startResult.then === 'function') {
-                  startResult.then((started: boolean) => {
-                    if (!started) {
-                      console.log('[tahfeez] Speech failed to start, waiting');
-                      revealTimerRef.current = setTimeout(() => revealAndAdvance(), 60000);
-                    }
-                  }).catch(() => {
-                    revealTimerRef.current = setTimeout(() => revealAndAdvance(), 60000);
-                  });
-                }
-              } catch {
-                revealTimerRef.current = setTimeout(() => revealAndAdvance(), 60000);
-              }
-            }
-
-            // Poll transcript for match every 100ms
-            let voicePollCount = 0;
-            const maxPolls = 600; // 60 seconds max
-            // Track which words we've already matched to avoid re-matching
-            const matchedWordsSet = new Set<string>();
-            
-            const pollForMatch = () => {
-              voicePollCount++;
-              const currentTranscript = speechRef.current.transcriptRef.current || '';
-              
-              // Use FULL transcript for matching (not substring-based)
-              // Native engine resets transcript on auto-restart, so baseline approach is unreliable
-              const normWord = wordText.replace(/[\u0610-\u065F\u0670\u06D6-\u06ED]/g, '').trim();
-              const shortWord = normWord.length <= 3;
-              const level = matchLevelRef.current;
-              const threshMap = { strict: shortWord ? 0.65 : 0.85, medium: shortWord ? 0.50 : 0.75, loose: shortWord ? 0.35 : 0.55 };
-              const thresh = threshMap[level] || threshMap.medium;
-              
-              // Log EVERY poll for first 5, then every 10 — critical for native debugging
-              if (voicePollCount <= 5 || voicePollCount % 10 === 1) {
-                console.log('[tahfeez][poll]', JSON.stringify({
-                  poll: voicePollCount,
-                  word: wordText,
-                  normWord,
-                  transcript: currentTranscript.substring(Math.max(0, currentTranscript.length - 80)),
-                  tLen: currentTranscript.length,
-                  thresh,
-                  isListening: speechRef.current.isListening,
-                  provider: speechRef.current.providerType,
-                }));
-              }
-              
-              if (currentTranscript) {
-                // Strategy 1: Match using the full transcript
-                const targetWords = [wordText];
-                const result = matchHiddenWordsInOrder(currentTranscript, targetWords, thresh);
-                if (result.success) {
-                  console.log('[tahfeez] ✓ Voice match (S1)!', wordText);
-                  revealAndAdvance();
-                  return;
-                }
-                
-                // Strategy 2: Direct normalized word search in transcript
-                const normTarget = normalizeSpeechArabic(wordText);
-                const spokenWords = splitWords(normalizeSpeechArabic(currentTranscript));
-                if (normTarget && spokenWords.some(sw => sw === normTarget || sw.includes(normTarget) || normTarget.includes(sw))) {
-                  console.log('[tahfeez] ✓ Voice match (S2)!', wordText);
-                  revealAndAdvance();
-                  return;
-                }
-                
-                // Strategy 3: Check only new portion since last poll
-                const newPart = currentTranscript.substring(baseTranscriptLen).trim();
-                if (newPart) {
-                  const newResult = matchHiddenWordsInOrder(newPart, targetWords, thresh);
-                  if (newResult.success) {
-                    console.log('[tahfeez] ✓ Voice match (new part)!', newPart, '→', wordText);
-                    revealAndAdvance();
-                    return;
-                  }
-                }
-              }
-              
-              // Detect transcript reset (speech engine auto-restarted)
-              if (currentTranscript.length < baseTranscriptLen) {
-                baseTranscriptLen = 0;
-                lastKnownTranscript = '';
-              }
-              lastKnownTranscript = currentTranscript;
-              baseTranscriptLen = currentTranscript.length;
-              
-              if (voicePollCount >= maxPolls) {
-                console.log('[tahfeez] Voice timeout, revealing');
-                revealAndAdvance();
-                return;
-              }
-              revealTimerRef.current = setTimeout(pollForMatch, 100);
-            };
-            revealTimerRef.current = setTimeout(pollForMatch, 100);
-          } else {
-            // Timer mode: reveal after timerSeconds
-            revealTimerRef.current = setTimeout(() => {
-              revealAndAdvance();
-            }, timerSecondsRef.current * 1000);
-          }
+          // Voice recognition disabled — always use timer mode
+          revealTimerRef.current = setTimeout(() => {
+            revealAndAdvance();
+          }, timerSecondsRef.current * 1000);
         };
 
         if (isFirstKey) {
@@ -904,10 +767,7 @@ export default function TahfeezPage() {
         <HiddenBarsOverlay onShow={() => setHideBars(false)} onNextPage={nextPage} onPrevPage={prevPage} />
       )}
 
-      {/* Voice debug overlay - shows transcript in real-time on device */}
-      {quizStarted && voiceMode && (
-        <VoiceDebugOverlay speech={speech} activeBlankKey={activeBlankKey} wordTextsMap={wordTextsMapRef.current} />
-      )}
+      {/* Voice debug overlay disabled */}
 
       {/* Tab icons */}
       {!quizStarted && !hideBars && (
@@ -1128,23 +988,7 @@ export default function TahfeezPage() {
                   />
                 </div>
 
-                {/* Voice Recognition Mode */}
-                {speech.isSupported && (
-                  <div className="flex items-center justify-between p-3 rounded-lg border">
-                    <div>
-                      <label className="text-sm font-arabic font-medium text-foreground flex items-center gap-2">
-                        <Mic className="w-4 h-4" />
-                        وضع التعرف على الصوت
-                      </label>
-                      <p className="text-xs font-arabic text-muted-foreground mt-0.5">انطق الكلمة المخفية لكشفها بدلاً من المؤقت</p>
-                    </div>
-                    <Switch
-                      checked={voiceMode}
-                      onCheckedChange={setVoiceMode}
-                    />
-                  </div>
-                )}
-
+                {/* Voice Recognition Mode — disabled */}
                 <Button
                   onClick={() => { setQuizSource('custom'); handleStartMultiPage(); }}
                   className="w-full font-arabic"
@@ -1321,23 +1165,7 @@ export default function TahfeezPage() {
               />
             </div>
 
-            {/* Voice Recognition Mode */}
-            {speech.isSupported && (
-              <div className="flex items-center justify-between p-3 rounded-lg border">
-                <div>
-                  <label className="text-sm font-arabic font-medium text-foreground flex items-center gap-2">
-                    <Mic className="w-4 h-4" />
-                    وضع التعرف على الصوت
-                  </label>
-                  <p className="text-xs font-arabic text-muted-foreground mt-0.5">انطق الكلمة المخفية لكشفها بدلاً من المؤقت</p>
-                </div>
-                <Switch
-                  checked={voiceMode}
-                  onCheckedChange={setVoiceMode}
-                />
-              </div>
-            )}
-
+            {/* Voice Recognition Mode — disabled */}
             <Button onClick={() => { setQuizSource('auto'); handleStartMultiPage(); }} className="w-full font-arabic" disabled={!pageData}>
               <Play className="w-4 h-4 ml-2" />
               ابدأ الاختبار {quizScope === 'current-page' ? `(صفحة ${currentPage})` : `(${quizPagesRange.length} صفحة)`}
@@ -1364,17 +1192,7 @@ export default function TahfeezPage() {
                 <span className="text-sm font-arabic text-muted-foreground">
                   {revealedKeys.size} / {blankedKeysList.length} كلمة
                 </span>
-                {voiceMode && speech.isListening && (
-                  <span className="flex items-center gap-1 text-xs font-arabic text-primary animate-pulse">
-                    <Mic className="w-3.5 h-3.5" />
-                    يستمع...
-                  </span>
-                )}
-                {voiceMode && speech.transcript && !showAll && (
-                  <span className="text-xs font-arabic text-muted-foreground truncate max-w-[120px]" title={speech.transcript}>
-                    «{speech.transcript}»
-                  </span>
-                )}
+                {/* Voice indicator — disabled */}
               </div>
               <span className={`text-lg font-bold font-arabic ${showAll ? 'text-green-600' : 'text-foreground'}`}>
                 {showAll ? '✓ تم الكشف' : `${progress}%`}
