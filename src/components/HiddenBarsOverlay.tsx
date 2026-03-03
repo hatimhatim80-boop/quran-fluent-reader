@@ -76,7 +76,7 @@ export function HiddenBarsOverlay({ onShow, onNextPage, onPrevPage }: HiddenBars
       />
       {/* Button appears for 3s after single tap */}
       {visible && (
-        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 animate-fade-in">
+        <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 animate-fade-in">
           <button
             onClick={(e) => { e.stopPropagation(); onShow(); }}
             className="bg-background/90 backdrop-blur-md border border-border rounded-full px-4 py-2 flex items-center gap-2 shadow-lg"
