@@ -811,13 +811,13 @@ export function SettingsDialog({ children }: SettingsDialogProps) {
               </Button>
             </div>
             <div className="space-y-3">
-              <Label className="font-arabic">سرعة التشغيل: <span className="text-primary font-bold">{settings.autoplay.speed} ثانية/كلمة</span></Label>
+              <Label className="font-arabic">سرعة التشغيل: <span className="text-primary font-bold">{settings.autoplay.speed < 1 ? `${(settings.autoplay.speed * 1000).toFixed(0)}ms` : `${settings.autoplay.speed} ثانية`}/كلمة</span></Label>
               <Slider
                 value={[settings.autoplay.speed]}
-                onValueChange={([v]) => setAutoplay({ speed: v })}
-                min={1}
+                onValueChange={([v]) => setAutoplay({ speed: +v.toFixed(2) })}
+                min={0.1}
                 max={30}
-                step={0.5}
+                step={0.1}
               />
             </div>
 

@@ -11,6 +11,7 @@ import { useSpeech } from '@/hooks/useSpeech';
 // import { matchHiddenWordsInOrder, normalizeSpeechArabic, splitWords } from '@/utils/quranSpeechMatch';
 import { Link, useNavigate } from 'react-router-dom';
 import { BookOpen, Play, Pause, Eye, EyeOff, ArrowRight, Save, Trash2, GraduationCap, ListChecks, Zap, Book, Layers, Hash, FileText, Search, X, ChevronLeft, Download, Upload, Settings2, ChevronsRight, Undo2, SlidersHorizontal, Palette } from 'lucide-react';
+import { SpeedControlWidget } from '@/components/SpeedControlWidget';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuRadioGroup, DropdownMenuRadioItem } from '@/components/ui/dropdown-menu';
 import { HiddenBarsOverlay } from '@/components/HiddenBarsOverlay';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -77,8 +78,20 @@ export default function TahfeezPage() {
   const { currentPage, getCurrentPageData, goToPage, totalPages, nextPage, prevPage } = useQuranData();
   useSettingsApplier(); // Apply font/display settings globally
   const displayMode = useSettingsStore((s) => s.settings.display?.mode || 'auto15');
+  const autoplaySpeed = useSettingsStore((s) => s.settings.autoplay.speed);
+  const setAutoplay = useSettingsStore((s) => s.setAutoplay);
   const keepScreenAwake = useSettingsStore((s) => s.settings.autoplay.keepScreenAwake ?? false);
   const pageData = getCurrentPageData();
+
+  // Restore page from session on mount
+  useEffect(() => {
+    const startPage = localStorage.getItem('quran-app-tahfeez-start-page');
+    if (startPage) {
+      localStorage.removeItem('quran-app-tahfeez-start-page');
+      const p = parseInt(startPage, 10);
+      if (!isNaN(p) && p >= 1 && p <= 604) goToPage(p);
+    }
+  }, [goToPage]);
 
   // Auto-save session progress
   const activeSessionId = useSessionsStore((s) => s.activeSessionId);
@@ -955,13 +968,13 @@ export default function TahfeezPage() {
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-xs font-arabic text-muted-foreground">مهلة التفكير قبل الكلمة الأولى: {firstWordTimerSeconds} ثانية</label>
-                  <Slider value={[firstWordTimerSeconds]} onValueChange={([v]) => setFirstWordTimerSeconds(v)} min={1} max={30} step={1} />
+                  <label className="text-xs font-arabic text-muted-foreground">مهلة التفكير قبل الكلمة الأولى: {firstWordTimerSeconds < 1 ? `${(firstWordTimerSeconds * 1000).toFixed(0)}ms` : `${firstWordTimerSeconds} ثانية`}</label>
+                  <Slider value={[firstWordTimerSeconds]} onValueChange={([v]) => setFirstWordTimerSeconds(+v.toFixed(2))} min={0.1} max={30} step={0.1} />
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-xs font-arabic text-muted-foreground">مدة ظهور كل كلمة: {timerSeconds} ثانية</label>
-                  <Slider value={[timerSeconds]} onValueChange={([v]) => setTimerSeconds(v)} min={1} max={10} step={1} />
+                  <label className="text-xs font-arabic text-muted-foreground">مدة ظهور كل كلمة: {timerSeconds < 1 ? `${(timerSeconds * 1000).toFixed(0)}ms` : `${timerSeconds} ثانية`}</label>
+                  <Slider value={[timerSeconds]} onValueChange={([v]) => setTimerSeconds(+v.toFixed(2))} min={0.1} max={30} step={0.1} />
                 </div>
 
                 <div className="space-y-1">
@@ -1132,13 +1145,13 @@ export default function TahfeezPage() {
             </div>
 
             <div className="space-y-1">
-              <label className="text-xs font-arabic text-muted-foreground">مهلة التفكير قبل الكلمة الأولى: {firstWordTimerSeconds} ثانية</label>
-              <Slider value={[firstWordTimerSeconds]} onValueChange={([v]) => setFirstWordTimerSeconds(v)} min={1} max={30} step={1} />
+              <label className="text-xs font-arabic text-muted-foreground">مهلة التفكير قبل الكلمة الأولى: {firstWordTimerSeconds < 1 ? `${(firstWordTimerSeconds * 1000).toFixed(0)}ms` : `${firstWordTimerSeconds} ثانية`}</label>
+              <Slider value={[firstWordTimerSeconds]} onValueChange={([v]) => setFirstWordTimerSeconds(+v.toFixed(2))} min={0.1} max={30} step={0.1} />
             </div>
 
             <div className="space-y-1">
-              <label className="text-xs font-arabic text-muted-foreground">مدة ظهور كل كلمة: {timerSeconds} ثانية</label>
-              <Slider value={[timerSeconds]} onValueChange={([v]) => setTimerSeconds(v)} min={1} max={10} step={1} />
+              <label className="text-xs font-arabic text-muted-foreground">مدة ظهور كل كلمة: {timerSeconds < 1 ? `${(timerSeconds * 1000).toFixed(0)}ms` : `${timerSeconds} ثانية`}</label>
+              <Slider value={[timerSeconds]} onValueChange={([v]) => setTimerSeconds(+v.toFixed(2))} min={0.1} max={30} step={0.1} />
             </div>
 
             <div className="space-y-1">
@@ -1327,6 +1340,18 @@ export default function TahfeezPage() {
               </Button>
             </div>
           </div>
+        )}
+
+        {/* Floating speed control during quiz */}
+        {quizStarted && (
+          <SpeedControlWidget
+            value={timerSeconds}
+            onChange={(v) => setTimerSeconds(v)}
+            label="مدة ظهور الكلمة"
+            min={0.1}
+            max={30}
+            step={0.1}
+          />
         )}
       </div>
     </div>

@@ -25,6 +25,7 @@ import { SURAH_INFO, SURAH_NAMES } from '@/utils/quranPageIndex';
 import { Loader2, List, SlidersHorizontal, ChevronRight, ChevronLeft, Eye, EyeOff, GraduationCap, X, Settings } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { GhareebEntryDialog, GhareebEntryResetButton } from './GhareebEntryDialog';
+import { SpeedControlWidget } from './SpeedControlWidget';
 
 const JUZ_DATA_READER = [
   { number: 1, page: 1 }, { number: 2, page: 22 }, { number: 3, page: 42 },
@@ -591,6 +592,16 @@ export function QuranReader() {
           onRevealAll={handleBannerRevealAll}
           onStop={handleBannerStop}
           isLastPage={isLastPageInRange()}
+        />
+
+        {/* Floating speed control */}
+        <SpeedControlWidget
+          value={speed}
+          onChange={(v) => setSpeed(v)}
+          label="سرعة ظهور الكلمة"
+          min={0.1}
+          max={30}
+          step={0.1}
         />
 
         {/* Show bars button - floating when bars are hidden, appears on double-tap for 3s */}
