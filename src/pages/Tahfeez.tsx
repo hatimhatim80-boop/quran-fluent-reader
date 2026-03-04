@@ -86,8 +86,9 @@ export default function TahfeezPage() {
   const keepScreenAwake = useSettingsStore((s) => s.settings.autoplay.keepScreenAwake ?? false);
   const pageData = getCurrentPageData();
 
-  // Restore page from session on mount
+  // Restore page from session on mount + scroll to top
   useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'auto' });
     const startPage = localStorage.getItem('quran-app-tahfeez-start-page');
     if (startPage) {
       localStorage.removeItem('quran-app-tahfeez-start-page');
@@ -95,6 +96,14 @@ export default function TahfeezPage() {
       if (!isNaN(p) && p >= 1 && p <= 604) goToPage(p);
     }
   }, [goToPage]);
+
+  // Scroll to top on page change
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'auto' });
+    if (contentRef.current) {
+      contentRef.current.scrollTo({ top: 0, behavior: 'auto' });
+    }
+  }, [currentPage]);
 
   // Auto-save session progress
   const activeSessionId = useSessionsStore((s) => s.activeSessionId);
@@ -487,14 +496,13 @@ export default function TahfeezPage() {
 
         const revealAndAdvance = () => {
           if (singleWordMode) {
-            // Single word mode: only show current word, hide all previous
             setRevealedKeys(new Set([key]));
           } else {
             setRevealedKeys(prev => new Set([...prev, key]));
           }
           setActiveBlankKey(null);
-          // Don't stop speech between words - keep mic running for continuous recognition
-          revealTimerRef.current = setTimeout(() => advance(idx + 1), 80);
+          // Small delay before advancing to next word — ensures single reveal per step
+          revealTimerRef.current = setTimeout(() => advance(idx + 1), 150);
         };
 
         const startVoiceOrTimer = () => {
@@ -1391,8 +1399,8 @@ export default function TahfeezPage() {
           </div>
         )}
 
-        {/* Floating speed control during quiz */}
-        {quizStarted && (
+        {/* Floating speed control during quiz — only when bars are hidden to avoid overlap */}
+        {quizStarted && hideBars && (
           <SpeedControlWidget
             value={timerSeconds}
             onChange={(v) => setTimerSeconds(v)}

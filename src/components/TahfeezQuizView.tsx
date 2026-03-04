@@ -467,11 +467,13 @@ export function TahfeezQuizView({
               onClick={blankClickHandler} style={{ cursor: 'pointer', display: 'inline-block', width: `${wordWidth}px`, overflow: 'hidden', whiteSpace: 'nowrap' }}>{dots}</span>
           );
         } else if (shouldShowAsActive) {
-          // Active blank: text stays hidden, but shows a pulsing indicator (mic icon)
+          // Active blank: show dots (same width as word) with a pulsing glow — NO actual text visible
+          const wordWidth = measureTextWidth(t, measureFont);
+          const dots = makeDots(wordWidth, measureFont);
           lineElements.push(
-            <span key={`${lineIdx}-${tokenIdx}`} className={`tahfeez-active-indicator tahfeez-active--${activeWordColor}`} data-tahfeez-active="true" onClick={storeMode ? storeClickHandler : onClickActiveBlank} style={{ cursor: 'pointer' }}>
-              <span className="tahfeez-active-indicator__text">{t}</span>
-              <span className="tahfeez-active-indicator__icon">🎤</span>
+            <span key={`${lineIdx}-${tokenIdx}`} className={`tahfeez-active-indicator tahfeez-active--${activeWordColor}`} data-tahfeez-active="true" onClick={storeMode ? storeClickHandler : onClickActiveBlank}
+              style={{ cursor: 'pointer', display: 'inline-block', width: `${wordWidth}px`, overflow: 'hidden', whiteSpace: 'nowrap' }}>
+              {dots}
             </span>
           );
         } else if (shouldShowAsRevealed) {
