@@ -1,4 +1,4 @@
-import React, { useMemo, useEffect } from 'react';
+import React, { useMemo, useEffect, useRef, useCallback } from 'react';
 import { QuranPage } from '@/types/quran';
 import { normalizeArabic } from '@/utils/quranParser';
 import { useSettingsStore } from '@/stores/settingsStore';
@@ -7,6 +7,25 @@ import { useTahfeezStore } from '@/stores/tahfeezStore';
 import { useAutoFlowFit } from '@/hooks/useAutoFlowFit';
 import { redistributeLines, shouldRedistribute } from '@/utils/lineRedistributor';
 import { formatBismillah, shouldNoJustify, bindVerseNumbersSimple } from '@/utils/lineTokenUtils';
+
+/** Measure text width using a canvas, returns px */
+let _measureCanvas: HTMLCanvasElement | null = null;
+function measureTextWidth(text: string, font: string): number {
+  if (!_measureCanvas) _measureCanvas = document.createElement('canvas');
+  const ctx = _measureCanvas.getContext('2d');
+  if (!ctx) return text.length * 10;
+  ctx.font = font;
+  return ctx.measureText(text).width;
+}
+
+/** Generate dots string that approximates `targetWidth` using the same font */
+function makeDots(targetWidth: number, font: string): string {
+  const dot = '·';
+  const dotW = measureTextWidth(dot, font);
+  if (dotW <= 0) return dot.repeat(5);
+  const count = Math.max(2, Math.round(targetWidth / dotW));
+  return dot.repeat(count);
+}
 
 interface TahfeezQuizViewProps {
   page: QuranPage;
@@ -371,6 +390,11 @@ export function TahfeezQuizView({
   }, [blankedKeysList, firstKeysSet, blankedWordTexts]);
 
 
+  // Build font string for measuring
+  const fontSize = autoFlowFontSize || settings.fonts.quranFontSize || 28;
+  const fontWeight = settings.fonts.fontWeight || 400;
+  const measureFont = `${fontWeight} ${fontSize}px ${fontFamilyCSS}`;
+
   // Render
   const renderedContent = useMemo(() => {
     const elements: React.ReactNode[] = [];
@@ -436,9 +460,11 @@ export function TahfeezQuizView({
 
         if (shouldHide) {
           const blankClickHandler = !storeMode && onClickBlankWord ? () => onClickBlankWord(key) : storeClickHandler;
+          const wordWidth = measureTextWidth(t, measureFont);
+          const dots = makeDots(wordWidth, measureFont);
           lineElements.push(
             <span key={`${lineIdx}-${tokenIdx}`} className={`tahfeez-blank${storeMode ? ' tahfeez-store-target' : ''}${isStored ? ' tahfeez-stored' : ''}`}
-              onClick={blankClickHandler} style={{ cursor: 'pointer' }}>{t}</span>
+              onClick={blankClickHandler} style={{ cursor: 'pointer', display: 'inline-block', width: `${wordWidth}px`, overflow: 'hidden', whiteSpace: 'nowrap' }}>{dots}</span>
           );
         } else if (shouldShowAsActive) {
           // Active blank: text stays hidden, but shows a pulsing indicator (mic icon)
@@ -476,7 +502,7 @@ export function TahfeezQuizView({
     return isLines15 
       ? <div className="quran-lines-container">{elements}</div>
       : <div className="quran-page">{elements}</div>;
-  }, [lines, blankedKeys, activeBlankKey, revealedKeys, showAll, isLines15, storeMode, storedItems, onStoreWord, page.pageNumber]);
+  }, [lines, blankedKeys, activeBlankKey, revealedKeys, showAll, isLines15, storeMode, storedItems, onStoreWord, page.pageNumber, measureFont]);
 
 
   // Auto-scroll active blank word into view when it's near the bottom

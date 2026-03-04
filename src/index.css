@@ -1247,14 +1247,15 @@
     cursor: crosshair;
   }
 
-  /* Fixed-width blank placeholder - hidden word */
+  /* Fixed-width blank placeholder - dots only, no boxes */
   .tahfeez-blank {
     display: inline-block;
-    border-bottom: 2px dotted hsl(var(--muted-foreground) / 0.4);
-    color: transparent;
+    color: hsl(var(--muted-foreground) / 0.45);
     user-select: none;
-    border-radius: 2px;
-    background: hsl(var(--muted) / 0.3);
+    overflow: hidden;
+    white-space: nowrap;
+    vertical-align: baseline;
+    /* No border, no background, no outline, no box-shadow */
   }
 
   /* Active blank - currently being revealed word with distinctive highlight */
