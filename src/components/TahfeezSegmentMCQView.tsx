@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useCallback, useRef } from 'react';
+import React, { useMemo, useState, useCallback, useRef, useEffect } from 'react';
 import { QuranPage } from '@/types/quran';
 import { normalizeArabic } from '@/utils/quranParser';
 import { Button } from '@/components/ui/button';
@@ -195,7 +195,7 @@ export function TahfeezSegmentMCQView({
   onNextPage,
 }: TahfeezSegmentMCQViewProps) {
   const segments = useMemo(() => parseSegments(page.text, mode, page.pageNumber), [page.text, mode, page.pageNumber]);
-  const { segmentMcqCorrectDelay, segmentMcqWrongDelay, segmentMcqRandomOrder } = useTahfeezStore();
+  const { segmentMcqCorrectDelay, segmentMcqWrongDelay, segmentMcqRandomOrder, segmentMcqBlankDuration } = useTahfeezStore();
   const questions = useMemo(() => generateQuestions(segments, 3, segmentMcqRandomOrder), [segments, segmentMcqRandomOrder]);
 
   const [currentQ, setCurrentQ] = useState(0);
