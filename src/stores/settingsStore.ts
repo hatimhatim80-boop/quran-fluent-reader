@@ -22,6 +22,7 @@ export interface DisplaySettings {
   textAlign: 'right' | 'left' | 'center' | 'justify';
   autoFitFont: boolean;
   balanceLastLine: boolean;
+  spacingMode: 'natural' | 'spaced';
   wordSpacing: number;
 }
 
@@ -141,7 +142,8 @@ const defaultSettings: AppSettings = {
     textAlign: 'justify',
     autoFitFont: false,
     balanceLastLine: false,
-    wordSpacing: 0,
+    spacingMode: 'natural' as const,
+    wordSpacing: 0.05,
   },
   update: {
     manifestUrl: '/updates/manifest.json',
