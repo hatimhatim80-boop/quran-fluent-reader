@@ -1393,13 +1393,13 @@ export default function TahfeezPage() {
                       <label className="text-xs font-arabic text-muted-foreground">
                         مدة الإظهار بعد الإجابة الصحيحة: {segmentMcqCorrectDelay < 1 ? `${(segmentMcqCorrectDelay * 1000).toFixed(0)}ms` : `${segmentMcqCorrectDelay.toFixed(1)}s`}
                       </label>
-                      <Slider value={[segmentMcqCorrectDelay]} onValueChange={([v]) => setSegmentMcqCorrectDelay(+(v).toFixed(1))} min={0.1} max={5} step={0.1} />
+                      <Slider value={[segmentMcqCorrectDelay]} onValueChange={([v]) => setSegmentMcqCorrectDelay(+(v).toFixed(1))} min={0.1} max={30} step={0.1} />
                     </div>
                     <div className="space-y-1">
                       <label className="text-xs font-arabic text-muted-foreground">
                         مدة الإظهار بعد الإجابة الخاطئة: {segmentMcqWrongDelay < 1 ? `${(segmentMcqWrongDelay * 1000).toFixed(0)}ms` : `${segmentMcqWrongDelay.toFixed(1)}s`}
                       </label>
-                      <Slider value={[segmentMcqWrongDelay]} onValueChange={([v]) => setSegmentMcqWrongDelay(+(v).toFixed(1))} min={0.1} max={10} step={0.1} />
+                      <Slider value={[segmentMcqWrongDelay]} onValueChange={([v]) => setSegmentMcqWrongDelay(+(v).toFixed(1))} min={0.1} max={30} step={0.1} />
                     </div>
                   </div>
                 </>
