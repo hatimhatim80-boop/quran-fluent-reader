@@ -823,66 +823,96 @@ export default function TahfeezPage() {
               <TahfeezSelectionView page={pageData} />
             )}
 
-            {storedItems.length > 0 && (
-              <div className="page-frame p-4 space-y-3">
-                <div className="flex items-center justify-between flex-wrap gap-2">
-                  <h3 className="font-arabic font-bold text-sm text-foreground">
-                    المخزون ({storedItems.length})
-                  </h3>
-                  <div className="flex items-center gap-1">
-                    <Button variant="ghost" size="sm" onClick={undo} disabled={!canUndo} className="font-arabic text-xs h-7 px-2" title="تراجع عن آخر تغيير">
-                      <Undo2 className="w-3 h-3 ml-1" />
-                      تراجع
-                    </Button>
-                    <Button variant="ghost" size="sm" onClick={() => {
-                      const data = JSON.stringify({ version: '1.0', exportedAt: new Date().toISOString(), items: storedItems }, null, 2);
-                      const blob = new Blob([data], { type: 'application/json' });
-                      const url = URL.createObjectURL(blob);
-                      const a = document.createElement('a');
-                      a.href = url; a.download = 'tahfeez-items.json'; a.click();
-                      URL.revokeObjectURL(url);
-                      toast.success('تم تصدير المخزون');
-                    }} className="font-arabic text-xs h-7 px-2">
-                      <Download className="w-3 h-3 ml-1" />
-                      تصدير
-                    </Button>
-                    <Button variant="ghost" size="sm" onClick={() => {
-                      const input = document.createElement('input');
-                      input.type = 'file'; input.accept = '.json';
-                      input.onchange = (e) => {
-                        const file = (e.target as HTMLInputElement).files?.[0];
-                        if (!file) return;
-                        const reader = new FileReader();
-                        reader.onload = (ev) => {
-                          try {
-                            const parsed = JSON.parse(ev.target?.result as string);
-                            const items = parsed.items || parsed;
-                            if (Array.isArray(items)) {
-                              items.forEach((item: TahfeezItem) => addItem(item));
-                              toast.success(`تم استيراد ${items.length} عنصر`);
-                            } else { toast.error('ملف غير صالح'); }
-                          } catch { toast.error('فشل قراءة الملف'); }
+            {/* Page-specific stored words */}
+            {(() => {
+              const pageItems = storedItems.filter(i => i.data.page === currentPage);
+              const otherPagesCount = storedItems.length - pageItems.length;
+              return (
+                <div className="page-frame p-4 space-y-3">
+                  <div className="flex items-center justify-between flex-wrap gap-2">
+                    <h3 className="font-arabic font-bold text-sm text-foreground">
+                      مخزون الصفحة {currentPage} ({pageItems.length})
+                      {otherPagesCount > 0 && (
+                        <span className="text-xs text-muted-foreground font-normal mr-2">
+                          · إجمالي المخزون: {storedItems.length}
+                        </span>
+                      )}
+                    </h3>
+                    <div className="flex items-center gap-1">
+                      <Button variant="ghost" size="sm" onClick={undo} disabled={!canUndo} className="font-arabic text-xs h-7 px-2" title="تراجع عن آخر تغيير">
+                        <Undo2 className="w-3 h-3 ml-1" />
+                        تراجع
+                      </Button>
+                      <Button variant="ghost" size="sm" onClick={() => {
+                        const data = JSON.stringify({ version: '1.0', exportedAt: new Date().toISOString(), items: storedItems }, null, 2);
+                        const blob = new Blob([data], { type: 'application/json' });
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url; a.download = 'tahfeez-items.json'; a.click();
+                        URL.revokeObjectURL(url);
+                        toast.success('تم تصدير المخزون');
+                      }} className="font-arabic text-xs h-7 px-2">
+                        <Download className="w-3 h-3 ml-1" />
+                        تصدير
+                      </Button>
+                      <Button variant="ghost" size="sm" onClick={() => {
+                        const input = document.createElement('input');
+                        input.type = 'file'; input.accept = '.json';
+                        input.onchange = (e) => {
+                          const file = (e.target as HTMLInputElement).files?.[0];
+                          if (!file) return;
+                          const reader = new FileReader();
+                          reader.onload = (ev) => {
+                            try {
+                              const parsed = JSON.parse(ev.target?.result as string);
+                              const items = parsed.items || parsed;
+                              if (Array.isArray(items)) {
+                                items.forEach((item: TahfeezItem) => addItem(item));
+                                toast.success(`تم استيراد ${items.length} عنصر`);
+                              } else { toast.error('ملف غير صالح'); }
+                            } catch { toast.error('فشل قراءة الملف'); }
+                          };
+                          reader.readAsText(file);
                         };
-                        reader.readAsText(file);
-                      };
-                      input.click();
-                    }} className="font-arabic text-xs h-7 px-2">
-                      <Upload className="w-3 h-3 ml-1" />
-                      استيراد
-                    </Button>
-                    <Button variant="ghost" size="sm" onClick={clearAllItems} className="text-destructive font-arabic text-xs h-7 px-2">
-                      <Trash2 className="w-3 h-3 ml-1" />
-                      مسح الكل
-                    </Button>
+                        input.click();
+                      }} className="font-arabic text-xs h-7 px-2">
+                        <Upload className="w-3 h-3 ml-1" />
+                        استيراد
+                      </Button>
+                      <Button variant="ghost" size="sm" onClick={clearAllItems} className="text-destructive font-arabic text-xs h-7 px-2">
+                        <Trash2 className="w-3 h-3 ml-1" />
+                        مسح الكل
+                      </Button>
+                    </div>
                   </div>
+                  {pageItems.length > 0 ? (
+                    <div className="flex flex-wrap gap-2 max-h-48 overflow-y-auto">
+                      {pageItems.map((item, i) => {
+                        const text = item.type === 'word' ? item.data.originalWord : item.data.originalText;
+                        const label = item.type === 'phrase' ? '📝 ' : '';
+                        return (
+                          <button
+                            key={i}
+                            onClick={() => {
+                              removeItem(getItemKey(item));
+                              toast('تم إزالة الكلمة من المخزون', { duration: 1000 });
+                            }}
+                            className="inline-flex items-center gap-1 bg-primary/15 text-foreground px-3 py-1.5 rounded-full text-sm font-arabic hover:bg-destructive/20 hover:line-through transition-all cursor-pointer active:scale-95"
+                            title="اضغط للإزالة"
+                          >
+                            {label}{text}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <p className="text-xs font-arabic text-muted-foreground text-center py-2">
+                      لا توجد كلمات مخزنة في هذه الصفحة
+                    </p>
+                  )}
                 </div>
-                <div className="flex flex-wrap gap-2 max-h-48 overflow-y-auto">
-                  {storedItems.map((item, i) => (
-                    <StoredItemBadge key={i} item={item} />
-                  ))}
-                </div>
-              </div>
-            )}
+              );
+            })()}
           </div>
         )}
 
