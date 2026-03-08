@@ -1274,26 +1274,26 @@
   }
 
   /* Active word color variants */
-  .tahfeez-active--gold { background: hsl(45 95% 55%); color: hsl(0 0% 10%); box-shadow: 0 0 12px hsl(45 95% 55% / 0.5); animation: tahfeez-glow-gold 1.2s ease-in-out infinite; }
-  .tahfeez-active--green { background: hsl(140 60% 40%); color: hsl(0 0% 100%); box-shadow: 0 0 12px hsl(140 60% 40% / 0.5); animation: tahfeez-glow-green 1.2s ease-in-out infinite; }
-  .tahfeez-active--blue { background: hsl(210 70% 50%); color: hsl(0 0% 100%); box-shadow: 0 0 12px hsl(210 70% 50% / 0.5); animation: tahfeez-glow-blue 1.2s ease-in-out infinite; }
-  .tahfeez-active--orange { background: hsl(30 80% 50%); color: hsl(0 0% 100%); box-shadow: 0 0 12px hsl(30 80% 50% / 0.5); animation: tahfeez-glow-orange 1.2s ease-in-out infinite; }
-  .tahfeez-active--purple { background: hsl(270 60% 50%); color: hsl(0 0% 100%); box-shadow: 0 0 12px hsl(270 60% 50% / 0.5); animation: tahfeez-glow-purple 1.2s ease-in-out infinite; }
-  .tahfeez-active--red { background: hsl(0 70% 50%); color: hsl(0 0% 100%); box-shadow: 0 0 12px hsl(0 70% 50% / 0.5); animation: tahfeez-glow-red 1.2s ease-in-out infinite; }
+  .tahfeez-active--gold { color: hsl(45 95% 45%); animation: tahfeez-glow-gold 1.2s ease-in-out infinite; }
+  .tahfeez-active--green { color: hsl(140 60% 35%); animation: tahfeez-glow-green 1.2s ease-in-out infinite; }
+  .tahfeez-active--blue { color: hsl(210 70% 45%); animation: tahfeez-glow-blue 1.2s ease-in-out infinite; }
+  .tahfeez-active--orange { color: hsl(30 80% 45%); animation: tahfeez-glow-orange 1.2s ease-in-out infinite; }
+  .tahfeez-active--purple { color: hsl(270 60% 45%); animation: tahfeez-glow-purple 1.2s ease-in-out infinite; }
+  .tahfeez-active--red { color: hsl(0 70% 45%); animation: tahfeez-glow-red 1.2s ease-in-out infinite; }
 
-  .dark .tahfeez-active--gold { background: hsl(45 90% 45%); color: hsl(0 0% 5%); }
-  .dark .tahfeez-active--green { background: hsl(140 50% 35%); }
-  .dark .tahfeez-active--blue { background: hsl(210 60% 45%); }
-  .dark .tahfeez-active--orange { background: hsl(30 70% 45%); }
-  .dark .tahfeez-active--purple { background: hsl(270 50% 45%); }
-  .dark .tahfeez-active--red { background: hsl(0 60% 45%); }
+  .dark .tahfeez-active--gold { color: hsl(45 90% 55%); }
+  .dark .tahfeez-active--green { color: hsl(140 50% 50%); }
+  .dark .tahfeez-active--blue { color: hsl(210 60% 55%); }
+  .dark .tahfeez-active--orange { color: hsl(30 70% 55%); }
+  .dark .tahfeez-active--purple { color: hsl(270 50% 55%); }
+  .dark .tahfeez-active--red { color: hsl(0 60% 55%); }
 
-  @keyframes tahfeez-glow-gold { 0%, 100% { box-shadow: 0 0 8px hsl(45 95% 55% / 0.4); } 50% { box-shadow: 0 0 20px hsl(45 95% 55% / 0.7); } }
-  @keyframes tahfeez-glow-green { 0%, 100% { box-shadow: 0 0 8px hsl(140 60% 40% / 0.4); } 50% { box-shadow: 0 0 20px hsl(140 60% 40% / 0.7); } }
-  @keyframes tahfeez-glow-blue { 0%, 100% { box-shadow: 0 0 8px hsl(210 70% 50% / 0.4); } 50% { box-shadow: 0 0 20px hsl(210 70% 50% / 0.7); } }
-  @keyframes tahfeez-glow-orange { 0%, 100% { box-shadow: 0 0 8px hsl(30 80% 50% / 0.4); } 50% { box-shadow: 0 0 20px hsl(30 80% 50% / 0.7); } }
-  @keyframes tahfeez-glow-purple { 0%, 100% { box-shadow: 0 0 8px hsl(270 60% 50% / 0.4); } 50% { box-shadow: 0 0 20px hsl(270 60% 50% / 0.7); } }
-  @keyframes tahfeez-glow-red { 0%, 100% { box-shadow: 0 0 8px hsl(0 70% 50% / 0.4); } 50% { box-shadow: 0 0 20px hsl(0 70% 50% / 0.7); } }
+  @keyframes tahfeez-glow-gold { 0%, 100% { opacity: 0.5; } 50% { opacity: 1; } }
+  @keyframes tahfeez-glow-green { 0%, 100% { opacity: 0.5; } 50% { opacity: 1; } }
+  @keyframes tahfeez-glow-blue { 0%, 100% { opacity: 0.5; } 50% { opacity: 1; } }
+  @keyframes tahfeez-glow-orange { 0%, 100% { opacity: 0.5; } 50% { opacity: 1; } }
+  @keyframes tahfeez-glow-purple { 0%, 100% { opacity: 0.5; } 50% { opacity: 1; } }
+  @keyframes tahfeez-glow-red { 0%, 100% { opacity: 0.5; } 50% { opacity: 1; } }
 
   /* Keep old classes for backward compat */
   .tahfeez-active-blank {
