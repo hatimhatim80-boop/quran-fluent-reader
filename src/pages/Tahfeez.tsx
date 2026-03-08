@@ -83,6 +83,7 @@ export default function TahfeezPage() {
     dotScale, setDotScale,
     revealGranularity, setRevealGranularity,
     segmentMcqInline, setSegmentMcqInline,
+    segmentMcqChoicesAtBlank, setSegmentMcqChoicesAtBlank,
   } = useTahfeezStore();
 
   const speech = useSpeech();
@@ -1367,13 +1368,24 @@ export default function TahfeezPage() {
 
               {/* Inline display toggle for segment MCQ */}
               {(autoBlankMode === 'next-ayah-mcq' || autoBlankMode === 'next-waqf-mcq') && (
-                <div className="flex items-center justify-between p-2 rounded-lg border">
-                  <label className="text-xs font-arabic text-foreground">عرض الاختيارات على صفحة القرآن</label>
-                  <Switch
-                    checked={segmentMcqInline}
-                    onCheckedChange={(v) => setSegmentMcqInline(v)}
-                  />
-                </div>
+                <>
+                  <div className="flex items-center justify-between p-2 rounded-lg border">
+                    <label className="text-xs font-arabic text-foreground">عرض الاختيارات على صفحة القرآن</label>
+                    <Switch
+                      checked={segmentMcqInline}
+                      onCheckedChange={(v) => setSegmentMcqInline(v)}
+                    />
+                  </div>
+                  {segmentMcqInline && (
+                    <div className="flex items-center justify-between p-2 rounded-lg border">
+                      <label className="text-xs font-arabic text-foreground">عرض الخيارات في موقع الإخفاء</label>
+                      <Switch
+                        checked={segmentMcqChoicesAtBlank}
+                        onCheckedChange={(v) => setSegmentMcqChoicesAtBlank(v)}
+                      />
+                    </div>
+                  )}
+                </>
               )}
 
               {(['beginning', 'middle', 'end', 'beginning-middle', 'middle-end', 'beginning-end', 'beginning-middle-end'] as const).includes(autoBlankMode as any) && (
@@ -1710,6 +1722,7 @@ export default function TahfeezPage() {
               page={pageData}
               mode={autoBlankMode as 'next-ayah-mcq' | 'next-waqf-mcq'}
               inline={segmentMcqInline}
+              choicesAtBlank={segmentMcqChoicesAtBlank && segmentMcqInline}
               onFinish={() => { setQuizStarted(false); if (revealTimerRef.current) clearTimeout(revealTimerRef.current); }}
               onRestart={() => {}}
             />
