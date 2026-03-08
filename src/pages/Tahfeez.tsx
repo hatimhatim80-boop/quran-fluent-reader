@@ -137,7 +137,7 @@ export default function TahfeezPage() {
 
   const [quizStarted, setQuizStarted] = useState(false);
   const [storeWhileQuiz, setStoreWhileQuiz] = useState(false);
-  const [segmentMcqAccumulatedStats, setSegmentMcqAccumulatedStats] = useState<any>(null);
+  const [segmentMcqAccumulatedStats, setSegmentMcqAccumulatedStats] = useState<SegmentMCQStats | null>(null);
   const [isPaused, setIsPaused] = useState(false);
   useKeepAwake(keepScreenAwake && quizStarted && !isPaused);
   const [showAll, setShowAll] = useState(false);
