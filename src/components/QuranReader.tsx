@@ -5,6 +5,7 @@ import { useAutoPlay } from '@/hooks/useAutoPlay';
 import { useKeepAwake } from '@/hooks/useKeepAwake';
 import { GhareebWord } from '@/types/quran';
 import { PageView } from './PageView';
+import { MadinahPageView } from './MadinahPageView';
 import { PageEndBanner } from './PageEndBanner';
 
 import { PageNavigation } from './PageNavigation';
