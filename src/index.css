@@ -233,7 +233,7 @@
     text-align: justify;
     text-align-last: justify;
     text-justify: inter-word;
-    word-spacing: 0.05em;
+    word-spacing: var(--quran-word-spacing, 0.05em);
     line-height: 1.1;
     flex: 1 1 0;
     overflow: hidden;
