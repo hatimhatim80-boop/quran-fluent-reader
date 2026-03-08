@@ -1661,8 +1661,8 @@ export default function TahfeezPage() {
               onInlineMCQAnswer={handleMCQAnswer}
             />
 
-            {/* MCQ Panel (only when panel mode) */}
-            {quizInteraction === 'mcq' && mcqDisplayMode === 'panel' && (
+            {/* MCQ Panel - BOTTOM position */}
+            {quizInteraction === 'mcq' && mcqDisplayMode === 'panel' && mcqPanelPosition === 'bottom' && (
               <TahfeezMCQPanel
                 activeKey={activeBlankKey}
                 wordTextsMap={wordTextsMapRef.current}
