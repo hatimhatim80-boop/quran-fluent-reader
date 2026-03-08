@@ -78,6 +78,7 @@ export function TahfeezQuizView({
   allWordTexts,
   onInlineMCQAnswer,
 }: TahfeezQuizViewProps) {
+  const { activeWordColor, revealedColor, revealedWithBg, singleWordMode, dotScale } = useTahfeezStore();
   const { settings } = useSettingsStore();
   const revealedColor = useTahfeezStore(s => s.revealedColor);
   const revealedWithBg = useTahfeezStore(s => s.revealedWithBg);
