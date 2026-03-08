@@ -108,6 +108,8 @@ function parseSegments(text: string, mode: SegmentMode, pageNumber: number): Seg
           const isVerseNumber = /^[٠-٩0-9۰-۹]+$/.test(clean);
           if (isVerseNumber) {
             if (currentTokens.length > 0) {
+              // Include the verse-end marker (e.g. ۝١٢٣) in the segment
+              currentTokens.push(t);
               segments.push({ text: currentTokens.join(' '), tokens: [...currentTokens] });
               currentTokens = [];
             }
