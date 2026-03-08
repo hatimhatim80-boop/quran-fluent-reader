@@ -18,7 +18,7 @@ interface MCQQuestion {
   options: { segment: Segment; isCorrect: boolean }[];
 }
 
-interface SegmentMCQStats {
+export interface SegmentMCQStats {
   correct: number;
   wrong: number;
   total: number;
