@@ -854,7 +854,7 @@ export default function TahfeezPage() {
               <Link to="/mushaf" className="nav-button w-8 h-8 rounded-full flex items-center justify-center" title="بوابة الغريب">
                 <BookOpen className="w-4 h-4" />
               </Link>
-              <button onClick={() => goToPage(currentPage - 1)} disabled={currentPage <= 1} className="nav-button w-8 h-8 rounded-full flex items-center justify-center" title="الصفحة السابقة">
+              <button onClick={() => { if (quizStarted) { setQuizStarted(false); if (revealTimerRef.current) clearTimeout(revealTimerRef.current); speech.stop(); } else { goToPage(currentPage - 1); } }} disabled={!quizStarted && currentPage <= 1} className="nav-button w-8 h-8 rounded-full flex items-center justify-center" title={quizStarted ? "العودة للإعدادات" : "الصفحة السابقة"}>
                 <ArrowRight className="w-4 h-4" />
               </button>
               <button onClick={() => setHideBars(true)} className="nav-button w-8 h-8 rounded-full flex items-center justify-center" title="إخفاء الأزرار">
