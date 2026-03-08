@@ -31,16 +31,7 @@ function getWebSpeechCtor(): (new () => any) | null {
 const isNative = Capacitor.isNativePlatform();
 
 export async function openNativeAppSettings(): Promise<void> {
-  if (!isNative) return;
-  try {
-    const { NativeSettings, AndroidSettings, IOSSettings } = await import('capacitor-native-settings');
-    await NativeSettings.open({
-      optionAndroid: AndroidSettings.ApplicationDetails,
-      optionIOS: IOSSettings.App,
-    });
-  } catch {
-    // silently fail
-  }
+  // No-op — add capacitor-native-settings if needed
 }
 
 // ─── Native provider (Capacitor plugin) ───
