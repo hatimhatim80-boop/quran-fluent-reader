@@ -314,6 +314,7 @@ export const useTahfeezStore = create<TahfeezState>()(
         quizScopeFrom: state.quizScopeFrom,
         quizScopeTo: state.quizScopeTo,
         quizInteraction: state.quizInteraction,
+        mcqDisplayMode: state.mcqDisplayMode,
       }),
     }
   )
