@@ -8,23 +8,15 @@ import { useAutoFlowFit } from '@/hooks/useAutoFlowFit';
 import { redistributeLines, shouldRedistribute } from '@/utils/lineRedistributor';
 import { formatBismillah, shouldNoJustify, bindVerseNumbersSimple } from '@/utils/lineTokenUtils';
 
-/** Measure text width using a canvas, returns px */
-let _measureCanvas: HTMLCanvasElement | null = null;
-function measureTextWidth(text: string, font: string): number {
-  if (!_measureCanvas) _measureCanvas = document.createElement('canvas');
-  const ctx = _measureCanvas.getContext('2d');
-  if (!ctx) return text.length * 10;
-  ctx.font = font;
-  return ctx.measureText(text).width;
-}
-
-/** Generate dots string that approximates `targetWidth` using the same font */
-function makeDots(targetWidth: number, font: string): string {
-  const dot = '●';
-  const dotW = measureTextWidth(dot, font);
-  if (dotW <= 0) return dot.repeat(5);
-  const count = Math.max(2, Math.round(targetWidth / dotW));
-  return dot.repeat(count);
+/** Generate proportional dots based on word character count */
+function makeDots(word: string): string {
+  // Arabic words: use character count to determine proportional dots
+  // Strip diacritics to get base letter count
+  const stripped = word.replace(/[\u0610-\u061A\u064B-\u065F\u0670\u06D6-\u06DC\u06DF-\u06E8\u06EA-\u06ED\uFE70-\uFE7F]/g, '');
+  const charCount = stripped.length;
+  // Each dot represents roughly one character width; minimum 2 dots
+  const dotCount = Math.max(2, Math.min(charCount, 8));
+  return Array(dotCount).fill('●').join(' ');
 }
 
 interface InlineMCQOption {
@@ -405,7 +397,6 @@ export function TahfeezQuizView({
   // Build font string for measuring
   const fontSize = autoFlowFontSize || settings.fonts.quranFontSize || 28;
   const fontWeight = settings.fonts.fontWeight || 400;
-  const measureFont = `${fontWeight} ${fontSize}px ${fontFamilyCSS}`;
 
   // Inline MCQ: generate options for the active blank
   const [inlineMCQFeedback, setInlineMCQFeedback] = useState<'correct' | 'wrong' | null>(null);
@@ -515,11 +506,10 @@ export function TahfeezQuizView({
 
         if (shouldHide) {
           const blankClickHandler = !storeMode && onClickBlankWord ? () => onClickBlankWord(key) : storeClickHandler;
-          const wordWidth = measureTextWidth(t, measureFont);
-          const dots = makeDots(wordWidth, `${fontWeight} ${fontSize}px sans-serif`);
+          const dots = makeDots(t);
           lineElements.push(
             <span key={`${lineIdx}-${tokenIdx}`} className={`tahfeez-blank${storeMode ? ' tahfeez-store-target' : ''}${isStored ? ' tahfeez-stored' : ''}`}
-              onClick={blankClickHandler} style={{ cursor: 'pointer', display: 'inline-block', width: `${wordWidth}px`, overflow: 'hidden', whiteSpace: 'nowrap', fontFamily: 'sans-serif' }}>{dots}</span>
+              onClick={blankClickHandler} style={{ cursor: 'pointer', display: 'inline-block', fontFamily: 'sans-serif' }}>{dots}</span>
           );
         } else if (shouldShowAsActive) {
           if (inlineMCQ && inlineMCQOptions.length > 0) {
@@ -561,11 +551,10 @@ export function TahfeezQuizView({
             );
           } else {
             // Normal active: show dots with pulsing glow
-            const wordWidth = measureTextWidth(t, measureFont);
-            const dots = makeDots(wordWidth, `${fontWeight} ${fontSize}px sans-serif`);
+            const dots = makeDots(t);
             lineElements.push(
               <span key={`${lineIdx}-${tokenIdx}`} className={`tahfeez-active-indicator tahfeez-active--${activeWordColor}`} data-tahfeez-active="true" onClick={storeMode ? storeClickHandler : onClickActiveBlank}
-                style={{ cursor: 'pointer', display: 'inline-block', width: `${wordWidth}px`, overflow: 'hidden', whiteSpace: 'nowrap', fontFamily: 'sans-serif' }}>
+                style={{ cursor: 'pointer', display: 'inline-block', fontFamily: 'sans-serif' }}>
                 {dots}
               </span>
             );
@@ -598,7 +587,7 @@ export function TahfeezQuizView({
     return isLines15 
       ? <div className="quran-lines-container">{elements}</div>
       : <div className="quran-page">{elements}</div>;
-  }, [lines, blankedKeys, activeBlankKey, revealedKeys, showAll, isLines15, storeMode, storedItems, onStoreWord, page.pageNumber, measureFont, inlineMCQ, inlineMCQOptions, inlineMCQFeedback, inlineMCQSelected]);
+  }, [lines, blankedKeys, activeBlankKey, revealedKeys, showAll, isLines15, storeMode, storedItems, onStoreWord, page.pageNumber, inlineMCQ, inlineMCQOptions, inlineMCQFeedback, inlineMCQSelected]);
 
 
   // Auto-scroll active blank word into view when it's near the bottom
