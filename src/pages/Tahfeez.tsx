@@ -185,6 +185,12 @@ export default function TahfeezPage() {
   const wordTextsMapRef = useRef<Record<string, string>>({});
   const speechRef = useRef(speech);
   useEffect(() => { speechRef.current = speech; }, [speech]);
+  
+  // Key groups refs for reveal granularity
+  const ayahKeyGroupsRef = useRef<string[][]>([]);
+  const waqfKeyGroupsRef = useRef<string[][]>([]);
+  const revealGranularityRef = useRef(revealGranularity);
+  useEffect(() => { revealGranularityRef.current = revealGranularity; }, [revealGranularity]);
 
   // Compute pages range for multi-page quiz
   const quizPagesRange = useMemo(() => {
