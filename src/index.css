@@ -239,11 +239,7 @@
     box-sizing: border-box;
   }
 
-  /* Word-level spacing — margin-based so it works even with text-align:justify */
-  .quran-word {
-    margin-inline-start: var(--quran-word-spacing, 0em);
-    margin-inline-end: var(--quran-word-spacing, 0em);
-  }
+  /* Word-level spacing — applied via word-spacing on containers for universal coverage */
 
   /* On mobile with redistributed lines */
   @media (max-width: 767px) {
