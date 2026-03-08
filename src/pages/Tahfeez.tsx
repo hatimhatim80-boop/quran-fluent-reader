@@ -1533,6 +1533,9 @@ export default function TahfeezPage() {
                 // Keep already revealed words before this index
                 setCurrentRevealIdx(idx);
               }}
+              inlineMCQ={quizInteraction === 'mcq' && mcqDisplayMode === 'inline'}
+              allWordTexts={allPageWordTexts}
+              onInlineMCQAnswer={handleMCQAnswer}
             />
 
             {/* MCQ Panel (only when panel mode) */}
