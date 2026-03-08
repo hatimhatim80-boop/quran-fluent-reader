@@ -851,9 +851,9 @@ export default function TahfeezPage() {
               <Link to="/mushaf" className="nav-button w-8 h-8 rounded-full flex items-center justify-center" title="بوابة الغريب">
                 <BookOpen className="w-4 h-4" />
               </Link>
-              <Link to="/" className="nav-button w-8 h-8 rounded-full flex items-center justify-center">
+              <button onClick={() => goToPage(currentPage - 1)} disabled={currentPage <= 1} className="nav-button w-8 h-8 rounded-full flex items-center justify-center" title="الصفحة السابقة">
                 <ArrowRight className="w-4 h-4" />
-              </Link>
+              </button>
               <button onClick={() => setHideBars(true)} className="nav-button w-8 h-8 rounded-full flex items-center justify-center" title="إخفاء الأزرار">
                 <EyeOff className="w-4 h-4" />
               </button>
