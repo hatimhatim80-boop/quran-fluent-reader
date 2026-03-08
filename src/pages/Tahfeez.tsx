@@ -1729,15 +1729,36 @@ export default function TahfeezPage() {
               }}
               onClickBlankWord={(key) => {
                 if (quizInteraction === 'tap-only') {
-                  // Tap-only: reveal clicked blank and advance to next unrevealed
-                  setRevealedKeys(prev => singleWordMode ? new Set([key]) : new Set([...prev, key]));
-                  const idx = blankedKeysList.indexOf(key);
-                  const nextIdx = idx + 1;
-                  if (nextIdx < blankedKeysList.length) {
-                    setActiveBlankKey(blankedKeysList[nextIdx]);
+                  // Tap-only: reveal clicked blank (or group) and advance
+                  const groups = revealGranularity === 'ayah' ? ayahKeyGroupsRef.current : revealGranularity === 'waqf-segment' ? waqfKeyGroupsRef.current : null;
+                  if (groups && groups.length > 0) {
+                    const groupIdx = groups.findIndex(g => g.includes(key));
+                    const groupKeys = groupIdx >= 0 ? groups[groupIdx] : [key];
+                    setRevealedKeys(prev => {
+                      if (singleWordMode) return new Set(groupKeys);
+                      const next = new Set(prev);
+                      groupKeys.forEach(k => next.add(k));
+                      return next;
+                    });
+                    const lastGroupKey = groupKeys[groupKeys.length - 1];
+                    const lastIdx = blankedKeysList.indexOf(lastGroupKey);
+                    const nextIdx = lastIdx >= 0 ? lastIdx + 1 : blankedKeysList.indexOf(key) + 1;
+                    if (nextIdx < blankedKeysList.length) {
+                      setActiveBlankKey(blankedKeysList[nextIdx]);
+                    } else {
+                      setActiveBlankKey(null);
+                      setShowAll(true);
+                    }
                   } else {
-                    setActiveBlankKey(null);
-                    setShowAll(true);
+                    setRevealedKeys(prev => singleWordMode ? new Set([key]) : new Set([...prev, key]));
+                    const idx = blankedKeysList.indexOf(key);
+                    const nextIdx = idx + 1;
+                    if (nextIdx < blankedKeysList.length) {
+                      setActiveBlankKey(blankedKeysList[nextIdx]);
+                    } else {
+                      setActiveBlankKey(null);
+                      setShowAll(true);
+                    }
                   }
                   return;
                 }
