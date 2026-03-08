@@ -10,13 +10,29 @@ import { formatBismillah, shouldNoJustify, bindVerseNumbersSimple } from '@/util
 
 /** Generate proportional dots based on word character count */
 function makeDots(word: string): string {
-  // Arabic words: use character count to determine proportional dots
-  // Strip diacritics to get base letter count
   const stripped = word.replace(/[\u0610-\u061A\u064B-\u065F\u0670\u06D6-\u06DC\u06DF-\u06E8\u06EA-\u06ED\uFE70-\uFE7F]/g, '');
   const charCount = stripped.length;
-  // Each dot represents roughly one character width; minimum 2 dots
   const dotCount = Math.max(2, Math.min(charCount, 8));
   return Array(dotCount).fill('●').join(' ');
+}
+
+/** Render a blank span that preserves the original word's width */
+function BlankSpan({ word, dots, dotScale, className, onClick, style }: {
+  word: string; dots: string; dotScale: number; className?: string;
+  onClick?: () => void; style?: React.CSSProperties;
+}) {
+  return (
+    <span className={className} onClick={onClick}
+      style={{ ...style, cursor: 'pointer', display: 'inline-block', position: 'relative' }}>
+      {/* Invisible original word to preserve width */}
+      <span style={{ visibility: 'hidden', display: 'inline-block' }} aria-hidden="true">{word}</span>
+      {/* Dots overlaid on top */}
+      <span style={{
+        position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
+        fontFamily: 'sans-serif', fontSize: `${dotScale}em`, letterSpacing: '1px',
+      }}>{dots}</span>
+    </span>
+  );
 }
 
 interface InlineMCQOption {
@@ -509,8 +525,9 @@ export function TahfeezQuizView({
           const blankClickHandler = !storeMode && onClickBlankWord ? () => onClickBlankWord(key) : storeClickHandler;
           const dots = makeDots(t);
           lineElements.push(
-            <span key={`${lineIdx}-${tokenIdx}`} className={`tahfeez-blank${storeMode ? ' tahfeez-store-target' : ''}${isStored ? ' tahfeez-stored' : ''}`}
-              onClick={blankClickHandler} style={{ cursor: 'pointer', display: 'inline-block', fontFamily: 'sans-serif', fontSize: `${dotScale}em` }}>{dots}</span>
+            <BlankSpan key={`${lineIdx}-${tokenIdx}`} word={t} dots={dots} dotScale={dotScale}
+              className={`tahfeez-blank${storeMode ? ' tahfeez-store-target' : ''}${isStored ? ' tahfeez-stored' : ''}`}
+              onClick={blankClickHandler} />
           );
         } else if (shouldShowAsActive) {
           if (inlineMCQ && inlineMCQOptions.length > 0) {
@@ -554,10 +571,10 @@ export function TahfeezQuizView({
             // Normal active: show dots with pulsing glow
             const dots = makeDots(t);
             lineElements.push(
-              <span key={`${lineIdx}-${tokenIdx}`} className={`tahfeez-active-indicator tahfeez-active--${activeWordColor}`} data-tahfeez-active="true" onClick={storeMode ? storeClickHandler : onClickActiveBlank}
-                style={{ cursor: 'pointer', display: 'inline-block', fontFamily: 'sans-serif', fontSize: `${dotScale}em` }}>
-                {dots}
-              </span>
+              <BlankSpan key={`${lineIdx}-${tokenIdx}`} word={t} dots={dots} dotScale={dotScale}
+                className={`tahfeez-active-indicator tahfeez-active--${activeWordColor}`}
+                onClick={storeMode ? storeClickHandler : onClickActiveBlank}
+                style={{ '--tahfeez-active': 'true' } as React.CSSProperties} />
             );
           }
         } else if (shouldShowAsRevealed) {
