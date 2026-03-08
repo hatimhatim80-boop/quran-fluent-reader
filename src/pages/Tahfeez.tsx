@@ -88,6 +88,7 @@ export default function TahfeezPage() {
     segmentMcqWrongDelay, setSegmentMcqWrongDelay,
     segmentMcqRandomOrder, setSegmentMcqRandomOrder,
     segmentMcqMultiPage, setSegmentMcqMultiPage,
+    segmentMcqBlankDuration, setSegmentMcqBlankDuration,
   } = useTahfeezStore();
 
   const speech = useSpeech();
@@ -1404,6 +1405,13 @@ export default function TahfeezPage() {
                       checked={segmentMcqMultiPage}
                       onCheckedChange={(v) => setSegmentMcqMultiPage(v)}
                     />
+                  </div>
+                  {/* Blank duration before showing choices */}
+                  <div className="space-y-1 mt-2">
+                    <label className="text-xs font-arabic text-muted-foreground">
+                      مدة بقاء المقطع مخفياً قبل ظهور الخيارات: {segmentMcqBlankDuration <= 0 ? 'بدون تأخير' : segmentMcqBlankDuration < 1 ? `${(segmentMcqBlankDuration * 1000).toFixed(0)}ms` : `${segmentMcqBlankDuration.toFixed(1)}s`}
+                    </label>
+                    <Slider value={[segmentMcqBlankDuration]} onValueChange={([v]) => setSegmentMcqBlankDuration(+(v).toFixed(1))} min={0} max={30} step={0.5} />
                   </div>
                   {/* Segment MCQ delay settings */}
                   <div className="space-y-2 mt-2">
