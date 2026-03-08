@@ -256,6 +256,8 @@ export const useTahfeezStore = create<TahfeezState>()(
       setQuizSource: (src) => set({ quizSource: src }),
       autoBlankMode: 'end',
       setAutoBlankMode: (mode) => set({ autoBlankMode: mode }),
+      waqfCombinedModes: [],
+      setWaqfCombinedModes: (modes) => set({ waqfCombinedModes: modes }),
       blankCount: 3,
       setBlankCount: (n) => set({ blankCount: n }),
       ayahCount: 1,
