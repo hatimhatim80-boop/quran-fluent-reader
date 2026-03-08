@@ -510,7 +510,7 @@ export function TahfeezQuizView({
           const dots = makeDots(t);
           lineElements.push(
             <span key={`${lineIdx}-${tokenIdx}`} className={`tahfeez-blank${storeMode ? ' tahfeez-store-target' : ''}${isStored ? ' tahfeez-stored' : ''}`}
-              onClick={blankClickHandler} style={{ cursor: 'pointer', display: 'inline-block', fontFamily: 'sans-serif' }}>{dots}</span>
+              onClick={blankClickHandler} style={{ cursor: 'pointer', display: 'inline-block', fontFamily: 'sans-serif', fontSize: `${dotScale}em` }}>{dots}</span>
           );
         } else if (shouldShowAsActive) {
           if (inlineMCQ && inlineMCQOptions.length > 0) {
@@ -555,7 +555,7 @@ export function TahfeezQuizView({
             const dots = makeDots(t);
             lineElements.push(
               <span key={`${lineIdx}-${tokenIdx}`} className={`tahfeez-active-indicator tahfeez-active--${activeWordColor}`} data-tahfeez-active="true" onClick={storeMode ? storeClickHandler : onClickActiveBlank}
-                style={{ cursor: 'pointer', display: 'inline-block', fontFamily: 'sans-serif' }}>
+                style={{ cursor: 'pointer', display: 'inline-block', fontFamily: 'sans-serif', fontSize: `${dotScale}em` }}>
                 {dots}
               </span>
             );
