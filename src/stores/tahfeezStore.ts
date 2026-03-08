@@ -114,6 +114,8 @@ interface TahfeezState {
   setQuizSource: (src: 'custom' | 'auto') => void;
   autoBlankMode: 'beginning' | 'middle' | 'end' | 'beginning-middle' | 'middle-end' | 'beginning-end' | 'beginning-middle-end' | 'full-ayah' | 'full-page' | 'ayah-count' | 'between-waqf' | 'waqf-to-ayah' | 'ayah-to-waqf';
   setAutoBlankMode: (mode: TahfeezState['autoBlankMode']) => void;
+  waqfCombinedModes: ('between-waqf' | 'waqf-to-ayah' | 'ayah-to-waqf')[];
+  setWaqfCombinedModes: (modes: TahfeezState['waqfCombinedModes']) => void;
 
   // Quiz scope
   quizScope: 'current-page' | 'page-range' | 'hizb' | 'surah' | 'juz';
