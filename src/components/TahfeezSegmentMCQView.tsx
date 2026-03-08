@@ -153,7 +153,7 @@ function parseSegments(text: string, mode: SegmentMode, pageNumber: number): Seg
   }
 }
 
-function generateQuestions(segments: Segment[], choiceCount: number = 3): MCQQuestion[] {
+function generateQuestions(segments: Segment[], choiceCount: number = 3, randomOrder: boolean = false): MCQQuestion[] {
   const questions: MCQQuestion[] = [];
   if (segments.length < 2) return questions;
 
@@ -177,7 +177,7 @@ function generateQuestions(segments: Segment[], choiceCount: number = 3): MCQQue
 
     questions.push({ promptSegment: prompt, correctAnswer: correct, options });
   }
-  return questions;
+  return randomOrder ? shuffleArray(questions) : questions;
 }
 
 export function TahfeezSegmentMCQView({
@@ -189,8 +189,8 @@ export function TahfeezSegmentMCQView({
   onRestart,
 }: TahfeezSegmentMCQViewProps) {
   const segments = useMemo(() => parseSegments(page.text, mode, page.pageNumber), [page.text, mode, page.pageNumber]);
-  const questions = useMemo(() => generateQuestions(segments, 3), [segments]);
-  const { segmentMcqCorrectDelay, segmentMcqWrongDelay } = useTahfeezStore();
+  const { segmentMcqCorrectDelay, segmentMcqWrongDelay, segmentMcqRandomOrder } = useTahfeezStore();
+  const questions = useMemo(() => generateQuestions(segments, 3, segmentMcqRandomOrder), [segments, segmentMcqRandomOrder]);
 
   const [currentQ, setCurrentQ] = useState(0);
   const [feedback, setFeedback] = useState<'correct' | 'wrong' | null>(null);

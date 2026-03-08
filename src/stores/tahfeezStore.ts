@@ -196,6 +196,10 @@ interface TahfeezState {
   setSegmentMcqCorrectDelay: (s: number) => void;
   segmentMcqWrongDelay: number;
   setSegmentMcqWrongDelay: (s: number) => void;
+
+  // Segment MCQ random order
+  segmentMcqRandomOrder: boolean;
+  setSegmentMcqRandomOrder: (on: boolean) => void;
 }
 
 export const useTahfeezStore = create<TahfeezState>()(
@@ -340,6 +344,9 @@ export const useTahfeezStore = create<TahfeezState>()(
       setSegmentMcqCorrectDelay: (s) => set({ segmentMcqCorrectDelay: s }),
       segmentMcqWrongDelay: 10,
       setSegmentMcqWrongDelay: (s) => set({ segmentMcqWrongDelay: s }),
+
+      segmentMcqRandomOrder: false,
+      setSegmentMcqRandomOrder: (on) => set({ segmentMcqRandomOrder: on }),
     }),
     {
       name: 'tahfeez.v2',
@@ -373,6 +380,7 @@ export const useTahfeezStore = create<TahfeezState>()(
         segmentMcqChoicesAtBlank: state.segmentMcqChoicesAtBlank,
         segmentMcqCorrectDelay: state.segmentMcqCorrectDelay,
         segmentMcqWrongDelay: state.segmentMcqWrongDelay,
+        segmentMcqRandomOrder: state.segmentMcqRandomOrder,
       }),
     }
   )
