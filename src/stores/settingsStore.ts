@@ -188,6 +188,7 @@ interface SettingsState {
   setDisplay: (display: Partial<DisplaySettings>) => void;
   setUpdate: (update: Partial<UpdateSettings>) => void;
   setMeaningBox: (mb: Partial<MeaningBoxFontSettings>) => void;
+  setVerseNumber: (vn: Partial<VerseNumberSettings>) => void;
   setDebugMode: (enabled: boolean) => void;
   resetFonts: () => void;
   resetColors: () => void;
@@ -195,6 +196,7 @@ interface SettingsState {
   resetAutoplay: () => void;
   resetDisplay: () => void;
   resetMeaningBox: () => void;
+  resetVerseNumber: () => void;
   resetSettings: () => void;
   exportSettings: () => string;
   importSettings: (json: string) => boolean;
