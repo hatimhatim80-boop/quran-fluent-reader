@@ -22,6 +22,7 @@ export interface DisplaySettings {
   textAlign: 'right' | 'left' | 'center' | 'justify';
   autoFitFont: boolean;
   balanceLastLine: boolean;
+  wordSpacing: number;
 }
 
 // Color settings
@@ -140,6 +141,7 @@ const defaultSettings: AppSettings = {
     textAlign: 'justify',
     autoFitFont: false,
     balanceLastLine: false,
+    wordSpacing: 0.05,
   },
   update: {
     manifestUrl: '/updates/manifest.json',
