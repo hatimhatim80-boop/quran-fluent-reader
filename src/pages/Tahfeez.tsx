@@ -362,6 +362,8 @@ export default function TahfeezPage() {
           blankedKeysListRef.current = keys;
           firstKeysSetRef.current = new Set(fKeys);
           wordTextsMapRef.current = wordTexts;
+          ayahKeyGroupsRef.current = ayahGrps;
+          waqfKeyGroupsRef.current = waqfGrps;
           setBlankedKeysList(keys);
           setFirstKeysSet(new Set(fKeys));
           // Collect all word texts on this page for MCQ distractors
