@@ -1709,6 +1709,7 @@ export default function TahfeezPage() {
             <TahfeezSegmentMCQView
               page={pageData}
               mode={autoBlankMode as 'next-ayah-mcq' | 'next-waqf-mcq'}
+              inline={segmentMcqInline}
               onFinish={() => { setQuizStarted(false); if (revealTimerRef.current) clearTimeout(revealTimerRef.current); }}
               onRestart={() => {}}
             />
