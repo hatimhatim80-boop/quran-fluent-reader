@@ -8,25 +8,15 @@ import { useAutoFlowFit } from '@/hooks/useAutoFlowFit';
 import { redistributeLines, shouldRedistribute } from '@/utils/lineRedistributor';
 import { formatBismillah, shouldNoJustify, bindVerseNumbersSimple } from '@/utils/lineTokenUtils';
 
-/** Measure text width using a canvas, returns px */
-let _measureCanvas: HTMLCanvasElement | null = null;
-function measureTextWidth(text: string, font: string): number {
-  if (!_measureCanvas) _measureCanvas = document.createElement('canvas');
-  const ctx = _measureCanvas.getContext('2d');
-  if (!ctx) return text.length * 10;
-  ctx.font = font;
-  return ctx.measureText(text).width;
-}
-
-/** Generate dots string that approximates `targetWidth` using the given font */
-function makeDots(targetWidth: number, font: string): string {
-  const dot = '● ';
-  const dotW = measureTextWidth(dot, font);
-  if (dotW <= 0) return '● ● ● ●';
-  // Ensure minimum width matches at least a short Arabic word
-  const effectiveWidth = Math.max(targetWidth, 30);
-  const count = Math.max(2, Math.round(effectiveWidth / dotW));
-  return Array(count).fill('●').join(' ');
+/** Generate proportional dots based on word character count */
+function makeDots(word: string): string {
+  // Arabic words: use character count to determine proportional dots
+  // Strip diacritics to get base letter count
+  const stripped = word.replace(/[\u0610-\u061A\u064B-\u065F\u0670\u06D6-\u06DC\u06DF-\u06E8\u06EA-\u06ED\uFE70-\uFE7F]/g, '');
+  const charCount = stripped.length;
+  // Each dot represents roughly one character width; minimum 2 dots
+  const dotCount = Math.max(2, Math.min(charCount, 8));
+  return Array(dotCount).fill('●').join(' ');
 }
 
 interface InlineMCQOption {
