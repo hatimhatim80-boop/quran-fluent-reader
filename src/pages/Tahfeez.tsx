@@ -77,6 +77,8 @@ export default function TahfeezPage() {
     singleWordMode, setSingleWordMode,
     quizInteraction, setQuizInteraction,
     mcqDisplayMode, setMcqDisplayMode,
+    mcqPanelPosition, setMcqPanelPosition,
+    dotScale, setDotScale,
   } = useTahfeezStore();
 
   const speech = useSpeech();
