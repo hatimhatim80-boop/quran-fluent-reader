@@ -1595,6 +1595,7 @@ export default function TahfeezPage() {
               />
             )}
 
+            <TahfeezQuizView
               page={pageData}
               quizSource={quizSource}
               storedItems={storedItems}
