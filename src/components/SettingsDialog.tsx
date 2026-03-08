@@ -345,24 +345,44 @@ export function SettingsDialog({ children }: SettingsDialogProps) {
               />
             </div>
 
-            {/* Word Spacing */}
+            {/* Spacing Mode */}
             <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <Label className="font-arabic font-bold">المسافة بين الكلمات</Label>
-                <span className="text-xs font-arabic text-muted-foreground">{settings.display.wordSpacing ?? 0}em</span>
+              <Label className="font-arabic font-bold">نمط المسافات بين الكلمات</Label>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  onClick={() => setDisplay({ spacingMode: 'natural' })}
+                  className={`rounded-lg border-2 p-3 text-center transition-all font-arabic text-sm ${settings.display.spacingMode === 'natural' || !settings.display.spacingMode ? 'border-primary bg-primary/10 text-primary font-bold' : 'border-border hover:border-primary/40'}`}
+                >
+                  طبيعي
+                  <p className="text-[10px] text-muted-foreground mt-1">كمصحف Quran Repeat Tutor</p>
+                </button>
+                <button
+                  onClick={() => setDisplay({ spacingMode: 'spaced' })}
+                  className={`rounded-lg border-2 p-3 text-center transition-all font-arabic text-sm ${settings.display.spacingMode === 'spaced' ? 'border-primary bg-primary/10 text-primary font-bold' : 'border-border hover:border-primary/40'}`}
+                >
+                  متباعد
+                  <p className="text-[10px] text-muted-foreground mt-1">مسافات إضافية بين الكلمات</p>
+                </button>
               </div>
-              <Slider
-                value={[settings.display.wordSpacing ?? 0]}
-                min={-0.1}
-                max={0.3}
-                step={0.01}
-                onValueChange={([v]) => setDisplay({ wordSpacing: v })}
-              />
-              <div className="flex justify-between text-[10px] font-arabic text-muted-foreground">
-                <span>أقل</span>
-                <span>عادي</span>
-                <span>أكثر</span>
-              </div>
+              {settings.display.spacingMode === 'spaced' && (
+                <div className="space-y-2 pt-1">
+                  <div className="flex items-center justify-between">
+                    <Label className="font-arabic text-xs">مقدار التباعد</Label>
+                    <span className="text-xs font-arabic text-muted-foreground">{settings.display.wordSpacing ?? 0.05}em</span>
+                  </div>
+                  <Slider
+                    value={[settings.display.wordSpacing ?? 0.05]}
+                    min={0.01}
+                    max={0.3}
+                    step={0.01}
+                    onValueChange={([v]) => setDisplay({ wordSpacing: v })}
+                  />
+                  <div className="flex justify-between text-[10px] font-arabic text-muted-foreground">
+                    <span>قليل</span>
+                    <span>كثير</span>
+                  </div>
+                </div>
+              )}
             </div>
           </TabsContent>
 
