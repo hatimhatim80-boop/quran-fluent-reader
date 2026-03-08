@@ -1684,7 +1684,43 @@ export default function TahfeezPage() {
 
         {/* Quiz view */}
         <AutoPlayDebugPanel visible={process.env.NODE_ENV !== 'production'} />
-        {quizStarted && pageData && (
+        {quizStarted && pageData && (autoBlankMode === 'next-ayah-mcq' || autoBlankMode === 'next-waqf-mcq') && (
+          <div className="space-y-4 animate-fade-in">
+            {/* Multi-page progress */}
+            {quizPagesRange.length > 1 && (
+              <div className="page-frame p-2 flex items-center justify-center gap-2">
+                <span className="text-xs font-arabic text-muted-foreground">
+                  صفحة {quizPagesRange.indexOf(currentPage) + 1} من {quizPagesRange.length}
+                </span>
+              </div>
+            )}
+            <TahfeezSegmentMCQView
+              page={pageData}
+              mode={autoBlankMode as 'next-ayah-mcq' | 'next-waqf-mcq'}
+              onFinish={() => { setQuizStarted(false); if (revealTimerRef.current) clearTimeout(revealTimerRef.current); }}
+              onRestart={() => {}}
+            />
+            <div className="flex items-center justify-center gap-2 flex-wrap">
+              <Button variant="outline" size="sm" onClick={() => { setQuizStarted(false); if (revealTimerRef.current) clearTimeout(revealTimerRef.current); }} className="font-arabic">
+                إعادة
+              </Button>
+              {/* Next page for segment MCQ */}
+              {quizPagesRange.indexOf(currentPage) < quizPagesRange.length - 1 && (
+                <Button variant="default" size="sm" onClick={() => {
+                  const nextIdx = quizPagesRange.indexOf(currentPage) + 1;
+                  if (nextIdx < quizPagesRange.length) {
+                    goToPage(quizPagesRange[nextIdx]);
+                    setQuizPageIdx(nextIdx);
+                  }
+                }} className="font-arabic">
+                  <ChevronsRight className="w-4 h-4 ml-1" />
+                  الصفحة التالية
+                </Button>
+              )}
+            </div>
+          </div>
+        )}
+        {quizStarted && pageData && autoBlankMode !== 'next-ayah-mcq' && autoBlankMode !== 'next-waqf-mcq' && (
           <div className="space-y-4 animate-fade-in">
             {/* Multi-page progress */}
             {quizPagesRange.length > 1 && (
