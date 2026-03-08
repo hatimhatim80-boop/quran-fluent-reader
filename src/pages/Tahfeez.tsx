@@ -137,6 +137,7 @@ export default function TahfeezPage() {
 
   const [quizStarted, setQuizStarted] = useState(false);
   const [storeWhileQuiz, setStoreWhileQuiz] = useState(false);
+  const [segmentMcqAccumulatedStats, setSegmentMcqAccumulatedStats] = useState<any>(null);
   const [isPaused, setIsPaused] = useState(false);
   useKeepAwake(keepScreenAwake && quizStarted && !isPaused);
   const [showAll, setShowAll] = useState(false);
@@ -1749,8 +1750,21 @@ export default function TahfeezPage() {
               mode={autoBlankMode as 'next-ayah-mcq' | 'next-waqf-mcq'}
               inline={segmentMcqInline}
               choicesAtBlank={segmentMcqChoicesAtBlank && segmentMcqInline}
-              onFinish={() => { setQuizStarted(false); if (revealTimerRef.current) clearTimeout(revealTimerRef.current); }}
-              onRestart={() => {}}
+              multiPage={segmentMcqMultiPage && quizPagesRange.length > 1}
+              accumulatedStats={segmentMcqAccumulatedStats}
+              onFinish={() => { setQuizStarted(false); setSegmentMcqAccumulatedStats(null); if (revealTimerRef.current) clearTimeout(revealTimerRef.current); }}
+              onRestart={() => { setSegmentMcqAccumulatedStats(null); }}
+              onNextPage={(stats) => {
+                const nextIdx = quizPagesRange.indexOf(currentPage) + 1;
+                if (nextIdx < quizPagesRange.length) {
+                  setSegmentMcqAccumulatedStats(stats);
+                  goToPage(quizPagesRange[nextIdx]);
+                  setQuizPageIdx(nextIdx);
+                } else {
+                  // Last page - show results by resetting multiPage flag temporarily
+                  setSegmentMcqAccumulatedStats(null);
+                }
+              }}
             />
             <div className="flex items-center justify-center gap-2 flex-wrap">
               <Button variant="outline" size="sm" onClick={() => { setQuizStarted(false); if (revealTimerRef.current) clearTimeout(revealTimerRef.current); }} className="font-arabic">
