@@ -77,6 +77,8 @@ export default function TahfeezPage() {
     singleWordMode, setSingleWordMode,
     quizInteraction, setQuizInteraction,
     mcqDisplayMode, setMcqDisplayMode,
+    mcqPanelPosition, setMcqPanelPosition,
+    dotScale, setDotScale,
   } = useTahfeezStore();
 
   const speech = useSpeech();
@@ -1174,6 +1176,37 @@ export default function TahfeezPage() {
                   </div>
                 )}
 
+                {/* MCQ panel position - only when panel mode */}
+                {quizInteraction === 'mcq' && mcqDisplayMode === 'panel' && (
+                  <div className="flex items-center justify-between">
+                    <div className="flex flex-col">
+                      <label className="text-xs font-arabic text-foreground">موضع اللوحة</label>
+                    </div>
+                    <div className="flex gap-1">
+                      <Button variant={mcqPanelPosition === 'top' ? 'default' : 'outline'} size="sm" onClick={() => setMcqPanelPosition('top')} className="font-arabic text-[10px] h-7 px-2">
+                        فوق الصفحة
+                      </Button>
+                      <Button variant={mcqPanelPosition === 'bottom' ? 'default' : 'outline'} size="sm" onClick={() => setMcqPanelPosition('bottom')} className="font-arabic text-[10px] h-7 px-2">
+                        أسفل الصفحة
+                      </Button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Dot scale slider */}
+                <div className="space-y-1">
+                  <label className="text-xs font-arabic text-foreground">
+                    حجم النقاط: <span className="text-primary font-bold">{Math.round(dotScale * 100)}%</span>
+                  </label>
+                  <Slider
+                    value={[dotScale]}
+                    onValueChange={([v]) => setDotScale(v)}
+                    min={0.5}
+                    max={2}
+                    step={0.1}
+                  />
+                </div>
+
                 <Button
                   onClick={() => { setQuizSource('custom'); handleStartMultiPage(); }}
                   className="w-full font-arabic"
@@ -1472,6 +1505,37 @@ export default function TahfeezPage() {
               </div>
             )}
 
+            {/* MCQ panel position - only when panel mode */}
+            {quizInteraction === 'mcq' && mcqDisplayMode === 'panel' && (
+              <div className="flex items-center justify-between p-2 rounded-lg border">
+                <div className="flex flex-col">
+                  <label className="text-xs font-arabic text-foreground">موضع اللوحة</label>
+                </div>
+                <div className="flex gap-1">
+                  <Button variant={mcqPanelPosition === 'top' ? 'default' : 'outline'} size="sm" onClick={() => setMcqPanelPosition('top')} className="font-arabic text-[10px] h-7 px-2">
+                    فوق الصفحة
+                  </Button>
+                  <Button variant={mcqPanelPosition === 'bottom' ? 'default' : 'outline'} size="sm" onClick={() => setMcqPanelPosition('bottom')} className="font-arabic text-[10px] h-7 px-2">
+                    أسفل الصفحة
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {/* Dot scale slider */}
+            <div className="space-y-1 p-2 rounded-lg border">
+              <label className="text-xs font-arabic text-foreground">
+                حجم النقاط: <span className="text-primary font-bold">{Math.round(dotScale * 100)}%</span>
+              </label>
+              <Slider
+                value={[dotScale]}
+                onValueChange={([v]) => setDotScale(v)}
+                min={0.5}
+                max={2}
+                step={0.1}
+              />
+            </div>
+
             <Button onClick={() => { setQuizSource('auto'); handleStartMultiPage(); }} className="w-full font-arabic" disabled={!pageData}>
               <Play className="w-4 h-4 ml-2" />
               ابدأ الاختبار {quizScope === 'current-page' ? `(صفحة ${currentPage})` : `(${quizPagesRange.length} صفحة)`}
@@ -1511,6 +1575,25 @@ export default function TahfeezPage() {
                 style={{ width: `${progress}%` }}
               />
             </div>
+
+            {/* MCQ Panel - TOP position */}
+            {quizInteraction === 'mcq' && mcqDisplayMode === 'panel' && mcqPanelPosition === 'top' && (
+              <TahfeezMCQPanel
+                activeKey={activeBlankKey}
+                wordTextsMap={wordTextsMapRef.current}
+                allWordTexts={allPageWordTexts}
+                onAnswer={handleMCQAnswer}
+                stats={mcqStats}
+                showResults={mcqShowResults}
+                onRestart={() => {
+                  setQuizStarted(false);
+                  setTimeout(() => {
+                    setQuizSource(quizSource);
+                    handleStartMultiPage();
+                  }, 100);
+                }}
+              />
+            )}
 
             <TahfeezQuizView
               page={pageData}
@@ -1578,8 +1661,8 @@ export default function TahfeezPage() {
               onInlineMCQAnswer={handleMCQAnswer}
             />
 
-            {/* MCQ Panel (only when panel mode) */}
-            {quizInteraction === 'mcq' && mcqDisplayMode === 'panel' && (
+            {/* MCQ Panel - BOTTOM position */}
+            {quizInteraction === 'mcq' && mcqDisplayMode === 'panel' && mcqPanelPosition === 'bottom' && (
               <TahfeezMCQPanel
                 activeKey={activeBlankKey}
                 wordTextsMap={wordTextsMapRef.current}
