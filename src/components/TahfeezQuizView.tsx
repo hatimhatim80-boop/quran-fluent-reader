@@ -1,4 +1,4 @@
-import React, { useMemo, useEffect, useRef, useCallback } from 'react';
+import React, { useMemo, useEffect, useRef, useCallback, useState } from 'react';
 import { QuranPage } from '@/types/quran';
 import { normalizeArabic } from '@/utils/quranParser';
 import { useSettingsStore } from '@/stores/settingsStore';
@@ -20,11 +20,16 @@ function measureTextWidth(text: string, font: string): number {
 
 /** Generate dots string that approximates `targetWidth` using the same font */
 function makeDots(targetWidth: number, font: string): string {
-  const dot = '·';
+  const dot = '●';
   const dotW = measureTextWidth(dot, font);
   if (dotW <= 0) return dot.repeat(5);
   const count = Math.max(2, Math.round(targetWidth / dotW));
   return dot.repeat(count);
+}
+
+interface InlineMCQOption {
+  text: string;
+  isCorrect: boolean;
 }
 
 interface TahfeezQuizViewProps {
@@ -41,6 +46,10 @@ interface TahfeezQuizViewProps {
   onClickBlankWord?: (key: string) => void; // Called when user taps any blanked word to jump there
   storeMode?: boolean;                 // When true, tapping words stores them
   onStoreWord?: (lineIdx: number, tokenIdx: number, text: string) => void;
+  // Inline MCQ props
+  inlineMCQ?: boolean;                 // Whether to show inline MCQ at active blank
+  allWordTexts?: string[];             // All word texts for generating distractors
+  onInlineMCQAnswer?: (key: string, correct: boolean) => void;
 }
 
 function isSurahHeader(line: string): boolean {
@@ -73,6 +82,9 @@ export function TahfeezQuizView({
   onClickBlankWord,
   storeMode,
   onStoreWord,
+  inlineMCQ,
+  allWordTexts,
+  onInlineMCQAnswer,
 }: TahfeezQuizViewProps) {
   const { settings } = useSettingsStore();
   const revealedColor = useTahfeezStore(s => s.revealedColor);
@@ -395,6 +407,49 @@ export function TahfeezQuizView({
   const fontWeight = settings.fonts.fontWeight || 400;
   const measureFont = `${fontWeight} ${fontSize}px ${fontFamilyCSS}`;
 
+  // Inline MCQ: generate options for the active blank
+  const [inlineMCQFeedback, setInlineMCQFeedback] = useState<'correct' | 'wrong' | null>(null);
+  const [inlineMCQSelected, setInlineMCQSelected] = useState<number | null>(null);
+
+  // Reset inline MCQ state when active key changes
+  useEffect(() => {
+    setInlineMCQFeedback(null);
+    setInlineMCQSelected(null);
+  }, [activeBlankKey]);
+
+  const inlineMCQOptions: InlineMCQOption[] = useMemo(() => {
+    if (!inlineMCQ || !activeBlankKey || !allWordTexts) return [];
+    const correctText = blankedWordTexts[activeBlankKey] || '';
+    if (!correctText) return [];
+    const correctNorm = normalizeArabic(correctText, 'aggressive');
+    const candidates = allWordTexts.filter(t => {
+      const norm = normalizeArabic(t, 'aggressive');
+      return norm !== correctNorm && t !== correctText && norm.length > 0;
+    });
+    const unique = [...new Set(candidates)];
+    // Shuffle and pick 2 distractors
+    const shuffled = [...unique].sort(() => Math.random() - 0.5);
+    const distractors = shuffled.slice(0, 2);
+    while (distractors.length < 2) distractors.push('ـــ');
+    const opts: InlineMCQOption[] = [
+      { text: correctText, isCorrect: true },
+      ...distractors.map(d => ({ text: d, isCorrect: false })),
+    ];
+    // Shuffle options
+    return opts.sort(() => Math.random() - 0.5);
+  }, [inlineMCQ, activeBlankKey, allWordTexts, blankedWordTexts]);
+
+  const handleInlineMCQChoice = useCallback((idx: number, opt: InlineMCQOption) => {
+    if (inlineMCQFeedback) return;
+    setInlineMCQSelected(idx);
+    setInlineMCQFeedback(opt.isCorrect ? 'correct' : 'wrong');
+    setTimeout(() => {
+      if (activeBlankKey && onInlineMCQAnswer) {
+        onInlineMCQAnswer(activeBlankKey, opt.isCorrect);
+      }
+    }, opt.isCorrect ? 400 : 800);
+  }, [activeBlankKey, inlineMCQFeedback, onInlineMCQAnswer]);
+
   // Render
   const renderedContent = useMemo(() => {
     const elements: React.ReactNode[] = [];
@@ -467,15 +522,54 @@ export function TahfeezQuizView({
               onClick={blankClickHandler} style={{ cursor: 'pointer', display: 'inline-block', width: `${wordWidth}px`, overflow: 'hidden', whiteSpace: 'nowrap', fontFamily: 'sans-serif' }}>{dots}</span>
           );
         } else if (shouldShowAsActive) {
-          // Active blank: show dots (same width as word) with a pulsing glow — NO actual text visible
-          const wordWidth = measureTextWidth(t, measureFont);
-          const dots = makeDots(wordWidth, `${fontWeight} ${fontSize}px sans-serif`);
-          lineElements.push(
-            <span key={`${lineIdx}-${tokenIdx}`} className={`tahfeez-active-indicator tahfeez-active--${activeWordColor}`} data-tahfeez-active="true" onClick={storeMode ? storeClickHandler : onClickActiveBlank}
-              style={{ cursor: 'pointer', display: 'inline-block', width: `${wordWidth}px`, overflow: 'hidden', whiteSpace: 'nowrap', fontFamily: 'sans-serif' }}>
-              {dots}
-            </span>
-          );
+          if (inlineMCQ && inlineMCQOptions.length > 0) {
+            // Inline MCQ: show a vertical list of choices at the blank position
+            lineElements.push(
+              <span key={`${lineIdx}-${tokenIdx}`} className="tahfeez-inline-mcq-wrapper" data-tahfeez-active="true"
+                style={{ display: 'inline-block', verticalAlign: 'top', position: 'relative' }}>
+                <span className="tahfeez-inline-mcq-list" style={{
+                  display: 'inline-flex', flexDirection: 'column', gap: '4px',
+                  padding: '4px 6px', borderRadius: '8px',
+                  background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))',
+                  boxShadow: '0 4px 12px hsl(var(--foreground) / 0.1)',
+                }}>
+                  {inlineMCQOptions.map((opt, oi) => {
+                    let bg = 'transparent';
+                    let color = 'inherit';
+                    let borderColor = 'hsl(var(--border))';
+                    if (inlineMCQFeedback) {
+                      if (opt.isCorrect) { bg = 'hsl(140 60% 40% / 0.15)'; borderColor = 'hsl(140 60% 40%)'; color = 'hsl(140 60% 30%)'; }
+                      else if (oi === inlineMCQSelected && !opt.isCorrect) { bg = 'hsl(0 70% 45% / 0.15)'; borderColor = 'hsl(0 70% 45%)'; color = 'hsl(0 70% 40%)'; }
+                    }
+                    return (
+                      <span key={oi} onClick={() => handleInlineMCQChoice(oi, opt)}
+                        className="font-arabic"
+                        style={{
+                          display: 'block', padding: '3px 10px', borderRadius: '6px',
+                          border: `1px solid ${borderColor}`, background: bg, color,
+                          cursor: inlineMCQFeedback ? 'default' : 'pointer',
+                          fontSize: `${Math.max(14, fontSize * 0.6)}px`, lineHeight: '1.5',
+                          textAlign: 'center', whiteSpace: 'nowrap',
+                          transition: 'all 0.2s ease',
+                        }}>
+                        {opt.text}
+                      </span>
+                    );
+                  })}
+                </span>
+              </span>
+            );
+          } else {
+            // Normal active: show dots with pulsing glow
+            const wordWidth = measureTextWidth(t, measureFont);
+            const dots = makeDots(wordWidth, `${fontWeight} ${fontSize}px sans-serif`);
+            lineElements.push(
+              <span key={`${lineIdx}-${tokenIdx}`} className={`tahfeez-active-indicator tahfeez-active--${activeWordColor}`} data-tahfeez-active="true" onClick={storeMode ? storeClickHandler : onClickActiveBlank}
+                style={{ cursor: 'pointer', display: 'inline-block', width: `${wordWidth}px`, overflow: 'hidden', whiteSpace: 'nowrap', fontFamily: 'sans-serif' }}>
+                {dots}
+              </span>
+            );
+          }
         } else if (shouldShowAsRevealed) {
           const baseClass = !revealedWithBg ? 'tahfeez-revealed--text-only' : 'tahfeez-revealed';
           const colorClass = revealedColor !== 'green' ? ` tahfeez-revealed--${revealedColor}` : '';
@@ -504,7 +598,7 @@ export function TahfeezQuizView({
     return isLines15 
       ? <div className="quran-lines-container">{elements}</div>
       : <div className="quran-page">{elements}</div>;
-  }, [lines, blankedKeys, activeBlankKey, revealedKeys, showAll, isLines15, storeMode, storedItems, onStoreWord, page.pageNumber, measureFont]);
+  }, [lines, blankedKeys, activeBlankKey, revealedKeys, showAll, isLines15, storeMode, storedItems, onStoreWord, page.pageNumber, measureFont, inlineMCQ, inlineMCQOptions, inlineMCQFeedback, inlineMCQSelected]);
 
 
   // Auto-scroll active blank word into view when it's near the bottom

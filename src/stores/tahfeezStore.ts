@@ -164,6 +164,10 @@ interface TahfeezState {
   // Quiz interaction mode: auto-reveal (timer/voice) or mcq (multiple choice)
   quizInteraction: 'auto-reveal' | 'mcq';
   setQuizInteraction: (mode: TahfeezState['quizInteraction']) => void;
+
+  // MCQ display mode: panel (separate panel below) or inline (choices at blank position)
+  mcqDisplayMode: 'panel' | 'inline';
+  setMcqDisplayMode: (mode: TahfeezState['mcqDisplayMode']) => void;
 }
 
 export const useTahfeezStore = create<TahfeezState>()(
@@ -283,6 +287,9 @@ export const useTahfeezStore = create<TahfeezState>()(
 
       quizInteraction: 'auto-reveal',
       setQuizInteraction: (mode) => set({ quizInteraction: mode }),
+
+      mcqDisplayMode: 'panel',
+      setMcqDisplayMode: (mode) => set({ mcqDisplayMode: mode }),
     }),
     {
       name: 'tahfeez.v2',
@@ -307,6 +314,7 @@ export const useTahfeezStore = create<TahfeezState>()(
         quizScopeFrom: state.quizScopeFrom,
         quizScopeTo: state.quizScopeTo,
         quizInteraction: state.quizInteraction,
+        mcqDisplayMode: state.mcqDisplayMode,
       }),
     }
   )

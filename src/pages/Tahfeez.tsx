@@ -76,6 +76,7 @@ export default function TahfeezPage() {
     activeWordColor, setActiveWordColor,
     singleWordMode, setSingleWordMode,
     quizInteraction, setQuizInteraction,
+    mcqDisplayMode, setMcqDisplayMode,
   } = useTahfeezStore();
 
   const speech = useSpeech();
@@ -1153,6 +1154,26 @@ export default function TahfeezPage() {
                   </div>
                 </div>
 
+                {/* MCQ display mode toggle - only visible when MCQ is selected */}
+                {quizInteraction === 'mcq' && (
+                  <div className="flex items-center justify-between">
+                    <div className="flex flex-col">
+                      <label className="text-xs font-arabic text-foreground">عرض الخيارات</label>
+                      <span className="text-[10px] text-muted-foreground font-arabic">
+                        {mcqDisplayMode === 'inline' ? 'في مكان الفراغ مباشرة' : 'في لوحة منفصلة أسفل الصفحة'}
+                      </span>
+                    </div>
+                    <div className="flex gap-1">
+                      <Button variant={mcqDisplayMode === 'panel' ? 'default' : 'outline'} size="sm" onClick={() => setMcqDisplayMode('panel')} className="font-arabic text-[10px] h-7 px-2">
+                        لوحة
+                      </Button>
+                      <Button variant={mcqDisplayMode === 'inline' ? 'default' : 'outline'} size="sm" onClick={() => setMcqDisplayMode('inline')} className="font-arabic text-[10px] h-7 px-2">
+                        في السطر
+                      </Button>
+                    </div>
+                  </div>
+                )}
+
                 <Button
                   onClick={() => { setQuizSource('custom'); handleStartMultiPage(); }}
                   className="w-full font-arabic"
@@ -1431,6 +1452,26 @@ export default function TahfeezPage() {
               </div>
             </div>
 
+            {/* MCQ display mode toggle */}
+            {quizInteraction === 'mcq' && (
+              <div className="flex items-center justify-between p-2 rounded-lg border">
+                <div className="flex flex-col">
+                  <label className="text-xs font-arabic text-foreground">عرض الخيارات</label>
+                  <span className="text-[10px] text-muted-foreground font-arabic">
+                    {mcqDisplayMode === 'inline' ? 'في مكان الفراغ مباشرة' : 'في لوحة منفصلة أسفل الصفحة'}
+                  </span>
+                </div>
+                <div className="flex gap-1">
+                  <Button variant={mcqDisplayMode === 'panel' ? 'default' : 'outline'} size="sm" onClick={() => setMcqDisplayMode('panel')} className="font-arabic text-[10px] h-7 px-2">
+                    لوحة
+                  </Button>
+                  <Button variant={mcqDisplayMode === 'inline' ? 'default' : 'outline'} size="sm" onClick={() => setMcqDisplayMode('inline')} className="font-arabic text-[10px] h-7 px-2">
+                    في السطر
+                  </Button>
+                </div>
+              </div>
+            )}
+
             <Button onClick={() => { setQuizSource('auto'); handleStartMultiPage(); }} className="w-full font-arabic" disabled={!pageData}>
               <Play className="w-4 h-4 ml-2" />
               ابدأ الاختبار {quizScope === 'current-page' ? `(صفحة ${currentPage})` : `(${quizPagesRange.length} صفحة)`}
@@ -1532,10 +1573,13 @@ export default function TahfeezPage() {
                 // Keep already revealed words before this index
                 setCurrentRevealIdx(idx);
               }}
+              inlineMCQ={quizInteraction === 'mcq' && mcqDisplayMode === 'inline'}
+              allWordTexts={allPageWordTexts}
+              onInlineMCQAnswer={handleMCQAnswer}
             />
 
-            {/* MCQ Panel */}
-            {quizInteraction === 'mcq' && (
+            {/* MCQ Panel (only when panel mode) */}
+            {quizInteraction === 'mcq' && mcqDisplayMode === 'panel' && (
               <TahfeezMCQPanel
                 activeKey={activeBlankKey}
                 wordTextsMap={wordTextsMapRef.current}
@@ -1543,6 +1587,25 @@ export default function TahfeezPage() {
                 onAnswer={handleMCQAnswer}
                 stats={mcqStats}
                 showResults={mcqShowResults}
+                onRestart={() => {
+                  setQuizStarted(false);
+                  setTimeout(() => {
+                    setQuizSource(quizSource);
+                    handleStartMultiPage();
+                  }, 100);
+                }}
+              />
+            )}
+
+            {/* MCQ Results (for inline mode, show results panel when done) */}
+            {quizInteraction === 'mcq' && mcqDisplayMode === 'inline' && mcqShowResults && (
+              <TahfeezMCQPanel
+                activeKey={null}
+                wordTextsMap={wordTextsMapRef.current}
+                allWordTexts={allPageWordTexts}
+                onAnswer={handleMCQAnswer}
+                stats={mcqStats}
+                showResults={true}
                 onRestart={() => {
                   setQuizStarted(false);
                   setTimeout(() => {
