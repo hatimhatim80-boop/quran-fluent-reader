@@ -168,6 +168,14 @@ interface TahfeezState {
   // MCQ display mode: panel (separate panel below) or inline (choices at blank position)
   mcqDisplayMode: 'panel' | 'inline';
   setMcqDisplayMode: (mode: TahfeezState['mcqDisplayMode']) => void;
+
+  // MCQ panel position: top (above page) or bottom (below page)
+  mcqPanelPosition: 'top' | 'bottom';
+  setMcqPanelPosition: (pos: TahfeezState['mcqPanelPosition']) => void;
+
+  // Dot scale for blanks (0.5 to 2.0)
+  dotScale: number;
+  setDotScale: (s: number) => void;
 }
 
 export const useTahfeezStore = create<TahfeezState>()(
@@ -290,6 +298,12 @@ export const useTahfeezStore = create<TahfeezState>()(
 
       mcqDisplayMode: 'panel',
       setMcqDisplayMode: (mode) => set({ mcqDisplayMode: mode }),
+
+      mcqPanelPosition: 'bottom',
+      setMcqPanelPosition: (pos) => set({ mcqPanelPosition: pos }),
+
+      dotScale: 1,
+      setDotScale: (s) => set({ dotScale: s }),
     }),
     {
       name: 'tahfeez.v2',
@@ -315,6 +329,8 @@ export const useTahfeezStore = create<TahfeezState>()(
         quizScopeTo: state.quizScopeTo,
         quizInteraction: state.quizInteraction,
         mcqDisplayMode: state.mcqDisplayMode,
+        mcqPanelPosition: state.mcqPanelPosition,
+        dotScale: state.dotScale,
       }),
     }
   )
