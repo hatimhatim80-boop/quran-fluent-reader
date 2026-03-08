@@ -898,7 +898,15 @@ export default function TahfeezPage() {
         </div>
       )}
 
-      <div className={`mx-auto space-y-6 max-w-2xl w-full px-3 py-2 sm:py-6`} style={{ transform: `scale(${pinchScale})`, transformOrigin: 'top center', transition: pinchRef.current ? 'none' : 'transform 0.2s ease' }}>
+      {/* Font settings - visible when not in quiz */}
+      {!quizStarted && !hideBars && (
+        <div className="max-w-2xl mx-auto px-4 pt-3">
+          <div className="page-frame p-4">
+            <TahfeezFontSettings />
+          </div>
+        </div>
+      )}
+
         {/* Tab 1: Store words */}
         {!quizStarted && activeTab === 'store' && (
           <div className="space-y-4 animate-fade-in">
