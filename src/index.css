@@ -1247,17 +1247,14 @@
     cursor: crosshair;
   }
 
-  /* Fixed-width blank placeholder - dots only, no boxes */
+  /* Fixed-width blank placeholder - dotted line only, no dots */
   .tahfeez-blank {
     display: inline-block;
     color: hsl(var(--foreground) / 0.9);
     user-select: none;
     vertical-align: baseline;
     line-height: inherit;
-    /* Subtle bottom border to clearly mark each blank */
-    border-bottom: 2px dotted hsl(var(--foreground) / 0.3);
     margin-inline: 1px;
-    /* No border, no background, no outline, no box-shadow */
   }
 
   /* Add visual separator between consecutive blanks */
@@ -1277,7 +1274,7 @@
     cursor: pointer;
     transition: color 0.3s ease;
     line-height: inherit;
-    border-bottom: 2px dotted hsl(var(--foreground) / 0.3);
+    /* dotted line is now inline via BlankSpan */
     margin-inline: 1px;
     /* No border, no background, no padding, no border-radius */
     background: none !important;
