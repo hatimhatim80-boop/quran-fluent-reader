@@ -1,6 +1,7 @@
 import React, { useMemo, useEffect, useRef, useState } from 'react';
 import { useAutoFitFont } from '@/hooks/useAutoFitFont';
 import { useAutoFlowFit } from '@/hooks/useAutoFlowFit';
+import { useAutoFit15Lines } from '@/hooks/useAutoFit15Lines';
 import { QuranPage, GhareebWord } from '@/types/quran';
 import { normalizeArabic } from '@/utils/quranParser';
 import { GhareebWordPopover } from './GhareebWordPopover';
@@ -94,6 +95,7 @@ export function PageView({
   const fontFamily = useSettingsStore((s) => s.settings.fonts.fontFamily);
   const fontWeight = useSettingsStore((s) => s.settings.fonts.fontWeight);
   const { containerRef: autoFitRef, fittedFontSize } = useAutoFitFont(page.text);
+  const { pageRef: lines15Ref, fittedFontSize: lines15FontSize } = useAutoFit15Lines(effectivePageText || page.text, fontFamily, fontWeight);
   
   // autoFlow15 removed — only continuous mode remains
 
