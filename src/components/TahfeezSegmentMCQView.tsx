@@ -201,12 +201,24 @@ export function TahfeezSegmentMCQView({
   const [currentQ, setCurrentQ] = useState(0);
   const [feedback, setFeedback] = useState<'correct' | 'wrong' | null>(null);
   const [selectedIdx, setSelectedIdx] = useState<number | null>(null);
+  const [choicesVisible, setChoicesVisible] = useState(segmentMcqBlankDuration <= 0);
   const baseStats: SegmentMCQStats = accumulatedStats || { correct: 0, wrong: 0, total: 0, startTime: Date.now(), answers: [] };
   const [stats, setStats] = useState<SegmentMCQStats>({
     ...baseStats,
     total: baseStats.total + questions.length,
   });
   const [showResults, setShowResults] = useState(false);
+
+  // Blank duration: hide choices for N seconds when question changes
+  useEffect(() => {
+    if (segmentMcqBlankDuration <= 0) {
+      setChoicesVisible(true);
+      return;
+    }
+    setChoicesVisible(false);
+    const t = setTimeout(() => setChoicesVisible(true), segmentMcqBlankDuration * 1000);
+    return () => clearTimeout(t);
+  }, [currentQ, segmentMcqBlankDuration]);
 
   const question = questions[currentQ];
 
