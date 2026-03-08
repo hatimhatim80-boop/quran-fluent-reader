@@ -8,17 +8,11 @@ import { useAutoFlowFit } from '@/hooks/useAutoFlowFit';
 import { redistributeLines, shouldRedistribute } from '@/utils/lineRedistributor';
 import { formatBismillah, shouldNoJustify, bindVerseNumbersSimple } from '@/utils/lineTokenUtils';
 
-/** Generate proportional dots based on word character count */
-function makeDots(word: string): string {
-  const stripped = word.replace(/[\u0610-\u061A\u064B-\u065F\u0670\u06D6-\u06DC\u06DF-\u06E8\u06EA-\u06ED\uFE70-\uFE7F]/g, '');
-  const charCount = stripped.length;
-  const dotCount = Math.max(2, Math.min(charCount, 8));
-  return Array(dotCount).fill('●').join(' ');
-}
+/** Blank placeholder - no visible dots, just the underline */
 
-/** Render a blank span that preserves the original word's width */
-function BlankSpan({ word, dots, dotScale, className, onClick, style }: {
-  word: string; dots: string; dotScale: number; className?: string;
+/** Render a blank span that preserves the original word's width with a dotted line through the middle */
+function BlankSpan({ word, dotScale, className, onClick, style }: {
+  word: string; dotScale: number; className?: string;
   onClick?: () => void; style?: React.CSSProperties;
 }) {
   return (
@@ -26,11 +20,15 @@ function BlankSpan({ word, dots, dotScale, className, onClick, style }: {
       style={{ ...style, cursor: 'pointer', display: 'inline-block', position: 'relative' }}>
       {/* Invisible original word to preserve width */}
       <span style={{ visibility: 'hidden', display: 'inline-block' }} aria-hidden="true">{word}</span>
-      {/* Dots overlaid on top */}
+      {/* Dotted line through the middle */}
       <span style={{
         position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
-        fontFamily: 'sans-serif', fontSize: `${dotScale}em`, letterSpacing: '1px',
-      }}>{dots}</span>
+      }}>
+        <span style={{
+          width: '100%',
+          borderBottom: `${Math.max(1.5, 2 * dotScale)}px dotted hsl(var(--foreground) / 0.5)`,
+        }} />
+      </span>
     </span>
   );
 }
