@@ -336,9 +336,9 @@ export const useTahfeezStore = create<TahfeezState>()(
       segmentMcqChoicesAtBlank: false,
       setSegmentMcqChoicesAtBlank: (on) => set({ segmentMcqChoicesAtBlank: on }),
 
-      segmentMcqCorrectDelay: 0.6,
+      segmentMcqCorrectDelay: 10,
       setSegmentMcqCorrectDelay: (s) => set({ segmentMcqCorrectDelay: s }),
-      segmentMcqWrongDelay: 1.2,
+      segmentMcqWrongDelay: 10,
       setSegmentMcqWrongDelay: (s) => set({ segmentMcqWrongDelay: s }),
     }),
     {
