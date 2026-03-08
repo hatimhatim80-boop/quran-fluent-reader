@@ -344,6 +344,26 @@ export function SettingsDialog({ children }: SettingsDialogProps) {
                 onCheckedChange={(v) => setDisplay({ autoFitFont: v })}
               />
             </div>
+
+            {/* Word Spacing */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <Label className="font-arabic font-bold">المسافة بين الكلمات</Label>
+                <span className="text-xs font-arabic text-muted-foreground">{settings.display.wordSpacing ?? 0.05}em</span>
+              </div>
+              <Slider
+                value={[settings.display.wordSpacing ?? 0.05]}
+                min={-0.1}
+                max={0.3}
+                step={0.01}
+                onValueChange={([v]) => setDisplay({ wordSpacing: v })}
+              />
+              <div className="flex justify-between text-[10px] font-arabic text-muted-foreground">
+                <span>أقل</span>
+                <span>عادي</span>
+                <span>أكثر</span>
+              </div>
+            </div>
           </TabsContent>
 
           {/* Colors Tab */}
