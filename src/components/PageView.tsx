@@ -717,7 +717,7 @@ export function PageView({
   const pageMeta = useMemo(() => getPageMetadata(page.pageNumber), [page.pageNumber]);
 
   const pageContent = (
-    <div ref={(el) => { (containerRef as any).current = el; (autoFitRef as any).current = el; }} className="page-frame p-4 sm:p-6" style={{ ...pageFrameStyle, ...(fittedFontSize ? { fontSize: `${fittedFontSize}rem` } : {}) }} dir={textDirection}>
+    <div ref={(el) => { (containerRef as any).current = el; (autoFitRef as any).current = el; (lines15Ref as any).current = el; }} className="page-frame p-4 sm:p-6" style={{ ...pageFrameStyle, ...(fittedFontSize ? { fontSize: `${fittedFontSize}rem` } : {}) }} dir={textDirection}>
       {/* Top Header: Hizb - Page Number - Hizb */}
       {!hidePageBadge && (
         <div className="flex items-center justify-between font-arabic text-xs sm:text-sm text-muted-foreground/70">
@@ -736,7 +736,7 @@ export function PageView({
       )}
 
       {/* Quran Text */}
-      <div className="quran-page min-h-[350px] sm:min-h-[450px]">
+      <div className="quran-page min-h-[60vh] sm:min-h-[70vh]">
         {renderedContent}
       </div>
 
