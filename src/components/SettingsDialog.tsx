@@ -305,6 +305,27 @@ export function SettingsDialog({ children }: SettingsDialogProps) {
               </div>
             </div>
 
+            {/* Display Mode */}
+            <div className="space-y-3">
+              <Label className="font-arabic font-bold">طريقة العرض</Label>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  onClick={() => setDisplay({ mode: 'madinah' })}
+                  className={`rounded-lg border-2 p-3 text-center transition-all font-arabic text-sm ${settings.display.mode !== 'continuous' ? 'border-primary bg-primary/10 text-primary font-bold' : 'border-border hover:border-primary/40'}`}
+                >
+                  مصحف منسق
+                  <p className="text-[10px] text-muted-foreground mt-1">15 سطراً ثابتاً لكل صفحة</p>
+                </button>
+                <button
+                  onClick={() => setDisplay({ mode: 'continuous' })}
+                  className={`rounded-lg border-2 p-3 text-center transition-all font-arabic text-sm ${settings.display.mode === 'continuous' ? 'border-primary bg-primary/10 text-primary font-bold' : 'border-border hover:border-primary/40'}`}
+                >
+                  تدفق مستمر
+                  <p className="text-[10px] text-muted-foreground mt-1">نص متواصل بدون أسطر ثابتة</p>
+                </button>
+              </div>
+            </div>
+
             {/* Text align */}
             <div className="space-y-3">
               <Label className="font-arabic font-bold">محاذاة النص</Label>
