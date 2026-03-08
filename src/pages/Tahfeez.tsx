@@ -907,6 +907,8 @@ export default function TahfeezPage() {
         </div>
       )}
 
+      <div className={`mx-auto space-y-6 max-w-2xl w-full px-3 py-2 sm:py-6`} style={{ transform: `scale(${pinchScale})`, transformOrigin: 'top center', transition: pinchRef.current ? 'none' : 'transform 0.2s ease' }}>
+
         {/* Tab 1: Store words */}
         {!quizStarted && activeTab === 'store' && (
           <div className="space-y-4 animate-fade-in">
