@@ -28,6 +28,7 @@ interface SegmentMCQStats {
 interface TahfeezSegmentMCQViewProps {
   page: QuranPage;
   mode: SegmentMode;
+  inline?: boolean;
   onFinish?: () => void;
   onRestart?: () => void;
 }
@@ -155,6 +156,7 @@ function generateQuestions(segments: Segment[], choiceCount: number = 3): MCQQue
 export function TahfeezSegmentMCQView({
   page,
   mode,
+  inline = false,
   onFinish,
   onRestart,
 }: TahfeezSegmentMCQViewProps) {
@@ -290,6 +292,113 @@ export function TahfeezSegmentMCQView({
 
   const modeLabel = mode === 'next-ayah-mcq' ? 'اختر الآية التالية' : 'اختر المقطع التالي';
 
+  // Build highlighted page text for inline mode
+  const inlinePageContent = useMemo(() => {
+    if (!inline) return null;
+    // Map each segment to its text for matching
+    const segTexts = segments.map(s => s.text);
+    const promptIdx = segments.indexOf(question.promptSegment);
+    const correctIdx = promptIdx + 1;
+
+    return segments.map((seg, idx) => {
+      let bgClass = '';
+      if (idx === promptIdx) {
+        bgClass = 'bg-primary/20 rounded px-1';
+      } else if (idx === correctIdx) {
+        if (feedback === 'correct') {
+          bgClass = 'bg-green-500/20 rounded px-1';
+        } else if (feedback === 'wrong') {
+          bgClass = 'bg-red-500/20 rounded px-1';
+        } else {
+          // Hide the correct answer segment with dots
+          bgClass = '';
+        }
+      }
+      
+      const isHidden = idx === correctIdx && !feedback;
+      
+      return (
+        <span key={idx}>
+          {isHidden ? (
+            <span className="inline bg-muted/40 rounded px-1 mx-0.5">
+              {'⬤ '.repeat(Math.min(seg.tokens.length, 5)).trim()}
+            </span>
+          ) : (
+            <span className={bgClass}>{seg.text}</span>
+          )}
+          {idx < segments.length - 1 && ' '}
+        </span>
+      );
+    });
+  }, [inline, segments, question, feedback]);
+
+  // Render MCQ options (shared between both modes)
+  const optionsUI = (
+    <div className="flex flex-col gap-2">
+      {question.options.map((opt, idx) => {
+        let extraClass = '';
+        let variant: 'outline' | 'default' | 'destructive' = 'outline';
+
+        if (feedback) {
+          if (opt.isCorrect) {
+            variant = 'default';
+            extraClass = 'bg-green-600 hover:bg-green-600 text-white border-green-600';
+          } else if (idx === selectedIdx && !opt.isCorrect) {
+            variant = 'destructive';
+          }
+        }
+
+        return (
+          <Button
+            key={idx}
+            variant={variant}
+            className={`w-full font-arabic text-base py-5 leading-relaxed whitespace-normal h-auto min-h-[2.5rem] ${extraClass}`}
+            onClick={() => handleChoice(idx)}
+            disabled={!!feedback}
+            style={{ fontFamily: "'KFGQPC HAFS Uthmanic Script', serif" }}
+          >
+            {opt.segment.text}
+          </Button>
+        );
+      })}
+    </div>
+  );
+
+  if (inline) {
+    return (
+      <div className="space-y-3 animate-fade-in" dir="rtl">
+        {/* Progress bar */}
+        <div className="flex items-center justify-between px-2">
+          <span className="text-xs font-arabic text-muted-foreground">
+            {modeLabel} ({currentQ + 1} / {questions.length})
+          </span>
+          <div className="flex items-center gap-3 text-xs font-arabic">
+            <span className="text-green-600">✓ {stats.correct}</span>
+            <span className="text-red-500">✗ {stats.wrong}</span>
+          </div>
+        </div>
+        <div className="w-full h-1 bg-secondary rounded-full overflow-hidden">
+          <div className="h-full bg-primary transition-all duration-500" style={{ width: `${((currentQ) / questions.length) * 100}%` }} />
+        </div>
+
+        {/* Quran page with highlighted prompt */}
+        <div className="page-frame p-4">
+          <p className="text-lg font-arabic text-foreground text-center leading-[2.5] whitespace-pre-wrap" style={{ fontFamily: "'KFGQPC HAFS Uthmanic Script', serif" }}>
+            {inlinePageContent}
+          </p>
+        </div>
+
+        {/* MCQ choices below the page */}
+        <div className="page-frame p-3">
+          <p className="text-xs font-arabic text-muted-foreground text-center mb-2">
+            {mode === 'next-ayah-mcq' ? 'اختر الآية التالية:' : 'اختر المقطع التالي:'}
+          </p>
+          {optionsUI}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-4 animate-fade-in" dir="rtl">
       {/* Progress */}
@@ -323,34 +432,7 @@ export function TahfeezSegmentMCQView({
 
       {/* MCQ Options */}
       <div className="page-frame p-4 space-y-3">
-        <div className="flex flex-col gap-3">
-          {question.options.map((opt, idx) => {
-            let extraClass = '';
-            let variant: 'outline' | 'default' | 'destructive' = 'outline';
-
-            if (feedback) {
-              if (opt.isCorrect) {
-                variant = 'default';
-                extraClass = 'bg-green-600 hover:bg-green-600 text-white border-green-600';
-              } else if (idx === selectedIdx && !opt.isCorrect) {
-                variant = 'destructive';
-              }
-            }
-
-            return (
-              <Button
-                key={idx}
-                variant={variant}
-                className={`w-full font-arabic text-base py-6 leading-relaxed whitespace-normal h-auto min-h-[3rem] ${extraClass}`}
-                onClick={() => handleChoice(idx)}
-                disabled={!!feedback}
-                style={{ fontFamily: "'KFGQPC HAFS Uthmanic Script', serif" }}
-              >
-                {opt.segment.text}
-              </Button>
-            );
-          })}
-        </div>
+        {optionsUI}
       </div>
     </div>
   );

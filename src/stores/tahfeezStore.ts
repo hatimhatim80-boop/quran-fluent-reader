@@ -182,6 +182,10 @@ interface TahfeezState {
   // Reveal granularity: word-by-word, ayah-at-once, or waqf-segment-at-once
   revealGranularity: 'word' | 'ayah' | 'waqf-segment';
   setRevealGranularity: (g: TahfeezState['revealGranularity']) => void;
+
+  // Segment MCQ inline mode: show choices on the Quran page
+  segmentMcqInline: boolean;
+  setSegmentMcqInline: (on: boolean) => void;
 }
 
 export const useTahfeezStore = create<TahfeezState>()(
@@ -315,6 +319,9 @@ export const useTahfeezStore = create<TahfeezState>()(
 
       revealGranularity: 'word',
       setRevealGranularity: (g) => set({ revealGranularity: g }),
+
+      segmentMcqInline: false,
+      setSegmentMcqInline: (on) => set({ segmentMcqInline: on }),
     }),
     {
       name: 'tahfeez.v2',
@@ -344,6 +351,7 @@ export const useTahfeezStore = create<TahfeezState>()(
         mcqPanelPosition: state.mcqPanelPosition,
         dotScale: state.dotScale,
         revealGranularity: state.revealGranularity,
+        segmentMcqInline: state.segmentMcqInline,
       }),
     }
   )

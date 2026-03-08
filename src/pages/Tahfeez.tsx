@@ -82,6 +82,7 @@ export default function TahfeezPage() {
     mcqPanelPosition, setMcqPanelPosition,
     dotScale, setDotScale,
     revealGranularity, setRevealGranularity,
+    segmentMcqInline, setSegmentMcqInline,
   } = useTahfeezStore();
 
   const speech = useSpeech();
@@ -1364,6 +1365,17 @@ export default function TahfeezPage() {
                 ))}
               </div>
 
+              {/* Inline display toggle for segment MCQ */}
+              {(autoBlankMode === 'next-ayah-mcq' || autoBlankMode === 'next-waqf-mcq') && (
+                <div className="flex items-center justify-between p-2 rounded-lg border">
+                  <label className="text-xs font-arabic text-foreground">عرض الاختيارات على صفحة القرآن</label>
+                  <Switch
+                    checked={segmentMcqInline}
+                    onCheckedChange={(v) => setSegmentMcqInline(v)}
+                  />
+                </div>
+              )}
+
               {(['beginning', 'middle', 'end', 'beginning-middle', 'middle-end', 'beginning-end', 'beginning-middle-end'] as const).includes(autoBlankMode as any) && (
                 <div className="space-y-1">
                   <label className="text-xs font-arabic text-muted-foreground">عدد الكلمات: {blankCount}</label>
@@ -1697,6 +1709,7 @@ export default function TahfeezPage() {
             <TahfeezSegmentMCQView
               page={pageData}
               mode={autoBlankMode as 'next-ayah-mcq' | 'next-waqf-mcq'}
+              inline={segmentMcqInline}
               onFinish={() => { setQuizStarted(false); if (revealTimerRef.current) clearTimeout(revealTimerRef.current); }}
               onRestart={() => {}}
             />
