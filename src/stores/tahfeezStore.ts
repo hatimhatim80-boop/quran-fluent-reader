@@ -178,6 +178,10 @@ interface TahfeezState {
   // Dot scale for blanks (0.5 to 2.0)
   dotScale: number;
   setDotScale: (s: number) => void;
+
+  // Reveal granularity: word-by-word, ayah-at-once, or waqf-segment-at-once
+  revealGranularity: 'word' | 'ayah' | 'waqf-segment';
+  setRevealGranularity: (g: TahfeezState['revealGranularity']) => void;
 }
 
 export const useTahfeezStore = create<TahfeezState>()(
@@ -308,6 +312,9 @@ export const useTahfeezStore = create<TahfeezState>()(
 
       dotScale: 1,
       setDotScale: (s) => set({ dotScale: s }),
+
+      revealGranularity: 'word',
+      setRevealGranularity: (g) => set({ revealGranularity: g }),
     }),
     {
       name: 'tahfeez.v2',
@@ -336,6 +343,7 @@ export const useTahfeezStore = create<TahfeezState>()(
         mcqDisplayMode: state.mcqDisplayMode,
         mcqPanelPosition: state.mcqPanelPosition,
         dotScale: state.dotScale,
+        revealGranularity: state.revealGranularity,
       }),
     }
   )

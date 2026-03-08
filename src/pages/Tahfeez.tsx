@@ -80,6 +80,7 @@ export default function TahfeezPage() {
     mcqDisplayMode, setMcqDisplayMode,
     mcqPanelPosition, setMcqPanelPosition,
     dotScale, setDotScale,
+    revealGranularity, setRevealGranularity,
   } = useTahfeezStore();
 
   const speech = useSpeech();
@@ -184,6 +185,12 @@ export default function TahfeezPage() {
   const wordTextsMapRef = useRef<Record<string, string>>({});
   const speechRef = useRef(speech);
   useEffect(() => { speechRef.current = speech; }, [speech]);
+  
+  // Key groups refs for reveal granularity
+  const ayahKeyGroupsRef = useRef<string[][]>([]);
+  const waqfKeyGroupsRef = useRef<string[][]>([]);
+  const revealGranularityRef = useRef(revealGranularity);
+  useEffect(() => { revealGranularityRef.current = revealGranularity; }, [revealGranularity]);
 
   // Compute pages range for multi-page quiz
   const quizPagesRange = useMemo(() => {
@@ -347,12 +354,16 @@ export default function TahfeezPage() {
         const keys = JSON.parse(el.getAttribute('data-keys') || '[]');
         const fKeys = JSON.parse(el.getAttribute('data-first-keys') || '[]');
         const wordTexts = JSON.parse(el.getAttribute('data-word-texts') || '{}');
+        const ayahGrps = JSON.parse(el.getAttribute('data-ayah-groups') || '[]');
+        const waqfGrps = JSON.parse(el.getAttribute('data-waqf-groups') || '[]');
         if (keys.length > 0) {
           settled = true;
           // Update refs SYNCHRONOUSLY before state updates so advance() reads correct data
           blankedKeysListRef.current = keys;
           firstKeysSetRef.current = new Set(fKeys);
           wordTextsMapRef.current = wordTexts;
+          ayahKeyGroupsRef.current = ayahGrps;
+          waqfKeyGroupsRef.current = waqfGrps;
           setBlankedKeysList(keys);
           setFirstKeysSet(new Set(fKeys));
           // Collect all word texts on this page for MCQ distractors
@@ -521,14 +532,39 @@ export default function TahfeezPage() {
         const wordText = wordTextsMapRef.current[key] || '';
 
         const revealAndAdvance = () => {
-          if (singleWordMode) {
-            setRevealedKeys(new Set([key]));
+          const granularity = revealGranularityRef.current;
+          const groups = granularity === 'ayah' ? ayahKeyGroupsRef.current : granularity === 'waqf-segment' ? waqfKeyGroupsRef.current : null;
+          
+          if (groups && groups.length > 0) {
+            // Find the group containing the current key
+            const groupIdx = groups.findIndex(g => g.includes(key));
+            const groupKeys = groupIdx >= 0 ? groups[groupIdx] : [key];
+            
+            if (singleWordMode) {
+              setRevealedKeys(new Set(groupKeys));
+            } else {
+              setRevealedKeys(prev => {
+                const next = new Set(prev);
+                groupKeys.forEach(k => next.add(k));
+                return next;
+              });
+            }
+            setActiveBlankKey(null);
+            // Find the next key AFTER this entire group
+            const lastGroupKey = groupKeys[groupKeys.length - 1];
+            const lastIdx = list.indexOf(lastGroupKey);
+            const nextIdx = lastIdx >= 0 ? lastIdx + 1 : idx + 1;
+            revealTimerRef.current = setTimeout(() => advance(nextIdx), 150);
           } else {
-            setRevealedKeys(prev => new Set([...prev, key]));
+            // Word-by-word (default)
+            if (singleWordMode) {
+              setRevealedKeys(new Set([key]));
+            } else {
+              setRevealedKeys(prev => new Set([...prev, key]));
+            }
+            setActiveBlankKey(null);
+            revealTimerRef.current = setTimeout(() => advance(idx + 1), 150);
           }
-          setActiveBlankKey(null);
-          // Small delay before advancing to next word — ensures single reveal per step
-          revealTimerRef.current = setTimeout(() => advance(idx + 1), 150);
         };
 
         const startVoiceOrTimer = () => {
@@ -1203,7 +1239,27 @@ export default function TahfeezPage() {
                   </div>
                 )}
 
-                {/* Dot scale slider */}
+                {/* Reveal granularity */}
+                <div className="flex items-center justify-between p-2 rounded-lg border">
+                  <div className="flex flex-col">
+                    <label className="text-xs font-arabic text-foreground">وحدة الكشف</label>
+                    <span className="text-[10px] text-muted-foreground font-arabic">
+                      {revealGranularity === 'word' ? 'كلمة بكلمة' : revealGranularity === 'ayah' ? 'آية كاملة' : 'مقطع وقفي'}
+                    </span>
+                  </div>
+                  <div className="flex flex-wrap gap-1 max-w-[200px] justify-end">
+                    <Button variant={revealGranularity === 'word' ? 'default' : 'outline'} size="sm" onClick={() => setRevealGranularity('word')} className="font-arabic text-[10px] h-7 px-2">
+                      كلمة
+                    </Button>
+                    <Button variant={revealGranularity === 'ayah' ? 'default' : 'outline'} size="sm" onClick={() => setRevealGranularity('ayah')} className="font-arabic text-[10px] h-7 px-2">
+                      آية
+                    </Button>
+                    <Button variant={revealGranularity === 'waqf-segment' ? 'default' : 'outline'} size="sm" onClick={() => setRevealGranularity('waqf-segment')} className="font-arabic text-[10px] h-7 px-2">
+                      مقطع وقفي
+                    </Button>
+                  </div>
+                </div>
+
                 <div className="space-y-1">
                   <label className="text-xs font-arabic text-foreground">
                     حجم النقاط: <span className="text-primary font-bold">{Math.round(dotScale * 100)}%</span>
@@ -1568,6 +1624,27 @@ export default function TahfeezPage() {
               </div>
             )}
 
+            {/* Reveal granularity */}
+            <div className="flex items-center justify-between p-2 rounded-lg border">
+              <div className="flex flex-col">
+                <label className="text-xs font-arabic text-foreground">وحدة الكشف</label>
+                <span className="text-[10px] text-muted-foreground font-arabic">
+                  {revealGranularity === 'word' ? 'كلمة بكلمة' : revealGranularity === 'ayah' ? 'آية كاملة' : 'مقطع وقفي'}
+                </span>
+              </div>
+              <div className="flex flex-wrap gap-1 max-w-[200px] justify-end">
+                <Button variant={revealGranularity === 'word' ? 'default' : 'outline'} size="sm" onClick={() => setRevealGranularity('word')} className="font-arabic text-[10px] h-7 px-2">
+                  كلمة
+                </Button>
+                <Button variant={revealGranularity === 'ayah' ? 'default' : 'outline'} size="sm" onClick={() => setRevealGranularity('ayah')} className="font-arabic text-[10px] h-7 px-2">
+                  آية
+                </Button>
+                <Button variant={revealGranularity === 'waqf-segment' ? 'default' : 'outline'} size="sm" onClick={() => setRevealGranularity('waqf-segment')} className="font-arabic text-[10px] h-7 px-2">
+                  مقطع وقفي
+                </Button>
+              </div>
+            </div>
+
             {/* Dot scale slider */}
             <div className="space-y-1 p-2 rounded-lg border">
               <label className="text-xs font-arabic text-foreground">
@@ -1684,24 +1761,62 @@ export default function TahfeezPage() {
               onClickActiveBlank={() => {
                 if (!activeBlankKey) return;
                 if (revealTimerRef.current) clearTimeout(revealTimerRef.current);
-                setRevealedKeys(prev => singleWordMode ? new Set([activeBlankKey]) : new Set([...prev, activeBlankKey]));
-                setActiveBlankKey(null);
-                const idx = blankedKeysList.indexOf(activeBlankKey);
-                if (idx >= 0) {
-                  setTimeout(() => setCurrentRevealIdx(idx + 1), 300);
+                const groups = revealGranularity === 'ayah' ? ayahKeyGroupsRef.current : revealGranularity === 'waqf-segment' ? waqfKeyGroupsRef.current : null;
+                if (groups && groups.length > 0) {
+                  const groupIdx = groups.findIndex(g => g.includes(activeBlankKey));
+                  const groupKeys = groupIdx >= 0 ? groups[groupIdx] : [activeBlankKey];
+                  setRevealedKeys(prev => {
+                    if (singleWordMode) return new Set(groupKeys);
+                    const next = new Set(prev);
+                    groupKeys.forEach(k => next.add(k));
+                    return next;
+                  });
+                  setActiveBlankKey(null);
+                  const lastGroupKey = groupKeys[groupKeys.length - 1];
+                  const lastIdx = blankedKeysList.indexOf(lastGroupKey);
+                  const nextIdx = lastIdx >= 0 ? lastIdx + 1 : blankedKeysList.indexOf(activeBlankKey) + 1;
+                  setTimeout(() => setCurrentRevealIdx(nextIdx), 300);
+                } else {
+                  setRevealedKeys(prev => singleWordMode ? new Set([activeBlankKey]) : new Set([...prev, activeBlankKey]));
+                  setActiveBlankKey(null);
+                  const idx = blankedKeysList.indexOf(activeBlankKey);
+                  if (idx >= 0) {
+                    setTimeout(() => setCurrentRevealIdx(idx + 1), 300);
+                  }
                 }
               }}
               onClickBlankWord={(key) => {
                 if (quizInteraction === 'tap-only') {
-                  // Tap-only: reveal clicked blank and advance to next unrevealed
-                  setRevealedKeys(prev => singleWordMode ? new Set([key]) : new Set([...prev, key]));
-                  const idx = blankedKeysList.indexOf(key);
-                  const nextIdx = idx + 1;
-                  if (nextIdx < blankedKeysList.length) {
-                    setActiveBlankKey(blankedKeysList[nextIdx]);
+                  // Tap-only: reveal clicked blank (or group) and advance
+                  const groups = revealGranularity === 'ayah' ? ayahKeyGroupsRef.current : revealGranularity === 'waqf-segment' ? waqfKeyGroupsRef.current : null;
+                  if (groups && groups.length > 0) {
+                    const groupIdx = groups.findIndex(g => g.includes(key));
+                    const groupKeys = groupIdx >= 0 ? groups[groupIdx] : [key];
+                    setRevealedKeys(prev => {
+                      if (singleWordMode) return new Set(groupKeys);
+                      const next = new Set(prev);
+                      groupKeys.forEach(k => next.add(k));
+                      return next;
+                    });
+                    const lastGroupKey = groupKeys[groupKeys.length - 1];
+                    const lastIdx = blankedKeysList.indexOf(lastGroupKey);
+                    const nextIdx = lastIdx >= 0 ? lastIdx + 1 : blankedKeysList.indexOf(key) + 1;
+                    if (nextIdx < blankedKeysList.length) {
+                      setActiveBlankKey(blankedKeysList[nextIdx]);
+                    } else {
+                      setActiveBlankKey(null);
+                      setShowAll(true);
+                    }
                   } else {
-                    setActiveBlankKey(null);
-                    setShowAll(true);
+                    setRevealedKeys(prev => singleWordMode ? new Set([key]) : new Set([...prev, key]));
+                    const idx = blankedKeysList.indexOf(key);
+                    const nextIdx = idx + 1;
+                    if (nextIdx < blankedKeysList.length) {
+                      setActiveBlankKey(blankedKeysList[nextIdx]);
+                    } else {
+                      setActiveBlankKey(null);
+                      setShowAll(true);
+                    }
                   }
                   return;
                 }
