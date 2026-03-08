@@ -260,16 +260,21 @@ export function TahfeezQuizView({
               }
             }
             
+            // Helper: skip tokens that ARE waqf signs themselves
+            const isWaqfToken = (i: number) => waqfRegex.test(group[i].text);
+            
             if (waqfCombinedModes.includes('between-waqf')) {
               if (waqfIndices.length >= 2) {
                 for (let w = 0; w < waqfIndices.length - 1; w++) {
-                  for (let i = waqfIndices[w]; i <= waqfIndices[w + 1]; i++) {
-                    keys.add(group[i].key);
+                  // Blank only words strictly between two waqf signs (exclusive)
+                  for (let i = waqfIndices[w] + 1; i < waqfIndices[w + 1]; i++) {
+                    if (!isWaqfToken(i)) keys.add(group[i].key);
                   }
                 }
               } else if (waqfIndices.length === 1) {
-                for (let i = waqfIndices[0]; i < group.length; i++) {
-                  keys.add(group[i].key);
+                // Single waqf: blank from after waqf to end
+                for (let i = waqfIndices[0] + 1; i < group.length; i++) {
+                  if (!isWaqfToken(i)) keys.add(group[i].key);
                 }
               }
             }
@@ -278,7 +283,7 @@ export function TahfeezQuizView({
               if (waqfIndices.length > 0) {
                 const lastWaqf = waqfIndices[waqfIndices.length - 1];
                 for (let i = lastWaqf + 1; i < group.length; i++) {
-                  keys.add(group[i].key);
+                  if (!isWaqfToken(i)) keys.add(group[i].key);
                 }
               }
             }
@@ -287,7 +292,7 @@ export function TahfeezQuizView({
               if (waqfIndices.length > 0) {
                 const firstWaqf = waqfIndices[0];
                 for (let i = 0; i < firstWaqf; i++) {
-                  keys.add(group[i].key);
+                  if (!isWaqfToken(i)) keys.add(group[i].key);
                 }
               }
             }
