@@ -406,6 +406,7 @@ export function SettingsDialog({ children }: SettingsDialogProps) {
                   </div>
                 </div>
               )}
+            </div>
 
             {/* Verse Number Circle Settings */}
             <div className="space-y-4 border rounded-lg p-4">
