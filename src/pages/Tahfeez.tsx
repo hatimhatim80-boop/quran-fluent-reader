@@ -86,6 +86,7 @@ export default function TahfeezPage() {
     segmentMcqChoicesAtBlank, setSegmentMcqChoicesAtBlank,
     segmentMcqCorrectDelay, setSegmentMcqCorrectDelay,
     segmentMcqWrongDelay, setSegmentMcqWrongDelay,
+    segmentMcqRandomOrder, setSegmentMcqRandomOrder,
   } = useTahfeezStore();
 
   const speech = useSpeech();
@@ -1387,6 +1388,13 @@ export default function TahfeezPage() {
                       />
                     </div>
                   )}
+                  <div className="flex items-center justify-between p-2 rounded-lg border">
+                    <label className="text-xs font-arabic text-foreground">ترتيب عشوائي للأسئلة</label>
+                    <Switch
+                      checked={segmentMcqRandomOrder}
+                      onCheckedChange={(v) => setSegmentMcqRandomOrder(v)}
+                    />
+                  </div>
                   {/* Segment MCQ delay settings */}
                   <div className="space-y-2 mt-2">
                     <div className="space-y-1">
