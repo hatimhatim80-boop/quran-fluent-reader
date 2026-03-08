@@ -350,6 +350,8 @@ export default function TahfeezPage() {
   // If page has no blanked items after timeout → skip to next page automatically.
   useEffect(() => {
     if (!quizStarted) return;
+    // Segment MCQ modes handle their own navigation — skip the blanked-keys observer entirely
+    if (autoBlankMode === 'next-ayah-mcq' || autoBlankMode === 'next-waqf-mcq') return;
 
     let settled = false;
     let fallbackTimer: ReturnType<typeof setTimeout> | null = null;
@@ -456,7 +458,7 @@ export default function TahfeezPage() {
       if (fallbackTimer) clearTimeout(fallbackTimer);
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [quizStarted, pageData, currentPage]);
+  }, [quizStarted, pageData, currentPage, autoBlankMode]);
 
   // Ref to track reveal index internally (avoids re-triggering the advance effect)
   const currentRevealIdxRef = useRef(-1);
