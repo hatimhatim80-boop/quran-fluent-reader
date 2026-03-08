@@ -247,7 +247,7 @@
   }
 
   .quran-line:last-child {
-    text-align-last: right;
+    text-align-last: center;
   }
 
   /* Bismillah: single line, no word breaks */
