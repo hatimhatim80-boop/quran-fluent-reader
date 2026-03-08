@@ -241,6 +241,7 @@
 
   /* Word-level spacing — margin-based so it works even with text-align:justify */
   .quran-word {
+    margin-inline-start: var(--quran-word-spacing, 0em);
     margin-inline-end: var(--quran-word-spacing, 0em);
   }
 
