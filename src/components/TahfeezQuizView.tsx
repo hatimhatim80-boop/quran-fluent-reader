@@ -27,6 +27,11 @@ function makeDots(targetWidth: number, font: string): string {
   return dot.repeat(count);
 }
 
+interface InlineMCQOption {
+  text: string;
+  isCorrect: boolean;
+}
+
 interface TahfeezQuizViewProps {
   page: QuranPage;
   quizSource: 'custom' | 'auto';
@@ -41,6 +46,10 @@ interface TahfeezQuizViewProps {
   onClickBlankWord?: (key: string) => void; // Called when user taps any blanked word to jump there
   storeMode?: boolean;                 // When true, tapping words stores them
   onStoreWord?: (lineIdx: number, tokenIdx: number, text: string) => void;
+  // Inline MCQ props
+  inlineMCQ?: boolean;                 // Whether to show inline MCQ at active blank
+  allWordTexts?: string[];             // All word texts for generating distractors
+  onInlineMCQAnswer?: (key: string, correct: boolean) => void;
 }
 
 function isSurahHeader(line: string): boolean {
