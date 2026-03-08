@@ -598,7 +598,7 @@ export function TahfeezQuizView({
     return isLines15 
       ? <div className="quran-lines-container">{elements}</div>
       : <div className="quran-page">{elements}</div>;
-  }, [lines, blankedKeys, activeBlankKey, revealedKeys, showAll, isLines15, storeMode, storedItems, onStoreWord, page.pageNumber, measureFont]);
+  }, [lines, blankedKeys, activeBlankKey, revealedKeys, showAll, isLines15, storeMode, storedItems, onStoreWord, page.pageNumber, measureFont, inlineMCQ, inlineMCQOptions, inlineMCQFeedback, inlineMCQSelected]);
 
 
   // Auto-scroll active blank word into view when it's near the bottom
