@@ -1402,7 +1402,24 @@ export default function TahfeezPage() {
               />
             </div>
 
-            {/* Voice Recognition Mode — disabled */}
+            {/* Quiz interaction mode */}
+            <div className="flex items-center justify-between p-2 rounded-lg border">
+              <div className="flex flex-col">
+                <label className="text-xs font-arabic text-foreground">طريقة الإجابة</label>
+                <span className="text-[10px] text-muted-foreground font-arabic">
+                  {quizInteraction === 'mcq' ? 'اختيار من متعدد (3 خيارات)' : 'ظهور تلقائي بمؤقت'}
+                </span>
+              </div>
+              <div className="flex gap-1">
+                <Button variant={quizInteraction === 'auto-reveal' ? 'default' : 'outline'} size="sm" onClick={() => setQuizInteraction('auto-reveal')} className="font-arabic text-[10px] h-7 px-2">
+                  <Eye className="w-3 h-3 ml-1" />تلقائي
+                </Button>
+                <Button variant={quizInteraction === 'mcq' ? 'default' : 'outline'} size="sm" onClick={() => setQuizInteraction('mcq')} className="font-arabic text-[10px] h-7 px-2">
+                  <MousePointerClick className="w-3 h-3 ml-1" />اختياري
+                </Button>
+              </div>
+            </div>
+
             <Button onClick={() => { setQuizSource('auto'); handleStartMultiPage(); }} className="w-full font-arabic" disabled={!pageData}>
               <Play className="w-4 h-4 ml-2" />
               ابدأ الاختبار {quizScope === 'current-page' ? `(صفحة ${currentPage})` : `(${quizPagesRange.length} صفحة)`}
