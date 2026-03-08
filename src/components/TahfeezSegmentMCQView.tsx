@@ -3,6 +3,7 @@ import { QuranPage } from '@/types/quran';
 import { normalizeArabic } from '@/utils/quranParser';
 import { Button } from '@/components/ui/button';
 import { CheckCircle2, XCircle, RotateCcw, Trophy, ArrowLeft } from 'lucide-react';
+import { useTahfeezStore } from '@/stores/tahfeezStore';
 
 type SegmentMode = 'next-ayah-mcq' | 'next-waqf-mcq';
 
@@ -189,6 +190,7 @@ export function TahfeezSegmentMCQView({
 }: TahfeezSegmentMCQViewProps) {
   const segments = useMemo(() => parseSegments(page.text, mode, page.pageNumber), [page.text, mode, page.pageNumber]);
   const questions = useMemo(() => generateQuestions(segments, 3), [segments]);
+  const { segmentMcqCorrectDelay, segmentMcqWrongDelay } = useTahfeezStore();
 
   const [currentQ, setCurrentQ] = useState(0);
   const [feedback, setFeedback] = useState<'correct' | 'wrong' | null>(null);
@@ -227,7 +229,7 @@ export function TahfeezSegmentMCQView({
       } else {
         setShowResults(true);
       }
-    }, isCorrect ? 600 : 1200);
+    }, (isCorrect ? segmentMcqCorrectDelay : segmentMcqWrongDelay) * 1000);
   }, [feedback, question, currentQ, questions.length]);
 
   // Results screen
