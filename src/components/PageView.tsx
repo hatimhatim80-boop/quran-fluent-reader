@@ -408,7 +408,7 @@ export function PageView({
             if (isVN) {
               lineElements.push(<span key={`${idx}-${ti}`} className="verse-number">{t}</span>);
             } else {
-              lineElements.push(<span key={`${idx}-${ti}`}>{t}</span>);
+              lineElements.push(<span key={`${idx}-${ti}`} className="quran-word">{t}</span>);
             }
           }
           const processedElements = bindVerseNumbers(lineElements, idx);
@@ -430,7 +430,7 @@ export function PageView({
             if (isVN) {
               lineElements.push(<span key={`${idx}-${ti}`} className="verse-number">{t}</span>);
             } else {
-              lineElements.push(<span key={`${idx}-${ti}`}>{t}</span>);
+              lineElements.push(<span key={`${idx}-${ti}`} className="quran-word">{t}</span>);
             }
           }
           const processedElements = bindVerseNumbers(lineElements, idx);
@@ -559,7 +559,7 @@ export function PageView({
               lineElements.push(
                 <span
                   key={`${lineIdx}-phrase-${i}`}
-                  className={`tahfeez-selectable ${isTSelected ? 'tahfeez-selected' : ''} ${isAnchor ? 'tahfeez-range-anchor' : ''}`}
+                  className={`quran-word tahfeez-selectable ${isTSelected ? 'tahfeez-selected' : ''} ${isAnchor ? 'tahfeez-range-anchor' : ''}`}
                   onClick={(e) => handleTahfeezClick(e, i)}
                 >
                   {phraseText.join('')}
@@ -571,7 +571,7 @@ export function PageView({
               lineElements.push(
                 <span
                   key={`${lineIdx}-${i}`}
-                  className={`tahfeez-selectable ${isTSelected ? 'tahfeez-selected' : ''} ${isAnchor ? 'tahfeez-range-anchor' : ''}`}
+                  className={`quran-word tahfeez-selectable ${isTSelected ? 'tahfeez-selected' : ''} ${isAnchor ? 'tahfeez-range-anchor' : ''}`}
                   onClick={(e) => handleTahfeezClick(e, i)}
                 >
                   {td.token}
@@ -657,7 +657,7 @@ export function PageView({
             data-line-index={lineIdx}
             data-token-index={i}
             data-assembly-id={assemblyId}
-            className={`${tahfeezMode ? 'tahfeez-selectable' : ''} ${isNonMatchSelected ? 'tahfeez-selected' : ''} ${isNonMatchAnchor ? 'tahfeez-range-anchor' : ''}`}
+            className={`quran-word ${tahfeezMode ? 'tahfeez-selectable' : ''} ${isNonMatchSelected ? 'tahfeez-selected' : ''} ${isNonMatchAnchor ? 'tahfeez-range-anchor' : ''}`}
             onClick={tahfeezMode && !td.isVerseNumber ? (e) => {
               e.stopPropagation();
               if (rangeAnchor && rangeAnchor.lineIdx === lineIdx && rangeAnchor.page === page.pageNumber) {

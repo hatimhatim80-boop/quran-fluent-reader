@@ -233,11 +233,15 @@
     text-align: justify;
     text-align-last: justify;
     text-justify: inter-word;
-    word-spacing: var(--quran-word-spacing, 0.05em);
     line-height: 1.1;
     flex: 1 1 0;
     overflow: hidden;
     box-sizing: border-box;
+  }
+
+  /* Word-level spacing that works independently of justify */
+  .quran-word {
+    margin-inline-end: var(--quran-word-spacing, 0.05em);
   }
 
   /* On mobile with redistributed lines */
