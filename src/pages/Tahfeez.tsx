@@ -1248,6 +1248,9 @@ export default function TahfeezPage() {
                   { value: 'full-ayah' as const, label: 'آية كاملة' },
                   { value: 'ayah-count' as const, label: 'عدد آيات' },
                   { value: 'full-page' as const, label: 'صفحة كاملة' },
+                  { value: 'between-waqf' as const, label: 'بين علامتي وقف' },
+                  { value: 'waqf-to-ayah' as const, label: 'وقف ← رأس الآية' },
+                  { value: 'ayah-to-waqf' as const, label: 'رأس الآية ← وقف' },
                 ].map(opt => (
                   <Button
                     key={opt.value}
