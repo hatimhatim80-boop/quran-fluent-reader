@@ -144,6 +144,12 @@ export default function TahfeezPage() {
   const swipeRef = useRef<{ startX: number; startY: number; startTime: number } | null>(null);
   const [quizPageIdx, setQuizPageIdx] = useState(0);
 
+  // MCQ state
+  const [mcqStats, setMcqStats] = useState<MCQStats>({ correct: 0, wrong: 0, total: 0, startTime: Date.now(), answers: [] });
+  const [mcqShowResults, setMcqShowResults] = useState(false);
+  const [mcqCurrentIdx, setMcqCurrentIdx] = useState(0);
+  const [allPageWordTexts, setAllPageWordTexts] = useState<string[]>([]);
+
   // Refs to always read latest values inside setTimeout chains (avoids stale closures)
   const currentPageRef = useRef(currentPage);
   useEffect(() => { currentPageRef.current = currentPage; }, [currentPage]);
