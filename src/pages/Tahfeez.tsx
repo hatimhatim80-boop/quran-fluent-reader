@@ -1201,7 +1201,7 @@ export default function TahfeezPage() {
                   <Slider
                     value={[dotScale]}
                     onValueChange={([v]) => setDotScale(v)}
-                    min={0.5}
+                    min={0.2}
                     max={2}
                     step={0.1}
                   />
@@ -1530,7 +1530,7 @@ export default function TahfeezPage() {
               <Slider
                 value={[dotScale]}
                 onValueChange={([v]) => setDotScale(v)}
-                min={0.5}
+                min={0.2}
                 max={2}
                 step={0.1}
               />
