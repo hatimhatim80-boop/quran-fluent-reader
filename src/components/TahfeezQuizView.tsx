@@ -521,9 +521,8 @@ export function TahfeezQuizView({
 
         if (shouldHide) {
           const blankClickHandler = !storeMode && onClickBlankWord ? () => onClickBlankWord(key) : storeClickHandler;
-          const dots = makeDots(t);
           lineElements.push(
-            <BlankSpan key={`${lineIdx}-${tokenIdx}`} word={t} dots={dots} dotScale={dotScale}
+            <BlankSpan key={`${lineIdx}-${tokenIdx}`} word={t} dotScale={dotScale}
               className={`tahfeez-blank${storeMode ? ' tahfeez-store-target' : ''}${isStored ? ' tahfeez-stored' : ''}`}
               onClick={blankClickHandler} />
           );
@@ -566,10 +565,9 @@ export function TahfeezQuizView({
               </span>
             );
           } else {
-            // Normal active: show dots with pulsing glow
-            const dots = makeDots(t);
+            // Normal active: show dotted line with pulsing glow
             lineElements.push(
-              <BlankSpan key={`${lineIdx}-${tokenIdx}`} word={t} dots={dots} dotScale={dotScale}
+              <BlankSpan key={`${lineIdx}-${tokenIdx}`} word={t} dotScale={dotScale}
                 className={`tahfeez-active-indicator tahfeez-active--${activeWordColor}`}
                 onClick={storeMode ? storeClickHandler : onClickActiveBlank}
                 style={{ '--tahfeez-active': 'true' } as React.CSSProperties} />
