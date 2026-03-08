@@ -408,7 +408,7 @@ export function PageView({
             if (isVN) {
               lineElements.push(<span key={`${idx}-${ti}`} className="verse-number">{t}</span>);
             } else {
-              lineElements.push(<span key={`${idx}-${ti}`}>{t}</span>);
+              lineElements.push(<span key={`${idx}-${ti}`} className="quran-word">{t}</span>);
             }
           }
           const processedElements = bindVerseNumbers(lineElements, idx);
@@ -430,7 +430,7 @@ export function PageView({
             if (isVN) {
               lineElements.push(<span key={`${idx}-${ti}`} className="verse-number">{t}</span>);
             } else {
-              lineElements.push(<span key={`${idx}-${ti}`}>{t}</span>);
+              lineElements.push(<span key={`${idx}-${ti}`} className="quran-word">{t}</span>);
             }
           }
           const processedElements = bindVerseNumbers(lineElements, idx);
@@ -651,13 +651,13 @@ export function PageView({
         const isNonMatchSelected = tahfeezMode && isTahfeezSelected(0, 0, i, page.pageNumber);
         const isNonMatchAnchor = tahfeezMode && rangeAnchor && rangeAnchor.lineIdx === lineIdx && rangeAnchor.tokenIdx === i;
         lineElements.push(
-          <span 
-            key={`${lineIdx}-${i}`}
-            data-word-inspectable="true"
-            data-line-index={lineIdx}
-            data-token-index={i}
-            data-assembly-id={assemblyId}
-            className={`${tahfeezMode ? 'tahfeez-selectable' : ''} ${isNonMatchSelected ? 'tahfeez-selected' : ''} ${isNonMatchAnchor ? 'tahfeez-range-anchor' : ''}`}
+654:           <span 
+655:             key={`${lineIdx}-${i}`}
+656:             data-word-inspectable="true"
+657:             data-line-index={lineIdx}
+658:             data-token-index={i}
+659:             data-assembly-id={assemblyId}
+660:             className={`quran-word ${tahfeezMode ? 'tahfeez-selectable' : ''} ${isNonMatchSelected ? 'tahfeez-selected' : ''} ${isNonMatchAnchor ? 'tahfeez-range-anchor' : ''}`}
             onClick={tahfeezMode && !td.isVerseNumber ? (e) => {
               e.stopPropagation();
               if (rangeAnchor && rangeAnchor.lineIdx === lineIdx && rangeAnchor.page === page.pageNumber) {
