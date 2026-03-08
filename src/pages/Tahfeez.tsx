@@ -7,8 +7,7 @@ import { useSettingsApplier } from '@/hooks/useSettingsApplier';
 import { useSettingsStore } from '@/stores/settingsStore';
 import { useKeepAwake } from '@/hooks/useKeepAwake';
 import { useSpeech } from '@/hooks/useSpeech';
-// Speech matching disabled — kept for future re-enable
-// import { matchHiddenWordsInOrder, normalizeSpeechArabic, splitWords } from '@/utils/quranSpeechMatch';
+import { normalizeArabic } from '@/utils/quranParser';
 import { Link, useNavigate } from 'react-router-dom';
 import { BookOpen, Play, Pause, Eye, EyeOff, ArrowRight, Save, Trash2, GraduationCap, ListChecks, Zap, Book, Layers, Hash, FileText, Search, X, ChevronLeft, Download, Upload, ChevronsRight, Undo2, Palette } from 'lucide-react';
 import { SpeedControlWidget } from '@/components/SpeedControlWidget';
@@ -507,10 +506,47 @@ export default function TahfeezPage() {
 
         const startVoiceOrTimer = () => {
           setActiveBlankKey(key);
-          // Voice recognition disabled — always use timer mode
-          revealTimerRef.current = setTimeout(() => {
-            revealAndAdvance();
-          }, timerSecondsRef.current * 1000);
+          if (useVoice && wordText && speechRef.current.isSupported) {
+            // Voice mode: start listening and match against expected word
+            const sp = speechRef.current;
+            sp.start('ar-SA').then(ok => {
+              if (!ok) {
+                // Fallback to timer if speech fails
+                revealTimerRef.current = setTimeout(() => revealAndAdvance(), timerSecondsRef.current * 1000);
+                return;
+              }
+              // Poll transcript for a match (every 300ms, max timerSeconds * 2)
+              const maxWait = (timerSecondsRef.current || 5) * 2 * 1000;
+              const startTime = Date.now();
+              const expectedNorm = normalizeArabic(wordText, 'aggressive').replace(/[\s\u200B-\u200F]/g, '');
+              const pollInterval = setInterval(() => {
+                const spoken = sp.transcriptRef.current || '';
+                const spokenNorm = normalizeArabic(spoken, 'aggressive').replace(/[\s\u200B-\u200F]/g, '');
+                // Check if spoken text contains the expected word
+                const matched = spokenNorm.length > 0 && (
+                  spokenNorm.includes(expectedNorm) || expectedNorm.includes(spokenNorm) ||
+                  spoken.split(/\s+/).some(w => {
+                    const wn = normalizeArabic(w, 'aggressive').replace(/[\s\u200B-\u200F]/g, '');
+                    return wn === expectedNorm || wn.includes(expectedNorm) || expectedNorm.includes(wn);
+                  })
+                );
+                if (matched || Date.now() - startTime > maxWait) {
+                  clearInterval(pollInterval);
+                  sp.stop();
+                  if (matched) console.log('[tahfeez][voice] ✓ Match:', spoken, '→', wordText);
+                  else console.log('[tahfeez][voice] ✗ Timeout, auto-reveal');
+                  revealAndAdvance();
+                }
+              }, 300);
+              // Store interval ID for cleanup
+              revealTimerRef.current = pollInterval as any;
+            });
+          } else {
+            // Timer mode (no voice)
+            revealTimerRef.current = setTimeout(() => {
+              revealAndAdvance();
+            }, timerSecondsRef.current * 1000);
+          }
         };
 
         if (isFirstKey) {
