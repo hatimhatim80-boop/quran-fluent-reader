@@ -425,7 +425,9 @@ export function QuranReader() {
           <AutoPlayDebugPanel visible={!!settings.debugMode} />
 
           <div style={{ transform: pinchScale !== 1 ? `scale(${pinchScale})` : undefined, transformOrigin: 'center center', transition: 'transform 0.1s ease-out' }}>
-            {pageData ? (
+            {settings.display.mode === 'madinah' ? (
+              <MadinahPageView pageNumber={currentPage} />
+            ) : pageData ? (
               <PageView
                 page={pageData}
                 ghareebWords={pageWords}
