@@ -1250,11 +1250,14 @@
   /* Fixed-width blank placeholder - dots only, no boxes */
   .tahfeez-blank {
     display: inline-block;
-    color: hsl(var(--muted-foreground) / 0.45);
+    color: hsl(var(--muted-foreground) / 0.7);
     user-select: none;
     overflow: hidden;
     white-space: nowrap;
     vertical-align: baseline;
+    line-height: inherit;
+    font-size: 0.6em;
+    letter-spacing: 0.08em;
     /* No border, no background, no outline, no box-shadow */
   }
 
@@ -1265,6 +1268,9 @@
     font-weight: 700;
     cursor: pointer;
     transition: color 0.3s ease;
+    line-height: inherit;
+    font-size: 0.6em;
+    letter-spacing: 0.08em;
     /* No border, no background, no padding, no border-radius */
     background: none !important;
     border: none !important;
