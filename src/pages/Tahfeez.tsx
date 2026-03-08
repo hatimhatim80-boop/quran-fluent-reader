@@ -354,6 +354,8 @@ export default function TahfeezPage() {
         const keys = JSON.parse(el.getAttribute('data-keys') || '[]');
         const fKeys = JSON.parse(el.getAttribute('data-first-keys') || '[]');
         const wordTexts = JSON.parse(el.getAttribute('data-word-texts') || '{}');
+        const ayahGrps = JSON.parse(el.getAttribute('data-ayah-groups') || '[]');
+        const waqfGrps = JSON.parse(el.getAttribute('data-waqf-groups') || '[]');
         if (keys.length > 0) {
           settled = true;
           // Update refs SYNCHRONOUSLY before state updates so advance() reads correct data
