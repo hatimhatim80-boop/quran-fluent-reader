@@ -80,6 +80,7 @@ export default function TahfeezPage() {
     mcqDisplayMode, setMcqDisplayMode,
     mcqPanelPosition, setMcqPanelPosition,
     dotScale, setDotScale,
+    revealGranularity, setRevealGranularity,
   } = useTahfeezStore();
 
   const speech = useSpeech();
