@@ -316,6 +316,7 @@ export const useTahfeezStore = create<TahfeezState>()(
         storedItems: state.storedItems,
         quizSource: state.quizSource,
         autoBlankMode: state.autoBlankMode,
+        waqfCombinedModes: state.waqfCombinedModes,
         blankCount: state.blankCount,
         ayahCount: state.ayahCount,
         timerSeconds: state.timerSeconds,
