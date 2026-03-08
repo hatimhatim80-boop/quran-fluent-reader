@@ -515,9 +515,7 @@ export default function TahfeezPage() {
                 revealTimerRef.current = setTimeout(() => revealAndAdvance(), timerSecondsRef.current * 1000);
                 return;
               }
-              // Poll transcript for a match (every 300ms, max timerSeconds * 2)
-              const maxWait = (timerSecondsRef.current || 5) * 2 * 1000;
-              const startTime = Date.now();
+              // Poll transcript for a match (every 300ms, NO timeout — wait for voice only)
               const expectedNorm = normalizeArabic(wordText, 'aggressive').replace(/[\s\u200B-\u200F]/g, '');
               const pollInterval = setInterval(() => {
                 const spoken = sp.transcriptRef.current || '';
@@ -530,11 +528,10 @@ export default function TahfeezPage() {
                     return wn === expectedNorm || wn.includes(expectedNorm) || expectedNorm.includes(wn);
                   })
                 );
-                if (matched || Date.now() - startTime > maxWait) {
+                if (matched) {
                   clearInterval(pollInterval);
                   sp.stop();
-                  if (matched) console.log('[tahfeez][voice] ✓ Match:', spoken, '→', wordText);
-                  else console.log('[tahfeez][voice] ✗ Timeout, auto-reveal');
+                  console.log('[tahfeez][voice] ✓ Match:', spoken, '→', wordText);
                   revealAndAdvance();
                 }
               }, 300);
