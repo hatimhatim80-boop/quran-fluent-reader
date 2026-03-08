@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useCallback, useRef } from 'react';
+import React, { useMemo, useState, useCallback, useRef, useEffect } from 'react';
 import { QuranPage } from '@/types/quran';
 import { normalizeArabic } from '@/utils/quranParser';
 import { Button } from '@/components/ui/button';
@@ -195,18 +195,30 @@ export function TahfeezSegmentMCQView({
   onNextPage,
 }: TahfeezSegmentMCQViewProps) {
   const segments = useMemo(() => parseSegments(page.text, mode, page.pageNumber), [page.text, mode, page.pageNumber]);
-  const { segmentMcqCorrectDelay, segmentMcqWrongDelay, segmentMcqRandomOrder } = useTahfeezStore();
+  const { segmentMcqCorrectDelay, segmentMcqWrongDelay, segmentMcqRandomOrder, segmentMcqBlankDuration } = useTahfeezStore();
   const questions = useMemo(() => generateQuestions(segments, 3, segmentMcqRandomOrder), [segments, segmentMcqRandomOrder]);
 
   const [currentQ, setCurrentQ] = useState(0);
   const [feedback, setFeedback] = useState<'correct' | 'wrong' | null>(null);
   const [selectedIdx, setSelectedIdx] = useState<number | null>(null);
+  const [choicesVisible, setChoicesVisible] = useState(segmentMcqBlankDuration <= 0);
   const baseStats: SegmentMCQStats = accumulatedStats || { correct: 0, wrong: 0, total: 0, startTime: Date.now(), answers: [] };
   const [stats, setStats] = useState<SegmentMCQStats>({
     ...baseStats,
     total: baseStats.total + questions.length,
   });
   const [showResults, setShowResults] = useState(false);
+
+  // Blank duration: hide choices for N seconds when question changes
+  useEffect(() => {
+    if (segmentMcqBlankDuration <= 0) {
+      setChoicesVisible(true);
+      return;
+    }
+    setChoicesVisible(false);
+    const t = setTimeout(() => setChoicesVisible(true), segmentMcqBlankDuration * 1000);
+    return () => clearTimeout(t);
+  }, [currentQ, segmentMcqBlankDuration]);
 
   const question = questions[currentQ];
 
@@ -371,7 +383,7 @@ export function TahfeezSegmentMCQView({
       const isHidden = idx === correctIdx && !feedback;
       
       // Inline MCQ choices rendered at blank location
-      const inlineChoicesAtBlank = isHidden && choicesAtBlank && !feedback ? (
+      const inlineChoicesAtBlank = isHidden && choicesAtBlank && !feedback && choicesVisible ? (
         <span style={{ display: 'block', position: 'relative', marginTop: '4px', marginBottom: '4px' }}>
           <span style={{ display: 'flex', flexDirection: 'column', gap: '4px', maxWidth: '100%' }}>
             {question.options.map((opt, optIdx) => {
@@ -472,12 +484,17 @@ export function TahfeezSegmentMCQView({
         </div>
 
         {/* MCQ choices below the page (hidden when choicesAtBlank is on) */}
-        {!choicesAtBlank && (
+        {!choicesAtBlank && choicesVisible && (
           <div className="page-frame p-3">
             <p className="text-xs font-arabic text-muted-foreground text-center mb-2">
               {mode === 'next-ayah-mcq' ? 'اختر الآية التالية:' : 'اختر المقطع التالي:'}
             </p>
             {optionsUI}
+          </div>
+        )}
+        {!choicesVisible && !feedback && (
+          <div className="page-frame p-3 text-center">
+            <p className="text-sm font-arabic text-muted-foreground animate-pulse">تذكّر ما يأتي بعدها...</p>
           </div>
         )}
       </div>
@@ -516,9 +533,15 @@ export function TahfeezSegmentMCQView({
       </div>
 
       {/* MCQ Options */}
-      <div className="page-frame p-4 space-y-3">
-        {optionsUI}
-      </div>
+      {choicesVisible ? (
+        <div className="page-frame p-4 space-y-3">
+          {optionsUI}
+        </div>
+      ) : (
+        <div className="page-frame p-4 text-center">
+          <p className="text-sm font-arabic text-muted-foreground animate-pulse">تذكّر ما يأتي بعدها...</p>
+        </div>
+      )}
     </div>
   );
 }
