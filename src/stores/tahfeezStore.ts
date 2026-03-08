@@ -287,6 +287,9 @@ export const useTahfeezStore = create<TahfeezState>()(
 
       quizInteraction: 'auto-reveal',
       setQuizInteraction: (mode) => set({ quizInteraction: mode }),
+
+      mcqDisplayMode: 'panel',
+      setMcqDisplayMode: (mode) => set({ mcqDisplayMode: mode }),
     }),
     {
       name: 'tahfeez.v2',
