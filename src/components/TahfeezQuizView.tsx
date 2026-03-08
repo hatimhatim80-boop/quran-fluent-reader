@@ -18,12 +18,13 @@ function measureTextWidth(text: string, font: string): number {
   return ctx.measureText(text).width;
 }
 
-/** Generate dots string that approximates `targetWidth` using the same font */
+/** Generate dots string that approximates `targetWidth` using the given font */
 function makeDots(targetWidth: number, font: string): string {
   const dot = '●';
   const dotW = measureTextWidth(dot, font);
   if (dotW <= 0) return dot.repeat(5);
-  const count = Math.max(2, Math.round(targetWidth / dotW));
+  // Use slightly fewer dots to avoid overflow, let CSS center them
+  const count = Math.max(2, Math.floor(targetWidth / dotW));
   return dot.repeat(count);
 }
 
