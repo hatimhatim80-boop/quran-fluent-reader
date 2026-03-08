@@ -1176,7 +1176,37 @@ export default function TahfeezPage() {
                   </div>
                 )}
 
-                <Button
+                {/* MCQ panel position - only when panel mode */}
+                {quizInteraction === 'mcq' && mcqDisplayMode === 'panel' && (
+                  <div className="flex items-center justify-between">
+                    <div className="flex flex-col">
+                      <label className="text-xs font-arabic text-foreground">موضع اللوحة</label>
+                    </div>
+                    <div className="flex gap-1">
+                      <Button variant={mcqPanelPosition === 'top' ? 'default' : 'outline'} size="sm" onClick={() => setMcqPanelPosition('top')} className="font-arabic text-[10px] h-7 px-2">
+                        فوق الصفحة
+                      </Button>
+                      <Button variant={mcqPanelPosition === 'bottom' ? 'default' : 'outline'} size="sm" onClick={() => setMcqPanelPosition('bottom')} className="font-arabic text-[10px] h-7 px-2">
+                        أسفل الصفحة
+                      </Button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Dot scale slider */}
+                <div className="space-y-1">
+                  <label className="text-xs font-arabic text-foreground">
+                    حجم النقاط: <span className="text-primary font-bold">{Math.round(dotScale * 100)}%</span>
+                  </label>
+                  <Slider
+                    value={[dotScale]}
+                    onValueChange={([v]) => setDotScale(v)}
+                    min={0.5}
+                    max={2}
+                    step={0.1}
+                  />
+                </div>
+
                   onClick={() => { setQuizSource('custom'); handleStartMultiPage(); }}
                   className="w-full font-arabic"
                   disabled={!pageData || (quizScope === 'current-page' ? pageItems.length === 0 : storedItems.filter(i => quizPagesRange.includes(i.data.page)).length === 0)}
