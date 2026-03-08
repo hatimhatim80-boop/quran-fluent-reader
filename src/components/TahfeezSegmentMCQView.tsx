@@ -383,7 +383,7 @@ export function TahfeezSegmentMCQView({
       const isHidden = idx === correctIdx && !feedback;
       
       // Inline MCQ choices rendered at blank location
-      const inlineChoicesAtBlank = isHidden && choicesAtBlank && !feedback ? (
+      const inlineChoicesAtBlank = isHidden && choicesAtBlank && !feedback && choicesVisible ? (
         <span style={{ display: 'block', position: 'relative', marginTop: '4px', marginBottom: '4px' }}>
           <span style={{ display: 'flex', flexDirection: 'column', gap: '4px', maxWidth: '100%' }}>
             {question.options.map((opt, optIdx) => {
@@ -484,12 +484,17 @@ export function TahfeezSegmentMCQView({
         </div>
 
         {/* MCQ choices below the page (hidden when choicesAtBlank is on) */}
-        {!choicesAtBlank && (
+        {!choicesAtBlank && choicesVisible && (
           <div className="page-frame p-3">
             <p className="text-xs font-arabic text-muted-foreground text-center mb-2">
               {mode === 'next-ayah-mcq' ? 'اختر الآية التالية:' : 'اختر المقطع التالي:'}
             </p>
             {optionsUI}
+          </div>
+        )}
+        {!choicesVisible && !feedback && (
+          <div className="page-frame p-3 text-center">
+            <p className="text-sm font-arabic text-muted-foreground animate-pulse">تذكّر ما يأتي بعدها...</p>
           </div>
         )}
       </div>
@@ -528,9 +533,15 @@ export function TahfeezSegmentMCQView({
       </div>
 
       {/* MCQ Options */}
-      <div className="page-frame p-4 space-y-3">
-        {optionsUI}
-      </div>
+      {choicesVisible ? (
+        <div className="page-frame p-4 space-y-3">
+          {optionsUI}
+        </div>
+      ) : (
+        <div className="page-frame p-4 text-center">
+          <p className="text-sm font-arabic text-muted-foreground animate-pulse">تذكّر ما يأتي بعدها...</p>
+        </div>
+      )}
     </div>
   );
 }
