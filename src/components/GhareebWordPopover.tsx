@@ -248,7 +248,7 @@ export function GhareebWordPopover({
 
   const highlightStyle = settings.colors.highlightStyle || 'background';
   const wordClasses = [
-    "ghareeb-word",
+    "ghareeb-word quran-word",
     highlightStyle === 'text-only' ? "ghareeb-word--text-only" : "",
     isHighlighted ? "ghareeb-word--active" : "",
     wasSeen && !isHighlighted ? "ghareeb-word--seen" : "",

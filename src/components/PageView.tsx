@@ -559,7 +559,7 @@ export function PageView({
               lineElements.push(
                 <span
                   key={`${lineIdx}-phrase-${i}`}
-                  className={`tahfeez-selectable ${isTSelected ? 'tahfeez-selected' : ''} ${isAnchor ? 'tahfeez-range-anchor' : ''}`}
+                  className={`quran-word tahfeez-selectable ${isTSelected ? 'tahfeez-selected' : ''} ${isAnchor ? 'tahfeez-range-anchor' : ''}`}
                   onClick={(e) => handleTahfeezClick(e, i)}
                 >
                   {phraseText.join('')}
@@ -571,7 +571,7 @@ export function PageView({
               lineElements.push(
                 <span
                   key={`${lineIdx}-${i}`}
-                  className={`tahfeez-selectable ${isTSelected ? 'tahfeez-selected' : ''} ${isAnchor ? 'tahfeez-range-anchor' : ''}`}
+                  className={`quran-word tahfeez-selectable ${isTSelected ? 'tahfeez-selected' : ''} ${isAnchor ? 'tahfeez-range-anchor' : ''}`}
                   onClick={(e) => handleTahfeezClick(e, i)}
                 >
                   {td.token}
