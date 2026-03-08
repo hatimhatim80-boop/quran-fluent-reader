@@ -438,6 +438,8 @@ export default function TahfeezPage() {
   // advance() chains itself via setTimeout. The effect only starts/stops the chain.
   useEffect(() => {
     if (!quizStarted || isPaused || showAll || blankedKeysListRef.current.length === 0) return;
+    // Skip auto-reveal chain in MCQ mode
+    if (quizInteraction === 'mcq') return;
     // Don't start if currentRevealIdx is still -1 (waiting for auto-resume)
     if (currentRevealIdx < 0) return;
 
