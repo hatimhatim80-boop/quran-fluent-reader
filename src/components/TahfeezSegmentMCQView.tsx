@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useCallback } from 'react';
+import React, { useMemo, useState, useCallback, useRef } from 'react';
 import { QuranPage } from '@/types/quran';
 import { normalizeArabic } from '@/utils/quranParser';
 import { Button } from '@/components/ui/button';
@@ -29,8 +29,34 @@ interface TahfeezSegmentMCQViewProps {
   page: QuranPage;
   mode: SegmentMode;
   inline?: boolean;
+  choicesAtBlank?: boolean;
   onFinish?: () => void;
   onRestart?: () => void;
+}
+
+/** Render a blank span that preserves the original segment's width with a dotted line */
+function SegmentBlankSpan({ text, children }: {
+  text: string;
+  children?: React.ReactNode;
+}) {
+  return (
+    <span style={{ display: 'inline', position: 'relative' }}>
+      {/* Invisible original text to preserve width */}
+      <span style={{ visibility: 'hidden' }} aria-hidden="true">{text}</span>
+      {/* Dotted line through the middle */}
+      <span style={{
+        position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
+        pointerEvents: 'none',
+      }}>
+        <span style={{
+          width: '100%',
+          borderBottom: '2px dotted hsl(var(--foreground) / 0.5)',
+        }} />
+      </span>
+      {/* Optional children (inline choices) rendered below */}
+      {children}
+    </span>
+  );
 }
 
 function isSurahHeader(line: string): boolean {
@@ -157,6 +183,7 @@ export function TahfeezSegmentMCQView({
   page,
   mode,
   inline = false,
+  choicesAtBlank = false,
   onFinish,
   onRestart,
 }: TahfeezSegmentMCQViewProps) {
@@ -317,12 +344,42 @@ export function TahfeezSegmentMCQView({
       
       const isHidden = idx === correctIdx && !feedback;
       
+      // Inline MCQ choices rendered at blank location
+      const inlineChoicesAtBlank = isHidden && choicesAtBlank && !feedback ? (
+        <span style={{ display: 'block', position: 'relative', marginTop: '4px', marginBottom: '4px' }}>
+          <span style={{ display: 'flex', flexDirection: 'column', gap: '4px', maxWidth: '100%' }}>
+            {question.options.map((opt, optIdx) => {
+              let optBg = 'hsl(var(--muted))';
+              let optColor = 'hsl(var(--foreground))';
+              let optBorder = '1px solid hsl(var(--border))';
+              return (
+                <span
+                  key={optIdx}
+                  onClick={() => handleChoice(optIdx)}
+                  style={{
+                    display: 'block', padding: '6px 10px', borderRadius: '8px',
+                    background: optBg, color: optColor, border: optBorder,
+                    cursor: 'pointer', fontSize: '0.85em', textAlign: 'center',
+                    fontFamily: "'KFGQPC HAFS Uthmanic Script', serif",
+                  }}
+                >
+                  {opt.segment.text}
+                </span>
+              );
+            })}
+          </span>
+        </span>
+      ) : null;
+
+      // After feedback, show correct answer with color
+      const feedbackChoicesAtBlank = isHidden === false && idx === correctIdx && feedback && choicesAtBlank ? null : null;
+
       return (
         <span key={idx}>
           {isHidden ? (
-            <span className="inline bg-muted/40 rounded px-1 mx-0.5">
-              {'⬤ '.repeat(Math.min(seg.tokens.length, 5)).trim()}
-            </span>
+            <SegmentBlankSpan text={seg.text}>
+              {inlineChoicesAtBlank}
+            </SegmentBlankSpan>
           ) : (
             <span className={bgClass}>{seg.text}</span>
           )}
@@ -330,7 +387,7 @@ export function TahfeezSegmentMCQView({
         </span>
       );
     });
-  }, [inline, segments, question, feedback]);
+  }, [inline, segments, question, feedback, choicesAtBlank, handleChoice]);
 
   // Render MCQ options (shared between both modes)
   const optionsUI = (
@@ -388,13 +445,15 @@ export function TahfeezSegmentMCQView({
           </p>
         </div>
 
-        {/* MCQ choices below the page */}
-        <div className="page-frame p-3">
-          <p className="text-xs font-arabic text-muted-foreground text-center mb-2">
-            {mode === 'next-ayah-mcq' ? 'اختر الآية التالية:' : 'اختر المقطع التالي:'}
-          </p>
-          {optionsUI}
-        </div>
+        {/* MCQ choices below the page (hidden when choicesAtBlank is on) */}
+        {!choicesAtBlank && (
+          <div className="page-frame p-3">
+            <p className="text-xs font-arabic text-muted-foreground text-center mb-2">
+              {mode === 'next-ayah-mcq' ? 'اختر الآية التالية:' : 'اختر المقطع التالي:'}
+            </p>
+            {optionsUI}
+          </div>
+        )}
       </div>
     );
   }

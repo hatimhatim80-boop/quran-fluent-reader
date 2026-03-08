@@ -186,6 +186,10 @@ interface TahfeezState {
   // Segment MCQ inline mode: show choices on the Quran page
   segmentMcqInline: boolean;
   setSegmentMcqInline: (on: boolean) => void;
+
+  // Show MCQ choices at the blank location (inline popover)
+  segmentMcqChoicesAtBlank: boolean;
+  setSegmentMcqChoicesAtBlank: (on: boolean) => void;
 }
 
 export const useTahfeezStore = create<TahfeezState>()(
@@ -322,6 +326,9 @@ export const useTahfeezStore = create<TahfeezState>()(
 
       segmentMcqInline: false,
       setSegmentMcqInline: (on) => set({ segmentMcqInline: on }),
+
+      segmentMcqChoicesAtBlank: false,
+      setSegmentMcqChoicesAtBlank: (on) => set({ segmentMcqChoicesAtBlank: on }),
     }),
     {
       name: 'tahfeez.v2',
@@ -352,6 +359,7 @@ export const useTahfeezStore = create<TahfeezState>()(
         dotScale: state.dotScale,
         revealGranularity: state.revealGranularity,
         segmentMcqInline: state.segmentMcqInline,
+        segmentMcqChoicesAtBlank: state.segmentMcqChoicesAtBlank,
       }),
     }
   )
