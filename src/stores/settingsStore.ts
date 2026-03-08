@@ -166,6 +166,16 @@ const defaultSettings: AppSettings = {
     wordFontSize: 1.4,
     meaningFontSize: 1.1,
   },
+  verseNumber: {
+    fontSize: 0.52,
+    circleSize: 2,
+    borderWidth: 2.5,
+    shape: 'circle',
+    numberColor: '38 70% 28%',
+    borderColor: '43 60% 55%',
+    bgColor: '45 70% 83%',
+    visible: true,
+  },
   debugMode: false,
 };
 
