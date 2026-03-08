@@ -1761,11 +1761,28 @@ export default function TahfeezPage() {
               onClickActiveBlank={() => {
                 if (!activeBlankKey) return;
                 if (revealTimerRef.current) clearTimeout(revealTimerRef.current);
-                setRevealedKeys(prev => singleWordMode ? new Set([activeBlankKey]) : new Set([...prev, activeBlankKey]));
-                setActiveBlankKey(null);
-                const idx = blankedKeysList.indexOf(activeBlankKey);
-                if (idx >= 0) {
-                  setTimeout(() => setCurrentRevealIdx(idx + 1), 300);
+                const groups = revealGranularity === 'ayah' ? ayahKeyGroupsRef.current : revealGranularity === 'waqf-segment' ? waqfKeyGroupsRef.current : null;
+                if (groups && groups.length > 0) {
+                  const groupIdx = groups.findIndex(g => g.includes(activeBlankKey));
+                  const groupKeys = groupIdx >= 0 ? groups[groupIdx] : [activeBlankKey];
+                  setRevealedKeys(prev => {
+                    if (singleWordMode) return new Set(groupKeys);
+                    const next = new Set(prev);
+                    groupKeys.forEach(k => next.add(k));
+                    return next;
+                  });
+                  setActiveBlankKey(null);
+                  const lastGroupKey = groupKeys[groupKeys.length - 1];
+                  const lastIdx = blankedKeysList.indexOf(lastGroupKey);
+                  const nextIdx = lastIdx >= 0 ? lastIdx + 1 : blankedKeysList.indexOf(activeBlankKey) + 1;
+                  setTimeout(() => setCurrentRevealIdx(nextIdx), 300);
+                } else {
+                  setRevealedKeys(prev => singleWordMode ? new Set([activeBlankKey]) : new Set([...prev, activeBlankKey]));
+                  setActiveBlankKey(null);
+                  const idx = blankedKeysList.indexOf(activeBlankKey);
+                  if (idx >= 0) {
+                    setTimeout(() => setCurrentRevealIdx(idx + 1), 300);
+                  }
                 }
               }}
               onClickBlankWord={(key) => {
