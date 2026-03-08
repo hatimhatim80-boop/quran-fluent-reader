@@ -141,7 +141,7 @@ const defaultSettings: AppSettings = {
     textAlign: 'justify',
     autoFitFont: false,
     balanceLastLine: false,
-    wordSpacing: 0.05,
+    wordSpacing: 0,
   },
   update: {
     manifestUrl: '/updates/manifest.json',

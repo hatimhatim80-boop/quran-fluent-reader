@@ -96,7 +96,7 @@ export function useSettingsApplier() {
     // === DISPLAY SETTINGS ===
     root.style.setProperty('--quran-text-align', settings.display?.textAlign || 'justify');
     root.style.setProperty('--quran-text-direction', settings.display?.textDirection || 'rtl');
-    root.style.setProperty('--quran-word-spacing', `${settings.display?.wordSpacing ?? 0.05}em`);
+    root.style.setProperty('--quran-word-spacing', `${settings.display?.wordSpacing ?? 0}em`);
 
     // Custom font support
     if (settings.fonts.fontFamily === 'custom' && (settings.fonts as any).customFontUrl) {
