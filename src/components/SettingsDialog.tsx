@@ -373,7 +373,7 @@ export function SettingsDialog({ children }: SettingsDialogProps) {
                   <Slider
                     value={[settings.display.wordSpacing ?? 0.05]}
                     min={0}
-                    max={1}
+                    max={2}
                     step={0.01}
                     onValueChange={([v]) => setDisplay({ wordSpacing: v })}
                   />
