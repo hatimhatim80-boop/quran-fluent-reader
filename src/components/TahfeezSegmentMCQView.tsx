@@ -229,11 +229,27 @@ export function TahfeezSegmentMCQView({
       }],
     }));
 
+    // Compute updated stats for potential onNextPage call
+    const updatedStats: SegmentMCQStats = {
+      correct: stats.correct + (isCorrect ? 1 : 0),
+      wrong: stats.wrong + (isCorrect ? 0 : 1),
+      total: stats.total,
+      startTime: stats.startTime,
+      answers: [...stats.answers, {
+        prompt: question.promptSegment.text.slice(0, 40),
+        correct: isCorrect,
+        chosen: opt.segment.text.slice(0, 40),
+        expected: question.correctAnswer.text.slice(0, 40),
+      }],
+    };
+
     setTimeout(() => {
       if (currentQ < questions.length - 1) {
         setCurrentQ(prev => prev + 1);
         setFeedback(null);
         setSelectedIdx(null);
+      } else if (multiPage && onNextPage) {
+        onNextPage(updatedStats);
       } else {
         setShowResults(true);
       }
