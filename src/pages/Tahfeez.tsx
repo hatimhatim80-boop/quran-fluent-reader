@@ -1523,8 +1523,27 @@ export default function TahfeezPage() {
               }}
             />
 
+            {/* MCQ Panel */}
+            {quizInteraction === 'mcq' && (
+              <TahfeezMCQPanel
+                activeKey={activeBlankKey}
+                wordTextsMap={wordTextsMapRef.current}
+                allWordTexts={allPageWordTexts}
+                onAnswer={handleMCQAnswer}
+                stats={mcqStats}
+                showResults={mcqShowResults}
+                onRestart={() => {
+                  setQuizStarted(false);
+                  setTimeout(() => {
+                    setQuizSource(quizSource);
+                    handleStartMultiPage();
+                  }, 100);
+                }}
+              />
+            )}
+
             {/* Mic indicator */}
-            {voiceMode && speech.isListening && (
+            {quizInteraction !== 'mcq' && voiceMode && speech.isListening && (
               <div className="flex items-center justify-center gap-2 text-xs font-arabic text-primary animate-pulse">
                 <Mic className="w-4 h-4" />
                 <span>يستمع... تحدث الآن</span>
