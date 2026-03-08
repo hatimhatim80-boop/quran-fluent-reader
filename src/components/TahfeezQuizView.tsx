@@ -82,6 +82,9 @@ export function TahfeezQuizView({
   onClickBlankWord,
   storeMode,
   onStoreWord,
+  inlineMCQ,
+  allWordTexts,
+  onInlineMCQAnswer,
 }: TahfeezQuizViewProps) {
   const { settings } = useSettingsStore();
   const revealedColor = useTahfeezStore(s => s.revealedColor);
