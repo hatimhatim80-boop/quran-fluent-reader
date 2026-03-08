@@ -407,6 +407,49 @@ export function TahfeezQuizView({
   const fontWeight = settings.fonts.fontWeight || 400;
   const measureFont = `${fontWeight} ${fontSize}px ${fontFamilyCSS}`;
 
+  // Inline MCQ: generate options for the active blank
+  const [inlineMCQFeedback, setInlineMCQFeedback] = useState<'correct' | 'wrong' | null>(null);
+  const [inlineMCQSelected, setInlineMCQSelected] = useState<number | null>(null);
+
+  // Reset inline MCQ state when active key changes
+  useEffect(() => {
+    setInlineMCQFeedback(null);
+    setInlineMCQSelected(null);
+  }, [activeBlankKey]);
+
+  const inlineMCQOptions: InlineMCQOption[] = useMemo(() => {
+    if (!inlineMCQ || !activeBlankKey || !allWordTexts) return [];
+    const correctText = blankedWordTexts[activeBlankKey] || '';
+    if (!correctText) return [];
+    const correctNorm = normalizeArabic(correctText, 'aggressive');
+    const candidates = allWordTexts.filter(t => {
+      const norm = normalizeArabic(t, 'aggressive');
+      return norm !== correctNorm && t !== correctText && norm.length > 0;
+    });
+    const unique = [...new Set(candidates)];
+    // Shuffle and pick 2 distractors
+    const shuffled = [...unique].sort(() => Math.random() - 0.5);
+    const distractors = shuffled.slice(0, 2);
+    while (distractors.length < 2) distractors.push('ـــ');
+    const opts: InlineMCQOption[] = [
+      { text: correctText, isCorrect: true },
+      ...distractors.map(d => ({ text: d, isCorrect: false })),
+    ];
+    // Shuffle options
+    return opts.sort(() => Math.random() - 0.5);
+  }, [inlineMCQ, activeBlankKey, allWordTexts, blankedWordTexts]);
+
+  const handleInlineMCQChoice = useCallback((idx: number, opt: InlineMCQOption) => {
+    if (inlineMCQFeedback) return;
+    setInlineMCQSelected(idx);
+    setInlineMCQFeedback(opt.isCorrect ? 'correct' : 'wrong');
+    setTimeout(() => {
+      if (activeBlankKey && onInlineMCQAnswer) {
+        onInlineMCQAnswer(activeBlankKey, opt.isCorrect);
+      }
+    }, opt.isCorrect ? 400 : 800);
+  }, [activeBlankKey, inlineMCQFeedback, onInlineMCQAnswer]);
+
   // Render
   const renderedContent = useMemo(() => {
     const elements: React.ReactNode[] = [];
