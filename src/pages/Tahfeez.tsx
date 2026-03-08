@@ -1535,8 +1535,8 @@ export default function TahfeezPage() {
               }}
             />
 
-            {/* MCQ Panel */}
-            {quizInteraction === 'mcq' && (
+            {/* MCQ Panel (only when panel mode) */}
+            {quizInteraction === 'mcq' && mcqDisplayMode === 'panel' && (
               <TahfeezMCQPanel
                 activeKey={activeBlankKey}
                 wordTextsMap={wordTextsMapRef.current}
@@ -1544,6 +1544,25 @@ export default function TahfeezPage() {
                 onAnswer={handleMCQAnswer}
                 stats={mcqStats}
                 showResults={mcqShowResults}
+                onRestart={() => {
+                  setQuizStarted(false);
+                  setTimeout(() => {
+                    setQuizSource(quizSource);
+                    handleStartMultiPage();
+                  }, 100);
+                }}
+              />
+            )}
+
+            {/* MCQ Results (for inline mode, show results panel when done) */}
+            {quizInteraction === 'mcq' && mcqDisplayMode === 'inline' && mcqShowResults && (
+              <TahfeezMCQPanel
+                activeKey={null}
+                wordTextsMap={wordTextsMapRef.current}
+                allWordTexts={allPageWordTexts}
+                onAnswer={handleMCQAnswer}
+                stats={mcqStats}
+                showResults={true}
                 onRestart={() => {
                   setQuizStarted(false);
                   setTimeout(() => {
