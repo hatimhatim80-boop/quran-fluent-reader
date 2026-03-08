@@ -7,10 +7,9 @@ import { useSettingsApplier } from '@/hooks/useSettingsApplier';
 import { useSettingsStore } from '@/stores/settingsStore';
 import { useKeepAwake } from '@/hooks/useKeepAwake';
 import { useSpeech } from '@/hooks/useSpeech';
-// Speech matching disabled — kept for future re-enable
-// import { matchHiddenWordsInOrder, normalizeSpeechArabic, splitWords } from '@/utils/quranSpeechMatch';
+import { normalizeArabic } from '@/utils/quranParser';
 import { Link, useNavigate } from 'react-router-dom';
-import { BookOpen, Play, Pause, Eye, EyeOff, ArrowRight, Save, Trash2, GraduationCap, ListChecks, Zap, Book, Layers, Hash, FileText, Search, X, ChevronLeft, Download, Upload, ChevronsRight, Undo2, Palette } from 'lucide-react';
+import { BookOpen, Play, Pause, Eye, EyeOff, ArrowRight, Save, Trash2, GraduationCap, ListChecks, Zap, Book, Layers, Hash, FileText, Search, X, ChevronLeft, Download, Upload, ChevronsRight, Undo2, Palette, Mic, MicOff } from 'lucide-react';
 import { SpeedControlWidget } from '@/components/SpeedControlWidget';
 
 import { HiddenBarsOverlay } from '@/components/HiddenBarsOverlay';
@@ -507,10 +506,47 @@ export default function TahfeezPage() {
 
         const startVoiceOrTimer = () => {
           setActiveBlankKey(key);
-          // Voice recognition disabled — always use timer mode
-          revealTimerRef.current = setTimeout(() => {
-            revealAndAdvance();
-          }, timerSecondsRef.current * 1000);
+          if (useVoice && wordText && speechRef.current.isSupported) {
+            // Voice mode: start listening and match against expected word
+            const sp = speechRef.current;
+            sp.start('ar-SA').then(ok => {
+              if (!ok) {
+                // Fallback to timer if speech fails
+                revealTimerRef.current = setTimeout(() => revealAndAdvance(), timerSecondsRef.current * 1000);
+                return;
+              }
+              // Poll transcript for a match (every 300ms, max timerSeconds * 2)
+              const maxWait = (timerSecondsRef.current || 5) * 2 * 1000;
+              const startTime = Date.now();
+              const expectedNorm = normalizeArabic(wordText, 'aggressive').replace(/[\s\u200B-\u200F]/g, '');
+              const pollInterval = setInterval(() => {
+                const spoken = sp.transcriptRef.current || '';
+                const spokenNorm = normalizeArabic(spoken, 'aggressive').replace(/[\s\u200B-\u200F]/g, '');
+                // Check if spoken text contains the expected word
+                const matched = spokenNorm.length > 0 && (
+                  spokenNorm.includes(expectedNorm) || expectedNorm.includes(spokenNorm) ||
+                  spoken.split(/\s+/).some(w => {
+                    const wn = normalizeArabic(w, 'aggressive').replace(/[\s\u200B-\u200F]/g, '');
+                    return wn === expectedNorm || wn.includes(expectedNorm) || expectedNorm.includes(wn);
+                  })
+                );
+                if (matched || Date.now() - startTime > maxWait) {
+                  clearInterval(pollInterval);
+                  sp.stop();
+                  if (matched) console.log('[tahfeez][voice] ✓ Match:', spoken, '→', wordText);
+                  else console.log('[tahfeez][voice] ✗ Timeout, auto-reveal');
+                  revealAndAdvance();
+                }
+              }, 300);
+              // Store interval ID for cleanup
+              revealTimerRef.current = pollInterval as any;
+            });
+          } else {
+            // Timer mode (no voice)
+            revealTimerRef.current = setTimeout(() => {
+              revealAndAdvance();
+            }, timerSecondsRef.current * 1000);
+          }
         };
 
         if (isFirstKey) {
@@ -1109,6 +1145,21 @@ export default function TahfeezPage() {
                   onCheckedChange={(v) => setSingleWordMode(v)}
                 />
               </div>
+
+              {/* Voice recognition toggle */}
+              <div className="flex items-center justify-between p-2 rounded-lg border">
+                <div className="flex flex-col">
+                  <label className="text-xs font-arabic text-foreground">التسميع الصوتي</label>
+                  <span className="text-[10px] text-muted-foreground font-arabic">
+                    {speech.isSupported ? 'يكشف الكلمة عند نطقها صحيحاً' : 'غير متاح في هذا المتصفح'}
+                  </span>
+                </div>
+                <Switch
+                  checked={voiceMode}
+                  onCheckedChange={(v) => setVoiceMode(v)}
+                  disabled={!speech.isSupported}
+                />
+              </div>
             </div>
 
             {/* Color settings for active word and revealed words */}
@@ -1392,6 +1443,15 @@ export default function TahfeezPage() {
               }}
             />
 
+            {/* Mic indicator */}
+            {voiceMode && speech.isListening && (
+              <div className="flex items-center justify-center gap-2 text-xs font-arabic text-primary animate-pulse">
+                <Mic className="w-4 h-4" />
+                <span>يستمع... تحدث الآن</span>
+                {speech.transcript && <span className="text-muted-foreground truncate max-w-[150px]">"{speech.transcript}"</span>}
+              </div>
+            )}
+
             {/* Controls */}
             <div className="flex items-center justify-center gap-2 flex-wrap">
               <Button variant="outline" size="sm" onClick={handlePauseResume} className="font-arabic">
@@ -1402,6 +1462,21 @@ export default function TahfeezPage() {
                 <Save className="w-4 h-4 ml-1" />
                 تخزين
               </Button>
+              {/* Toggle voice on/off during quiz */}
+              {speech.isSupported && (
+                <Button
+                  variant={voiceMode ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => {
+                    if (voiceMode) { speech.stop(); setVoiceMode(false); }
+                    else setVoiceMode(true);
+                  }}
+                  className="font-arabic"
+                >
+                  {voiceMode ? <Mic className="w-4 h-4 ml-1" /> : <MicOff className="w-4 h-4 ml-1" />}
+                  {voiceMode ? 'صوتي' : 'صوتي'}
+                </Button>
+              )}
               <Button variant="outline" size="sm" onClick={handleRevealAll} className="font-arabic" disabled={showAll}>
                 <Eye className="w-4 h-4 ml-1" />
                 كشف الكل
