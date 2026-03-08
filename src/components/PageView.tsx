@@ -367,7 +367,7 @@ export function PageView({
   const renderedContent = useMemo(() => {
     if (!effectivePageText) return null;
 
-    const isLines15 = true;
+    const isLines15 = displayMode !== 'continuous';
     const lines = effectivePageText.split('\n');
     
     // If no ghareeb words, render text
