@@ -1452,7 +1452,26 @@ export default function TahfeezPage() {
               </div>
             </div>
 
-            <Button onClick={() => { setQuizSource('auto'); handleStartMultiPage(); }} className="w-full font-arabic" disabled={!pageData}>
+            {/* MCQ display mode toggle */}
+            {quizInteraction === 'mcq' && (
+              <div className="flex items-center justify-between p-2 rounded-lg border">
+                <div className="flex flex-col">
+                  <label className="text-xs font-arabic text-foreground">عرض الخيارات</label>
+                  <span className="text-[10px] text-muted-foreground font-arabic">
+                    {mcqDisplayMode === 'inline' ? 'في مكان الفراغ مباشرة' : 'في لوحة منفصلة أسفل الصفحة'}
+                  </span>
+                </div>
+                <div className="flex gap-1">
+                  <Button variant={mcqDisplayMode === 'panel' ? 'default' : 'outline'} size="sm" onClick={() => setMcqDisplayMode('panel')} className="font-arabic text-[10px] h-7 px-2">
+                    لوحة
+                  </Button>
+                  <Button variant={mcqDisplayMode === 'inline' ? 'default' : 'outline'} size="sm" onClick={() => setMcqDisplayMode('inline')} className="font-arabic text-[10px] h-7 px-2">
+                    في السطر
+                  </Button>
+                </div>
+              </div>
+            )}
+
               <Play className="w-4 h-4 ml-2" />
               ابدأ الاختبار {quizScope === 'current-page' ? `(صفحة ${currentPage})` : `(${quizPagesRange.length} صفحة)`}
             </Button>
