@@ -28,6 +28,7 @@ interface SegmentMCQStats {
 interface TahfeezSegmentMCQViewProps {
   page: QuranPage;
   mode: SegmentMode;
+  inline?: boolean;
   onFinish?: () => void;
   onRestart?: () => void;
 }
