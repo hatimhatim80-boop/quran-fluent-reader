@@ -31,8 +31,11 @@ interface TahfeezSegmentMCQViewProps {
   mode: SegmentMode;
   inline?: boolean;
   choicesAtBlank?: boolean;
+  multiPage?: boolean;
+  accumulatedStats?: SegmentMCQStats | null;
   onFinish?: () => void;
   onRestart?: () => void;
+  onNextPage?: (stats: SegmentMCQStats) => void;
 }
 
 /** Render a blank span that preserves the original segment's width with a dotted line */
@@ -185,8 +188,11 @@ export function TahfeezSegmentMCQView({
   mode,
   inline = false,
   choicesAtBlank = false,
+  multiPage = false,
+  accumulatedStats = null,
   onFinish,
   onRestart,
+  onNextPage,
 }: TahfeezSegmentMCQViewProps) {
   const segments = useMemo(() => parseSegments(page.text, mode, page.pageNumber), [page.text, mode, page.pageNumber]);
   const { segmentMcqCorrectDelay, segmentMcqWrongDelay, segmentMcqRandomOrder } = useTahfeezStore();
@@ -195,8 +201,10 @@ export function TahfeezSegmentMCQView({
   const [currentQ, setCurrentQ] = useState(0);
   const [feedback, setFeedback] = useState<'correct' | 'wrong' | null>(null);
   const [selectedIdx, setSelectedIdx] = useState<number | null>(null);
+  const baseStats: SegmentMCQStats = accumulatedStats || { correct: 0, wrong: 0, total: 0, startTime: Date.now(), answers: [] };
   const [stats, setStats] = useState<SegmentMCQStats>({
-    correct: 0, wrong: 0, total: questions.length, startTime: Date.now(), answers: [],
+    ...baseStats,
+    total: baseStats.total + questions.length,
   });
   const [showResults, setShowResults] = useState(false);
 
