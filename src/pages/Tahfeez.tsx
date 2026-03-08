@@ -1239,7 +1239,27 @@ export default function TahfeezPage() {
                   </div>
                 )}
 
-                {/* Dot scale slider */}
+                {/* Reveal granularity */}
+                <div className="flex items-center justify-between p-2 rounded-lg border">
+                  <div className="flex flex-col">
+                    <label className="text-xs font-arabic text-foreground">وحدة الكشف</label>
+                    <span className="text-[10px] text-muted-foreground font-arabic">
+                      {revealGranularity === 'word' ? 'كلمة بكلمة' : revealGranularity === 'ayah' ? 'آية كاملة' : 'مقطع وقفي'}
+                    </span>
+                  </div>
+                  <div className="flex flex-wrap gap-1 max-w-[200px] justify-end">
+                    <Button variant={revealGranularity === 'word' ? 'default' : 'outline'} size="sm" onClick={() => setRevealGranularity('word')} className="font-arabic text-[10px] h-7 px-2">
+                      كلمة
+                    </Button>
+                    <Button variant={revealGranularity === 'ayah' ? 'default' : 'outline'} size="sm" onClick={() => setRevealGranularity('ayah')} className="font-arabic text-[10px] h-7 px-2">
+                      آية
+                    </Button>
+                    <Button variant={revealGranularity === 'waqf-segment' ? 'default' : 'outline'} size="sm" onClick={() => setRevealGranularity('waqf-segment')} className="font-arabic text-[10px] h-7 px-2">
+                      مقطع وقفي
+                    </Button>
+                  </div>
+                </div>
+
                 <div className="space-y-1">
                   <label className="text-xs font-arabic text-foreground">
                     حجم النقاط: <span className="text-primary font-bold">{Math.round(dotScale * 100)}%</span>
