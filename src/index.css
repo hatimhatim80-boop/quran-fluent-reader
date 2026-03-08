@@ -180,7 +180,7 @@
     font-size: var(--quran-font-size, 1.55rem);
     font-weight: var(--quran-font-weight, 400);
     letter-spacing: 0.01em;
-    word-spacing: 0.02em;
+    word-spacing: var(--quran-word-spacing, 0.02em);
     color: hsl(25 40% 8%);
   }
 
