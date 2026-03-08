@@ -349,10 +349,10 @@ export function SettingsDialog({ children }: SettingsDialogProps) {
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <Label className="font-arabic font-bold">المسافة بين الكلمات</Label>
-                <span className="text-xs font-arabic text-muted-foreground">{settings.display.wordSpacing ?? 0.05}em</span>
+                <span className="text-xs font-arabic text-muted-foreground">{settings.display.wordSpacing ?? 0}em</span>
               </div>
               <Slider
-                value={[settings.display.wordSpacing ?? 0.05]}
+                value={[settings.display.wordSpacing ?? 0]}
                 min={-0.1}
                 max={0.3}
                 step={0.01}
