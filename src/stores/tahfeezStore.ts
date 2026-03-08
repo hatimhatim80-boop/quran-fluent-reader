@@ -160,6 +160,10 @@ interface TahfeezState {
   // Active tab in tahfeez page
   activeTab: 'store' | 'custom-quiz' | 'auto-quiz';
   setActiveTab: (tab: TahfeezState['activeTab']) => void;
+
+  // Quiz interaction mode: auto-reveal (timer/voice) or mcq (multiple choice)
+  quizInteraction: 'auto-reveal' | 'mcq';
+  setQuizInteraction: (mode: TahfeezState['quizInteraction']) => void;
 }
 
 export const useTahfeezStore = create<TahfeezState>()(
@@ -276,6 +280,9 @@ export const useTahfeezStore = create<TahfeezState>()(
 
       activeTab: 'store',
       setActiveTab: (tab) => set({ activeTab: tab }),
+
+      quizInteraction: 'auto-reveal',
+      setQuizInteraction: (mode) => set({ quizInteraction: mode }),
     }),
     {
       name: 'tahfeez.v2',
@@ -299,6 +306,7 @@ export const useTahfeezStore = create<TahfeezState>()(
         quizScope: state.quizScope,
         quizScopeFrom: state.quizScopeFrom,
         quizScopeTo: state.quizScopeTo,
+        quizInteraction: state.quizInteraction,
       }),
     }
   )
