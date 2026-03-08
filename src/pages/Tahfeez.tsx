@@ -57,6 +57,7 @@ export default function TahfeezPage() {
     storedItems, clearAllItems, addItem, removeItem, getItemKey,
     quizSource, setQuizSource,
     autoBlankMode, setAutoBlankMode,
+    waqfCombinedModes, setWaqfCombinedModes,
     blankCount, setBlankCount,
     ayahCount, setAyahCount,
     timerSeconds, setTimerSeconds,
@@ -1248,20 +1249,47 @@ export default function TahfeezPage() {
                   { value: 'full-ayah' as const, label: 'آية كاملة' },
                   { value: 'ayah-count' as const, label: 'عدد آيات' },
                   { value: 'full-page' as const, label: 'صفحة كاملة' },
-                  { value: 'between-waqf' as const, label: 'بين علامتي وقف' },
-                  { value: 'waqf-to-ayah' as const, label: 'وقف ← رأس الآية' },
-                  { value: 'ayah-to-waqf' as const, label: 'رأس الآية ← وقف' },
                 ].map(opt => (
                   <Button
                     key={opt.value}
-                    variant={autoBlankMode === opt.value ? 'default' : 'outline'}
+                    variant={autoBlankMode === opt.value && waqfCombinedModes.length === 0 ? 'default' : 'outline'}
                     size="sm"
-                    onClick={() => setAutoBlankMode(opt.value)}
+                    onClick={() => { setAutoBlankMode(opt.value); setWaqfCombinedModes([]); }}
                     className="font-arabic text-xs"
                   >
                     {opt.label}
                   </Button>
                 ))}
+                {/* Waqf modes - multi-selectable */}
+                {[
+                  { value: 'between-waqf' as const, label: 'بين علامتي وقف' },
+                  { value: 'waqf-to-ayah' as const, label: 'وقف ← رأس الآية' },
+                  { value: 'ayah-to-waqf' as const, label: 'رأس الآية ← وقف' },
+                ].map(opt => {
+                  const isActive = waqfCombinedModes.includes(opt.value);
+                  return (
+                    <Button
+                      key={opt.value}
+                      variant={isActive ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => {
+                        let newModes: typeof waqfCombinedModes;
+                        if (isActive) {
+                          newModes = waqfCombinedModes.filter(m => m !== opt.value);
+                        } else {
+                          newModes = [...waqfCombinedModes, opt.value];
+                        }
+                        setWaqfCombinedModes(newModes);
+                        if (newModes.length > 0) {
+                          setAutoBlankMode(newModes[0]);
+                        }
+                      }}
+                      className="font-arabic text-xs"
+                    >
+                      {opt.label}
+                    </Button>
+                  );
+                })}
               </div>
 
               {(['beginning', 'middle', 'end', 'beginning-middle', 'middle-end', 'beginning-end', 'beginning-middle-end'] as const).includes(autoBlankMode as any) && (
