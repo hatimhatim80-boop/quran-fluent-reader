@@ -106,6 +106,7 @@ export function PageView({
     const targetLines = isMobile ? mobileLinesPerPage : desktopLinesPerPage;
     return redistributeLines(originalLines, targetLines, minWordsPerLine, balanceLastLine).join('\n');
   }, [page.text, displayMode, mobileLinesPerPage, desktopLinesPerPage, minWordsPerLine, balanceLastLine]);
+  const { pageRef: lines15Ref, fittedFontSize: lines15FontSize } = useAutoFit15Lines(effectivePageText, fontFamily, fontWeight);
   const tahfeezMode = useTahfeezStore((s) => s.selectionMode);
   const toggleTahfeezWord = useTahfeezStore((s) => s.toggleWord);
   const isTahfeezSelected = useTahfeezStore((s) => s.isSelected);
