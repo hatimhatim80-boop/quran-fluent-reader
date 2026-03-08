@@ -20,7 +20,7 @@ function measureTextWidth(text: string, font: string): number {
 
 /** Generate dots string that approximates `targetWidth` using the same font */
 function makeDots(targetWidth: number, font: string): string {
-  const dot = '·';
+  const dot = '●';
   const dotW = measureTextWidth(dot, font);
   if (dotW <= 0) return dot.repeat(5);
   const count = Math.max(2, Math.round(targetWidth / dotW));
