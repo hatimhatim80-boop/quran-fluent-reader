@@ -95,7 +95,6 @@ export function PageView({
   const fontFamily = useSettingsStore((s) => s.settings.fonts.fontFamily);
   const fontWeight = useSettingsStore((s) => s.settings.fonts.fontWeight);
   const { containerRef: autoFitRef, fittedFontSize } = useAutoFitFont(page.text);
-  const { pageRef: lines15Ref, fittedFontSize: lines15FontSize } = useAutoFit15Lines(effectivePageText || page.text, fontFamily, fontWeight);
   
   // autoFlow15 removed — only continuous mode remains
 
