@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useTahfeezStore, TahfeezItem } from '@/stores/tahfeezStore';
 import { MCQStats, TahfeezMCQPanel } from '@/components/TahfeezMCQPanel';
+import { TahfeezSegmentMCQView } from '@/components/TahfeezSegmentMCQView';
 import { useSessionsStore } from '@/stores/sessionsStore';
 import { toast } from 'sonner';
 import { useQuranData } from '@/hooks/useQuranData';
@@ -1346,6 +1347,21 @@ export default function TahfeezPage() {
                     </Button>
                   );
                 })}
+                {/* Segment MCQ modes */}
+                {[
+                  { value: 'next-ayah-mcq' as const, label: 'اختر الآية التالية' },
+                  { value: 'next-waqf-mcq' as const, label: 'اختر ما بعد الوقف' },
+                ].map(opt => (
+                  <Button
+                    key={opt.value}
+                    variant={autoBlankMode === opt.value ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => { setAutoBlankMode(opt.value); setWaqfCombinedModes([]); }}
+                    className="font-arabic text-xs"
+                  >
+                    {opt.label}
+                  </Button>
+                ))}
               </div>
 
               {(['beginning', 'middle', 'end', 'beginning-middle', 'middle-end', 'beginning-end', 'beginning-middle-end'] as const).includes(autoBlankMode as any) && (
