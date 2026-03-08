@@ -425,7 +425,7 @@ export function TahfeezSegmentMCQView({
         </span>
       );
     });
-  }, [inline, segments, question, feedback, choicesAtBlank, handleChoice]);
+  }, [inline, segments, question, feedback, choicesAtBlank, handleChoice, choicesVisible]);
 
   // Render MCQ options (shared between both modes)
   const optionsUI = (
