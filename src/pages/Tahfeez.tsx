@@ -688,7 +688,33 @@ export default function TahfeezPage() {
     }
   };
 
-  const handleGoToMushaf = () => {
+  // MCQ answer handler
+  const handleMCQAnswer = useCallback((key: string, correct: boolean) => {
+    const wordText = wordTextsMapRef.current[key] || '';
+    // Reveal the word
+    setRevealedKeys(prev => new Set([...prev, key]));
+    setMcqStats(prev => ({
+      ...prev,
+      correct: prev.correct + (correct ? 1 : 0),
+      wrong: prev.wrong + (correct ? 0 : 1),
+      answers: [...prev.answers, { key, word: wordText, correct, chosen: '' }],
+    }));
+    
+    // Advance to next blank
+    const list = blankedKeysListRef.current;
+    const nextIdx = mcqCurrentIdx + 1;
+    if (nextIdx >= list.length) {
+      // End of page
+      setActiveBlankKey(null);
+      setShowAll(true);
+      setMcqShowResults(true);
+    } else {
+      setMcqCurrentIdx(nextIdx);
+      setActiveBlankKey(list[nextIdx]);
+    }
+  }, [mcqCurrentIdx]);
+
+
     setSelectionMode(true);
   };
 
