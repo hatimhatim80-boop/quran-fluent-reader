@@ -1397,6 +1397,13 @@ export default function TahfeezPage() {
                       onCheckedChange={(v) => setSegmentMcqRandomOrder(v)}
                     />
                   </div>
+                  <div className="flex items-center justify-between p-2 rounded-lg border">
+                    <label className="text-xs font-arabic text-foreground">متابعة الأسئلة عبر الصفحات</label>
+                    <Switch
+                      checked={segmentMcqMultiPage}
+                      onCheckedChange={(v) => setSegmentMcqMultiPage(v)}
+                    />
+                  </div>
                   {/* Segment MCQ delay settings */}
                   <div className="space-y-2 mt-2">
                     <div className="space-y-1">
