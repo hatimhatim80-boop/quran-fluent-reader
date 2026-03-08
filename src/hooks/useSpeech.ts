@@ -22,7 +22,7 @@ export interface UseSpeechReturn {
   providerType: SpeechProviderType;
 }
 
-function getWebSpeechCtor(): (new () => SpeechRecognition) | null {
+function getWebSpeechCtor(): (new () => any) | null {
   const w = window as any;
   return w.SpeechRecognition || w.webkitSpeechRecognition || null;
 }
