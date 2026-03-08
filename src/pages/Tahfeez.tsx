@@ -714,7 +714,7 @@ export default function TahfeezPage() {
     }
   }, [mcqCurrentIdx]);
 
-
+  const handleGoToMushaf = () => {
     setSelectionMode(true);
   };
 
