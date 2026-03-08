@@ -156,6 +156,7 @@ function generateQuestions(segments: Segment[], choiceCount: number = 3): MCQQue
 export function TahfeezSegmentMCQView({
   page,
   mode,
+  inline = false,
   onFinish,
   onRestart,
 }: TahfeezSegmentMCQViewProps) {
