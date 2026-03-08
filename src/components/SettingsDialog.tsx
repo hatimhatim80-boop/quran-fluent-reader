@@ -285,26 +285,6 @@ export function SettingsDialog({ children }: SettingsDialogProps) {
               </Button>
             </div>
 
-            {/* Display mode */}
-            <div className="space-y-3">
-              <Label className="font-arabic font-bold">طريقة العرض</Label>
-              <div className="flex gap-2">
-                <button
-                  onClick={() => setDisplay({ mode: 'continuous' })}
-                  className={`flex-1 py-3 rounded-lg border text-sm font-arabic transition-all ${settings.display.mode === 'continuous' || !settings.display.mode ? 'border-primary bg-primary/10 ring-2 ring-primary/20' : 'border-border hover:border-muted-foreground/50'}`}
-                >
-                  <span className="block text-base mb-1">📖</span>
-                  عرض الغريب
-                </button>
-                <button
-                  onClick={() => setDisplay({ mode: 'madinah' })}
-                  className={`flex-1 py-3 rounded-lg border text-sm font-arabic transition-all ${settings.display.mode === 'madinah' ? 'border-primary bg-primary/10 ring-2 ring-primary/20' : 'border-border hover:border-muted-foreground/50'}`}
-                >
-                  <span className="block text-base mb-1">🕌</span>
-                  مصحف المدينة
-                </button>
-              </div>
-            </div>
 
             {/* Text direction */}
             <div className="space-y-3">
