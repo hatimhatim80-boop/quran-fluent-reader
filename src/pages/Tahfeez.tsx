@@ -350,6 +350,8 @@ export default function TahfeezPage() {
           wordTextsMapRef.current = wordTexts;
           setBlankedKeysList(keys);
           setFirstKeysSet(new Set(fKeys));
+          // Collect all word texts on this page for MCQ distractors
+          setAllPageWordTexts(Object.values(wordTexts));
 
           // Auto-resume after page transition OR first start
           if (autoResumeQuizRef.current || isFirstStartRef.current) {
@@ -360,7 +362,14 @@ export default function TahfeezPage() {
             setRevealedKeys(new Set());
             setShowAll(false);
             setActiveBlankKey(null);
-            setCurrentRevealIdx(0);
+            if (quizInteraction === 'mcq') {
+              // MCQ mode: set active blank to first key, update total
+              setMcqCurrentIdx(0);
+              setActiveBlankKey(keys[0]);
+              setMcqStats(prev => ({ ...prev, total: keys.length }));
+            } else {
+              setCurrentRevealIdx(0);
+            }
           }
           return true;
         }
