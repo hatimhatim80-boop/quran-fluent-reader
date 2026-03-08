@@ -204,6 +204,10 @@ interface TahfeezState {
   // Segment MCQ multi-page (continue across pages)
   segmentMcqMultiPage: boolean;
   setSegmentMcqMultiPage: (on: boolean) => void;
+
+  // Duration to keep segment hidden before showing choices
+  segmentMcqBlankDuration: number;
+  setSegmentMcqBlankDuration: (s: number) => void;
 }
 
 export const useTahfeezStore = create<TahfeezState>()(
@@ -354,6 +358,9 @@ export const useTahfeezStore = create<TahfeezState>()(
 
       segmentMcqMultiPage: false,
       setSegmentMcqMultiPage: (on) => set({ segmentMcqMultiPage: on }),
+
+      segmentMcqBlankDuration: 0,
+      setSegmentMcqBlankDuration: (s) => set({ segmentMcqBlankDuration: s }),
     }),
     {
       name: 'tahfeez.v2',
@@ -389,6 +396,7 @@ export const useTahfeezStore = create<TahfeezState>()(
         segmentMcqWrongDelay: state.segmentMcqWrongDelay,
         segmentMcqRandomOrder: state.segmentMcqRandomOrder,
         segmentMcqMultiPage: state.segmentMcqMultiPage,
+        segmentMcqBlankDuration: state.segmentMcqBlankDuration,
       }),
     }
   )
