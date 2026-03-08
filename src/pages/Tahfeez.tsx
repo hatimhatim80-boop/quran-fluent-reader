@@ -25,6 +25,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { SURAH_INFO, SURAH_NAMES } from '@/utils/quranPageIndex';
 // SettingsDialog removed — Tahfeez has its own inline settings
 import { AutoPlayDebugPanel } from '@/components/AutoPlayDebugPanel';
+import { TahfeezFontSettings } from '@/components/TahfeezFontSettings';
 // ---- Quran Index Data ----
 const SURAHS = Object.entries(SURAH_NAMES).map(([name, number]) => ({
   number, name,
@@ -897,7 +898,17 @@ export default function TahfeezPage() {
         </div>
       )}
 
+      {/* Font settings - visible when not in quiz */}
+      {!quizStarted && !hideBars && (
+        <div className="max-w-2xl mx-auto px-4 pt-3">
+          <div className="page-frame p-4">
+            <TahfeezFontSettings />
+          </div>
+        </div>
+      )}
+
       <div className={`mx-auto space-y-6 max-w-2xl w-full px-3 py-2 sm:py-6`} style={{ transform: `scale(${pinchScale})`, transformOrigin: 'top center', transition: pinchRef.current ? 'none' : 'transform 0.2s ease' }}>
+
         {/* Tab 1: Store words */}
         {!quizStarted && activeTab === 'store' && (
           <div className="space-y-4 animate-fade-in">
