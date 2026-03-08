@@ -76,6 +76,7 @@ export default function TahfeezPage() {
     activeWordColor, setActiveWordColor,
     singleWordMode, setSingleWordMode,
     quizInteraction, setQuizInteraction,
+    mcqDisplayMode, setMcqDisplayMode,
   } = useTahfeezStore();
 
   const speech = useSpeech();
