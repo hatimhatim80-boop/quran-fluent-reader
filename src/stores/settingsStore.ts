@@ -263,6 +263,14 @@ export const useSettingsStore = create<SettingsState>()(
           },
         })),
 
+      setVerseNumber: (vn) =>
+        set((state) => ({
+          settings: {
+            ...state.settings,
+            verseNumber: { ...state.settings.verseNumber, ...vn },
+          },
+        })),
+
       setDebugMode: (enabled) =>
         set((state) => ({
           settings: { ...state.settings, debugMode: enabled },
@@ -274,6 +282,7 @@ export const useSettingsStore = create<SettingsState>()(
       resetAutoplay: () => set((state) => ({ settings: { ...state.settings, autoplay: defaultSettings.autoplay } })),
       resetDisplay: () => set((state) => ({ settings: { ...state.settings, display: defaultSettings.display } })),
       resetMeaningBox: () => set((state) => ({ settings: { ...state.settings, meaningBox: defaultSettings.meaningBox } })),
+      resetVerseNumber: () => set((state) => ({ settings: { ...state.settings, verseNumber: defaultSettings.verseNumber } })),
       resetSettings: () => set({ settings: defaultSettings }),
 
       exportSettings: () => {
