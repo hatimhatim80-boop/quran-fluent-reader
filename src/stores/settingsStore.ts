@@ -48,6 +48,18 @@ export interface MeaningBoxFontSettings {
   meaningFontSize: number;
 }
 
+// Verse number (ayah circle) settings
+export interface VerseNumberSettings {
+  fontSize: number;       // relative size of the number (em)
+  circleSize: number;     // size of the circle (em)
+  borderWidth: number;    // border thickness (px)
+  shape: 'circle' | 'rounded' | 'square' | 'none';
+  numberColor: string;    // HSL values
+  borderColor: string;    // HSL values
+  bgColor: string;        // HSL values
+  visible: boolean;
+}
+
 // Popover style settings
 export interface PopoverSettings {
   width: number;
@@ -88,6 +100,7 @@ export interface AppSettings {
   display: DisplaySettings;
   update: UpdateSettings;
   meaningBox: MeaningBoxFontSettings;
+  verseNumber: VerseNumberSettings;
   debugMode: boolean;
 }
 
