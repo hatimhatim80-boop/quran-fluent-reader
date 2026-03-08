@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useTahfeezStore, TahfeezItem } from '@/stores/tahfeezStore';
 import { MCQStats, TahfeezMCQPanel } from '@/components/TahfeezMCQPanel';
-import { TahfeezSegmentMCQView } from '@/components/TahfeezSegmentMCQView';
+import { TahfeezSegmentMCQView, SegmentMCQStats } from '@/components/TahfeezSegmentMCQView';
 import { useSessionsStore } from '@/stores/sessionsStore';
 import { toast } from 'sonner';
 import { useQuranData } from '@/hooks/useQuranData';
@@ -87,6 +87,7 @@ export default function TahfeezPage() {
     segmentMcqCorrectDelay, setSegmentMcqCorrectDelay,
     segmentMcqWrongDelay, setSegmentMcqWrongDelay,
     segmentMcqRandomOrder, setSegmentMcqRandomOrder,
+    segmentMcqMultiPage, setSegmentMcqMultiPage,
   } = useTahfeezStore();
 
   const speech = useSpeech();
@@ -136,6 +137,7 @@ export default function TahfeezPage() {
 
   const [quizStarted, setQuizStarted] = useState(false);
   const [storeWhileQuiz, setStoreWhileQuiz] = useState(false);
+  const [segmentMcqAccumulatedStats, setSegmentMcqAccumulatedStats] = useState<SegmentMCQStats | null>(null);
   const [isPaused, setIsPaused] = useState(false);
   useKeepAwake(keepScreenAwake && quizStarted && !isPaused);
   const [showAll, setShowAll] = useState(false);
@@ -661,6 +663,7 @@ export default function TahfeezPage() {
       isFirstStartRef.current = true;
       autoResumeQuizRef.current = false;
       setQuizStarted(true);
+      setSegmentMcqAccumulatedStats(null);
       setIsPaused(false);
       setShowAll(false);
       setRevealedKeys(new Set());
@@ -1395,6 +1398,13 @@ export default function TahfeezPage() {
                       onCheckedChange={(v) => setSegmentMcqRandomOrder(v)}
                     />
                   </div>
+                  <div className="flex items-center justify-between p-2 rounded-lg border">
+                    <label className="text-xs font-arabic text-foreground">متابعة الأسئلة عبر الصفحات</label>
+                    <Switch
+                      checked={segmentMcqMultiPage}
+                      onCheckedChange={(v) => setSegmentMcqMultiPage(v)}
+                    />
+                  </div>
                   {/* Segment MCQ delay settings */}
                   <div className="space-y-2 mt-2">
                     <div className="space-y-1">
@@ -1748,8 +1758,21 @@ export default function TahfeezPage() {
               mode={autoBlankMode as 'next-ayah-mcq' | 'next-waqf-mcq'}
               inline={segmentMcqInline}
               choicesAtBlank={segmentMcqChoicesAtBlank && segmentMcqInline}
-              onFinish={() => { setQuizStarted(false); if (revealTimerRef.current) clearTimeout(revealTimerRef.current); }}
-              onRestart={() => {}}
+              multiPage={segmentMcqMultiPage && quizPagesRange.length > 1}
+              accumulatedStats={segmentMcqAccumulatedStats}
+              onFinish={() => { setQuizStarted(false); setSegmentMcqAccumulatedStats(null); if (revealTimerRef.current) clearTimeout(revealTimerRef.current); }}
+              onRestart={() => { setSegmentMcqAccumulatedStats(null); }}
+              onNextPage={(stats) => {
+                const nextIdx = quizPagesRange.indexOf(currentPage) + 1;
+                if (nextIdx < quizPagesRange.length) {
+                  setSegmentMcqAccumulatedStats(stats);
+                  goToPage(quizPagesRange[nextIdx]);
+                  setQuizPageIdx(nextIdx);
+                } else {
+                  // Last page - show results by resetting multiPage flag temporarily
+                  setSegmentMcqAccumulatedStats(null);
+                }
+              }}
             />
             <div className="flex items-center justify-center gap-2 flex-wrap">
               <Button variant="outline" size="sm" onClick={() => { setQuizStarted(false); if (revealTimerRef.current) clearTimeout(revealTimerRef.current); }} className="font-arabic">

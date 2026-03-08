@@ -18,7 +18,7 @@ interface MCQQuestion {
   options: { segment: Segment; isCorrect: boolean }[];
 }
 
-interface SegmentMCQStats {
+export interface SegmentMCQStats {
   correct: number;
   wrong: number;
   total: number;
@@ -31,8 +31,11 @@ interface TahfeezSegmentMCQViewProps {
   mode: SegmentMode;
   inline?: boolean;
   choicesAtBlank?: boolean;
+  multiPage?: boolean;
+  accumulatedStats?: SegmentMCQStats | null;
   onFinish?: () => void;
   onRestart?: () => void;
+  onNextPage?: (stats: SegmentMCQStats) => void;
 }
 
 /** Render a blank span that preserves the original segment's width with a dotted line */
@@ -185,8 +188,11 @@ export function TahfeezSegmentMCQView({
   mode,
   inline = false,
   choicesAtBlank = false,
+  multiPage = false,
+  accumulatedStats = null,
   onFinish,
   onRestart,
+  onNextPage,
 }: TahfeezSegmentMCQViewProps) {
   const segments = useMemo(() => parseSegments(page.text, mode, page.pageNumber), [page.text, mode, page.pageNumber]);
   const { segmentMcqCorrectDelay, segmentMcqWrongDelay, segmentMcqRandomOrder } = useTahfeezStore();
@@ -195,8 +201,10 @@ export function TahfeezSegmentMCQView({
   const [currentQ, setCurrentQ] = useState(0);
   const [feedback, setFeedback] = useState<'correct' | 'wrong' | null>(null);
   const [selectedIdx, setSelectedIdx] = useState<number | null>(null);
+  const baseStats: SegmentMCQStats = accumulatedStats || { correct: 0, wrong: 0, total: 0, startTime: Date.now(), answers: [] };
   const [stats, setStats] = useState<SegmentMCQStats>({
-    correct: 0, wrong: 0, total: questions.length, startTime: Date.now(), answers: [],
+    ...baseStats,
+    total: baseStats.total + questions.length,
   });
   const [showResults, setShowResults] = useState(false);
 
@@ -221,11 +229,27 @@ export function TahfeezSegmentMCQView({
       }],
     }));
 
+    // Compute updated stats for potential onNextPage call
+    const updatedStats: SegmentMCQStats = {
+      correct: stats.correct + (isCorrect ? 1 : 0),
+      wrong: stats.wrong + (isCorrect ? 0 : 1),
+      total: stats.total,
+      startTime: stats.startTime,
+      answers: [...stats.answers, {
+        prompt: question.promptSegment.text.slice(0, 40),
+        correct: isCorrect,
+        chosen: opt.segment.text.slice(0, 40),
+        expected: question.correctAnswer.text.slice(0, 40),
+      }],
+    };
+
     setTimeout(() => {
       if (currentQ < questions.length - 1) {
         setCurrentQ(prev => prev + 1);
         setFeedback(null);
         setSelectedIdx(null);
+      } else if (multiPage && onNextPage) {
+        onNextPage(updatedStats);
       } else {
         setShowResults(true);
       }

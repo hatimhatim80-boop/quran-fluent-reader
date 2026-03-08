@@ -200,6 +200,10 @@ interface TahfeezState {
   // Segment MCQ random order
   segmentMcqRandomOrder: boolean;
   setSegmentMcqRandomOrder: (on: boolean) => void;
+
+  // Segment MCQ multi-page (continue across pages)
+  segmentMcqMultiPage: boolean;
+  setSegmentMcqMultiPage: (on: boolean) => void;
 }
 
 export const useTahfeezStore = create<TahfeezState>()(
@@ -347,6 +351,9 @@ export const useTahfeezStore = create<TahfeezState>()(
 
       segmentMcqRandomOrder: false,
       setSegmentMcqRandomOrder: (on) => set({ segmentMcqRandomOrder: on }),
+
+      segmentMcqMultiPage: false,
+      setSegmentMcqMultiPage: (on) => set({ segmentMcqMultiPage: on }),
     }),
     {
       name: 'tahfeez.v2',
@@ -381,6 +388,7 @@ export const useTahfeezStore = create<TahfeezState>()(
         segmentMcqCorrectDelay: state.segmentMcqCorrectDelay,
         segmentMcqWrongDelay: state.segmentMcqWrongDelay,
         segmentMcqRandomOrder: state.segmentMcqRandomOrder,
+        segmentMcqMultiPage: state.segmentMcqMultiPage,
       }),
     }
   )
