@@ -1443,6 +1443,15 @@ export default function TahfeezPage() {
               }}
             />
 
+            {/* Mic indicator */}
+            {voiceMode && speech.isListening && (
+              <div className="flex items-center justify-center gap-2 text-xs font-arabic text-primary animate-pulse">
+                <Mic className="w-4 h-4" />
+                <span>يستمع... تحدث الآن</span>
+                {speech.transcript && <span className="text-muted-foreground truncate max-w-[150px]">"{speech.transcript}"</span>}
+              </div>
+            )}
+
             {/* Controls */}
             <div className="flex items-center justify-center gap-2 flex-wrap">
               <Button variant="outline" size="sm" onClick={handlePauseResume} className="font-arabic">
@@ -1453,6 +1462,21 @@ export default function TahfeezPage() {
                 <Save className="w-4 h-4 ml-1" />
                 تخزين
               </Button>
+              {/* Toggle voice on/off during quiz */}
+              {speech.isSupported && (
+                <Button
+                  variant={voiceMode ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => {
+                    if (voiceMode) { speech.stop(); setVoiceMode(false); }
+                    else setVoiceMode(true);
+                  }}
+                  className="font-arabic"
+                >
+                  {voiceMode ? <Mic className="w-4 h-4 ml-1" /> : <MicOff className="w-4 h-4 ml-1" />}
+                  {voiceMode ? 'صوتي' : 'صوتي'}
+                </Button>
+              )}
               <Button variant="outline" size="sm" onClick={handleRevealAll} className="font-arabic" disabled={showAll}>
                 <Eye className="w-4 h-4 ml-1" />
                 كشف الكل
