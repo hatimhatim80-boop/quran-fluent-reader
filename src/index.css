@@ -1252,14 +1252,21 @@
     display: inline-block;
     color: hsl(var(--foreground) / 0.9);
     user-select: none;
-    overflow: hidden;
-    white-space: nowrap;
     vertical-align: baseline;
     line-height: inherit;
-    font-size: 1em;
-    letter-spacing: 0.08em;
-    text-align: center;
+    /* Subtle bottom border to clearly mark each blank */
+    border-bottom: 2px dotted hsl(var(--foreground) / 0.3);
+    margin-inline: 1px;
     /* No border, no background, no outline, no box-shadow */
+  }
+
+  /* Add visual separator between consecutive blanks */
+  .tahfeez-blank + .tahfeez-blank,
+  .tahfeez-active-indicator + .tahfeez-blank,
+  .tahfeez-blank + .tahfeez-active-indicator {
+    margin-inline-start: 4px;
+    border-inline-start: 1px solid hsl(var(--foreground) / 0.15);
+    padding-inline-start: 4px;
   }
 
   /* Active blank - currently being revealed word with distinctive highlight — NO boxes */
