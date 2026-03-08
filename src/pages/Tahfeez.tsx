@@ -1660,6 +1660,19 @@ export default function TahfeezPage() {
                 }
               }}
               onClickBlankWord={(key) => {
+                if (quizInteraction === 'tap-only') {
+                  // Tap-only: reveal clicked blank and advance to next unrevealed
+                  setRevealedKeys(prev => singleWordMode ? new Set([key]) : new Set([...prev, key]));
+                  const idx = blankedKeysList.indexOf(key);
+                  const nextIdx = idx + 1;
+                  if (nextIdx < blankedKeysList.length) {
+                    setActiveBlankKey(blankedKeysList[nextIdx]);
+                  } else {
+                    setActiveBlankKey(null);
+                    setShowAll(true);
+                  }
+                  return;
+                }
                 // Jump quiz to start from clicked word
                 const idx = blankedKeysList.indexOf(key);
                 if (idx < 0) return;
