@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useTahfeezStore, TahfeezItem } from '@/stores/tahfeezStore';
+import { MCQStats, TahfeezMCQPanel } from '@/components/TahfeezMCQPanel';
 import { useSessionsStore } from '@/stores/sessionsStore';
 import { toast } from 'sonner';
 import { useQuranData } from '@/hooks/useQuranData';
@@ -9,7 +10,7 @@ import { useKeepAwake } from '@/hooks/useKeepAwake';
 import { useSpeech } from '@/hooks/useSpeech';
 import { normalizeArabic } from '@/utils/quranParser';
 import { Link, useNavigate } from 'react-router-dom';
-import { BookOpen, Play, Pause, Eye, EyeOff, ArrowRight, Save, Trash2, GraduationCap, ListChecks, Zap, Book, Layers, Hash, FileText, Search, X, ChevronLeft, Download, Upload, ChevronsRight, Undo2, Palette, Mic, MicOff } from 'lucide-react';
+import { BookOpen, Play, Pause, Eye, EyeOff, ArrowRight, Save, Trash2, GraduationCap, ListChecks, Zap, Book, Layers, Hash, FileText, Search, X, ChevronLeft, Download, Upload, ChevronsRight, Undo2, Palette, Mic, MicOff, MousePointerClick } from 'lucide-react';
 import { SpeedControlWidget } from '@/components/SpeedControlWidget';
 
 import { HiddenBarsOverlay } from '@/components/HiddenBarsOverlay';
@@ -73,6 +74,7 @@ export default function TahfeezPage() {
     revealedWithBg, setRevealedWithBg,
     activeWordColor, setActiveWordColor,
     singleWordMode, setSingleWordMode,
+    quizInteraction, setQuizInteraction,
   } = useTahfeezStore();
 
   const speech = useSpeech();
@@ -141,6 +143,12 @@ export default function TahfeezPage() {
   const contentRef = useRef<HTMLDivElement>(null);
   const swipeRef = useRef<{ startX: number; startY: number; startTime: number } | null>(null);
   const [quizPageIdx, setQuizPageIdx] = useState(0);
+
+  // MCQ state
+  const [mcqStats, setMcqStats] = useState<MCQStats>({ correct: 0, wrong: 0, total: 0, startTime: Date.now(), answers: [] });
+  const [mcqShowResults, setMcqShowResults] = useState(false);
+  const [mcqCurrentIdx, setMcqCurrentIdx] = useState(0);
+  const [allPageWordTexts, setAllPageWordTexts] = useState<string[]>([]);
 
   // Refs to always read latest values inside setTimeout chains (avoids stale closures)
   const currentPageRef = useRef(currentPage);
@@ -342,6 +350,8 @@ export default function TahfeezPage() {
           wordTextsMapRef.current = wordTexts;
           setBlankedKeysList(keys);
           setFirstKeysSet(new Set(fKeys));
+          // Collect all word texts on this page for MCQ distractors
+          setAllPageWordTexts(Object.values(wordTexts));
 
           // Auto-resume after page transition OR first start
           if (autoResumeQuizRef.current || isFirstStartRef.current) {
@@ -352,7 +362,14 @@ export default function TahfeezPage() {
             setRevealedKeys(new Set());
             setShowAll(false);
             setActiveBlankKey(null);
-            setCurrentRevealIdx(0);
+            if (quizInteraction === 'mcq') {
+              // MCQ mode: set active blank to first key, update total
+              setMcqCurrentIdx(0);
+              setActiveBlankKey(keys[0]);
+              setMcqStats(prev => ({ ...prev, total: keys.length }));
+            } else {
+              setCurrentRevealIdx(0);
+            }
           }
           return true;
         }
@@ -421,6 +438,8 @@ export default function TahfeezPage() {
   // advance() chains itself via setTimeout. The effect only starts/stops the chain.
   useEffect(() => {
     if (!quizStarted || isPaused || showAll || blankedKeysListRef.current.length === 0) return;
+    // Skip auto-reveal chain in MCQ mode
+    if (quizInteraction === 'mcq') return;
     // Don't start if currentRevealIdx is still -1 (waiting for auto-resume)
     if (currentRevealIdx < 0) return;
 
@@ -599,6 +618,10 @@ export default function TahfeezPage() {
       setCurrentRevealIdx(-1);
       setBlankedKeysList([]);
       setQuizPageIdx(0);
+      // Reset MCQ state
+      setMcqStats({ correct: 0, wrong: 0, total: 0, startTime: Date.now(), answers: [] });
+      setMcqShowResults(false);
+      setMcqCurrentIdx(0);
     } catch (err) {
       console.error('[tahfeez] Error in handleStart:', err);
       toast.error('حدث خطأ أثناء بدء الاختبار');
@@ -664,6 +687,32 @@ export default function TahfeezPage() {
       console.error('[tahfeez] Error in handleRevealAll:', err);
     }
   };
+
+  // MCQ answer handler
+  const handleMCQAnswer = useCallback((key: string, correct: boolean) => {
+    const wordText = wordTextsMapRef.current[key] || '';
+    // Reveal the word
+    setRevealedKeys(prev => new Set([...prev, key]));
+    setMcqStats(prev => ({
+      ...prev,
+      correct: prev.correct + (correct ? 1 : 0),
+      wrong: prev.wrong + (correct ? 0 : 1),
+      answers: [...prev.answers, { key, word: wordText, correct, chosen: '' }],
+    }));
+    
+    // Advance to next blank
+    const list = blankedKeysListRef.current;
+    const nextIdx = mcqCurrentIdx + 1;
+    if (nextIdx >= list.length) {
+      // End of page
+      setActiveBlankKey(null);
+      setShowAll(true);
+      setMcqShowResults(true);
+    } else {
+      setMcqCurrentIdx(nextIdx);
+      setActiveBlankKey(list[nextIdx]);
+    }
+  }, [mcqCurrentIdx]);
 
   const handleGoToMushaf = () => {
     setSelectionMode(true);
@@ -1075,7 +1124,24 @@ export default function TahfeezPage() {
                   />
                 </div>
 
-                {/* Voice Recognition Mode — disabled */}
+                {/* Quiz interaction mode */}
+                <div className="flex items-center justify-between p-2 rounded-lg border">
+                  <div className="flex flex-col">
+                    <label className="text-xs font-arabic text-foreground">طريقة الإجابة</label>
+                    <span className="text-[10px] text-muted-foreground font-arabic">
+                      {quizInteraction === 'mcq' ? 'اختيار من متعدد (3 خيارات)' : 'ظهور تلقائي بمؤقت'}
+                    </span>
+                  </div>
+                  <div className="flex gap-1">
+                    <Button variant={quizInteraction === 'auto-reveal' ? 'default' : 'outline'} size="sm" onClick={() => setQuizInteraction('auto-reveal')} className="font-arabic text-[10px] h-7 px-2">
+                      <Eye className="w-3 h-3 ml-1" />تلقائي
+                    </Button>
+                    <Button variant={quizInteraction === 'mcq' ? 'default' : 'outline'} size="sm" onClick={() => setQuizInteraction('mcq')} className="font-arabic text-[10px] h-7 px-2">
+                      <MousePointerClick className="w-3 h-3 ml-1" />اختياري
+                    </Button>
+                  </div>
+                </div>
+
                 <Button
                   onClick={() => { setQuizSource('custom'); handleStartMultiPage(); }}
                   className="w-full font-arabic"
@@ -1336,7 +1402,24 @@ export default function TahfeezPage() {
               />
             </div>
 
-            {/* Voice Recognition Mode — disabled */}
+            {/* Quiz interaction mode */}
+            <div className="flex items-center justify-between p-2 rounded-lg border">
+              <div className="flex flex-col">
+                <label className="text-xs font-arabic text-foreground">طريقة الإجابة</label>
+                <span className="text-[10px] text-muted-foreground font-arabic">
+                  {quizInteraction === 'mcq' ? 'اختيار من متعدد (3 خيارات)' : 'ظهور تلقائي بمؤقت'}
+                </span>
+              </div>
+              <div className="flex gap-1">
+                <Button variant={quizInteraction === 'auto-reveal' ? 'default' : 'outline'} size="sm" onClick={() => setQuizInteraction('auto-reveal')} className="font-arabic text-[10px] h-7 px-2">
+                  <Eye className="w-3 h-3 ml-1" />تلقائي
+                </Button>
+                <Button variant={quizInteraction === 'mcq' ? 'default' : 'outline'} size="sm" onClick={() => setQuizInteraction('mcq')} className="font-arabic text-[10px] h-7 px-2">
+                  <MousePointerClick className="w-3 h-3 ml-1" />اختياري
+                </Button>
+              </div>
+            </div>
+
             <Button onClick={() => { setQuizSource('auto'); handleStartMultiPage(); }} className="w-full font-arabic" disabled={!pageData}>
               <Play className="w-4 h-4 ml-2" />
               ابدأ الاختبار {quizScope === 'current-page' ? `(صفحة ${currentPage})` : `(${quizPagesRange.length} صفحة)`}
@@ -1440,8 +1523,27 @@ export default function TahfeezPage() {
               }}
             />
 
+            {/* MCQ Panel */}
+            {quizInteraction === 'mcq' && (
+              <TahfeezMCQPanel
+                activeKey={activeBlankKey}
+                wordTextsMap={wordTextsMapRef.current}
+                allWordTexts={allPageWordTexts}
+                onAnswer={handleMCQAnswer}
+                stats={mcqStats}
+                showResults={mcqShowResults}
+                onRestart={() => {
+                  setQuizStarted(false);
+                  setTimeout(() => {
+                    setQuizSource(quizSource);
+                    handleStartMultiPage();
+                  }, 100);
+                }}
+              />
+            )}
+
             {/* Mic indicator */}
-            {voiceMode && speech.isListening && (
+            {quizInteraction !== 'mcq' && voiceMode && speech.isListening && (
               <div className="flex items-center justify-center gap-2 text-xs font-arabic text-primary animate-pulse">
                 <Mic className="w-4 h-4" />
                 <span>يستمع... تحدث الآن</span>
