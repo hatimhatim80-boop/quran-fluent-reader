@@ -532,14 +532,39 @@ export default function TahfeezPage() {
         const wordText = wordTextsMapRef.current[key] || '';
 
         const revealAndAdvance = () => {
-          if (singleWordMode) {
-            setRevealedKeys(new Set([key]));
+          const granularity = revealGranularityRef.current;
+          const groups = granularity === 'ayah' ? ayahKeyGroupsRef.current : granularity === 'waqf-segment' ? waqfKeyGroupsRef.current : null;
+          
+          if (groups && groups.length > 0) {
+            // Find the group containing the current key
+            const groupIdx = groups.findIndex(g => g.includes(key));
+            const groupKeys = groupIdx >= 0 ? groups[groupIdx] : [key];
+            
+            if (singleWordMode) {
+              setRevealedKeys(new Set(groupKeys));
+            } else {
+              setRevealedKeys(prev => {
+                const next = new Set(prev);
+                groupKeys.forEach(k => next.add(k));
+                return next;
+              });
+            }
+            setActiveBlankKey(null);
+            // Find the next key AFTER this entire group
+            const lastGroupKey = groupKeys[groupKeys.length - 1];
+            const lastIdx = list.indexOf(lastGroupKey);
+            const nextIdx = lastIdx >= 0 ? lastIdx + 1 : idx + 1;
+            revealTimerRef.current = setTimeout(() => advance(nextIdx), 150);
           } else {
-            setRevealedKeys(prev => new Set([...prev, key]));
+            // Word-by-word (default)
+            if (singleWordMode) {
+              setRevealedKeys(new Set([key]));
+            } else {
+              setRevealedKeys(prev => new Set([...prev, key]));
+            }
+            setActiveBlankKey(null);
+            revealTimerRef.current = setTimeout(() => advance(idx + 1), 150);
           }
-          setActiveBlankKey(null);
-          // Small delay before advancing to next word — ensures single reveal per step
-          revealTimerRef.current = setTimeout(() => advance(idx + 1), 150);
         };
 
         const startVoiceOrTimer = () => {
