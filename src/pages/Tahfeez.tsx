@@ -663,6 +663,7 @@ export default function TahfeezPage() {
       isFirstStartRef.current = true;
       autoResumeQuizRef.current = false;
       setQuizStarted(true);
+      setSegmentMcqAccumulatedStats(null);
       setIsPaused(false);
       setShowAll(false);
       setRevealedKeys(new Set());
