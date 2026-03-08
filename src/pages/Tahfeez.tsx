@@ -1576,7 +1576,25 @@ export default function TahfeezPage() {
               />
             </div>
 
-            <TahfeezQuizView
+            {/* MCQ Panel - TOP position */}
+            {quizInteraction === 'mcq' && mcqDisplayMode === 'panel' && mcqPanelPosition === 'top' && (
+              <TahfeezMCQPanel
+                activeKey={activeBlankKey}
+                wordTextsMap={wordTextsMapRef.current}
+                allWordTexts={allPageWordTexts}
+                onAnswer={handleMCQAnswer}
+                stats={mcqStats}
+                showResults={mcqShowResults}
+                onRestart={() => {
+                  setQuizStarted(false);
+                  setTimeout(() => {
+                    setQuizSource(quizSource);
+                    handleStartMultiPage();
+                  }, 100);
+                }}
+              />
+            )}
+
               page={pageData}
               quizSource={quizSource}
               storedItems={storedItems}
