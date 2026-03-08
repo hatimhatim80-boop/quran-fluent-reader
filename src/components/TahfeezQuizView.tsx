@@ -507,11 +507,10 @@ export function TahfeezQuizView({
 
         if (shouldHide) {
           const blankClickHandler = !storeMode && onClickBlankWord ? () => onClickBlankWord(key) : storeClickHandler;
-          const wordWidth = measureTextWidth(t, measureFont);
-          const dots = makeDots(wordWidth, `${fontWeight} ${fontSize}px sans-serif`);
+          const dots = makeDots(t);
           lineElements.push(
             <span key={`${lineIdx}-${tokenIdx}`} className={`tahfeez-blank${storeMode ? ' tahfeez-store-target' : ''}${isStored ? ' tahfeez-stored' : ''}`}
-              onClick={blankClickHandler} style={{ cursor: 'pointer', display: 'inline-block', width: `${wordWidth}px`, overflow: 'hidden', whiteSpace: 'nowrap', fontFamily: 'sans-serif' }}>{dots}</span>
+              onClick={blankClickHandler} style={{ cursor: 'pointer', display: 'inline-block', fontFamily: 'sans-serif' }}>{dots}</span>
           );
         } else if (shouldShowAsActive) {
           if (inlineMCQ && inlineMCQOptions.length > 0) {
@@ -553,11 +552,10 @@ export function TahfeezQuizView({
             );
           } else {
             // Normal active: show dots with pulsing glow
-            const wordWidth = measureTextWidth(t, measureFont);
-            const dots = makeDots(wordWidth, `${fontWeight} ${fontSize}px sans-serif`);
+            const dots = makeDots(t);
             lineElements.push(
               <span key={`${lineIdx}-${tokenIdx}`} className={`tahfeez-active-indicator tahfeez-active--${activeWordColor}`} data-tahfeez-active="true" onClick={storeMode ? storeClickHandler : onClickActiveBlank}
-                style={{ cursor: 'pointer', display: 'inline-block', width: `${wordWidth}px`, overflow: 'hidden', whiteSpace: 'nowrap', fontFamily: 'sans-serif' }}>
+                style={{ cursor: 'pointer', display: 'inline-block', fontFamily: 'sans-serif' }}>
                 {dots}
               </span>
             );
