@@ -246,6 +246,52 @@ export function TahfeezQuizView({
           for (let a = 0; a < count; a++) {
             ayahGroups[a].forEach(t => keys.add(t.key));
           }
+        } else if (autoBlankMode === 'between-waqf' || autoBlankMode === 'waqf-to-ayah' || autoBlankMode === 'ayah-to-waqf') {
+          // Waqf-based blanking modes
+          const waqfRegex = /[ۖۗۘۙۚۛ]/;
+          
+          for (const group of ayahGroups) {
+            // Find indices of tokens that contain waqf marks
+            const waqfIndices: number[] = [];
+            for (let i = 0; i < group.length; i++) {
+              if (waqfRegex.test(group[i].text)) {
+                waqfIndices.push(i);
+              }
+            }
+            
+            if (autoBlankMode === 'between-waqf') {
+              // Blank words between consecutive waqf marks
+              if (waqfIndices.length >= 2) {
+                for (let w = 0; w < waqfIndices.length - 1; w++) {
+                  // Blank from after first waqf to before second waqf (inclusive of boundaries)
+                  for (let i = waqfIndices[w]; i <= waqfIndices[w + 1]; i++) {
+                    keys.add(group[i].key);
+                  }
+                }
+              } else if (waqfIndices.length === 1) {
+                // Only one waqf: blank from it to end of ayah
+                for (let i = waqfIndices[0]; i < group.length; i++) {
+                  keys.add(group[i].key);
+                }
+              }
+            } else if (autoBlankMode === 'waqf-to-ayah') {
+              // Blank from last waqf mark to end of ayah
+              if (waqfIndices.length > 0) {
+                const lastWaqf = waqfIndices[waqfIndices.length - 1];
+                for (let i = lastWaqf + 1; i < group.length; i++) {
+                  keys.add(group[i].key);
+                }
+              }
+            } else if (autoBlankMode === 'ayah-to-waqf') {
+              // Blank from start of ayah to first waqf mark
+              if (waqfIndices.length > 0) {
+                const firstWaqf = waqfIndices[0];
+                for (let i = 0; i < firstWaqf; i++) {
+                  keys.add(group[i].key);
+                }
+              }
+            }
+          }
         } else {
           for (const group of ayahGroups) {
             const wc = group.length;
