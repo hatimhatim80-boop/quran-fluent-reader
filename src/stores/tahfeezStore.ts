@@ -114,6 +114,8 @@ interface TahfeezState {
   setQuizSource: (src: 'custom' | 'auto') => void;
   autoBlankMode: 'beginning' | 'middle' | 'end' | 'beginning-middle' | 'middle-end' | 'beginning-end' | 'beginning-middle-end' | 'full-ayah' | 'full-page' | 'ayah-count' | 'between-waqf' | 'waqf-to-ayah' | 'ayah-to-waqf';
   setAutoBlankMode: (mode: TahfeezState['autoBlankMode']) => void;
+  waqfCombinedModes: ('between-waqf' | 'waqf-to-ayah' | 'ayah-to-waqf')[];
+  setWaqfCombinedModes: (modes: TahfeezState['waqfCombinedModes']) => void;
 
   // Quiz scope
   quizScope: 'current-page' | 'page-range' | 'hizb' | 'surah' | 'juz';
@@ -254,6 +256,8 @@ export const useTahfeezStore = create<TahfeezState>()(
       setQuizSource: (src) => set({ quizSource: src }),
       autoBlankMode: 'end',
       setAutoBlankMode: (mode) => set({ autoBlankMode: mode }),
+      waqfCombinedModes: [],
+      setWaqfCombinedModes: (modes) => set({ waqfCombinedModes: modes }),
       blankCount: 3,
       setBlankCount: (n) => set({ blankCount: n }),
       ayahCount: 1,
@@ -312,6 +316,7 @@ export const useTahfeezStore = create<TahfeezState>()(
         storedItems: state.storedItems,
         quizSource: state.quizSource,
         autoBlankMode: state.autoBlankMode,
+        waqfCombinedModes: state.waqfCombinedModes,
         blankCount: state.blankCount,
         ayahCount: state.ayahCount,
         timerSeconds: state.timerSeconds,
