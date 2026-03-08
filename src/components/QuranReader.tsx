@@ -5,6 +5,7 @@ import { useAutoPlay } from '@/hooks/useAutoPlay';
 import { useKeepAwake } from '@/hooks/useKeepAwake';
 import { GhareebWord } from '@/types/quran';
 import { PageView } from './PageView';
+import { MadinahPageView } from './MadinahPageView';
 import { PageEndBanner } from './PageEndBanner';
 
 import { PageNavigation } from './PageNavigation';
@@ -424,7 +425,9 @@ export function QuranReader() {
           <AutoPlayDebugPanel visible={!!settings.debugMode} />
 
           <div style={{ transform: pinchScale !== 1 ? `scale(${pinchScale})` : undefined, transformOrigin: 'center center', transition: 'transform 0.1s ease-out' }}>
-            {pageData ? (
+            {settings.display.mode === 'madinah' ? (
+              <MadinahPageView pageNumber={currentPage} />
+            ) : pageData ? (
               <PageView
                 page={pageData}
                 ghareebWords={pageWords}
