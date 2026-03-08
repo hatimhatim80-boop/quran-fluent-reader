@@ -1145,6 +1145,21 @@ export default function TahfeezPage() {
                   onCheckedChange={(v) => setSingleWordMode(v)}
                 />
               </div>
+
+              {/* Voice recognition toggle */}
+              <div className="flex items-center justify-between p-2 rounded-lg border">
+                <div className="flex flex-col">
+                  <label className="text-xs font-arabic text-foreground">التسميع الصوتي</label>
+                  <span className="text-[10px] text-muted-foreground font-arabic">
+                    {speech.isSupported ? 'يكشف الكلمة عند نطقها صحيحاً' : 'غير متاح في هذا المتصفح'}
+                  </span>
+                </div>
+                <Switch
+                  checked={voiceMode}
+                  onCheckedChange={(v) => setVoiceMode(v)}
+                  disabled={!speech.isSupported}
+                />
+              </div>
             </div>
 
             {/* Color settings for active word and revealed words */}
