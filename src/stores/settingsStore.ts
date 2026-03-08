@@ -48,6 +48,18 @@ export interface MeaningBoxFontSettings {
   meaningFontSize: number;
 }
 
+// Verse number (ayah circle) settings
+export interface VerseNumberSettings {
+  fontSize: number;       // relative size of the number (em)
+  circleSize: number;     // size of the circle (em)
+  borderWidth: number;    // border thickness (px)
+  shape: 'circle' | 'rounded' | 'square' | 'none';
+  numberColor: string;    // HSL values
+  borderColor: string;    // HSL values
+  bgColor: string;        // HSL values
+  visible: boolean;
+}
+
 // Popover style settings
 export interface PopoverSettings {
   width: number;
@@ -88,6 +100,7 @@ export interface AppSettings {
   display: DisplaySettings;
   update: UpdateSettings;
   meaningBox: MeaningBoxFontSettings;
+  verseNumber: VerseNumberSettings;
   debugMode: boolean;
 }
 
@@ -153,6 +166,16 @@ const defaultSettings: AppSettings = {
     wordFontSize: 1.4,
     meaningFontSize: 1.1,
   },
+  verseNumber: {
+    fontSize: 0.52,
+    circleSize: 2,
+    borderWidth: 2.5,
+    shape: 'circle',
+    numberColor: '38 70% 28%',
+    borderColor: '43 60% 55%',
+    bgColor: '45 70% 83%',
+    visible: true,
+  },
   debugMode: false,
 };
 
@@ -165,6 +188,7 @@ interface SettingsState {
   setDisplay: (display: Partial<DisplaySettings>) => void;
   setUpdate: (update: Partial<UpdateSettings>) => void;
   setMeaningBox: (mb: Partial<MeaningBoxFontSettings>) => void;
+  setVerseNumber: (vn: Partial<VerseNumberSettings>) => void;
   setDebugMode: (enabled: boolean) => void;
   resetFonts: () => void;
   resetColors: () => void;
@@ -172,6 +196,7 @@ interface SettingsState {
   resetAutoplay: () => void;
   resetDisplay: () => void;
   resetMeaningBox: () => void;
+  resetVerseNumber: () => void;
   resetSettings: () => void;
   exportSettings: () => string;
   importSettings: (json: string) => boolean;
@@ -238,6 +263,14 @@ export const useSettingsStore = create<SettingsState>()(
           },
         })),
 
+      setVerseNumber: (vn) =>
+        set((state) => ({
+          settings: {
+            ...state.settings,
+            verseNumber: { ...state.settings.verseNumber, ...vn },
+          },
+        })),
+
       setDebugMode: (enabled) =>
         set((state) => ({
           settings: { ...state.settings, debugMode: enabled },
@@ -249,6 +282,7 @@ export const useSettingsStore = create<SettingsState>()(
       resetAutoplay: () => set((state) => ({ settings: { ...state.settings, autoplay: defaultSettings.autoplay } })),
       resetDisplay: () => set((state) => ({ settings: { ...state.settings, display: defaultSettings.display } })),
       resetMeaningBox: () => set((state) => ({ settings: { ...state.settings, meaningBox: defaultSettings.meaningBox } })),
+      resetVerseNumber: () => set((state) => ({ settings: { ...state.settings, verseNumber: defaultSettings.verseNumber } })),
       resetSettings: () => set({ settings: defaultSettings }),
 
       exportSettings: () => {

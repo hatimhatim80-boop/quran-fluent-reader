@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { Input } from '@/components/ui/input';
-import { useSettingsStore, FontSettings, ColorSettings, PopoverSettings, MeaningBoxFontSettings } from '@/stores/settingsStore';
+import { useSettingsStore, FontSettings, ColorSettings, PopoverSettings, MeaningBoxFontSettings, VerseNumberSettings } from '@/stores/settingsStore';
 import { SURAH_INFO, SURAH_NAMES } from '@/utils/quranPageIndex';
 import { toast } from 'sonner';
 import { DataUpdatePanel } from './DataUpdatePanel';
@@ -65,6 +65,7 @@ export function SettingsDialog({ children }: SettingsDialogProps) {
     setAutoplay, 
     setDisplay,
     setMeaningBox,
+    setVerseNumber,
     setDebugMode,
     resetSettings,
     resetFonts,
@@ -73,6 +74,7 @@ export function SettingsDialog({ children }: SettingsDialogProps) {
     resetAutoplay,
     resetDisplay,
     resetMeaningBox,
+    resetVerseNumber,
     exportSettings, 
     importSettings 
   } = useSettingsStore();
@@ -404,6 +406,144 @@ export function SettingsDialog({ children }: SettingsDialogProps) {
                   </div>
                 </div>
               )}
+            </div>
+
+            {/* Verse Number Circle Settings */}
+            <div className="space-y-4 border rounded-lg p-4">
+              <div className="flex items-center justify-between">
+                <Label className="font-arabic font-bold">دائرة رقم الآية</Label>
+                <Button variant="ghost" size="sm" onClick={() => { resetVerseNumber(); toast.success('تم إرجاع إعدادات الدائرة للافتراضي'); }} className="gap-1 font-arabic text-xs text-muted-foreground hover:text-primary h-7 px-2">
+                  <RotateCcw className="w-3 h-3" />
+                </Button>
+              </div>
+
+              {/* Preview */}
+              <div className="flex justify-center py-3">
+                <span
+                  className="inline-flex items-center justify-center font-bold"
+                  style={{
+                    fontSize: `${(settings.verseNumber?.fontSize ?? 0.52) * 24}px`,
+                    minWidth: `${(settings.verseNumber?.circleSize ?? 2) * 14}px`,
+                    height: `${(settings.verseNumber?.circleSize ?? 2) * 14}px`,
+                    border: `${settings.verseNumber?.borderWidth ?? 2.5}px solid hsl(${settings.verseNumber?.borderColor ?? '43 60% 55%'})`,
+                    borderRadius: settings.verseNumber?.shape === 'circle' ? '50%' : settings.verseNumber?.shape === 'rounded' ? '25%' : settings.verseNumber?.shape === 'square' ? '4px' : '0',
+                    background: `hsl(${settings.verseNumber?.bgColor ?? '45 70% 83%'})`,
+                    color: `hsl(${settings.verseNumber?.numberColor ?? '38 70% 28%'})`,
+                    display: settings.verseNumber?.visible !== false ? 'inline-flex' : 'none',
+                  }}
+                >
+                  ١٢٣
+                </span>
+              </div>
+
+              {/* Visible toggle */}
+              <div className="flex items-center justify-between">
+                <Label className="font-arabic text-sm">إظهار الدائرة</Label>
+                <Switch
+                  checked={settings.verseNumber?.visible !== false}
+                  onCheckedChange={(v) => setVerseNumber({ visible: v })}
+                />
+              </div>
+
+              {/* Shape */}
+              <div className="space-y-2">
+                <Label className="font-arabic text-sm">الشكل</Label>
+                <div className="grid grid-cols-4 gap-2">
+                  {([
+                    { value: 'circle', label: 'دائرة' },
+                    { value: 'rounded', label: 'مستدير' },
+                    { value: 'square', label: 'مربع' },
+                    { value: 'none', label: 'بدون' },
+                  ] as const).map((s) => (
+                    <button
+                      key={s.value}
+                      onClick={() => setVerseNumber({ shape: s.value })}
+                      className={`py-1.5 rounded-lg border text-xs font-arabic transition-all ${(settings.verseNumber?.shape ?? 'circle') === s.value ? 'border-primary bg-primary/10 ring-2 ring-primary/20' : 'border-border hover:border-muted-foreground/50'}`}
+                    >
+                      {s.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Font size */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label className="font-arabic text-sm">حجم الرقم</Label>
+                  <span className="text-xs text-muted-foreground">{(settings.verseNumber?.fontSize ?? 0.52).toFixed(2)}em</span>
+                </div>
+                <Slider
+                  value={[settings.verseNumber?.fontSize ?? 0.52]}
+                  min={0.3}
+                  max={1.2}
+                  step={0.02}
+                  onValueChange={([v]) => setVerseNumber({ fontSize: v })}
+                />
+              </div>
+
+              {/* Circle size */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label className="font-arabic text-sm">حجم الدائرة</Label>
+                  <span className="text-xs text-muted-foreground">{(settings.verseNumber?.circleSize ?? 2).toFixed(1)}em</span>
+                </div>
+                <Slider
+                  value={[settings.verseNumber?.circleSize ?? 2]}
+                  min={1}
+                  max={4}
+                  step={0.1}
+                  onValueChange={([v]) => setVerseNumber({ circleSize: v })}
+                />
+              </div>
+
+              {/* Border width */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label className="font-arabic text-sm">سماكة الحدود</Label>
+                  <span className="text-xs text-muted-foreground">{(settings.verseNumber?.borderWidth ?? 2.5).toFixed(1)}px</span>
+                </div>
+                <Slider
+                  value={[settings.verseNumber?.borderWidth ?? 2.5]}
+                  min={0}
+                  max={5}
+                  step={0.5}
+                  onValueChange={([v]) => setVerseNumber({ borderWidth: v })}
+                />
+              </div>
+
+              {/* Colors */}
+              <div className="grid grid-cols-3 gap-3">
+                <div className="space-y-1">
+                  <Label className="font-arabic text-xs">لون الرقم</Label>
+                  <Input
+                    value={settings.verseNumber?.numberColor ?? '38 70% 28%'}
+                    onChange={(e) => setVerseNumber({ numberColor: e.target.value })}
+                    className="text-xs h-8 font-mono"
+                    dir="ltr"
+                    placeholder="H S% L%"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="font-arabic text-xs">لون الحدود</Label>
+                  <Input
+                    value={settings.verseNumber?.borderColor ?? '43 60% 55%'}
+                    onChange={(e) => setVerseNumber({ borderColor: e.target.value })}
+                    className="text-xs h-8 font-mono"
+                    dir="ltr"
+                    placeholder="H S% L%"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="font-arabic text-xs">لون الخلفية</Label>
+                  <Input
+                    value={settings.verseNumber?.bgColor ?? '45 70% 83%'}
+                    onChange={(e) => setVerseNumber({ bgColor: e.target.value })}
+                    className="text-xs h-8 font-mono"
+                    dir="ltr"
+                    placeholder="H S% L%"
+                  />
+                </div>
+              </div>
             </div>
           </TabsContent>
 

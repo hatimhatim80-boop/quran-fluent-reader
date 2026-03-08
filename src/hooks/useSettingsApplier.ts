@@ -99,6 +99,26 @@ export function useSettingsApplier() {
     const effectiveSpacing = settings.display?.spacingMode === 'spaced' ? (settings.display?.wordSpacing ?? 0.05) : 0;
     root.style.setProperty('--quran-word-spacing', `${effectiveSpacing}em`);
 
+    // === VERSE NUMBER SETTINGS ===
+    const vn = settings.verseNumber;
+    if (vn) {
+      root.style.setProperty('--vn-font-size', `${vn.fontSize}em`);
+      root.style.setProperty('--vn-circle-size', `${vn.circleSize}em`);
+      root.style.setProperty('--vn-border-width', `${vn.borderWidth}px`);
+      root.style.setProperty('--vn-number-color', `hsl(${vn.numberColor})`);
+      root.style.setProperty('--vn-border-color', `hsl(${vn.borderColor})`);
+      root.style.setProperty('--vn-bg-color', `hsl(${vn.bgColor})`);
+      root.style.setProperty('--vn-visible', vn.visible ? 'inline-flex' : 'none');
+      const radiusMap: Record<string, string> = {
+        circle: '50%',
+        rounded: '25%',
+        square: '4px',
+        none: '0',
+      };
+      root.style.setProperty('--vn-border-radius', radiusMap[vn.shape] || '50%');
+      root.style.setProperty('--vn-shape-border', vn.shape === 'none' ? '0' : `${vn.borderWidth}px`);
+    }
+
     // Custom font support
     if (settings.fonts.fontFamily === 'custom' && (settings.fonts as any).customFontUrl) {
       const url = (settings.fonts as any).customFontUrl;

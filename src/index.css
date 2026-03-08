@@ -269,21 +269,21 @@
     word-spacing: 0.25em;
   }
 
-  /* Verse number styling - golden ornamental circle */
+  /* Verse number styling - controlled by CSS variables from settings */
   .verse-number {
-    display: inline-flex;
+    display: var(--vn-visible, inline-flex);
     align-items: center;
     justify-content: center;
-    font-size: 0.52em;
-    color: hsl(38 70% 28%);
+    font-size: var(--vn-font-size, 0.52em);
+    color: var(--vn-number-color, hsl(38 70% 28%));
     margin: 0 0.2em;
     vertical-align: middle;
-    min-width: 2em;
-    height: 2em;
+    min-width: var(--vn-circle-size, 2em);
+    height: var(--vn-circle-size, 2em);
     padding: 0 0.25em;
-    border: 2.5px solid hsl(43 60% 55%);
-    border-radius: 50%;
-    background: linear-gradient(145deg, hsl(45 70% 88%), hsl(40 55% 78%));
+    border: var(--vn-shape-border, 2.5px) solid var(--vn-border-color, hsl(43 60% 55%));
+    border-radius: var(--vn-border-radius, 50%);
+    background: var(--vn-bg-color, hsl(45 70% 83%));
     font-weight: 800;
     line-height: 1;
     flex-shrink: 0;
