@@ -522,15 +522,54 @@ export function TahfeezQuizView({
               onClick={blankClickHandler} style={{ cursor: 'pointer', display: 'inline-block', width: `${wordWidth}px`, overflow: 'hidden', whiteSpace: 'nowrap', fontFamily: 'sans-serif' }}>{dots}</span>
           );
         } else if (shouldShowAsActive) {
-          // Active blank: show dots (same width as word) with a pulsing glow — NO actual text visible
-          const wordWidth = measureTextWidth(t, measureFont);
-          const dots = makeDots(wordWidth, `${fontWeight} ${fontSize}px sans-serif`);
-          lineElements.push(
-            <span key={`${lineIdx}-${tokenIdx}`} className={`tahfeez-active-indicator tahfeez-active--${activeWordColor}`} data-tahfeez-active="true" onClick={storeMode ? storeClickHandler : onClickActiveBlank}
-              style={{ cursor: 'pointer', display: 'inline-block', width: `${wordWidth}px`, overflow: 'hidden', whiteSpace: 'nowrap', fontFamily: 'sans-serif' }}>
-              {dots}
-            </span>
-          );
+          if (inlineMCQ && inlineMCQOptions.length > 0) {
+            // Inline MCQ: show a vertical list of choices at the blank position
+            lineElements.push(
+              <span key={`${lineIdx}-${tokenIdx}`} className="tahfeez-inline-mcq-wrapper" data-tahfeez-active="true"
+                style={{ display: 'inline-block', verticalAlign: 'top', position: 'relative' }}>
+                <span className="tahfeez-inline-mcq-list" style={{
+                  display: 'inline-flex', flexDirection: 'column', gap: '4px',
+                  padding: '4px 6px', borderRadius: '8px',
+                  background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))',
+                  boxShadow: '0 4px 12px hsl(var(--foreground) / 0.1)',
+                }}>
+                  {inlineMCQOptions.map((opt, oi) => {
+                    let bg = 'transparent';
+                    let color = 'inherit';
+                    let borderColor = 'hsl(var(--border))';
+                    if (inlineMCQFeedback) {
+                      if (opt.isCorrect) { bg = 'hsl(140 60% 40% / 0.15)'; borderColor = 'hsl(140 60% 40%)'; color = 'hsl(140 60% 30%)'; }
+                      else if (oi === inlineMCQSelected && !opt.isCorrect) { bg = 'hsl(0 70% 45% / 0.15)'; borderColor = 'hsl(0 70% 45%)'; color = 'hsl(0 70% 40%)'; }
+                    }
+                    return (
+                      <span key={oi} onClick={() => handleInlineMCQChoice(oi, opt)}
+                        className="font-arabic"
+                        style={{
+                          display: 'block', padding: '3px 10px', borderRadius: '6px',
+                          border: `1px solid ${borderColor}`, background: bg, color,
+                          cursor: inlineMCQFeedback ? 'default' : 'pointer',
+                          fontSize: `${Math.max(14, fontSize * 0.6)}px`, lineHeight: '1.5',
+                          textAlign: 'center', whiteSpace: 'nowrap',
+                          transition: 'all 0.2s ease',
+                        }}>
+                        {opt.text}
+                      </span>
+                    );
+                  })}
+                </span>
+              </span>
+            );
+          } else {
+            // Normal active: show dots with pulsing glow
+            const wordWidth = measureTextWidth(t, measureFont);
+            const dots = makeDots(wordWidth, `${fontWeight} ${fontSize}px sans-serif`);
+            lineElements.push(
+              <span key={`${lineIdx}-${tokenIdx}`} className={`tahfeez-active-indicator tahfeez-active--${activeWordColor}`} data-tahfeez-active="true" onClick={storeMode ? storeClickHandler : onClickActiveBlank}
+                style={{ cursor: 'pointer', display: 'inline-block', width: `${wordWidth}px`, overflow: 'hidden', whiteSpace: 'nowrap', fontFamily: 'sans-serif' }}>
+                {dots}
+              </span>
+            );
+          }
         } else if (shouldShowAsRevealed) {
           const baseClass = !revealedWithBg ? 'tahfeez-revealed--text-only' : 'tahfeez-revealed';
           const colorClass = revealedColor !== 'green' ? ` tahfeez-revealed--${revealedColor}` : '';
