@@ -162,7 +162,7 @@ interface TahfeezState {
   setActiveTab: (tab: TahfeezState['activeTab']) => void;
 
   // Quiz interaction mode: auto-reveal (timer/voice) or mcq (multiple choice)
-  quizInteraction: 'auto-reveal' | 'mcq';
+  quizInteraction: 'auto-reveal' | 'auto-tap' | 'tap-only' | 'mcq';
   setQuizInteraction: (mode: TahfeezState['quizInteraction']) => void;
 
   // MCQ display mode: panel (separate panel below) or inline (choices at blank position)

@@ -371,6 +371,9 @@ export default function TahfeezPage() {
               setMcqCurrentIdx(0);
               setActiveBlankKey(keys[0]);
               setMcqStats(prev => ({ ...prev, total: keys.length }));
+            } else if (quizInteraction === 'tap-only') {
+              // Tap-only: set first blank as active, no timer
+              setActiveBlankKey(keys[0]);
             } else {
               setCurrentRevealIdx(0);
             }
@@ -442,8 +445,8 @@ export default function TahfeezPage() {
   // advance() chains itself via setTimeout. The effect only starts/stops the chain.
   useEffect(() => {
     if (!quizStarted || isPaused || showAll || blankedKeysListRef.current.length === 0) return;
-    // Skip auto-reveal chain in MCQ mode
-    if (quizInteraction === 'mcq') return;
+    // Skip auto-reveal chain in MCQ and tap-only modes
+    if (quizInteraction === 'mcq' || quizInteraction === 'tap-only') return;
     // Don't start if currentRevealIdx is still -1 (waiting for auto-resume)
     if (currentRevealIdx < 0) return;
 
@@ -1143,12 +1146,18 @@ export default function TahfeezPage() {
                   <div className="flex flex-col">
                     <label className="text-xs font-arabic text-foreground">طريقة الإجابة</label>
                     <span className="text-[10px] text-muted-foreground font-arabic">
-                      {quizInteraction === 'mcq' ? 'اختيار من متعدد (3 خيارات)' : 'ظهور تلقائي بمؤقت'}
+                      {quizInteraction === 'mcq' ? 'اختيار من متعدد' : quizInteraction === 'tap-only' ? 'ضغط فقط' : quizInteraction === 'auto-tap' ? 'تلقائي + ضغط' : 'تلقائي بمؤقت'}
                     </span>
                   </div>
-                  <div className="flex gap-1">
+                  <div className="flex flex-wrap gap-1 max-w-[200px] justify-end">
                     <Button variant={quizInteraction === 'auto-reveal' ? 'default' : 'outline'} size="sm" onClick={() => setQuizInteraction('auto-reveal')} className="font-arabic text-[10px] h-7 px-2">
                       <Eye className="w-3 h-3 ml-1" />تلقائي
+                    </Button>
+                    <Button variant={quizInteraction === 'auto-tap' ? 'default' : 'outline'} size="sm" onClick={() => setQuizInteraction('auto-tap')} className="font-arabic text-[10px] h-7 px-2">
+                      <Eye className="w-3 h-3 ml-1" />تلقائي+ضغط
+                    </Button>
+                    <Button variant={quizInteraction === 'tap-only' ? 'default' : 'outline'} size="sm" onClick={() => setQuizInteraction('tap-only')} className="font-arabic text-[10px] h-7 px-2">
+                      <MousePointerClick className="w-3 h-3 ml-1" />ضغط فقط
                     </Button>
                     <Button variant={quizInteraction === 'mcq' ? 'default' : 'outline'} size="sm" onClick={() => setQuizInteraction('mcq')} className="font-arabic text-[10px] h-7 px-2">
                       <MousePointerClick className="w-3 h-3 ml-1" />اختياري
@@ -1472,12 +1481,18 @@ export default function TahfeezPage() {
               <div className="flex flex-col">
                 <label className="text-xs font-arabic text-foreground">طريقة الإجابة</label>
                 <span className="text-[10px] text-muted-foreground font-arabic">
-                  {quizInteraction === 'mcq' ? 'اختيار من متعدد (3 خيارات)' : 'ظهور تلقائي بمؤقت'}
+                  {quizInteraction === 'mcq' ? 'اختيار من متعدد' : quizInteraction === 'tap-only' ? 'ضغط فقط' : quizInteraction === 'auto-tap' ? 'تلقائي + ضغط' : 'تلقائي بمؤقت'}
                 </span>
               </div>
-              <div className="flex gap-1">
+              <div className="flex flex-wrap gap-1 max-w-[200px] justify-end">
                 <Button variant={quizInteraction === 'auto-reveal' ? 'default' : 'outline'} size="sm" onClick={() => setQuizInteraction('auto-reveal')} className="font-arabic text-[10px] h-7 px-2">
                   <Eye className="w-3 h-3 ml-1" />تلقائي
+                </Button>
+                <Button variant={quizInteraction === 'auto-tap' ? 'default' : 'outline'} size="sm" onClick={() => setQuizInteraction('auto-tap')} className="font-arabic text-[10px] h-7 px-2">
+                  <Eye className="w-3 h-3 ml-1" />تلقائي+ضغط
+                </Button>
+                <Button variant={quizInteraction === 'tap-only' ? 'default' : 'outline'} size="sm" onClick={() => setQuizInteraction('tap-only')} className="font-arabic text-[10px] h-7 px-2">
+                  <MousePointerClick className="w-3 h-3 ml-1" />ضغط فقط
                 </Button>
                 <Button variant={quizInteraction === 'mcq' ? 'default' : 'outline'} size="sm" onClick={() => setQuizInteraction('mcq')} className="font-arabic text-[10px] h-7 px-2">
                   <MousePointerClick className="w-3 h-3 ml-1" />اختياري
@@ -1645,6 +1660,19 @@ export default function TahfeezPage() {
                 }
               }}
               onClickBlankWord={(key) => {
+                if (quizInteraction === 'tap-only') {
+                  // Tap-only: reveal clicked blank and advance to next unrevealed
+                  setRevealedKeys(prev => singleWordMode ? new Set([key]) : new Set([...prev, key]));
+                  const idx = blankedKeysList.indexOf(key);
+                  const nextIdx = idx + 1;
+                  if (nextIdx < blankedKeysList.length) {
+                    setActiveBlankKey(blankedKeysList[nextIdx]);
+                  } else {
+                    setActiveBlankKey(null);
+                    setShowAll(true);
+                  }
+                  return;
+                }
                 // Jump quiz to start from clicked word
                 const idx = blankedKeysList.indexOf(key);
                 if (idx < 0) return;
