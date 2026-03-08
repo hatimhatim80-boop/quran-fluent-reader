@@ -397,7 +397,6 @@ export function TahfeezQuizView({
   // Build font string for measuring
   const fontSize = autoFlowFontSize || settings.fonts.quranFontSize || 28;
   const fontWeight = settings.fonts.fontWeight || 400;
-  const measureFont = `${fontWeight} ${fontSize}px ${fontFamilyCSS}`;
 
   // Inline MCQ: generate options for the active blank
   const [inlineMCQFeedback, setInlineMCQFeedback] = useState<'correct' | 'wrong' | null>(null);
