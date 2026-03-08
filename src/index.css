@@ -239,9 +239,9 @@
     box-sizing: border-box;
   }
 
-  /* Word-level spacing that works independently of justify */
+  /* Word-level spacing — disabled; relying on natural spaces + justify like Quran Repeat Tutor */
   .quran-word {
-    margin-inline-end: var(--quran-word-spacing, 0.05em);
+    /* no extra margin — justify handles spacing naturally */
   }
 
   /* On mobile with redistributed lines */
