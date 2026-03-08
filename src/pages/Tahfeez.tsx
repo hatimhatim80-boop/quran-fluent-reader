@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useTahfeezStore, TahfeezItem } from '@/stores/tahfeezStore';
 import { MCQStats, TahfeezMCQPanel } from '@/components/TahfeezMCQPanel';
+import { TahfeezSegmentMCQView } from '@/components/TahfeezSegmentMCQView';
 import { useSessionsStore } from '@/stores/sessionsStore';
 import { toast } from 'sonner';
 import { useQuranData } from '@/hooks/useQuranData';
@@ -1346,6 +1347,21 @@ export default function TahfeezPage() {
                     </Button>
                   );
                 })}
+                {/* Segment MCQ modes */}
+                {[
+                  { value: 'next-ayah-mcq' as const, label: 'اختر الآية التالية' },
+                  { value: 'next-waqf-mcq' as const, label: 'اختر ما بعد الوقف' },
+                ].map(opt => (
+                  <Button
+                    key={opt.value}
+                    variant={autoBlankMode === opt.value ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => { setAutoBlankMode(opt.value); setWaqfCombinedModes([]); }}
+                    className="font-arabic text-xs"
+                  >
+                    {opt.label}
+                  </Button>
+                ))}
               </div>
 
               {(['beginning', 'middle', 'end', 'beginning-middle', 'middle-end', 'beginning-end', 'beginning-middle-end'] as const).includes(autoBlankMode as any) && (
@@ -1668,7 +1684,43 @@ export default function TahfeezPage() {
 
         {/* Quiz view */}
         <AutoPlayDebugPanel visible={process.env.NODE_ENV !== 'production'} />
-        {quizStarted && pageData && (
+        {quizStarted && pageData && (autoBlankMode === 'next-ayah-mcq' || autoBlankMode === 'next-waqf-mcq') && (
+          <div className="space-y-4 animate-fade-in">
+            {/* Multi-page progress */}
+            {quizPagesRange.length > 1 && (
+              <div className="page-frame p-2 flex items-center justify-center gap-2">
+                <span className="text-xs font-arabic text-muted-foreground">
+                  صفحة {quizPagesRange.indexOf(currentPage) + 1} من {quizPagesRange.length}
+                </span>
+              </div>
+            )}
+            <TahfeezSegmentMCQView
+              page={pageData}
+              mode={autoBlankMode as 'next-ayah-mcq' | 'next-waqf-mcq'}
+              onFinish={() => { setQuizStarted(false); if (revealTimerRef.current) clearTimeout(revealTimerRef.current); }}
+              onRestart={() => {}}
+            />
+            <div className="flex items-center justify-center gap-2 flex-wrap">
+              <Button variant="outline" size="sm" onClick={() => { setQuizStarted(false); if (revealTimerRef.current) clearTimeout(revealTimerRef.current); }} className="font-arabic">
+                إعادة
+              </Button>
+              {/* Next page for segment MCQ */}
+              {quizPagesRange.indexOf(currentPage) < quizPagesRange.length - 1 && (
+                <Button variant="default" size="sm" onClick={() => {
+                  const nextIdx = quizPagesRange.indexOf(currentPage) + 1;
+                  if (nextIdx < quizPagesRange.length) {
+                    goToPage(quizPagesRange[nextIdx]);
+                    setQuizPageIdx(nextIdx);
+                  }
+                }} className="font-arabic">
+                  <ChevronsRight className="w-4 h-4 ml-1" />
+                  الصفحة التالية
+                </Button>
+              )}
+            </div>
+          </div>
+        )}
+        {quizStarted && pageData && autoBlankMode !== 'next-ayah-mcq' && autoBlankMode !== 'next-waqf-mcq' && (
           <div className="space-y-4 animate-fade-in">
             {/* Multi-page progress */}
             {quizPagesRange.length > 1 && (

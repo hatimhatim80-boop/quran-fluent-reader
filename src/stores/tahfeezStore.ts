@@ -112,7 +112,7 @@ interface TahfeezState {
   // Quiz settings
   quizSource: 'custom' | 'auto';
   setQuizSource: (src: 'custom' | 'auto') => void;
-  autoBlankMode: 'beginning' | 'middle' | 'end' | 'beginning-middle' | 'middle-end' | 'beginning-end' | 'beginning-middle-end' | 'full-ayah' | 'full-page' | 'ayah-count' | 'between-waqf' | 'waqf-to-ayah' | 'ayah-to-waqf';
+  autoBlankMode: 'beginning' | 'middle' | 'end' | 'beginning-middle' | 'middle-end' | 'beginning-end' | 'beginning-middle-end' | 'full-ayah' | 'full-page' | 'ayah-count' | 'between-waqf' | 'waqf-to-ayah' | 'ayah-to-waqf' | 'next-ayah-mcq' | 'next-waqf-mcq';
   setAutoBlankMode: (mode: TahfeezState['autoBlankMode']) => void;
   waqfCombinedModes: ('between-waqf' | 'waqf-to-ayah' | 'ayah-to-waqf')[];
   setWaqfCombinedModes: (modes: TahfeezState['waqfCombinedModes']) => void;
