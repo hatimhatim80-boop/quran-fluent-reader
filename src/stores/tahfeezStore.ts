@@ -190,6 +190,12 @@ interface TahfeezState {
   // Show MCQ choices at the blank location (inline popover)
   segmentMcqChoicesAtBlank: boolean;
   setSegmentMcqChoicesAtBlank: (on: boolean) => void;
+
+  // Segment MCQ timing: delay after correct/wrong answer before advancing (seconds)
+  segmentMcqCorrectDelay: number;
+  setSegmentMcqCorrectDelay: (s: number) => void;
+  segmentMcqWrongDelay: number;
+  setSegmentMcqWrongDelay: (s: number) => void;
 }
 
 export const useTahfeezStore = create<TahfeezState>()(
@@ -329,6 +335,11 @@ export const useTahfeezStore = create<TahfeezState>()(
 
       segmentMcqChoicesAtBlank: false,
       setSegmentMcqChoicesAtBlank: (on) => set({ segmentMcqChoicesAtBlank: on }),
+
+      segmentMcqCorrectDelay: 0.6,
+      setSegmentMcqCorrectDelay: (s) => set({ segmentMcqCorrectDelay: s }),
+      segmentMcqWrongDelay: 1.2,
+      setSegmentMcqWrongDelay: (s) => set({ segmentMcqWrongDelay: s }),
     }),
     {
       name: 'tahfeez.v2',
@@ -360,6 +371,8 @@ export const useTahfeezStore = create<TahfeezState>()(
         revealGranularity: state.revealGranularity,
         segmentMcqInline: state.segmentMcqInline,
         segmentMcqChoicesAtBlank: state.segmentMcqChoicesAtBlank,
+        segmentMcqCorrectDelay: state.segmentMcqCorrectDelay,
+        segmentMcqWrongDelay: state.segmentMcqWrongDelay,
       }),
     }
   )
