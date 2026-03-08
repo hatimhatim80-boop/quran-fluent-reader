@@ -266,7 +266,7 @@ export function TahfeezSegmentMCQView({
         setShowResults(true);
       }
     }, (isCorrect ? segmentMcqCorrectDelay : segmentMcqWrongDelay) * 1000);
-  }, [feedback, question, currentQ, questions.length]);
+  }, [feedback, question, currentQ, questions.length, segmentMcqCorrectDelay, segmentMcqWrongDelay, stats, multiPage, onNextPage, questions]);
 
   // Results screen
   if (showResults) {
