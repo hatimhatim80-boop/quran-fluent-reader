@@ -4,6 +4,8 @@ import { normalizeArabic } from '@/utils/quranParser';
 import { Button } from '@/components/ui/button';
 import { CheckCircle2, XCircle, RotateCcw, Trophy, ArrowLeft } from 'lucide-react';
 import { useTahfeezStore } from '@/stores/tahfeezStore';
+import { useSettingsStore } from '@/stores/settingsStore';
+import { formatBismillah, shouldNoJustify, bindVerseNumbersSimple } from '@/utils/lineTokenUtils';
 
 type SegmentMode = 'next-ayah-mcq' | 'next-waqf-mcq';
 
