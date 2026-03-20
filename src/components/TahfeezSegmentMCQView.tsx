@@ -361,75 +361,132 @@ export function TahfeezSegmentMCQView({
 
   const modeLabel = mode === 'next-ayah-mcq' ? 'اختر الآية التالية' : 'اختر المقطع التالي';
 
-  // Build highlighted page text for inline mode
+  // Build highlighted page text for inline mode using proper Mushaf layout
+  const { settings } = useSettingsStore();
+  const fontFamilyCSS = useMemo(() => {
+    const fontMap: Record<string, string> = {
+      amiri: "'Amiri', serif", amiriQuran: "'Amiri Quran', serif",
+      notoNaskh: "'Noto Naskh Arabic', serif", scheherazade: "'Scheherazade New', serif",
+      uthman: "'KFGQPC HAFS Uthmanic Script', serif", uthmanicHafs: "'UthmanicHafs', serif",
+      uthmanicHafs22: "'UthmanicHafs22', serif", hafsNastaleeq: "'HafsNastaleeq', serif",
+      meQuran: "'me_quran', serif", qalam: "'Al Qalam Quran', serif",
+      custom: settings.fonts.customFontFamily ? `'${settings.fonts.customFontFamily}', serif` : "'Amiri', serif",
+    };
+    return fontMap[settings.fonts.fontFamily] || fontMap.uthman;
+  }, [settings.fonts.fontFamily, settings.fonts.customFontFamily]);
+  const pageBackgroundColor = (settings.colors as any).pageBackgroundColor || '';
+  const pageFrameStyle = pageBackgroundColor ? { background: `hsl(${pageBackgroundColor})` } : undefined;
+
   const inlinePageContent = useMemo(() => {
     if (!inline) return null;
-    // Map each segment to its text for matching
-    const segTexts = segments.map(s => s.text);
+
+    // Build set of tokens in prompt/correct segments for highlighting
+    const promptTokens = new Set(question.promptSegment.tokens);
+    const correctTokens = new Set(question.correctAnswer.tokens);
+
+    // Find the prompt segment's first token position and correct segment's first token position
+    // We need sequential matching, so track position in the segment
+    const pageLines = page.text.split('\n');
+    const elements: React.ReactNode[] = [];
+
+    // Collect all non-header, non-bismillah tokens in order to find segment boundaries
+    const allPageTokens: { text: string; lineIdx: number; tokenIdx: number }[] = [];
+    const isFatihaPage = page.pageNumber === 1;
+    for (let li = 0; li < pageLines.length; li++) {
+      const line = pageLines[li];
+      if (isSurahHeader(line)) continue;
+      if (!isFatihaPage && isBismillah(line)) continue;
+      const tokens = line.split(/\s+/).filter(t => t.length > 0);
+      for (let ti = 0; ti < tokens.length; ti++) {
+        allPageTokens.push({ text: tokens[ti], lineIdx: li, tokenIdx: ti });
+      }
+    }
+
+    // Find the start position of the prompt segment in the page tokens
     const promptIdx = segments.indexOf(question.promptSegment);
     const correctIdx = promptIdx + 1;
 
-    return segments.map((seg, idx) => {
-      let bgClass = '';
-      if (idx === promptIdx) {
-        bgClass = 'bg-primary/20 rounded px-1';
-      } else if (idx === correctIdx) {
-        if (feedback === 'correct') {
-          bgClass = 'bg-green-500/20 rounded px-1';
-        } else if (feedback === 'wrong') {
-          bgClass = 'bg-red-500/20 rounded px-1';
-        } else {
-          // Hide the correct answer segment with dots
-          bgClass = '';
+    // Map token positions to segments by matching sequentially
+    let segTokenIdx = 0;
+    let currentSegIdx = 0;
+    const tokenSegmentMap = new Map<string, number>(); // "lineIdx_tokenIdx" -> segment index
+    for (const seg of segments) {
+      for (const tok of seg.tokens) {
+        while (segTokenIdx < allPageTokens.length) {
+          const pt = allPageTokens[segTokenIdx];
+          tokenSegmentMap.set(`${pt.lineIdx}_${pt.tokenIdx}`, currentSegIdx);
+          segTokenIdx++;
+          break;
         }
       }
-      
-      const isHidden = idx === correctIdx && !feedback;
-      
-      // Inline MCQ choices rendered at blank location
-      const inlineChoicesAtBlank = isHidden && choicesAtBlank && !feedback && choicesVisible ? (
-        <span style={{ display: 'block', position: 'relative', marginTop: '4px', marginBottom: '4px' }}>
-          <span style={{ display: 'flex', flexDirection: 'column', gap: '4px', maxWidth: '100%' }}>
-            {question.options.map((opt, optIdx) => {
-              let optBg = 'hsl(var(--muted))';
-              let optColor = 'hsl(var(--foreground))';
-              let optBorder = '1px solid hsl(var(--border))';
-              return (
-                <span
-                  key={optIdx}
-                  onClick={() => handleChoice(optIdx)}
-                  style={{
-                    display: 'block', padding: '6px 10px', borderRadius: '8px',
-                    background: optBg, color: optColor, border: optBorder,
-                    cursor: 'pointer', fontSize: '0.85em', textAlign: 'center',
-                    fontFamily: "'KFGQPC HAFS Uthmanic Script', serif",
-                  }}
-                >
-                  {opt.segment.text}
-                </span>
-              );
-            })}
-          </span>
-        </span>
-      ) : null;
+      currentSegIdx++;
+    }
 
-      // After feedback, show correct answer with color
-      const feedbackChoicesAtBlank = isHidden === false && idx === correctIdx && feedback && choicesAtBlank ? null : null;
+    for (let lineIdx = 0; lineIdx < pageLines.length; lineIdx++) {
+      const line = pageLines[lineIdx];
 
-      return (
-        <span key={idx}>
-          {isHidden ? (
-            <SegmentBlankSpan text={seg.text}>
-              {inlineChoicesAtBlank}
-            </SegmentBlankSpan>
-          ) : (
-            <span className={bgClass}>{seg.text}</span>
-          )}
-          {idx < segments.length - 1 && ' '}
-        </span>
-      );
-    });
-  }, [inline, segments, question, feedback, choicesAtBlank, handleChoice, choicesVisible]);
+      if (isSurahHeader(line)) {
+        elements.push(
+          <div key={`header-${lineIdx}`} className="surah-header">
+            <span className="text-xl sm:text-2xl font-bold text-primary font-arabic">{line}</span>
+          </div>
+        );
+        continue;
+      }
+      if (isBismillah(line) && !isFatihaPage) {
+        elements.push(
+          <div key={`bismillah-${lineIdx}`} className="bismillah bismillah-compact font-arabic" style={{ display: 'block', textAlign: 'center', textAlignLast: 'center' }}>{formatBismillah(line)}</div>
+        );
+        continue;
+      }
+
+      const tokens = line.split(/(\s+)/);
+      const lineElements: React.ReactNode[] = [];
+      let wordIdx = 0;
+
+      for (let tokenIdx = 0; tokenIdx < tokens.length; tokenIdx++) {
+        const t = tokens[tokenIdx];
+        const isSpace = /^\s+$/.test(t);
+        if (isSpace) {
+          lineElements.push(<span key={`${lineIdx}-${tokenIdx}`}>{t}</span>);
+          continue;
+        }
+        const clean = t.replace(/[﴿﴾()[\]{}۝۞٭؟،۔ۣۖۗۘۙۚۛۜ۟۠ۡۢۤۥۦۧۨ۩۪ۭ۫۬]/g, '').trim();
+        const isVerseNumber = /^[٠-٩0-9۰-۹]+$/.test(clean);
+        if (isVerseNumber) {
+          lineElements.push(<span key={`${lineIdx}-${tokenIdx}`} className="verse-number">{t}</span>);
+          continue;
+        }
+
+        const segIdx = tokenSegmentMap.get(`${lineIdx}_${wordIdx}`);
+        wordIdx++;
+
+        if (segIdx === promptIdx) {
+          lineElements.push(
+            <span key={`${lineIdx}-${tokenIdx}`} className="bg-primary/20 rounded px-0.5">{t}</span>
+          );
+        } else if (segIdx === correctIdx) {
+          if (feedback === 'correct') {
+            lineElements.push(<span key={`${lineIdx}-${tokenIdx}`} className="bg-green-500/20 rounded px-0.5">{t}</span>);
+          } else if (feedback === 'wrong') {
+            lineElements.push(<span key={`${lineIdx}-${tokenIdx}`} className="bg-red-500/20 rounded px-0.5">{t}</span>);
+          } else {
+            // Hidden: show blank
+            lineElements.push(
+              <SegmentBlankSpan key={`${lineIdx}-${tokenIdx}`} text={t} />
+            );
+          }
+        } else {
+          lineElements.push(<span key={`${lineIdx}-${tokenIdx}`}>{t}</span>);
+        }
+      }
+
+      const processedElements = bindVerseNumbersSimple(lineElements, lineIdx);
+      elements.push(<span key={`line-${lineIdx}`}>{processedElements}{' '}</span>);
+    }
+
+    return <div className="quran-page">{elements}</div>;
+  }, [inline, segments, question, feedback, page.text, page.pageNumber]);
 
   // Render MCQ options (shared between both modes)
   const optionsUI = (
