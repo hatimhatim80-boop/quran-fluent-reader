@@ -537,11 +537,16 @@ export function TahfeezSegmentMCQView({
           <div className="h-full bg-primary transition-all duration-500" style={{ width: `${((currentQ) / questions.length) * 100}%` }} />
         </div>
 
-        {/* Quran page with highlighted prompt */}
-        <div className="page-frame p-4">
-          <p className="text-lg font-arabic text-foreground text-center leading-[2.5] whitespace-pre-wrap" style={{ fontFamily: "'KFGQPC HAFS Uthmanic Script', serif" }}>
+        {/* Quran page with highlighted prompt — uses same Mushaf layout as other tabs */}
+        <div className="page-frame p-4 sm:p-6" style={pageFrameStyle} dir="rtl">
+          <div className="flex justify-center mb-5">
+            <span className="bg-secondary/80 text-secondary-foreground px-4 py-1.5 rounded-full text-sm font-arabic shadow-sm">
+              صفحة {page.pageNumber}
+            </span>
+          </div>
+          <div className="min-h-[350px] sm:min-h-[450px]">
             {inlinePageContent}
-          </p>
+          </div>
         </div>
 
         {/* MCQ choices below the page (hidden when choicesAtBlank is on) */}
