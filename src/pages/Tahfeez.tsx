@@ -27,6 +27,7 @@ import { SURAH_INFO, SURAH_NAMES } from '@/utils/quranPageIndex';
 // SettingsDialog removed — Tahfeez has its own inline settings
 import { AutoPlayDebugPanel } from '@/components/AutoPlayDebugPanel';
 import { TahfeezFontSettings } from '@/components/TahfeezFontSettings';
+import { TahfeezAutoQuizSettings } from '@/components/TahfeezAutoQuizSettings';
 // ---- Quran Index Data ----
 const SURAHS = Object.entries(SURAH_NAMES).map(([name, number]) => ({
   number, name,
