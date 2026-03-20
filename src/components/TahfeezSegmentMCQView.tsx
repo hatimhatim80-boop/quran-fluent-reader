@@ -4,6 +4,8 @@ import { normalizeArabic } from '@/utils/quranParser';
 import { Button } from '@/components/ui/button';
 import { CheckCircle2, XCircle, RotateCcw, Trophy, ArrowLeft } from 'lucide-react';
 import { useTahfeezStore } from '@/stores/tahfeezStore';
+import { useSettingsStore } from '@/stores/settingsStore';
+import { formatBismillah, shouldNoJustify, bindVerseNumbersSimple } from '@/utils/lineTokenUtils';
 
 type SegmentMode = 'next-ayah-mcq' | 'next-waqf-mcq';
 
@@ -270,73 +272,93 @@ export function TahfeezSegmentMCQView({
     }, (isCorrect ? segmentMcqCorrectDelay : segmentMcqWrongDelay) * 1000);
   }, [feedback, question, currentQ, questions.length, segmentMcqCorrectDelay, segmentMcqWrongDelay, stats, multiPage, onNextPage, questions]);
 
+  const modeLabel = mode === 'next-ayah-mcq' ? 'اختر الآية التالية' : 'اختر المقطع التالي';
+
+  // Settings hooks — must be above early returns
+  const { settings } = useSettingsStore();
+  const pageBackgroundColor = (settings.colors as any).pageBackgroundColor || '';
+  const pageFrameStyleVal = pageBackgroundColor ? { background: `hsl(${pageBackgroundColor})` } : undefined;
+
+  const inlinePageContent = useMemo(() => {
+    if (!inline || !questions[currentQ]) return null;
+    const q = questions[currentQ];
+    const promptIdx = segments.indexOf(q.promptSegment);
+    const correctIdx = promptIdx + 1;
+    const isFatihaPage = page.pageNumber === 1;
+    const pageLines = page.text.split('\n');
+    const elems: React.ReactNode[] = [];
+
+    const allWords: { lineIdx: number; wordIdx: number }[] = [];
+    for (let li = 0; li < pageLines.length; li++) {
+      const line = pageLines[li];
+      if (isSurahHeader(line)) continue;
+      if (!isFatihaPage && isBismillah(line)) continue;
+      const toks = line.split(/\s+/).filter(t => t.length > 0);
+      for (let ti = 0; ti < toks.length; ti++) allWords.push({ lineIdx: li, wordIdx: ti });
+    }
+
+    const tokenSegMap = new Map<string, number>();
+    let ptI = 0;
+    for (let si = 0; si < segments.length; si++) {
+      for (const _t of segments[si].tokens) {
+        if (ptI < allWords.length) { const w = allWords[ptI]; tokenSegMap.set(`${w.lineIdx}_${w.wordIdx}`, si); ptI++; }
+      }
+    }
+
+    for (let lineIdx = 0; lineIdx < pageLines.length; lineIdx++) {
+      const line = pageLines[lineIdx];
+      if (isSurahHeader(line)) { elems.push(<div key={`header-${lineIdx}`} className="surah-header"><span className="text-xl sm:text-2xl font-bold text-primary font-arabic">{line}</span></div>); continue; }
+      if (isBismillah(line) && !isFatihaPage) { elems.push(<div key={`bismillah-${lineIdx}`} className="bismillah bismillah-compact font-arabic" style={{ display: 'block', textAlign: 'center', textAlignLast: 'center' }}>{formatBismillah(line)}</div>); continue; }
+
+      const tokens = line.split(/(\s+)/);
+      const lineEls: React.ReactNode[] = [];
+      let wIdx = 0;
+      for (let ti = 0; ti < tokens.length; ti++) {
+        const t = tokens[ti];
+        if (/^\s+$/.test(t)) { lineEls.push(<span key={`${lineIdx}-${ti}`}>{t}</span>); continue; }
+        const clean = t.replace(/[﴿﴾()[\]{}۝۞٭؟،۔ۣۖۗۘۙۚۛۜ۟۠ۡۢۤۥۦۧۨ۩۪ۭ۫۬]/g, '').trim();
+        if (/^[٠-٩0-9۰-۹]+$/.test(clean)) { lineEls.push(<span key={`${lineIdx}-${ti}`} className="verse-number">{t}</span>); continue; }
+        const segI = tokenSegMap.get(`${lineIdx}_${wIdx}`); wIdx++;
+        if (segI === promptIdx) lineEls.push(<span key={`${lineIdx}-${ti}`} className="bg-primary/20 rounded px-0.5">{t}</span>);
+        else if (segI === correctIdx) {
+          if (feedback === 'correct') lineEls.push(<span key={`${lineIdx}-${ti}`} className="bg-green-500/20 rounded px-0.5">{t}</span>);
+          else if (feedback === 'wrong') lineEls.push(<span key={`${lineIdx}-${ti}`} className="bg-red-500/20 rounded px-0.5">{t}</span>);
+          else lineEls.push(<SegmentBlankSpan key={`${lineIdx}-${ti}`} text={t} />);
+        } else lineEls.push(<span key={`${lineIdx}-${ti}`}>{t}</span>);
+      }
+      const processed = bindVerseNumbersSimple(lineEls, lineIdx);
+      elems.push(<span key={`line-${lineIdx}`}>{processed}{' '}</span>);
+    }
+    return <div className="quran-page">{elems}</div>;
+  }, [inline, segments, questions, currentQ, feedback, page.text, page.pageNumber]);
+
   // Results screen
   if (showResults) {
     const elapsed = Math.round((Date.now() - stats.startTime) / 1000);
     const minutes = Math.floor(elapsed / 60);
     const seconds = elapsed % 60;
     const percentage = stats.total > 0 ? Math.round((stats.correct / stats.total) * 100) : 0;
-
     return (
       <div className="page-frame p-5 space-y-4 animate-fade-in" dir="rtl">
-        <div className="flex items-center justify-center gap-2">
-          <Trophy className="w-6 h-6 text-primary" />
-          <h3 className="font-arabic font-bold text-lg text-foreground">نتائج الاختبار</h3>
-        </div>
-
+        <div className="flex items-center justify-center gap-2"><Trophy className="w-6 h-6 text-primary" /><h3 className="font-arabic font-bold text-lg text-foreground">نتائج الاختبار</h3></div>
         <div className="grid grid-cols-3 gap-3 text-center">
-          <div className="p-3 rounded-xl bg-green-500/10 border border-green-500/20">
-            <div className="text-2xl font-bold text-green-600">{stats.correct}</div>
-            <div className="text-xs font-arabic text-muted-foreground">صحيح</div>
-          </div>
-          <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20">
-            <div className="text-2xl font-bold text-red-500">{stats.wrong}</div>
-            <div className="text-xs font-arabic text-muted-foreground">خطأ</div>
-          </div>
-          <div className="p-3 rounded-xl bg-primary/10 border border-primary/20">
-            <div className="text-2xl font-bold text-primary">{percentage}%</div>
-            <div className="text-xs font-arabic text-muted-foreground">النسبة</div>
-          </div>
+          <div className="p-3 rounded-xl bg-green-500/10 border border-green-500/20"><div className="text-2xl font-bold text-green-600">{stats.correct}</div><div className="text-xs font-arabic text-muted-foreground">صحيح</div></div>
+          <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20"><div className="text-2xl font-bold text-red-500">{stats.wrong}</div><div className="text-xs font-arabic text-muted-foreground">خطأ</div></div>
+          <div className="p-3 rounded-xl bg-primary/10 border border-primary/20"><div className="text-2xl font-bold text-primary">{percentage}%</div><div className="text-xs font-arabic text-muted-foreground">النسبة</div></div>
         </div>
-
-        <div className="text-center text-sm font-arabic text-muted-foreground">
-          الزمن: {minutes > 0 ? `${minutes} دقيقة و ` : ''}{seconds} ثانية
-        </div>
-
-        {/* Detailed answers */}
+        <div className="text-center text-sm font-arabic text-muted-foreground">الزمن: {minutes > 0 ? `${minutes} دقيقة و ` : ''}{seconds} ثانية</div>
         {stats.answers.length > 0 && (
           <div className="max-h-48 overflow-y-auto space-y-1">
             {stats.answers.map((a, i) => (
               <div key={i} className={`flex items-center justify-between px-3 py-1.5 rounded-lg text-sm font-arabic ${a.correct ? 'bg-green-500/5' : 'bg-red-500/5'}`}>
-                <div className="flex items-center gap-2">
-                  {a.correct ? <CheckCircle2 className="w-3.5 h-3.5 text-green-500 shrink-0" /> : <XCircle className="w-3.5 h-3.5 text-red-500 shrink-0" />}
-                  <span className="truncate max-w-[200px]">{a.prompt}...</span>
-                </div>
+                <div className="flex items-center gap-2">{a.correct ? <CheckCircle2 className="w-3.5 h-3.5 text-green-500 shrink-0" /> : <XCircle className="w-3.5 h-3.5 text-red-500 shrink-0" />}<span className="truncate max-w-[200px]">{a.prompt}...</span></div>
               </div>
             ))}
           </div>
         )}
-
         <div className="flex gap-2">
-          {onRestart && (
-            <Button onClick={() => {
-              setCurrentQ(0);
-              setFeedback(null);
-              setSelectedIdx(null);
-              setShowResults(false);
-              setStats({ correct: 0, wrong: 0, total: questions.length, startTime: Date.now(), answers: [] });
-              onRestart();
-            }} className="flex-1 font-arabic" variant="outline">
-              <RotateCcw className="w-4 h-4 ml-2" />
-              إعادة الاختبار
-            </Button>
-          )}
-          {onFinish && (
-            <Button onClick={onFinish} className="flex-1 font-arabic" variant="outline">
-              <ArrowLeft className="w-4 h-4 ml-2" />
-              رجوع
-            </Button>
-          )}
+          {onRestart && <Button onClick={() => { setCurrentQ(0); setFeedback(null); setSelectedIdx(null); setShowResults(false); setStats({ correct: 0, wrong: 0, total: questions.length, startTime: Date.now(), answers: [] }); onRestart(); }} className="flex-1 font-arabic" variant="outline"><RotateCcw className="w-4 h-4 ml-2" />إعادة الاختبار</Button>}
+          {onFinish && <Button onClick={onFinish} className="flex-1 font-arabic" variant="outline"><ArrowLeft className="w-4 h-4 ml-2" />رجوع</Button>}
         </div>
       </div>
     );
@@ -345,89 +367,11 @@ export function TahfeezSegmentMCQView({
   if (!question || questions.length === 0) {
     return (
       <div className="page-frame p-5 text-center" dir="rtl">
-        <p className="text-sm font-arabic text-muted-foreground">
-          لا توجد أسئلة كافية في هذه الصفحة (يلزم مقطعين على الأقل)
-        </p>
-        {onFinish && (
-          <Button onClick={onFinish} className="mt-3 font-arabic" variant="outline" size="sm">
-            رجوع
-          </Button>
-        )}
+        <p className="text-sm font-arabic text-muted-foreground">لا توجد أسئلة كافية في هذه الصفحة (يلزم مقطعين على الأقل)</p>
+        {onFinish && <Button onClick={onFinish} className="mt-3 font-arabic" variant="outline" size="sm">رجوع</Button>}
       </div>
     );
   }
-
-  const modeLabel = mode === 'next-ayah-mcq' ? 'اختر الآية التالية' : 'اختر المقطع التالي';
-
-  // Build highlighted page text for inline mode
-  const inlinePageContent = useMemo(() => {
-    if (!inline) return null;
-    // Map each segment to its text for matching
-    const segTexts = segments.map(s => s.text);
-    const promptIdx = segments.indexOf(question.promptSegment);
-    const correctIdx = promptIdx + 1;
-
-    return segments.map((seg, idx) => {
-      let bgClass = '';
-      if (idx === promptIdx) {
-        bgClass = 'bg-primary/20 rounded px-1';
-      } else if (idx === correctIdx) {
-        if (feedback === 'correct') {
-          bgClass = 'bg-green-500/20 rounded px-1';
-        } else if (feedback === 'wrong') {
-          bgClass = 'bg-red-500/20 rounded px-1';
-        } else {
-          // Hide the correct answer segment with dots
-          bgClass = '';
-        }
-      }
-      
-      const isHidden = idx === correctIdx && !feedback;
-      
-      // Inline MCQ choices rendered at blank location
-      const inlineChoicesAtBlank = isHidden && choicesAtBlank && !feedback && choicesVisible ? (
-        <span style={{ display: 'block', position: 'relative', marginTop: '4px', marginBottom: '4px' }}>
-          <span style={{ display: 'flex', flexDirection: 'column', gap: '4px', maxWidth: '100%' }}>
-            {question.options.map((opt, optIdx) => {
-              let optBg = 'hsl(var(--muted))';
-              let optColor = 'hsl(var(--foreground))';
-              let optBorder = '1px solid hsl(var(--border))';
-              return (
-                <span
-                  key={optIdx}
-                  onClick={() => handleChoice(optIdx)}
-                  style={{
-                    display: 'block', padding: '6px 10px', borderRadius: '8px',
-                    background: optBg, color: optColor, border: optBorder,
-                    cursor: 'pointer', fontSize: '0.85em', textAlign: 'center',
-                    fontFamily: "'KFGQPC HAFS Uthmanic Script', serif",
-                  }}
-                >
-                  {opt.segment.text}
-                </span>
-              );
-            })}
-          </span>
-        </span>
-      ) : null;
-
-      // After feedback, show correct answer with color
-      const feedbackChoicesAtBlank = isHidden === false && idx === correctIdx && feedback && choicesAtBlank ? null : null;
-
-      return (
-        <span key={idx}>
-          {isHidden ? (
-            <SegmentBlankSpan text={seg.text}>
-              {inlineChoicesAtBlank}
-            </SegmentBlankSpan>
-          ) : (
-            <span className={bgClass}>{seg.text}</span>
-          )}
-          {idx < segments.length - 1 && ' '}
-        </span>
-      );
-    });
-  }, [inline, segments, question, feedback, choicesAtBlank, handleChoice, choicesVisible]);
 
   // Render MCQ options (shared between both modes)
   const optionsUI = (
@@ -478,11 +422,16 @@ export function TahfeezSegmentMCQView({
           <div className="h-full bg-primary transition-all duration-500" style={{ width: `${((currentQ) / questions.length) * 100}%` }} />
         </div>
 
-        {/* Quran page with highlighted prompt */}
-        <div className="page-frame p-4">
-          <p className="text-lg font-arabic text-foreground text-center leading-[2.5] whitespace-pre-wrap" style={{ fontFamily: "'KFGQPC HAFS Uthmanic Script', serif" }}>
+        {/* Quran page with highlighted prompt — uses same Mushaf layout as other tabs */}
+        <div className="page-frame p-4 sm:p-6" style={pageFrameStyleVal} dir="rtl">
+          <div className="flex justify-center mb-5">
+            <span className="bg-secondary/80 text-secondary-foreground px-4 py-1.5 rounded-full text-sm font-arabic shadow-sm">
+              صفحة {page.pageNumber}
+            </span>
+          </div>
+          <div className="min-h-[350px] sm:min-h-[450px]">
             {inlinePageContent}
-          </p>
+          </div>
         </div>
 
         {/* MCQ choices below the page (hidden when choicesAtBlank is on) */}
