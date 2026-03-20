@@ -423,7 +423,7 @@ export function TahfeezSegmentMCQView({
         </div>
 
         {/* Quran page with highlighted prompt — uses same Mushaf layout as other tabs */}
-        <div className="page-frame p-4 sm:p-6" style={pageFrameStyle} dir="rtl">
+        <div className="page-frame p-4 sm:p-6" style={pageFrameStyleVal} dir="rtl">
           <div className="flex justify-center mb-5">
             <span className="bg-secondary/80 text-secondary-foreground px-4 py-1.5 rounded-full text-sm font-arabic shadow-sm">
               صفحة {page.pageNumber}
