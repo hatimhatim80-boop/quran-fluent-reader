@@ -365,6 +365,9 @@ export const useTahfeezStore = create<TahfeezState>()(
 
       segmentMcqBlankDuration: 0,
       setSegmentMcqBlankDuration: (s) => set({ segmentMcqBlankDuration: s }),
+
+      waqfDisplayMode: 'with-word',
+      setWaqfDisplayMode: (mode) => set({ waqfDisplayMode: mode }),
     }),
     {
       name: 'tahfeez.v2',
