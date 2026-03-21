@@ -43,7 +43,7 @@ interface TahfeezQuizViewProps {
   quizSource: 'custom' | 'auto';
   storedItems: TahfeezItem[];
   autoBlankMode: 'beginning' | 'middle' | 'end' | 'beginning-middle' | 'middle-end' | 'beginning-end' | 'beginning-middle-end' | 'full-ayah' | 'full-page' | 'ayah-count' | 'between-waqf' | 'waqf-to-ayah' | 'ayah-to-waqf' | 'next-ayah-mcq' | 'next-waqf-mcq';
-  waqfCombinedModes: ('between-waqf' | 'waqf-to-ayah' | 'ayah-to-waqf')[];
+  waqfCombinedModes: ('between-waqf' | 'waqf-to-ayah' | 'ayah-to-waqf' | 'between-ayah')[];
   blankCount: number;
   ayahCount: number;
   activeBlankKey: string | null;       // Currently active blank (highlighted)
