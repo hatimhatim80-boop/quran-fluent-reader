@@ -208,6 +208,10 @@ interface TahfeezState {
   // Duration to keep segment hidden before showing choices
   segmentMcqBlankDuration: number;
   setSegmentMcqBlankDuration: (s: number) => void;
+
+  // Waqf display mode when blanking
+  waqfDisplayMode: 'with-word' | 'sign-only';
+  setWaqfDisplayMode: (mode: TahfeezState['waqfDisplayMode']) => void;
 }
 
 export const useTahfeezStore = create<TahfeezState>()(
