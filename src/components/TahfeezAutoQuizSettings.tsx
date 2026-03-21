@@ -135,12 +135,13 @@ export function TahfeezAutoQuizSettings({ currentPage, quizPagesRange, onStart, 
 
             {/* Waqf-based patterns */}
             <div className="space-y-2">
-              <p className="text-[11px] font-arabic text-muted-foreground font-medium">إخفاء حسب علامات الوقف <span className="text-[10px]">(يمكن اختيار أكثر من واحد)</span></p>
+              <p className="text-[11px] font-arabic text-muted-foreground font-medium">إخفاء حسب علامات الوقف والآيات <span className="text-[10px]">(يمكن اختيار أكثر من واحد)</span></p>
               <div className="flex flex-wrap gap-1.5">
                 {[
                   { value: 'between-waqf' as const, label: 'بين وقفين' },
                   { value: 'waqf-to-ayah' as const, label: 'وقف ← رأس الآية' },
                   { value: 'ayah-to-waqf' as const, label: 'رأس الآية ← وقف' },
+                  { value: 'between-ayah' as const, label: 'ما بين آيتين' },
                 ].map(opt => {
                   const isActive = waqfCombinedModes.includes(opt.value);
                   return (
@@ -164,6 +165,29 @@ export function TahfeezAutoQuizSettings({ currentPage, quizPagesRange, onStart, 
                     </Button>
                   );
                 })}
+              </div>
+            </div>
+
+            {/* Waqf display mode */}
+            <div className="space-y-1.5">
+              <p className="text-[11px] font-arabic text-muted-foreground font-medium">طريقة عرض علامة الوقف عند الإخفاء</p>
+              <div className="flex flex-wrap gap-1.5">
+                <Button
+                  variant={waqfDisplayMode === 'with-word' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setWaqfDisplayMode('with-word')}
+                  className="font-arabic text-[11px] h-7 px-2.5"
+                >
+                  إظهار الوقف مع الكلمة
+                </Button>
+                <Button
+                  variant={waqfDisplayMode === 'sign-only' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setWaqfDisplayMode('sign-only')}
+                  className="font-arabic text-[11px] h-7 px-2.5"
+                >
+                  إظهار علامة الوقف فقط
+                </Button>
               </div>
             </div>
 

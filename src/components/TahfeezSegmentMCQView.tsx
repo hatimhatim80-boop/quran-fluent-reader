@@ -148,7 +148,7 @@ function parseSegments(text: string, mode: SegmentMode, pageNumber: number): Seg
           currentTokens.push(t);
           segments.push({ text: currentTokens.join(' '), tokens: [...currentTokens] });
           currentTokens = [];
-        } else {
+        } else if (clean.length > 0) {
           currentTokens.push(t);
         }
       }

@@ -536,11 +536,25 @@ export function TahfeezQuizView({
 
         if (shouldHide) {
           const blankClickHandler = !storeMode && onClickBlankWord ? () => onClickBlankWord(key) : storeClickHandler;
-          lineElements.push(
-            <BlankSpan key={`${lineIdx}-${tokenIdx}`} word={t} dotScale={dotScale}
-              className={`tahfeez-blank${storeMode ? ' tahfeez-store-target' : ''}${isStored ? ' tahfeez-stored' : ''}`}
-              onClick={blankClickHandler} />
-          );
+          // Separate waqf mark from word if waqfDisplayMode is 'sign-only'
+          const tokenWaqfMatch = t.match(WAQF_TEST);
+          if (tokenWaqfMatch && waqfDisplayMode === 'sign-only') {
+            const wordPart = t.replace(WAQF_TEST, '').trim() || t;
+            lineElements.push(
+              <React.Fragment key={`${lineIdx}-${tokenIdx}`}>
+                <BlankSpan word={wordPart} dotScale={dotScale}
+                  className={`tahfeez-blank${storeMode ? ' tahfeez-store-target' : ''}${isStored ? ' tahfeez-stored' : ''}`}
+                  onClick={blankClickHandler} />
+                <span style={{ opacity: 0.7 }}>{tokenWaqfMatch[0]}</span>
+              </React.Fragment>
+            );
+          } else {
+            lineElements.push(
+              <BlankSpan key={`${lineIdx}-${tokenIdx}`} word={t} dotScale={dotScale}
+                className={`tahfeez-blank${storeMode ? ' tahfeez-store-target' : ''}${isStored ? ' tahfeez-stored' : ''}`}
+                onClick={blankClickHandler} />
+            );
+          }
         } else if (shouldShowAsActive) {
           if (inlineMCQ && inlineMCQOptions.length > 0) {
             // Inline MCQ: show a vertical list of choices at the blank position
@@ -581,12 +595,26 @@ export function TahfeezQuizView({
             );
           } else {
             // Normal active: show dotted line with pulsing glow
-            lineElements.push(
-              <BlankSpan key={`${lineIdx}-${tokenIdx}`} word={t} dotScale={dotScale}
-                className={`tahfeez-active-indicator tahfeez-active--${activeWordColor}`}
-                onClick={storeMode ? storeClickHandler : onClickActiveBlank}
-                style={{ '--tahfeez-active': 'true' } as React.CSSProperties} />
-            );
+            const tokenWaqfMatch2 = t.match(WAQF_TEST);
+            if (tokenWaqfMatch2 && waqfDisplayMode === 'sign-only') {
+              const wordPart = t.replace(WAQF_TEST, '').trim() || t;
+              lineElements.push(
+                <React.Fragment key={`${lineIdx}-${tokenIdx}`}>
+                  <BlankSpan word={wordPart} dotScale={dotScale}
+                    className={`tahfeez-active-indicator tahfeez-active--${activeWordColor}`}
+                    onClick={storeMode ? storeClickHandler : onClickActiveBlank}
+                    style={{ '--tahfeez-active': 'true' } as React.CSSProperties} />
+                  <span style={{ opacity: 0.7 }}>{tokenWaqfMatch2[0]}</span>
+                </React.Fragment>
+              );
+            } else {
+              lineElements.push(
+                <BlankSpan key={`${lineIdx}-${tokenIdx}`} word={t} dotScale={dotScale}
+                  className={`tahfeez-active-indicator tahfeez-active--${activeWordColor}`}
+                  onClick={storeMode ? storeClickHandler : onClickActiveBlank}
+                  style={{ '--tahfeez-active': 'true' } as React.CSSProperties} />
+              );
+            }
           }
         } else if (shouldShowAsRevealed) {
           const baseClass = !revealedWithBg ? 'tahfeez-revealed--text-only' : 'tahfeez-revealed';

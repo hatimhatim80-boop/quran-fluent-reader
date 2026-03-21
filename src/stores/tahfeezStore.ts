@@ -404,6 +404,7 @@ export const useTahfeezStore = create<TahfeezState>()(
         segmentMcqRandomOrder: state.segmentMcqRandomOrder,
         segmentMcqMultiPage: state.segmentMcqMultiPage,
         segmentMcqBlankDuration: state.segmentMcqBlankDuration,
+        waqfDisplayMode: state.waqfDisplayMode,
       }),
     }
   )
