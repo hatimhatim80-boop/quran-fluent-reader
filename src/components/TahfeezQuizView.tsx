@@ -334,11 +334,9 @@ export function TahfeezQuizView({
   // Compute first keys per ayah group (for per-ayah first-word timer)
   const { blankedKeysList, firstKeysSet } = useMemo(() => {
     const orderedKeys = allWordTokens.filter(t => blankedKeys.has(t.key)).map(t => t.key);
-    
-    // Find first blanked key per ayah group
+
     const firstKeys = new Set<string>();
     if (quizSource === 'custom') {
-      // For custom: first key of each stored item
       for (const item of storedItems) {
         if (item.data.page !== page.pageNumber) continue;
         if (item.type === 'word') {
@@ -360,65 +358,19 @@ export function TahfeezQuizView({
         }
       }
     } else {
-      // For auto: find first blanked key of each contiguous blank group within each ayah
-      const rawLines = effectiveText.split('\n');
-      const groups: TokenInfo[][] = [];
-
-      if (isFatihaPage) {
-        // For Al-Fatiha: each content line is its own ayah group
-        for (let lineIdx = 0; lineIdx < rawLines.length; lineIdx++) {
-          const line = rawLines[lineIdx];
-          if (isSurahHeader(line)) continue;
-          const tokens = line.split(/(\s+)/);
-          const lineGroup: TokenInfo[] = [];
-          for (let tokenIdx = 0; tokenIdx < tokens.length; tokenIdx++) {
-            const t = tokens[tokenIdx];
-            const isSpace = /^\s+$/.test(t);
-            const clean = t.replace(/[﴿﴾()[\]{}۝۞٭؟،۔ۣۖۗۘۙۚۛۜ۟۠ۡۢۤۥۦۧۨ۩۪ۭ۫۬]/g, '').trim();
-            const isVerseNumber = !isSpace && /^[٠-٩0-9۰-۹]+$/.test(clean);
-            if (isSpace || isVerseNumber) continue;
-            lineGroup.push({ text: t, lineIdx, tokenIdx, key: `${lineIdx}_${tokenIdx}` });
-          }
-          if (lineGroup.length > 0) groups.push(lineGroup);
-        }
-      } else {
-        let currentGroup: TokenInfo[] = [];
-        for (let lineIdx = 0; lineIdx < rawLines.length; lineIdx++) {
-          const line = rawLines[lineIdx];
-          if (isSurahHeader(line) || isBismillah(line)) continue;
-          const tokens = line.split(/(\s+)/);
-          for (let tokenIdx = 0; tokenIdx < tokens.length; tokenIdx++) {
-            const t = tokens[tokenIdx];
-            const isSpace = /^\s+$/.test(t);
-            const clean = t.replace(/[﴿﴾()[\]{}۝۞٭؟،۔ۣۖۗۘۙۚۛۜ۟۠ۡۢۤۥۦۧۨ۩۪ۭ۫۬]/g, '').trim();
-            const isVerseNumber = !isSpace && /^[٠-٩0-9۰-۹]+$/.test(clean);
-            if (isSpace) continue;
-            if (isVerseNumber) {
-              if (currentGroup.length > 0) { groups.push(currentGroup); currentGroup = []; }
-            } else {
-              currentGroup.push({ text: t, lineIdx, tokenIdx, key: `${lineIdx}_${tokenIdx}` });
-            }
-          }
-        }
-        if (currentGroup.length > 0) groups.push(currentGroup);
-      }
-      
-      // For each ayah group, find first key of each contiguous blank sequence
-      for (const group of groups) {
+      // Use precomputed ayahGroups
+      for (const group of ayahGroups) {
         let prevWasBlanked = false;
         for (const t of group) {
           const isBlanked = blankedKeys.has(t.key);
-          if (isBlanked && !prevWasBlanked) {
-            // Start of a new contiguous blank group
-            firstKeys.add(t.key);
-          }
+          if (isBlanked && !prevWasBlanked) firstKeys.add(t.key);
           prevWasBlanked = isBlanked;
         }
       }
     }
-    
+
     return { blankedKeysList: orderedKeys, firstKeysSet: firstKeys };
-  }, [allWordTokens, blankedKeys, quizSource, storedItems, page.pageNumber, effectiveText]);
+  }, [allWordTokens, blankedKeys, quizSource, storedItems, page.pageNumber, ayahGroups]);
 
   // Attach to DOM for parent to read
   // Also export word texts mapped by key for voice recognition
