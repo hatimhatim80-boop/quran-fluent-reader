@@ -201,6 +201,7 @@ export function TahfeezQuizView({
   }, [effectiveText]);
 
   // Determine which keys should be blanked
+  // Determine which keys should be blanked (uses precomputed ayahGroups)
   const blankedKeys = useMemo((): Set<string> => {
     const keys = new Set<string>();
 
@@ -228,158 +229,105 @@ export function TahfeezQuizView({
       // Auto blanking
       if (autoBlankMode === 'full-page') {
         allWordTokens.forEach(t => keys.add(t.key));
-      } else {
-      // Group tokens into ayahs by verse numbers
-        const ayahGroups: TokenInfo[][] = [];
-        const rawLines = effectiveText.split('\n');
-
-        if (isFatihaPage) {
-          // For Al-Fatiha (page 1): each line that is not a header is its own ayah group.
-          // Verse numbers appear at END of each ayah line (﴿١﴾ etc.), so we treat each
-          // content line as one group, stripped of verse numbers.
-          for (let lineIdx = 0; lineIdx < rawLines.length; lineIdx++) {
-            const line = rawLines[lineIdx];
-            if (isSurahHeader(line)) continue;
-            const tokens = line.split(/(\s+)/);
-            const lineGroup: TokenInfo[] = [];
-            for (let tokenIdx = 0; tokenIdx < tokens.length; tokenIdx++) {
-              const t = tokens[tokenIdx];
-              const isSpace = /^\s+$/.test(t);
-              const clean = t.replace(/[﴿﴾()[\]{}۝۞٭؟،۔ۣۖۗۘۙۚۛۜ۟۠ۡۢۤۥۦۧۨ۩۪ۭ۫۬]/g, '').trim();
-              const isVerseNumber = !isSpace && /^[٠-٩0-9۰-۹]+$/.test(clean);
-              if (isSpace || isVerseNumber) continue;
-              lineGroup.push({ text: t, lineIdx, tokenIdx, key: `${lineIdx}_${tokenIdx}` });
-            }
-            if (lineGroup.length > 0) ayahGroups.push(lineGroup);
-          }
-        } else {
-          // All other pages: verse numbers appear at END of each ayah, acting as delimiters.
-          let currentGroup: TokenInfo[] = [];
-          for (let lineIdx = 0; lineIdx < rawLines.length; lineIdx++) {
-            const line = rawLines[lineIdx];
-            if (isSurahHeader(line) || isBismillah(line)) continue;
-            const tokens = line.split(/(\s+)/);
-            for (let tokenIdx = 0; tokenIdx < tokens.length; tokenIdx++) {
-              const t = tokens[tokenIdx];
-              const isSpace = /^\s+$/.test(t);
-              const clean = t.replace(/[﴿﴾()[\]{}۝۞٭؟،۔ۣۖۗۘۙۚۛۜ۟۠ۡۢۤۥۦۧۨ۩۪ۭ۫۬]/g, '').trim();
-              const isVerseNumber = !isSpace && /^[٠-٩0-9۰-۹]+$/.test(clean);
-              if (isSpace) continue;
-              if (isVerseNumber) {
-                if (currentGroup.length > 0) {
-                  ayahGroups.push(currentGroup);
-                  currentGroup = [];
-                }
-              } else {
-                currentGroup.push({ text: t, lineIdx, tokenIdx, key: `${lineIdx}_${tokenIdx}` });
-              }
-            }
-          }
-          if (currentGroup.length > 0) ayahGroups.push(currentGroup);
+      } else if (autoBlankMode === 'ayah-count') {
+        const count = Math.min(ayahCount, ayahGroups.length);
+        for (let a = 0; a < count; a++) {
+          ayahGroups[a].forEach(t => keys.add(t.key));
         }
+      } else if (waqfCombinedModes.length > 0) {
+        // Waqf-based blanking modes (can combine multiple)
+        const shouldKeepWaqfWord = waqfDisplayMode === 'with-word';
 
-        if (autoBlankMode === 'ayah-count') {
-          const count = Math.min(ayahCount, ayahGroups.length);
-          for (let a = 0; a < count; a++) {
-            ayahGroups[a].forEach(t => keys.add(t.key));
+        for (const group of ayahGroups) {
+          const waqfIndices: number[] = [];
+          for (let i = 0; i < group.length; i++) {
+            if (group[i].hasWaqf) waqfIndices.push(i);
           }
-        } else if (waqfCombinedModes.length > 0) {
-          // Waqf-based blanking modes (can combine multiple)
-          const waqfRegex = /[ۖۗۘۙۚۛ]/;
-          
-          for (const group of ayahGroups) {
-            const waqfIndices: number[] = [];
+
+          // In 'with-word' mode, waqf-bearing words are NOT blanked
+          const isProtected = (i: number) => shouldKeepWaqfWord && group[i].hasWaqf;
+
+          if (waqfCombinedModes.includes('between-waqf')) {
+            if (waqfIndices.length >= 2) {
+              for (let w = 0; w < waqfIndices.length - 1; w++) {
+                for (let i = waqfIndices[w] + 1; i < waqfIndices[w + 1]; i++) {
+                  if (!isProtected(i)) keys.add(group[i].key);
+                }
+              }
+            } else if (waqfIndices.length === 1) {
+              for (let i = waqfIndices[0] + 1; i < group.length; i++) {
+                if (!isProtected(i)) keys.add(group[i].key);
+              }
+            }
+          }
+
+          if (waqfCombinedModes.includes('waqf-to-ayah')) {
+            if (waqfIndices.length > 0) {
+              const lastWaqf = waqfIndices[waqfIndices.length - 1];
+              for (let i = lastWaqf + 1; i < group.length; i++) {
+                if (!isProtected(i)) keys.add(group[i].key);
+              }
+            }
+          }
+
+          if (waqfCombinedModes.includes('ayah-to-waqf')) {
+            if (waqfIndices.length > 0) {
+              const firstWaqf = waqfIndices[0];
+              for (let i = 0; i < firstWaqf; i++) {
+                if (!isProtected(i)) keys.add(group[i].key);
+              }
+            }
+          }
+
+          if (waqfCombinedModes.includes('between-ayah')) {
+            // Blank all words between verse boundaries (entire ayah content)
             for (let i = 0; i < group.length; i++) {
-              if (waqfRegex.test(group[i].text)) {
-                waqfIndices.push(i);
-              }
-            }
-            
-            // Helper: skip tokens that ARE waqf signs themselves
-            const isWaqfToken = (i: number) => waqfRegex.test(group[i].text);
-            
-            if (waqfCombinedModes.includes('between-waqf')) {
-              if (waqfIndices.length >= 2) {
-                for (let w = 0; w < waqfIndices.length - 1; w++) {
-                  // Blank only words strictly between two waqf signs (exclusive)
-                  for (let i = waqfIndices[w] + 1; i < waqfIndices[w + 1]; i++) {
-                    if (!isWaqfToken(i)) keys.add(group[i].key);
-                  }
-                }
-              } else if (waqfIndices.length === 1) {
-                // Single waqf: blank from after waqf to end
-                for (let i = waqfIndices[0] + 1; i < group.length; i++) {
-                  if (!isWaqfToken(i)) keys.add(group[i].key);
-                }
-              }
-            }
-            
-            if (waqfCombinedModes.includes('waqf-to-ayah')) {
-              if (waqfIndices.length > 0) {
-                const lastWaqf = waqfIndices[waqfIndices.length - 1];
-                for (let i = lastWaqf + 1; i < group.length; i++) {
-                  if (!isWaqfToken(i)) keys.add(group[i].key);
-                }
-              }
-            }
-            
-            if (waqfCombinedModes.includes('ayah-to-waqf')) {
-              if (waqfIndices.length > 0) {
-                const firstWaqf = waqfIndices[0];
-                for (let i = 0; i < firstWaqf; i++) {
-                  if (!isWaqfToken(i)) keys.add(group[i].key);
-                }
-              }
+              if (!isProtected(i)) keys.add(group[i].key);
             }
           }
-        } else {
-          for (const group of ayahGroups) {
-            const wc = group.length;
-            const isFullAyah = autoBlankMode === 'full-ayah';
+        }
+      } else {
+        for (const group of ayahGroups) {
+          const wc = group.length;
+          const isFullAyah = autoBlankMode === 'full-ayah';
 
-            if (isFullAyah) {
-              group.forEach(t => keys.add(t.key));
-            } else if (autoBlankMode === 'beginning' || autoBlankMode === 'middle' || autoBlankMode === 'end') {
-              const n = Math.min(blankCount, wc);
-              let start = 0;
-              if (autoBlankMode === 'beginning') start = 0;
-              else if (autoBlankMode === 'end') start = wc - n;
-              else if (autoBlankMode === 'middle') start = Math.max(0, Math.floor(wc / 2) - Math.floor(n / 2));
-              for (let i = start; i < start + n && i < wc; i++) {
-                keys.add(group[i].key);
-              }
-            } else if (autoBlankMode === 'beginning-middle-end') {
-              // All three regions
-              const n = Math.min(blankCount, Math.floor(wc / 3));
-              // Beginning
+          if (isFullAyah) {
+            group.forEach(t => keys.add(t.key));
+          } else if (autoBlankMode === 'beginning' || autoBlankMode === 'middle' || autoBlankMode === 'end') {
+            const n = Math.min(blankCount, wc);
+            let start = 0;
+            if (autoBlankMode === 'beginning') start = 0;
+            else if (autoBlankMode === 'end') start = wc - n;
+            else if (autoBlankMode === 'middle') start = Math.max(0, Math.floor(wc / 2) - Math.floor(n / 2));
+            for (let i = start; i < start + n && i < wc; i++) {
+              keys.add(group[i].key);
+            }
+          } else if (autoBlankMode === 'beginning-middle-end') {
+            const n = Math.min(blankCount, Math.floor(wc / 3));
+            for (let i = 0; i < n && i < wc; i++) keys.add(group[i].key);
+            const midStart = Math.max(0, Math.floor(wc / 2) - Math.floor(n / 2));
+            for (let i = midStart; i < midStart + n && i < wc; i++) keys.add(group[i].key);
+            for (let i = Math.max(0, wc - n); i < wc; i++) keys.add(group[i].key);
+          } else {
+            const n = Math.min(blankCount, Math.floor(wc / 2));
+            if (autoBlankMode === 'beginning-middle') {
               for (let i = 0; i < n && i < wc; i++) keys.add(group[i].key);
-              // Middle
               const midStart = Math.max(0, Math.floor(wc / 2) - Math.floor(n / 2));
               for (let i = midStart; i < midStart + n && i < wc; i++) keys.add(group[i].key);
-              // End
+            } else if (autoBlankMode === 'middle-end') {
+              const midStart = Math.max(0, Math.floor(wc / 2) - Math.floor(n / 2));
+              for (let i = midStart; i < midStart + n && i < wc; i++) keys.add(group[i].key);
               for (let i = Math.max(0, wc - n); i < wc; i++) keys.add(group[i].key);
-            } else {
-              // Combined modes: beginning-middle, middle-end, beginning-end
-              const n = Math.min(blankCount, Math.floor(wc / 2));
-              if (autoBlankMode === 'beginning-middle') {
-                for (let i = 0; i < n && i < wc; i++) keys.add(group[i].key);
-                const midStart = Math.max(0, Math.floor(wc / 2) - Math.floor(n / 2));
-                for (let i = midStart; i < midStart + n && i < wc; i++) keys.add(group[i].key);
-              } else if (autoBlankMode === 'middle-end') {
-                const midStart = Math.max(0, Math.floor(wc / 2) - Math.floor(n / 2));
-                for (let i = midStart; i < midStart + n && i < wc; i++) keys.add(group[i].key);
-                for (let i = Math.max(0, wc - n); i < wc; i++) keys.add(group[i].key);
-              } else if (autoBlankMode === 'beginning-end') {
-                for (let i = 0; i < n && i < wc; i++) keys.add(group[i].key);
-                for (let i = Math.max(0, wc - n); i < wc; i++) keys.add(group[i].key);
-              }
+            } else if (autoBlankMode === 'beginning-end') {
+              for (let i = 0; i < n && i < wc; i++) keys.add(group[i].key);
+              for (let i = Math.max(0, wc - n); i < wc; i++) keys.add(group[i].key);
             }
           }
         }
       }
     }
     return keys;
-  }, [quizSource, storedItems, autoBlankMode, blankCount, ayahCount, page.pageNumber, allWordTokens, effectiveText]);
+  }, [quizSource, storedItems, autoBlankMode, blankCount, ayahCount, page.pageNumber, allWordTokens, ayahGroups, waqfCombinedModes, waqfDisplayMode]);
 
   // Export blanked keys list (ordered) for parent to use in sequencing
   // This is used by the parent component via a ref or callback
