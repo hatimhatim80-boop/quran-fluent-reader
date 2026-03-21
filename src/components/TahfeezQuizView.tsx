@@ -68,11 +68,16 @@ function isBismillah(line: string): boolean {
   return normalized.includes('بسم الله الرحمن الرحيم') || normalized.includes('بسم الله');
 }
 
+const WAQF_TEST = /[ۖۗۘۙۚۛ]/;
+const CLEAN_REGEX = /[﴿﴾()[\]{}۝۞٭؟،۔ۣۖۗۘۙۚۛۜ۟۠ۡۢۤۥۦۧۨ۩۪ۭ۫۬]/g;
+
 interface TokenInfo {
   text: string;
   lineIdx: number;
   tokenIdx: number;
   key: string;
+  hasWaqf: boolean;
+  waqfMark: string;
 }
 
 export function TahfeezQuizView({
