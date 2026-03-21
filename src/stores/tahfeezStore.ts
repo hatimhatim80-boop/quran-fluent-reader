@@ -114,7 +114,7 @@ interface TahfeezState {
   setQuizSource: (src: 'custom' | 'auto') => void;
   autoBlankMode: 'beginning' | 'middle' | 'end' | 'beginning-middle' | 'middle-end' | 'beginning-end' | 'beginning-middle-end' | 'full-ayah' | 'full-page' | 'ayah-count' | 'between-waqf' | 'waqf-to-ayah' | 'ayah-to-waqf' | 'next-ayah-mcq' | 'next-waqf-mcq';
   setAutoBlankMode: (mode: TahfeezState['autoBlankMode']) => void;
-  waqfCombinedModes: ('between-waqf' | 'waqf-to-ayah' | 'ayah-to-waqf')[];
+  waqfCombinedModes: ('between-waqf' | 'waqf-to-ayah' | 'ayah-to-waqf' | 'between-ayah')[];
   setWaqfCombinedModes: (modes: TahfeezState['waqfCombinedModes']) => void;
 
   // Quiz scope
@@ -208,6 +208,10 @@ interface TahfeezState {
   // Duration to keep segment hidden before showing choices
   segmentMcqBlankDuration: number;
   setSegmentMcqBlankDuration: (s: number) => void;
+
+  // Waqf display mode when blanking
+  waqfDisplayMode: 'with-word' | 'sign-only';
+  setWaqfDisplayMode: (mode: TahfeezState['waqfDisplayMode']) => void;
 }
 
 export const useTahfeezStore = create<TahfeezState>()(
@@ -361,6 +365,9 @@ export const useTahfeezStore = create<TahfeezState>()(
 
       segmentMcqBlankDuration: 0,
       setSegmentMcqBlankDuration: (s) => set({ segmentMcqBlankDuration: s }),
+
+      waqfDisplayMode: 'with-word',
+      setWaqfDisplayMode: (mode) => set({ waqfDisplayMode: mode }),
     }),
     {
       name: 'tahfeez.v2',
@@ -397,6 +404,7 @@ export const useTahfeezStore = create<TahfeezState>()(
         segmentMcqRandomOrder: state.segmentMcqRandomOrder,
         segmentMcqMultiPage: state.segmentMcqMultiPage,
         segmentMcqBlankDuration: state.segmentMcqBlankDuration,
+        waqfDisplayMode: state.waqfDisplayMode,
       }),
     }
   )

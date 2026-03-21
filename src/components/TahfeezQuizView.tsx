@@ -68,11 +68,16 @@ function isBismillah(line: string): boolean {
   return normalized.includes('بسم الله الرحمن الرحيم') || normalized.includes('بسم الله');
 }
 
+const WAQF_TEST = /[ۖۗۘۙۚۛ]/;
+const CLEAN_REGEX = /[﴿﴾()[\]{}۝۞٭؟،۔ۣۖۗۘۙۚۛۜ۟۠ۡۢۤۥۦۧۨ۩۪ۭ۫۬]/g;
+
 interface TokenInfo {
   text: string;
   lineIdx: number;
   tokenIdx: number;
   key: string;
+  hasWaqf: boolean;
+  waqfMark: string;
 }
 
 export function TahfeezQuizView({
@@ -95,6 +100,7 @@ export function TahfeezQuizView({
   onInlineMCQAnswer,
 }: TahfeezQuizViewProps) {
   const { dotScale } = useTahfeezStore();
+  const waqfDisplayMode = useTahfeezStore(s => s.waqfDisplayMode);
   const { settings } = useSettingsStore();
   const revealedColor = useTahfeezStore(s => s.revealedColor);
   const revealedWithBg = useTahfeezStore(s => s.revealedWithBg);
@@ -138,34 +144,64 @@ export function TahfeezQuizView({
   // Parse all word tokens (excluding headers, bismillah-as-separator, spaces, verse numbers)
   // Exception: page 1 (Al-Fatiha) — bismillah IS the first ayah and must be tokenized.
   const isFatihaPage = page.pageNumber === 1;
-  const { lines, allWordTokens } = useMemo(() => {
+  // Combined tokenization: lines + allWordTokens + ayahGroups (single source of truth)
+  const { lines, allWordTokens, ayahGroups } = useMemo(() => {
     const lines = effectiveText.split('\n');
-    const allWordTokens: TokenInfo[] = [];
-    for (let lineIdx = 0; lineIdx < lines.length; lineIdx++) {
-      const line = lines[lineIdx];
-      // Skip surah headers always; skip bismillah ONLY if it's a separator (not Al-Fatiha page)
-      if (isSurahHeader(line)) continue;
-      if (!isFatihaPage && isBismillah(line)) continue;
-      const tokens = line.split(/(\s+)/);
-      for (let tokenIdx = 0; tokenIdx < tokens.length; tokenIdx++) {
-        const t = tokens[tokenIdx];
-        const isSpace = /^\s+$/.test(t);
-        const clean = t.replace(/[﴿﴾()[\]{}۝۞٭؟،۔ۣۖۗۘۙۚۛۜ۟۠ۡۢۤۥۦۧۨ۩۪ۭ۫۬]/g, '').trim();
-        const isVerseNumber = !isSpace && /^[٠-٩0-9۰-۹]+$/.test(clean);
-        if (!isSpace && !isVerseNumber) {
-          allWordTokens.push({
-            text: t,
-            lineIdx,
-            tokenIdx,
+    const ayahGroups: TokenInfo[][] = [];
+
+    if (isFatihaPage) {
+      for (let lineIdx = 0; lineIdx < lines.length; lineIdx++) {
+        const line = lines[lineIdx];
+        if (isSurahHeader(line)) continue;
+        const tokens = line.split(/(\s+)/);
+        const lineGroup: TokenInfo[] = [];
+        for (let tokenIdx = 0; tokenIdx < tokens.length; tokenIdx++) {
+          const t = tokens[tokenIdx];
+          if (/^\s+$/.test(t)) continue;
+          const clean = t.replace(CLEAN_REGEX, '').trim();
+          if (/^[٠-٩0-9۰-۹]+$/.test(clean)) continue;
+          if (clean.length === 0) continue; // skip standalone waqf/decorative marks
+          const wm = t.match(WAQF_TEST);
+          lineGroup.push({
+            text: t, lineIdx, tokenIdx,
             key: `${lineIdx}_${tokenIdx}`,
+            hasWaqf: !!wm, waqfMark: wm ? wm[0] : '',
+          });
+        }
+        if (lineGroup.length > 0) ayahGroups.push(lineGroup);
+      }
+    } else {
+      let currentGroup: TokenInfo[] = [];
+      for (let lineIdx = 0; lineIdx < lines.length; lineIdx++) {
+        const line = lines[lineIdx];
+        if (isSurahHeader(line) || isBismillah(line)) continue;
+        const tokens = line.split(/(\s+)/);
+        for (let tokenIdx = 0; tokenIdx < tokens.length; tokenIdx++) {
+          const t = tokens[tokenIdx];
+          if (/^\s+$/.test(t)) continue;
+          const clean = t.replace(CLEAN_REGEX, '').trim();
+          const isVerseNumber = /^[٠-٩0-9۰-۹]+$/.test(clean);
+          if (isVerseNumber) {
+            if (currentGroup.length > 0) { ayahGroups.push(currentGroup); currentGroup = []; }
+            continue;
+          }
+          if (clean.length === 0) continue; // skip standalone waqf/decorative marks
+          const wm = t.match(WAQF_TEST);
+          currentGroup.push({
+            text: t, lineIdx, tokenIdx,
+            key: `${lineIdx}_${tokenIdx}`,
+            hasWaqf: !!wm, waqfMark: wm ? wm[0] : '',
           });
         }
       }
+      if (currentGroup.length > 0) ayahGroups.push(currentGroup);
     }
-    return { lines, allWordTokens };
+
+    return { lines, allWordTokens: ayahGroups.flat(), ayahGroups };
   }, [effectiveText]);
 
   // Determine which keys should be blanked
+  // Determine which keys should be blanked (uses precomputed ayahGroups)
   const blankedKeys = useMemo((): Set<string> => {
     const keys = new Set<string>();
 
@@ -193,169 +229,114 @@ export function TahfeezQuizView({
       // Auto blanking
       if (autoBlankMode === 'full-page') {
         allWordTokens.forEach(t => keys.add(t.key));
-      } else {
-      // Group tokens into ayahs by verse numbers
-        const ayahGroups: TokenInfo[][] = [];
-        const rawLines = effectiveText.split('\n');
-
-        if (isFatihaPage) {
-          // For Al-Fatiha (page 1): each line that is not a header is its own ayah group.
-          // Verse numbers appear at END of each ayah line (﴿١﴾ etc.), so we treat each
-          // content line as one group, stripped of verse numbers.
-          for (let lineIdx = 0; lineIdx < rawLines.length; lineIdx++) {
-            const line = rawLines[lineIdx];
-            if (isSurahHeader(line)) continue;
-            const tokens = line.split(/(\s+)/);
-            const lineGroup: TokenInfo[] = [];
-            for (let tokenIdx = 0; tokenIdx < tokens.length; tokenIdx++) {
-              const t = tokens[tokenIdx];
-              const isSpace = /^\s+$/.test(t);
-              const clean = t.replace(/[﴿﴾()[\]{}۝۞٭؟،۔ۣۖۗۘۙۚۛۜ۟۠ۡۢۤۥۦۧۨ۩۪ۭ۫۬]/g, '').trim();
-              const isVerseNumber = !isSpace && /^[٠-٩0-9۰-۹]+$/.test(clean);
-              if (isSpace || isVerseNumber) continue;
-              lineGroup.push({ text: t, lineIdx, tokenIdx, key: `${lineIdx}_${tokenIdx}` });
-            }
-            if (lineGroup.length > 0) ayahGroups.push(lineGroup);
-          }
-        } else {
-          // All other pages: verse numbers appear at END of each ayah, acting as delimiters.
-          let currentGroup: TokenInfo[] = [];
-          for (let lineIdx = 0; lineIdx < rawLines.length; lineIdx++) {
-            const line = rawLines[lineIdx];
-            if (isSurahHeader(line) || isBismillah(line)) continue;
-            const tokens = line.split(/(\s+)/);
-            for (let tokenIdx = 0; tokenIdx < tokens.length; tokenIdx++) {
-              const t = tokens[tokenIdx];
-              const isSpace = /^\s+$/.test(t);
-              const clean = t.replace(/[﴿﴾()[\]{}۝۞٭؟،۔ۣۖۗۘۙۚۛۜ۟۠ۡۢۤۥۦۧۨ۩۪ۭ۫۬]/g, '').trim();
-              const isVerseNumber = !isSpace && /^[٠-٩0-9۰-۹]+$/.test(clean);
-              if (isSpace) continue;
-              if (isVerseNumber) {
-                if (currentGroup.length > 0) {
-                  ayahGroups.push(currentGroup);
-                  currentGroup = [];
-                }
-              } else {
-                currentGroup.push({ text: t, lineIdx, tokenIdx, key: `${lineIdx}_${tokenIdx}` });
-              }
-            }
-          }
-          if (currentGroup.length > 0) ayahGroups.push(currentGroup);
+      } else if (autoBlankMode === 'ayah-count') {
+        const count = Math.min(ayahCount, ayahGroups.length);
+        for (let a = 0; a < count; a++) {
+          ayahGroups[a].forEach(t => keys.add(t.key));
         }
+      } else if (waqfCombinedModes.length > 0) {
+        // Waqf-based blanking modes (can combine multiple)
+        const shouldKeepWaqfWord = waqfDisplayMode === 'with-word';
 
-        if (autoBlankMode === 'ayah-count') {
-          const count = Math.min(ayahCount, ayahGroups.length);
-          for (let a = 0; a < count; a++) {
-            ayahGroups[a].forEach(t => keys.add(t.key));
+        for (const group of ayahGroups) {
+          const waqfIndices: number[] = [];
+          for (let i = 0; i < group.length; i++) {
+            if (group[i].hasWaqf) waqfIndices.push(i);
           }
-        } else if (waqfCombinedModes.length > 0) {
-          // Waqf-based blanking modes (can combine multiple)
-          const waqfRegex = /[ۖۗۘۙۚۛ]/;
-          
-          for (const group of ayahGroups) {
-            const waqfIndices: number[] = [];
+
+          // In 'with-word' mode, waqf-bearing words are NOT blanked
+          const isProtected = (i: number) => shouldKeepWaqfWord && group[i].hasWaqf;
+
+          if (waqfCombinedModes.includes('between-waqf')) {
+            if (waqfIndices.length >= 2) {
+              for (let w = 0; w < waqfIndices.length - 1; w++) {
+                for (let i = waqfIndices[w] + 1; i < waqfIndices[w + 1]; i++) {
+                  if (!isProtected(i)) keys.add(group[i].key);
+                }
+              }
+            } else if (waqfIndices.length === 1) {
+              for (let i = waqfIndices[0] + 1; i < group.length; i++) {
+                if (!isProtected(i)) keys.add(group[i].key);
+              }
+            }
+          }
+
+          if (waqfCombinedModes.includes('waqf-to-ayah')) {
+            if (waqfIndices.length > 0) {
+              const lastWaqf = waqfIndices[waqfIndices.length - 1];
+              for (let i = lastWaqf + 1; i < group.length; i++) {
+                if (!isProtected(i)) keys.add(group[i].key);
+              }
+            }
+          }
+
+          if (waqfCombinedModes.includes('ayah-to-waqf')) {
+            if (waqfIndices.length > 0) {
+              const firstWaqf = waqfIndices[0];
+              for (let i = 0; i < firstWaqf; i++) {
+                if (!isProtected(i)) keys.add(group[i].key);
+              }
+            }
+          }
+
+          if (waqfCombinedModes.includes('between-ayah')) {
+            // Blank all words between verse boundaries (entire ayah content)
             for (let i = 0; i < group.length; i++) {
-              if (waqfRegex.test(group[i].text)) {
-                waqfIndices.push(i);
-              }
-            }
-            
-            // Helper: skip tokens that ARE waqf signs themselves
-            const isWaqfToken = (i: number) => waqfRegex.test(group[i].text);
-            
-            if (waqfCombinedModes.includes('between-waqf')) {
-              if (waqfIndices.length >= 2) {
-                for (let w = 0; w < waqfIndices.length - 1; w++) {
-                  // Blank only words strictly between two waqf signs (exclusive)
-                  for (let i = waqfIndices[w] + 1; i < waqfIndices[w + 1]; i++) {
-                    if (!isWaqfToken(i)) keys.add(group[i].key);
-                  }
-                }
-              } else if (waqfIndices.length === 1) {
-                // Single waqf: blank from after waqf to end
-                for (let i = waqfIndices[0] + 1; i < group.length; i++) {
-                  if (!isWaqfToken(i)) keys.add(group[i].key);
-                }
-              }
-            }
-            
-            if (waqfCombinedModes.includes('waqf-to-ayah')) {
-              if (waqfIndices.length > 0) {
-                const lastWaqf = waqfIndices[waqfIndices.length - 1];
-                for (let i = lastWaqf + 1; i < group.length; i++) {
-                  if (!isWaqfToken(i)) keys.add(group[i].key);
-                }
-              }
-            }
-            
-            if (waqfCombinedModes.includes('ayah-to-waqf')) {
-              if (waqfIndices.length > 0) {
-                const firstWaqf = waqfIndices[0];
-                for (let i = 0; i < firstWaqf; i++) {
-                  if (!isWaqfToken(i)) keys.add(group[i].key);
-                }
-              }
+              if (!isProtected(i)) keys.add(group[i].key);
             }
           }
-        } else {
-          for (const group of ayahGroups) {
-            const wc = group.length;
-            const isFullAyah = autoBlankMode === 'full-ayah';
+        }
+      } else {
+        for (const group of ayahGroups) {
+          const wc = group.length;
+          const isFullAyah = autoBlankMode === 'full-ayah';
 
-            if (isFullAyah) {
-              group.forEach(t => keys.add(t.key));
-            } else if (autoBlankMode === 'beginning' || autoBlankMode === 'middle' || autoBlankMode === 'end') {
-              const n = Math.min(blankCount, wc);
-              let start = 0;
-              if (autoBlankMode === 'beginning') start = 0;
-              else if (autoBlankMode === 'end') start = wc - n;
-              else if (autoBlankMode === 'middle') start = Math.max(0, Math.floor(wc / 2) - Math.floor(n / 2));
-              for (let i = start; i < start + n && i < wc; i++) {
-                keys.add(group[i].key);
-              }
-            } else if (autoBlankMode === 'beginning-middle-end') {
-              // All three regions
-              const n = Math.min(blankCount, Math.floor(wc / 3));
-              // Beginning
+          if (isFullAyah) {
+            group.forEach(t => keys.add(t.key));
+          } else if (autoBlankMode === 'beginning' || autoBlankMode === 'middle' || autoBlankMode === 'end') {
+            const n = Math.min(blankCount, wc);
+            let start = 0;
+            if (autoBlankMode === 'beginning') start = 0;
+            else if (autoBlankMode === 'end') start = wc - n;
+            else if (autoBlankMode === 'middle') start = Math.max(0, Math.floor(wc / 2) - Math.floor(n / 2));
+            for (let i = start; i < start + n && i < wc; i++) {
+              keys.add(group[i].key);
+            }
+          } else if (autoBlankMode === 'beginning-middle-end') {
+            const n = Math.min(blankCount, Math.floor(wc / 3));
+            for (let i = 0; i < n && i < wc; i++) keys.add(group[i].key);
+            const midStart = Math.max(0, Math.floor(wc / 2) - Math.floor(n / 2));
+            for (let i = midStart; i < midStart + n && i < wc; i++) keys.add(group[i].key);
+            for (let i = Math.max(0, wc - n); i < wc; i++) keys.add(group[i].key);
+          } else {
+            const n = Math.min(blankCount, Math.floor(wc / 2));
+            if (autoBlankMode === 'beginning-middle') {
               for (let i = 0; i < n && i < wc; i++) keys.add(group[i].key);
-              // Middle
               const midStart = Math.max(0, Math.floor(wc / 2) - Math.floor(n / 2));
               for (let i = midStart; i < midStart + n && i < wc; i++) keys.add(group[i].key);
-              // End
+            } else if (autoBlankMode === 'middle-end') {
+              const midStart = Math.max(0, Math.floor(wc / 2) - Math.floor(n / 2));
+              for (let i = midStart; i < midStart + n && i < wc; i++) keys.add(group[i].key);
               for (let i = Math.max(0, wc - n); i < wc; i++) keys.add(group[i].key);
-            } else {
-              // Combined modes: beginning-middle, middle-end, beginning-end
-              const n = Math.min(blankCount, Math.floor(wc / 2));
-              if (autoBlankMode === 'beginning-middle') {
-                for (let i = 0; i < n && i < wc; i++) keys.add(group[i].key);
-                const midStart = Math.max(0, Math.floor(wc / 2) - Math.floor(n / 2));
-                for (let i = midStart; i < midStart + n && i < wc; i++) keys.add(group[i].key);
-              } else if (autoBlankMode === 'middle-end') {
-                const midStart = Math.max(0, Math.floor(wc / 2) - Math.floor(n / 2));
-                for (let i = midStart; i < midStart + n && i < wc; i++) keys.add(group[i].key);
-                for (let i = Math.max(0, wc - n); i < wc; i++) keys.add(group[i].key);
-              } else if (autoBlankMode === 'beginning-end') {
-                for (let i = 0; i < n && i < wc; i++) keys.add(group[i].key);
-                for (let i = Math.max(0, wc - n); i < wc; i++) keys.add(group[i].key);
-              }
+            } else if (autoBlankMode === 'beginning-end') {
+              for (let i = 0; i < n && i < wc; i++) keys.add(group[i].key);
+              for (let i = Math.max(0, wc - n); i < wc; i++) keys.add(group[i].key);
             }
           }
         }
       }
     }
     return keys;
-  }, [quizSource, storedItems, autoBlankMode, blankCount, ayahCount, page.pageNumber, allWordTokens, effectiveText]);
+  }, [quizSource, storedItems, autoBlankMode, blankCount, ayahCount, page.pageNumber, allWordTokens, ayahGroups, waqfCombinedModes, waqfDisplayMode]);
 
   // Export blanked keys list (ordered) for parent to use in sequencing
   // This is used by the parent component via a ref or callback
   // Compute first keys per ayah group (for per-ayah first-word timer)
   const { blankedKeysList, firstKeysSet } = useMemo(() => {
     const orderedKeys = allWordTokens.filter(t => blankedKeys.has(t.key)).map(t => t.key);
-    
-    // Find first blanked key per ayah group
+
     const firstKeys = new Set<string>();
     if (quizSource === 'custom') {
-      // For custom: first key of each stored item
       for (const item of storedItems) {
         if (item.data.page !== page.pageNumber) continue;
         if (item.type === 'word') {
@@ -377,65 +358,19 @@ export function TahfeezQuizView({
         }
       }
     } else {
-      // For auto: find first blanked key of each contiguous blank group within each ayah
-      const rawLines = effectiveText.split('\n');
-      const groups: TokenInfo[][] = [];
-
-      if (isFatihaPage) {
-        // For Al-Fatiha: each content line is its own ayah group
-        for (let lineIdx = 0; lineIdx < rawLines.length; lineIdx++) {
-          const line = rawLines[lineIdx];
-          if (isSurahHeader(line)) continue;
-          const tokens = line.split(/(\s+)/);
-          const lineGroup: TokenInfo[] = [];
-          for (let tokenIdx = 0; tokenIdx < tokens.length; tokenIdx++) {
-            const t = tokens[tokenIdx];
-            const isSpace = /^\s+$/.test(t);
-            const clean = t.replace(/[﴿﴾()[\]{}۝۞٭؟،۔ۣۖۗۘۙۚۛۜ۟۠ۡۢۤۥۦۧۨ۩۪ۭ۫۬]/g, '').trim();
-            const isVerseNumber = !isSpace && /^[٠-٩0-9۰-۹]+$/.test(clean);
-            if (isSpace || isVerseNumber) continue;
-            lineGroup.push({ text: t, lineIdx, tokenIdx, key: `${lineIdx}_${tokenIdx}` });
-          }
-          if (lineGroup.length > 0) groups.push(lineGroup);
-        }
-      } else {
-        let currentGroup: TokenInfo[] = [];
-        for (let lineIdx = 0; lineIdx < rawLines.length; lineIdx++) {
-          const line = rawLines[lineIdx];
-          if (isSurahHeader(line) || isBismillah(line)) continue;
-          const tokens = line.split(/(\s+)/);
-          for (let tokenIdx = 0; tokenIdx < tokens.length; tokenIdx++) {
-            const t = tokens[tokenIdx];
-            const isSpace = /^\s+$/.test(t);
-            const clean = t.replace(/[﴿﴾()[\]{}۝۞٭؟،۔ۣۖۗۘۙۚۛۜ۟۠ۡۢۤۥۦۧۨ۩۪ۭ۫۬]/g, '').trim();
-            const isVerseNumber = !isSpace && /^[٠-٩0-9۰-۹]+$/.test(clean);
-            if (isSpace) continue;
-            if (isVerseNumber) {
-              if (currentGroup.length > 0) { groups.push(currentGroup); currentGroup = []; }
-            } else {
-              currentGroup.push({ text: t, lineIdx, tokenIdx, key: `${lineIdx}_${tokenIdx}` });
-            }
-          }
-        }
-        if (currentGroup.length > 0) groups.push(currentGroup);
-      }
-      
-      // For each ayah group, find first key of each contiguous blank sequence
-      for (const group of groups) {
+      // Use precomputed ayahGroups
+      for (const group of ayahGroups) {
         let prevWasBlanked = false;
         for (const t of group) {
           const isBlanked = blankedKeys.has(t.key);
-          if (isBlanked && !prevWasBlanked) {
-            // Start of a new contiguous blank group
-            firstKeys.add(t.key);
-          }
+          if (isBlanked && !prevWasBlanked) firstKeys.add(t.key);
           prevWasBlanked = isBlanked;
         }
       }
     }
-    
+
     return { blankedKeysList: orderedKeys, firstKeysSet: firstKeys };
-  }, [allWordTokens, blankedKeys, quizSource, storedItems, page.pageNumber, effectiveText]);
+  }, [allWordTokens, blankedKeys, quizSource, storedItems, page.pageNumber, ayahGroups]);
 
   // Attach to DOM for parent to read
   // Also export word texts mapped by key for voice recognition
@@ -451,73 +386,30 @@ export function TahfeezQuizView({
 
   // Compute reveal groups: ayah-based and waqf-based
   const revealKeyGroups = useMemo(() => {
-    const ayahGroups: string[][] = [];
+    const ayahRevealGroups: string[][] = [];
     const waqfGroups: string[][] = [];
-    const waqfRegex = /[ۖۗۘۙۚۛ]/;
-    
-    // Build ayah groups from tokens
-    const rawLines = effectiveText.split('\n');
-    const tokenGroups: TokenInfo[][] = [];
-    
-    if (isFatihaPage) {
-      for (let lineIdx = 0; lineIdx < rawLines.length; lineIdx++) {
-        const line = rawLines[lineIdx];
-        if (isSurahHeader(line)) continue;
-        const tokens = line.split(/(\s+)/);
-        const lineGroup: TokenInfo[] = [];
-        for (let tokenIdx = 0; tokenIdx < tokens.length; tokenIdx++) {
-          const t = tokens[tokenIdx];
-          const isSpace = /^\s+$/.test(t);
-          const clean = t.replace(/[﴿﴾()[\]{}۝۞٭؟،۔ۣۖۗۘۙۚۛۜ۟۠ۡۢۤۥۦۧۨ۩۪ۭ۫۬]/g, '').trim();
-          const isVerseNumber = !isSpace && /^[٠-٩0-9۰-۹]+$/.test(clean);
-          if (isSpace || isVerseNumber) continue;
-          lineGroup.push({ text: t, lineIdx, tokenIdx, key: `${lineIdx}_${tokenIdx}` });
-        }
-        if (lineGroup.length > 0) tokenGroups.push(lineGroup);
-      }
-    } else {
-      let currentGroup: TokenInfo[] = [];
-      for (let lineIdx = 0; lineIdx < rawLines.length; lineIdx++) {
-        const line = rawLines[lineIdx];
-        if (isSurahHeader(line) || isBismillah(line)) continue;
-        const tokens = line.split(/(\s+)/);
-        for (let tokenIdx = 0; tokenIdx < tokens.length; tokenIdx++) {
-          const t = tokens[tokenIdx];
-          const isSpace = /^\s+$/.test(t);
-          const clean = t.replace(/[﴿﴾()[\]{}۝۞٭؟،۔ۣۖۗۘۙۚۛۜ۟۠ۡۢۤۥۦۧۨ۩۪ۭ۫۬]/g, '').trim();
-          const isVerseNumber = !isSpace && /^[٠-٩0-9۰-۹]+$/.test(clean);
-          if (isSpace) continue;
-          if (isVerseNumber) {
-            if (currentGroup.length > 0) { tokenGroups.push(currentGroup); currentGroup = []; }
-          } else {
-            currentGroup.push({ text: t, lineIdx, tokenIdx, key: `${lineIdx}_${tokenIdx}` });
-          }
-        }
-      }
-      if (currentGroup.length > 0) tokenGroups.push(currentGroup);
-    }
-    
+
     // Build ayah groups (only blanked keys)
-    for (const group of tokenGroups) {
+    for (const group of ayahGroups) {
       const blankedInGroup = group.filter(t => blankedKeys.has(t.key)).map(t => t.key);
-      if (blankedInGroup.length > 0) ayahGroups.push(blankedInGroup);
+      if (blankedInGroup.length > 0) ayahRevealGroups.push(blankedInGroup);
     }
-    
-    // Build waqf groups: split each ayah by waqf marks
-    for (const group of tokenGroups) {
-      const waqfIndices = group.reduce((acc: number[], t, i) => waqfRegex.test(t.text) ? [...acc, i] : acc, []);
-      // Create segments: [0..firstWaqf], [firstWaqf+1..secondWaqf], ..., [lastWaqf+1..end]
+
+    // Build waqf groups: include the waqf-bearing word in its segment
+    for (const group of ayahGroups) {
+      const waqfIndices = group.reduce((acc: number[], t, i) => t.hasWaqf ? [...acc, i] : acc, []);
       const boundaries = [-1, ...waqfIndices, group.length];
       for (let b = 0; b < boundaries.length - 1; b++) {
         const start = boundaries[b] + 1;
-        const end = boundaries[b + 1];
+        // Include waqf word in the segment it terminates (not the final group.length boundary)
+        const end = b < boundaries.length - 2 ? boundaries[b + 1] + 1 : boundaries[b + 1];
         const segment = group.slice(start, end).filter(t => blankedKeys.has(t.key)).map(t => t.key);
         if (segment.length > 0) waqfGroups.push(segment);
       }
     }
-    
-    return { ayahGroups, waqfGroups };
-  }, [effectiveText, blankedKeys, isFatihaPage]);
+
+    return { ayahGroups: ayahRevealGroups, waqfGroups };
+  }, [ayahGroups, blankedKeys]);
 
   React.useEffect(() => {
     const el = document.getElementById('tahfeez-blanked-keys');
@@ -644,11 +536,25 @@ export function TahfeezQuizView({
 
         if (shouldHide) {
           const blankClickHandler = !storeMode && onClickBlankWord ? () => onClickBlankWord(key) : storeClickHandler;
-          lineElements.push(
-            <BlankSpan key={`${lineIdx}-${tokenIdx}`} word={t} dotScale={dotScale}
-              className={`tahfeez-blank${storeMode ? ' tahfeez-store-target' : ''}${isStored ? ' tahfeez-stored' : ''}`}
-              onClick={blankClickHandler} />
-          );
+          // Separate waqf mark from word if waqfDisplayMode is 'sign-only'
+          const tokenWaqfMatch = t.match(WAQF_TEST);
+          if (tokenWaqfMatch && waqfDisplayMode === 'sign-only') {
+            const wordPart = t.replace(WAQF_TEST, '').trim() || t;
+            lineElements.push(
+              <React.Fragment key={`${lineIdx}-${tokenIdx}`}>
+                <BlankSpan word={wordPart} dotScale={dotScale}
+                  className={`tahfeez-blank${storeMode ? ' tahfeez-store-target' : ''}${isStored ? ' tahfeez-stored' : ''}`}
+                  onClick={blankClickHandler} />
+                <span style={{ opacity: 0.7 }}>{tokenWaqfMatch[0]}</span>
+              </React.Fragment>
+            );
+          } else {
+            lineElements.push(
+              <BlankSpan key={`${lineIdx}-${tokenIdx}`} word={t} dotScale={dotScale}
+                className={`tahfeez-blank${storeMode ? ' tahfeez-store-target' : ''}${isStored ? ' tahfeez-stored' : ''}`}
+                onClick={blankClickHandler} />
+            );
+          }
         } else if (shouldShowAsActive) {
           if (inlineMCQ && inlineMCQOptions.length > 0) {
             // Inline MCQ: show a vertical list of choices at the blank position
@@ -689,12 +595,26 @@ export function TahfeezQuizView({
             );
           } else {
             // Normal active: show dotted line with pulsing glow
-            lineElements.push(
-              <BlankSpan key={`${lineIdx}-${tokenIdx}`} word={t} dotScale={dotScale}
-                className={`tahfeez-active-indicator tahfeez-active--${activeWordColor}`}
-                onClick={storeMode ? storeClickHandler : onClickActiveBlank}
-                style={{ '--tahfeez-active': 'true' } as React.CSSProperties} />
-            );
+            const tokenWaqfMatch2 = t.match(WAQF_TEST);
+            if (tokenWaqfMatch2 && waqfDisplayMode === 'sign-only') {
+              const wordPart = t.replace(WAQF_TEST, '').trim() || t;
+              lineElements.push(
+                <React.Fragment key={`${lineIdx}-${tokenIdx}`}>
+                  <BlankSpan word={wordPart} dotScale={dotScale}
+                    className={`tahfeez-active-indicator tahfeez-active--${activeWordColor}`}
+                    onClick={storeMode ? storeClickHandler : onClickActiveBlank}
+                    style={{ '--tahfeez-active': 'true' } as React.CSSProperties} />
+                  <span style={{ opacity: 0.7 }}>{tokenWaqfMatch2[0]}</span>
+                </React.Fragment>
+              );
+            } else {
+              lineElements.push(
+                <BlankSpan key={`${lineIdx}-${tokenIdx}`} word={t} dotScale={dotScale}
+                  className={`tahfeez-active-indicator tahfeez-active--${activeWordColor}`}
+                  onClick={storeMode ? storeClickHandler : onClickActiveBlank}
+                  style={{ '--tahfeez-active': 'true' } as React.CSSProperties} />
+              );
+            }
           }
         } else if (shouldShowAsRevealed) {
           const baseClass = !revealedWithBg ? 'tahfeez-revealed--text-only' : 'tahfeez-revealed';
