@@ -52,6 +52,7 @@ export function TahfeezAutoQuizSettings({ currentPage, quizPagesRange, onStart, 
     segmentMcqRandomOrder, setSegmentMcqRandomOrder,
     segmentMcqMultiPage, setSegmentMcqMultiPage,
     segmentMcqBlankDuration, setSegmentMcqBlankDuration,
+    waqfDisplayMode, setWaqfDisplayMode,
   } = useTahfeezStore();
 
   const speech = useSpeech();
