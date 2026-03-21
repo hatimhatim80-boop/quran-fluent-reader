@@ -386,73 +386,30 @@ export function TahfeezQuizView({
 
   // Compute reveal groups: ayah-based and waqf-based
   const revealKeyGroups = useMemo(() => {
-    const ayahGroups: string[][] = [];
+    const ayahRevealGroups: string[][] = [];
     const waqfGroups: string[][] = [];
-    const waqfRegex = /[ۖۗۘۙۚۛ]/;
-    
-    // Build ayah groups from tokens
-    const rawLines = effectiveText.split('\n');
-    const tokenGroups: TokenInfo[][] = [];
-    
-    if (isFatihaPage) {
-      for (let lineIdx = 0; lineIdx < rawLines.length; lineIdx++) {
-        const line = rawLines[lineIdx];
-        if (isSurahHeader(line)) continue;
-        const tokens = line.split(/(\s+)/);
-        const lineGroup: TokenInfo[] = [];
-        for (let tokenIdx = 0; tokenIdx < tokens.length; tokenIdx++) {
-          const t = tokens[tokenIdx];
-          const isSpace = /^\s+$/.test(t);
-          const clean = t.replace(/[﴿﴾()[\]{}۝۞٭؟،۔ۣۖۗۘۙۚۛۜ۟۠ۡۢۤۥۦۧۨ۩۪ۭ۫۬]/g, '').trim();
-          const isVerseNumber = !isSpace && /^[٠-٩0-9۰-۹]+$/.test(clean);
-          if (isSpace || isVerseNumber) continue;
-          lineGroup.push({ text: t, lineIdx, tokenIdx, key: `${lineIdx}_${tokenIdx}` });
-        }
-        if (lineGroup.length > 0) tokenGroups.push(lineGroup);
-      }
-    } else {
-      let currentGroup: TokenInfo[] = [];
-      for (let lineIdx = 0; lineIdx < rawLines.length; lineIdx++) {
-        const line = rawLines[lineIdx];
-        if (isSurahHeader(line) || isBismillah(line)) continue;
-        const tokens = line.split(/(\s+)/);
-        for (let tokenIdx = 0; tokenIdx < tokens.length; tokenIdx++) {
-          const t = tokens[tokenIdx];
-          const isSpace = /^\s+$/.test(t);
-          const clean = t.replace(/[﴿﴾()[\]{}۝۞٭؟،۔ۣۖۗۘۙۚۛۜ۟۠ۡۢۤۥۦۧۨ۩۪ۭ۫۬]/g, '').trim();
-          const isVerseNumber = !isSpace && /^[٠-٩0-9۰-۹]+$/.test(clean);
-          if (isSpace) continue;
-          if (isVerseNumber) {
-            if (currentGroup.length > 0) { tokenGroups.push(currentGroup); currentGroup = []; }
-          } else {
-            currentGroup.push({ text: t, lineIdx, tokenIdx, key: `${lineIdx}_${tokenIdx}` });
-          }
-        }
-      }
-      if (currentGroup.length > 0) tokenGroups.push(currentGroup);
-    }
-    
+
     // Build ayah groups (only blanked keys)
-    for (const group of tokenGroups) {
+    for (const group of ayahGroups) {
       const blankedInGroup = group.filter(t => blankedKeys.has(t.key)).map(t => t.key);
-      if (blankedInGroup.length > 0) ayahGroups.push(blankedInGroup);
+      if (blankedInGroup.length > 0) ayahRevealGroups.push(blankedInGroup);
     }
-    
-    // Build waqf groups: split each ayah by waqf marks
-    for (const group of tokenGroups) {
-      const waqfIndices = group.reduce((acc: number[], t, i) => waqfRegex.test(t.text) ? [...acc, i] : acc, []);
-      // Create segments: [0..firstWaqf], [firstWaqf+1..secondWaqf], ..., [lastWaqf+1..end]
+
+    // Build waqf groups: include the waqf-bearing word in its segment
+    for (const group of ayahGroups) {
+      const waqfIndices = group.reduce((acc: number[], t, i) => t.hasWaqf ? [...acc, i] : acc, []);
       const boundaries = [-1, ...waqfIndices, group.length];
       for (let b = 0; b < boundaries.length - 1; b++) {
         const start = boundaries[b] + 1;
-        const end = boundaries[b + 1];
+        // Include waqf word in the segment it terminates (not the final group.length boundary)
+        const end = b < boundaries.length - 2 ? boundaries[b + 1] + 1 : boundaries[b + 1];
         const segment = group.slice(start, end).filter(t => blankedKeys.has(t.key)).map(t => t.key);
         if (segment.length > 0) waqfGroups.push(segment);
       }
     }
-    
-    return { ayahGroups, waqfGroups };
-  }, [effectiveText, blankedKeys, isFatihaPage]);
+
+    return { ayahGroups: ayahRevealGroups, waqfGroups };
+  }, [ayahGroups, blankedKeys]);
 
   React.useEffect(() => {
     const el = document.getElementById('tahfeez-blanked-keys');
