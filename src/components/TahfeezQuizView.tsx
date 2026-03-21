@@ -144,31 +144,60 @@ export function TahfeezQuizView({
   // Parse all word tokens (excluding headers, bismillah-as-separator, spaces, verse numbers)
   // Exception: page 1 (Al-Fatiha) — bismillah IS the first ayah and must be tokenized.
   const isFatihaPage = page.pageNumber === 1;
-  const { lines, allWordTokens } = useMemo(() => {
+  // Combined tokenization: lines + allWordTokens + ayahGroups (single source of truth)
+  const { lines, allWordTokens, ayahGroups } = useMemo(() => {
     const lines = effectiveText.split('\n');
-    const allWordTokens: TokenInfo[] = [];
-    for (let lineIdx = 0; lineIdx < lines.length; lineIdx++) {
-      const line = lines[lineIdx];
-      // Skip surah headers always; skip bismillah ONLY if it's a separator (not Al-Fatiha page)
-      if (isSurahHeader(line)) continue;
-      if (!isFatihaPage && isBismillah(line)) continue;
-      const tokens = line.split(/(\s+)/);
-      for (let tokenIdx = 0; tokenIdx < tokens.length; tokenIdx++) {
-        const t = tokens[tokenIdx];
-        const isSpace = /^\s+$/.test(t);
-        const clean = t.replace(/[﴿﴾()[\]{}۝۞٭؟،۔ۣۖۗۘۙۚۛۜ۟۠ۡۢۤۥۦۧۨ۩۪ۭ۫۬]/g, '').trim();
-        const isVerseNumber = !isSpace && /^[٠-٩0-9۰-۹]+$/.test(clean);
-        if (!isSpace && !isVerseNumber) {
-          allWordTokens.push({
-            text: t,
-            lineIdx,
-            tokenIdx,
+    const ayahGroups: TokenInfo[][] = [];
+
+    if (isFatihaPage) {
+      for (let lineIdx = 0; lineIdx < lines.length; lineIdx++) {
+        const line = lines[lineIdx];
+        if (isSurahHeader(line)) continue;
+        const tokens = line.split(/(\s+)/);
+        const lineGroup: TokenInfo[] = [];
+        for (let tokenIdx = 0; tokenIdx < tokens.length; tokenIdx++) {
+          const t = tokens[tokenIdx];
+          if (/^\s+$/.test(t)) continue;
+          const clean = t.replace(CLEAN_REGEX, '').trim();
+          if (/^[٠-٩0-9۰-۹]+$/.test(clean)) continue;
+          if (clean.length === 0) continue; // skip standalone waqf/decorative marks
+          const wm = t.match(WAQF_TEST);
+          lineGroup.push({
+            text: t, lineIdx, tokenIdx,
             key: `${lineIdx}_${tokenIdx}`,
+            hasWaqf: !!wm, waqfMark: wm ? wm[0] : '',
+          });
+        }
+        if (lineGroup.length > 0) ayahGroups.push(lineGroup);
+      }
+    } else {
+      let currentGroup: TokenInfo[] = [];
+      for (let lineIdx = 0; lineIdx < lines.length; lineIdx++) {
+        const line = lines[lineIdx];
+        if (isSurahHeader(line) || isBismillah(line)) continue;
+        const tokens = line.split(/(\s+)/);
+        for (let tokenIdx = 0; tokenIdx < tokens.length; tokenIdx++) {
+          const t = tokens[tokenIdx];
+          if (/^\s+$/.test(t)) continue;
+          const clean = t.replace(CLEAN_REGEX, '').trim();
+          const isVerseNumber = /^[٠-٩0-9۰-۹]+$/.test(clean);
+          if (isVerseNumber) {
+            if (currentGroup.length > 0) { ayahGroups.push(currentGroup); currentGroup = []; }
+            continue;
+          }
+          if (clean.length === 0) continue; // skip standalone waqf/decorative marks
+          const wm = t.match(WAQF_TEST);
+          currentGroup.push({
+            text: t, lineIdx, tokenIdx,
+            key: `${lineIdx}_${tokenIdx}`,
+            hasWaqf: !!wm, waqfMark: wm ? wm[0] : '',
           });
         }
       }
+      if (currentGroup.length > 0) ayahGroups.push(currentGroup);
     }
-    return { lines, allWordTokens };
+
+    return { lines, allWordTokens: ayahGroups.flat(), ayahGroups };
   }, [effectiveText]);
 
   // Determine which keys should be blanked
