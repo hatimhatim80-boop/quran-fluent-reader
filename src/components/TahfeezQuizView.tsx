@@ -100,6 +100,7 @@ export function TahfeezQuizView({
   onInlineMCQAnswer,
 }: TahfeezQuizViewProps) {
   const { dotScale } = useTahfeezStore();
+  const waqfDisplayMode = useTahfeezStore(s => s.waqfDisplayMode);
   const { settings } = useSettingsStore();
   const revealedColor = useTahfeezStore(s => s.revealedColor);
   const revealedWithBg = useTahfeezStore(s => s.revealedWithBg);
