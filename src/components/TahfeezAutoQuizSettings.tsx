@@ -157,7 +157,7 @@ export function TahfeezAutoQuizSettings({ currentPage, quizPagesRange, onStart, 
                           newModes = [...waqfCombinedModes, opt.value];
                         }
                         setWaqfCombinedModes(newModes);
-                        if (newModes.length > 0) setAutoBlankMode(newModes[0] as TahfeezState['autoBlankMode']);
+                        if (newModes.length > 0) setAutoBlankMode(newModes[0] as any);
                       }}
                       className="font-arabic text-[11px] h-7 px-2.5"
                     >
