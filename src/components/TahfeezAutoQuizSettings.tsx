@@ -59,6 +59,10 @@ export function TahfeezAutoQuizSettings({ currentPage, quizPagesRange, onStart, 
     hiddenAyatCount, setHiddenAyatCount,
     hiddenWordsCount, setHiddenWordsCount,
     distributionMode, setDistributionMode,
+    hiddenWordsMode, setHiddenWordsMode,
+    hiddenWordsPercentage, setHiddenWordsPercentage,
+    percentageScope, setPercentageScope,
+    wordSequenceMode, setWordSequenceMode,
   } = useTahfeezStore();
 
   const speech = useSpeech();
