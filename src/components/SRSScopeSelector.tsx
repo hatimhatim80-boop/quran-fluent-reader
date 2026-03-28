@@ -51,6 +51,7 @@ interface SRSScopeSelectorProps {
   onChange: (scope: SRSScope) => void;
   currentPage: number;
   showFlagged?: boolean;
+  showAllDue?: boolean;
 }
 
 export function scopeToPages(scope: SRSScope): number[] | null {
@@ -124,7 +125,7 @@ function scopeLabel(scope: SRSScope): string {
 
 type RangeEnd = 'from' | 'to';
 
-export function SRSScopeSelector({ scope, onChange, currentPage, showFlagged }: SRSScopeSelectorProps) {
+export function SRSScopeSelector({ scope, onChange, currentPage, showFlagged, showAllDue = true }: SRSScopeSelectorProps) {
   const [expanded, setExpanded] = useState(false);
   const [activeTab, setActiveTab] = useState<string>('quick');
   const [search, setSearch] = useState('');
@@ -221,7 +222,7 @@ export function SRSScopeSelector({ scope, onChange, currentPage, showFlagged }: 
             {/* Quick options */}
             <TabsContent value="quick" className="p-3 space-y-1.5 m-0">
               {[
-                { type: 'all-due' as SRSScopeType, label: 'كل المستحقة', desc: 'جميع البطاقات المستحقة' },
+                ...(showAllDue ? [{ type: 'all-due' as SRSScopeType, label: 'كل المستحقة', desc: 'جميع البطاقات المستحقة' }] : []),
                 { type: 'current-page' as SRSScopeType, label: `الصفحة الحالية (${currentPage})`, desc: 'بطاقات هذه الصفحة فقط' },
                 ...(showFlagged ? [{ type: 'flagged' as SRSScopeType, label: 'المُعلَّمة فقط', desc: 'البطاقات المحددة بعلامة' }] : []),
               ].map(opt => (
