@@ -381,6 +381,17 @@ export const useTahfeezStore = create<TahfeezState>()(
 
       waqfDisplayMode: 'with-word',
       setWaqfDisplayMode: (mode) => set({ waqfDisplayMode: mode }),
+
+      reviewMode: 'ayah',
+      setReviewMode: (mode) => set({ reviewMode: mode }),
+      hiddenAyatCount: 1,
+      setHiddenAyatCount: (n) => set({ hiddenAyatCount: n }),
+      hiddenWordsCount: 3,
+      setHiddenWordsCount: (n) => set({ hiddenWordsCount: n }),
+      distributionMode: 'sequential',
+      setDistributionMode: (mode) => set({ distributionMode: mode }),
+      distributionSeed: Date.now(),
+      rotateDistributionSeed: () => set({ distributionSeed: Date.now() }),
     }),
     {
       name: 'tahfeez.v2',
