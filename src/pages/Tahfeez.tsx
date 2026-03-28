@@ -91,6 +91,7 @@ export default function TahfeezPage() {
     segmentMcqRandomOrder, setSegmentMcqRandomOrder,
     segmentMcqMultiPage, setSegmentMcqMultiPage,
     segmentMcqBlankDuration, setSegmentMcqBlankDuration,
+    rotateDistributionSeed,
   } = useTahfeezStore();
 
   const speech = useSpeech();
