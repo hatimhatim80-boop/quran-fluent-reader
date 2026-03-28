@@ -212,9 +212,9 @@ export function GhareebReviewSettingsPanel({ className, highlightStyle, onHighli
             </div>
 
             <div className="space-y-2">
-              <Label className="text-xs">حجم كلمة الإطار: {settings.meaningBox.wordFontSize.toFixed(2)}rem</Label>
+              <Label className="text-xs">حجم كلمة الإطار: {meaningBox.wordFontSize.toFixed(2)}rem</Label>
               <Slider
-                value={[settings.meaningBox.wordFontSize]}
+                value={[meaningBox.wordFontSize]}
                 onValueChange={([v]) => setMeaningBox({ wordFontSize: +v.toFixed(2) })}
                 min={1}
                 max={2.5}
