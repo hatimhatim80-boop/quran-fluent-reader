@@ -100,6 +100,7 @@ export function TahfeezQuizView({
   inlineMCQ,
   allWordTexts,
   onInlineMCQAnswer,
+  forceBlankedKeys,
 }: TahfeezQuizViewProps) {
   const { dotScale } = useTahfeezStore();
   const waqfDisplayMode = useTahfeezStore(s => s.waqfDisplayMode);
