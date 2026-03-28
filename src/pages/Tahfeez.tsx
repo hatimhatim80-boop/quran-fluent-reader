@@ -11,7 +11,7 @@ import { useKeepAwake } from '@/hooks/useKeepAwake';
 import { useSpeech } from '@/hooks/useSpeech';
 import { normalizeArabic } from '@/utils/quranParser';
 import { Link, useNavigate } from 'react-router-dom';
-import { BookOpen, Play, Pause, Eye, EyeOff, ArrowRight, Save, Trash2, GraduationCap, ListChecks, Zap, Book, Layers, Hash, FileText, Search, X, ChevronLeft, Download, Upload, ChevronsRight, Undo2, Palette, Mic, MicOff, MousePointerClick } from 'lucide-react';
+import { BookOpen, Play, Pause, Eye, EyeOff, ArrowRight, Save, Trash2, GraduationCap, ListChecks, Zap, Book, Layers, Hash, FileText, Search, X, ChevronLeft, Download, Upload, ChevronsRight, Undo2, Palette, Mic, MicOff, MousePointerClick, RotateCcw } from 'lucide-react';
 import { SpeedControlWidget } from '@/components/SpeedControlWidget';
 
 import { HiddenBarsOverlay } from '@/components/HiddenBarsOverlay';
@@ -28,6 +28,7 @@ import { SURAH_INFO, SURAH_NAMES } from '@/utils/quranPageIndex';
 import { AutoPlayDebugPanel } from '@/components/AutoPlayDebugPanel';
 import { TahfeezFontSettings } from '@/components/TahfeezFontSettings';
 import { TahfeezAutoQuizSettings } from '@/components/TahfeezAutoQuizSettings';
+import { TahfeezSRSPanel } from '@/components/TahfeezSRSPanel';
 // ---- Quran Index Data ----
 const SURAHS = Object.entries(SURAH_NAMES).map(([name, number]) => ({
   number, name,
@@ -94,7 +95,7 @@ export default function TahfeezPage() {
 
   const speech = useSpeech();
 
-  const { currentPage, getCurrentPageData, goToPage, totalPages, nextPage, prevPage } = useQuranData();
+  const { pages, currentPage, getCurrentPageData, goToPage, totalPages, nextPage, prevPage } = useQuranData();
   useSettingsApplier(); // Apply font/display settings globally
   const displayMode = useSettingsStore((s) => s.settings.display?.mode || 'auto15');
   const autoplaySpeed = useSettingsStore((s) => s.settings.autoplay.speed);
@@ -795,6 +796,7 @@ export default function TahfeezPage() {
     { id: 'store' as const, icon: Save, label: 'تخزين' },
     { id: 'custom-quiz' as const, icon: ListChecks, label: 'اختبار المخزون' },
     { id: 'auto-quiz' as const, icon: Zap, label: 'اختبار تلقائي' },
+    { id: 'srs-review' as const, icon: RotateCcw, label: 'مراجعة' },
   ];
 
   // Index overlay
@@ -1307,6 +1309,36 @@ export default function TahfeezPage() {
             onStart={() => { setQuizSource('auto'); handleStartMultiPage(); }}
             disabled={!pageData}
           />
+        )}
+
+        {/* Tab 4: SRS Review */}
+        {!quizStarted && activeTab === 'srs-review' && (
+          <div className="space-y-4 animate-fade-in">
+            <TahfeezSRSPanel
+              currentPage={currentPage}
+              totalPages={totalPages}
+              pageData={pageData}
+              onNavigateToPage={goToPage}
+              renderPageWithBlanks={(pg, _blankedKeys, card) => {
+                const pgData = pages.find(p => p.pageNumber === pg);
+                if (!pgData) return null;
+                return (
+                  <TahfeezQuizView
+                    page={pgData}
+                    quizSource="auto"
+                    storedItems={storedItems}
+                    autoBlankMode={card.type === 'tahfeez-ayah' ? 'full-ayah' : 'full-page'}
+                    waqfCombinedModes={[]}
+                    blankCount={blankCount}
+                    ayahCount={1}
+                    activeBlankKey={null}
+                    revealedKeys={new Set()}
+                    showAll={false}
+                  />
+                );
+              }}
+            />
+          </div>
         )}
 
         {/* Quiz view */}

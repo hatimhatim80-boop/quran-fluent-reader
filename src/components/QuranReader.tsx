@@ -15,15 +15,17 @@ import { QuranIndex } from './QuranIndex';
 import { DiagnosticModeBadge } from './DiagnosticModeActivator';
 import { HiddenBarsOverlay } from './HiddenBarsOverlay';
 import { FirstTimeSetupDialog } from './FirstTimeSetupDialog';
+import { GhareebSRSPanel } from './GhareebSRSPanel';
 import { useSettingsApplier } from '@/hooks/useSettingsApplier';
 import { useSettingsStore } from '@/stores/settingsStore';
 import { useDevDebugContextStore } from '@/stores/devDebugContextStore';
 import { useDiagnosticModeStore } from '@/stores/diagnosticModeStore';
 import { useHighlightOverrideStore } from '@/stores/highlightOverrideStore';
 import { useTahfeezStore } from '@/stores/tahfeezStore';
+import { useSRSStore } from '@/stores/srsStore';
 import { useSessionsStore } from '@/stores/sessionsStore';
 import { SURAH_INFO, SURAH_NAMES } from '@/utils/quranPageIndex';
-import { Loader2, List, SlidersHorizontal, ChevronRight, ChevronLeft, Eye, EyeOff, GraduationCap, X, Settings } from 'lucide-react';
+import { Loader2, List, SlidersHorizontal, ChevronRight, ChevronLeft, Eye, EyeOff, GraduationCap, X, Settings, RotateCcw } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { GhareebEntryDialog, GhareebEntryResetButton } from './GhareebEntryDialog';
 import { SpeedControlWidget } from './SpeedControlWidget';
@@ -73,6 +75,8 @@ export function QuranReader() {
   const [renderedWords, setRenderedWords] = useState<GhareebWord[]>([]);
   const [showIndex, setShowIndex] = useState(false);
   const [showControls, setShowControls] = useState(false);
+  const [showSRS, setShowSRS] = useState(false);
+  const [srsHighlightKey, setSrsHighlightKey] = useState<string | null>(null);
   const [hideBars, setHideBars] = useState(false);
   const [showEntryDialog, setShowEntryDialog] = useState(false);
   const [showPageEndBanner, setShowPageEndBanner] = useState(false);
@@ -87,6 +91,7 @@ export function QuranReader() {
   const setTahfeezMode = useTahfeezStore((s) => s.setSelectionMode);
   const tahfeezSelectedCount = useTahfeezStore((s) => s.selectedWords.length);
   const clearTahfeezSelection = useTahfeezStore((s) => s.clearSelection);
+  const srsDueCount = useSRSStore((s) => s.getDueCount('ghareeb'));
 
   const pageData = getCurrentPageData();
   const pageWords = getPageGhareebWords;
@@ -374,6 +379,35 @@ export function QuranReader() {
       <FirstTimeSetupDialog open={showFirstTimeSetup} onClose={() => setShowFirstTimeSetup(false)} />
       <GhareebEntryDialog open={showEntryDialog} onClose={() => setShowEntryDialog(false)} />
 
+      {/* SRS Review Panel */}
+      {showSRS && (
+        <div className="fixed inset-0 z-50 flex">
+          <div className="fixed inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setShowSRS(false)} />
+          <div className="relative z-50 w-full max-w-md h-screen bg-background border-l border-border shadow-xl overflow-auto mr-auto">
+            <GhareebSRSPanel
+              pageWords={pageWords}
+              currentPage={currentPage}
+              onNavigateToPage={goToPage}
+              renderPageWithHighlight={(pg, wordKey) => {
+                const pgData = pages.find(p => p.pageNumber === pg);
+                if (!pgData) return null;
+                // Find word index matching wordKey for highlighting
+                const highlightIdx = wordKey ? pageWords.findIndex(w => w.uniqueKey === wordKey) : -1;
+                return (
+                  <PageView
+                    page={pgData}
+                    ghareebWords={pageWords}
+                    highlightedWordIndex={highlightIdx}
+                    meaningEnabled={highlightIdx >= 0}
+                    onWordClick={() => {}}
+                  />
+                );
+              }}
+            />
+          </div>
+        </div>
+      )}
+
       {/* Index Sidebar */}
       {showIndex && (
         <div className="fixed inset-0 z-40 flex sm:relative sm:inset-auto">
@@ -486,6 +520,22 @@ export function QuranReader() {
                   title="أدوات التشغيل"
                 >
                   <SlidersHorizontal className="w-3.5 h-3.5" />
+                </button>
+
+                {/* SRS Review */}
+                <button
+                  onClick={() => setShowSRS(!showSRS)}
+                  className={`w-8 h-8 rounded-full flex items-center justify-center transition-all relative ${
+                    showSRS ? 'bg-primary text-primary-foreground' : 'nav-button'
+                  }`}
+                  title="مراجعة (أنكي)"
+                >
+                  <RotateCcw className="w-3.5 h-3.5" />
+                  {srsDueCount > 0 && (
+                    <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-destructive text-destructive-foreground text-[8px] flex items-center justify-center font-bold">
+                      {srsDueCount > 99 ? '99+' : srsDueCount}
+                    </span>
+                  )}
                 </button>
 
                 {/* Tahfeez mode - navigate to /tahfeez */}
