@@ -104,8 +104,8 @@ export function GhareebReviewSettingsPanel({ className, highlightStyle, onHighli
             <div className="space-y-2">
               <Label className="text-xs">نمط العرض</Label>
               <Select
-                value={settings.display.mode}
-                onValueChange={(v) => setDisplay({ mode: v as typeof settings.display.mode })}
+                value={display.mode}
+                onValueChange={(v) => setDisplay({ mode: v as any })}
               >
                 <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
                 <SelectContent>
