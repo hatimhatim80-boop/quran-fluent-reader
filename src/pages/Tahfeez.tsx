@@ -1311,7 +1311,35 @@ export default function TahfeezPage() {
           />
         )}
 
-        {/* Quiz view */}
+        {/* Tab 4: SRS Review */}
+        {!quizStarted && activeTab === 'srs-review' && (
+          <div className="space-y-4 animate-fade-in">
+            <TahfeezSRSPanel
+              currentPage={currentPage}
+              totalPages={totalPages}
+              pageData={pageData}
+              onNavigateToPage={goToPage}
+              renderPageWithBlanks={(pg, _blankedKeys, card) => {
+                const pgData = pages.find(p => p.pageNumber === pg);
+                if (!pgData) return null;
+                return (
+                  <TahfeezQuizView
+                    page={pgData}
+                    quizSource="auto"
+                    storedItems={storedItems}
+                    autoBlankMode={card.type === 'tahfeez-ayah' ? 'full-ayah' : 'full-page'}
+                    waqfCombinedModes={[]}
+                    blankCount={blankCount}
+                    ayahCount={1}
+                    activeBlankKey={null}
+                    revealedKeys={new Set()}
+                    showAll={false}
+                  />
+                );
+              }}
+            />
+          </div>
+        )]
         <AutoPlayDebugPanel visible={process.env.NODE_ENV !== 'production'} />
         {quizStarted && pageData && (autoBlankMode === 'next-ayah-mcq' || autoBlankMode === 'next-waqf-mcq') && (
           <div className="space-y-4 animate-fade-in">
