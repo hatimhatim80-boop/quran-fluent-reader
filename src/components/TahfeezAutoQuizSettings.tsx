@@ -241,7 +241,7 @@ export function TahfeezAutoQuizSettings({ currentPage, quizPagesRange, onStart, 
                 ].map(opt => (
                   <Button key={opt.value}
                     variant={reviewMode === opt.value ? 'default' : 'outline'}
-                    size="sm" onClick={() => setReviewMode(opt.value)}
+                    size="sm" onClick={() => { setReviewMode(opt.value); setAutoBlankMode('ayah-count'); }}
                     className="font-arabic text-[11px] h-7 px-2.5">
                     {opt.label}
                   </Button>
@@ -344,7 +344,7 @@ export function TahfeezAutoQuizSettings({ currentPage, quizPagesRange, onStart, 
                 ].map(opt => (
                   <Button key={opt.value}
                     variant={distributionMode === opt.value ? 'default' : 'outline'}
-                    size="sm" onClick={() => setDistributionMode(opt.value)}
+                    size="sm" onClick={() => { setDistributionMode(opt.value); setAutoBlankMode('ayah-count'); }}
                     className="font-arabic text-[11px] h-7 px-2.5">
                     {opt.label}
                   </Button>
