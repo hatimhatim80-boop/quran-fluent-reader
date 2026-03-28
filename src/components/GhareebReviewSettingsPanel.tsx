@@ -55,6 +55,10 @@ export function GhareebReviewSettingsPanel({ className, highlightStyle, onHighli
   const setColors = useSettingsStore((s) => s.setColors);
 
   // Safe defaults for potentially missing persisted sub-objects
+  const fonts = settings.fonts ?? { quranFontSize: 1.35, lineHeight: 2.2, font: 'uthmanicHafs' };
+  const display = settings.display ?? { mode: 'continuous' as const, textAlign: 'justify' as const };
+  const autoplay = settings.autoplay ?? { speed: 1, thinkingGap: 500, autoPlayOnWordClick: false };
+  const popover = settings.popover ?? { width: 220, padding: 14 };
   const meaningBox = settings.meaningBox ?? { wordFontSize: 1.4, meaningFontSize: 1.1 };
   const colors = settings.colors ?? { highlightColor: '48 80% 90%', popoverBackground: '38 50% 97%', popoverWordColor: '25 30% 18%', popoverMeaningColor: '25 20% 35%' };
 
@@ -100,8 +104,8 @@ export function GhareebReviewSettingsPanel({ className, highlightStyle, onHighli
             <div className="space-y-2">
               <Label className="text-xs">نمط العرض</Label>
               <Select
-                value={settings.display.mode}
-                onValueChange={(v) => setDisplay({ mode: v as typeof settings.display.mode })}
+                value={display.mode}
+                onValueChange={(v) => setDisplay({ mode: v as any })}
               >
                 <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
                 <SelectContent>
@@ -112,9 +116,9 @@ export function GhareebReviewSettingsPanel({ className, highlightStyle, onHighli
             </div>
 
             <div className="space-y-2">
-              <Label className="text-xs">حجم خط الصفحة: {settings.fonts.quranFontSize.toFixed(2)}rem</Label>
+              <Label className="text-xs">حجم خط الصفحة: {fonts.quranFontSize.toFixed(2)}rem</Label>
               <Slider
-                value={[settings.fonts.quranFontSize]}
+                value={[fonts.quranFontSize]}
                 onValueChange={([v]) => setFonts({ quranFontSize: +v.toFixed(2) })}
                 min={0.8}
                 max={2.2}
@@ -123,9 +127,9 @@ export function GhareebReviewSettingsPanel({ className, highlightStyle, onHighli
             </div>
 
             <div className="space-y-2">
-              <Label className="text-xs">ارتفاع السطر: {settings.fonts.lineHeight.toFixed(1)}</Label>
+              <Label className="text-xs">ارتفاع السطر: {fonts.lineHeight.toFixed(1)}</Label>
               <Slider
-                value={[settings.fonts.lineHeight]}
+                value={[fonts.lineHeight]}
                 onValueChange={([v]) => setFonts({ lineHeight: +v.toFixed(1) })}
                 min={1.4}
                 max={3}
@@ -136,8 +140,8 @@ export function GhareebReviewSettingsPanel({ className, highlightStyle, onHighli
             <div className="space-y-2">
               <Label className="text-xs">محاذاة النص</Label>
               <Select
-                value={settings.display.textAlign}
-                onValueChange={(v) => setDisplay({ textAlign: v as typeof settings.display.textAlign })}
+                value={display.textAlign}
+                onValueChange={(v) => setDisplay({ textAlign: v as any })}
               >
                 <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
                 <SelectContent>
@@ -155,10 +159,10 @@ export function GhareebReviewSettingsPanel({ className, highlightStyle, onHighli
 
             <div className="space-y-2">
               <Label className="text-xs">
-                سرعة التشغيل: {settings.autoplay.speed < 1 ? `${Math.round(settings.autoplay.speed * 1000)}ms` : `${settings.autoplay.speed}s`} / كلمة
+                سرعة التشغيل: {autoplay.speed < 1 ? `${Math.round(autoplay.speed * 1000)}ms` : `${autoplay.speed}s`} / كلمة
               </Label>
               <Slider
-                value={[settings.autoplay.speed]}
+                value={[autoplay.speed]}
                 onValueChange={([v]) => setAutoplay({ speed: +v.toFixed(2) })}
                 min={0.1}
                 max={30}
@@ -167,9 +171,9 @@ export function GhareebReviewSettingsPanel({ className, highlightStyle, onHighli
             </div>
 
             <div className="space-y-2">
-              <Label className="text-xs">زمن الانتظار قبل الإظهار: {settings.autoplay.thinkingGap}ms</Label>
+              <Label className="text-xs">زمن الانتظار قبل الإظهار: {autoplay.thinkingGap}ms</Label>
               <Slider
-                value={[settings.autoplay.thinkingGap]}
+                value={[autoplay.thinkingGap]}
                 onValueChange={([v]) => setAutoplay({ thinkingGap: v })}
                 min={200}
                 max={2500}
@@ -180,7 +184,7 @@ export function GhareebReviewSettingsPanel({ className, highlightStyle, onHighli
             <div className="flex items-center justify-between rounded-md border border-border px-3 py-2">
               <span className="text-xs">تشغيل تلقائي عند الضغط على الكلمة</span>
               <Switch
-                checked={settings.autoplay.autoPlayOnWordClick}
+                checked={autoplay.autoPlayOnWordClick}
                 onCheckedChange={(v) => setAutoplay({ autoPlayOnWordClick: v })}
               />
             </div>
@@ -190,9 +194,9 @@ export function GhareebReviewSettingsPanel({ className, highlightStyle, onHighli
             <h4 className="text-sm font-bold text-foreground">إعدادات إطار المعنى</h4>
 
             <div className="space-y-2">
-              <Label className="text-xs">عرض الإطار: {settings.popover.width}px</Label>
+              <Label className="text-xs">عرض الإطار: {popover.width}px</Label>
               <Slider
-                value={[settings.popover.width]}
+                value={[popover.width]}
                 onValueChange={([v]) => setPopover({ width: Math.round(v) })}
                 min={170}
                 max={360}
@@ -201,9 +205,9 @@ export function GhareebReviewSettingsPanel({ className, highlightStyle, onHighli
             </div>
 
             <div className="space-y-2">
-              <Label className="text-xs">حشوة الإطار: {settings.popover.padding}px</Label>
+              <Label className="text-xs">حشوة الإطار: {popover.padding}px</Label>
               <Slider
-                value={[settings.popover.padding]}
+                value={[popover.padding]}
                 onValueChange={([v]) => setPopover({ padding: Math.round(v) })}
                 min={8}
                 max={26}
