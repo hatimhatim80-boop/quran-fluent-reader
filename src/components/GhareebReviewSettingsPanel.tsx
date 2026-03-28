@@ -140,8 +140,8 @@ export function GhareebReviewSettingsPanel({ className, highlightStyle, onHighli
             <div className="space-y-2">
               <Label className="text-xs">محاذاة النص</Label>
               <Select
-                value={settings.display.textAlign}
-                onValueChange={(v) => setDisplay({ textAlign: v as typeof settings.display.textAlign })}
+                value={display.textAlign}
+                onValueChange={(v) => setDisplay({ textAlign: v as any })}
               >
                 <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
                 <SelectContent>
