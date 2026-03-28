@@ -127,9 +127,9 @@ export function GhareebReviewSettingsPanel({ className, highlightStyle, onHighli
             </div>
 
             <div className="space-y-2">
-              <Label className="text-xs">ارتفاع السطر: {settings.fonts.lineHeight.toFixed(1)}</Label>
+              <Label className="text-xs">ارتفاع السطر: {fonts.lineHeight.toFixed(1)}</Label>
               <Slider
-                value={[settings.fonts.lineHeight]}
+                value={[fonts.lineHeight]}
                 onValueChange={([v]) => setFonts({ lineHeight: +v.toFixed(1) })}
                 min={1.4}
                 max={3}
