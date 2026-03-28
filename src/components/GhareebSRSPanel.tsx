@@ -352,6 +352,74 @@ export function GhareebSRSPanel({
   );
 }
 
+// ── Review card content with auto-scroll ─────────────────────────────────────
+
+function GhareebReviewCardContent({
+  card,
+  answerRevealed,
+  answerDisplayMode,
+  highlightStyle,
+  renderPageWithHighlight,
+}: {
+  card: SRSCard;
+  answerRevealed: boolean;
+  answerDisplayMode: string;
+  highlightStyle: 'color' | 'bg' | 'border';
+  renderPageWithHighlight: (page: number, wordKey: string | null, style: 'color' | 'bg' | 'border') => React.ReactNode;
+}) {
+  const rootRef = useRef<HTMLDivElement>(null);
+
+  // Auto-scroll to the highlighted word when card changes
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (!rootRef.current) return;
+      const wordEl = rootRef.current.querySelector<HTMLElement>(`[data-ghareeb-key="${card.contentKey}"]`);
+      if (!wordEl) return;
+      // Find the scrollable parent (the overflow-auto div in SRSReviewSession)
+      const scrollParent = rootRef.current.closest('.overflow-auto') || rootRef.current.closest('[style*="overflow"]');
+      if (!scrollParent) {
+        wordEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        return;
+      }
+      const parentRect = scrollParent.getBoundingClientRect();
+      const wordRect = wordEl.getBoundingClientRect();
+      // If word is outside visible area, scroll to center it
+      if (wordRect.top < parentRect.top || wordRect.bottom > parentRect.bottom) {
+        const scrollTop = scrollParent.scrollTop + (wordRect.top - parentRect.top) - parentRect.height / 2 + wordRect.height / 2;
+        scrollParent.scrollTo({ top: Math.max(0, scrollTop), behavior: 'smooth' });
+      }
+    }, 200); // small delay for DOM to render
+    return () => clearTimeout(timer);
+  }, [card.contentKey, card.id]);
+
+  return (
+    <div ref={rootRef} className="p-2 relative" data-ghareeb-review-root="true">
+      {renderPageWithHighlight(card.page, card.contentKey, highlightStyle)}
+      {/* Tooltip answer anchored near the word */}
+      {answerRevealed && answerDisplayMode === 'tooltip' && (
+        <AnchoredGhareebTooltip
+          visible
+          contentKey={card.contentKey}
+          wordText={String(card.meta.wordText || '')}
+          meaning={String(card.meta.meaning || '')}
+          surahName={String(card.meta.surahName || '')}
+          verseNumber={Number(card.meta.verseNumber || 0)}
+          rootRef={rootRef}
+        />
+      )}
+      {/* Inline answer */}
+      {answerRevealed && answerDisplayMode === 'inline' && (
+        <div className="mt-2 mx-auto max-w-md bg-accent/50 border border-border rounded-xl p-3 text-center animate-fade-in" dir="rtl">
+          <p className="font-arabic text-lg font-bold text-primary">{card.meta.wordText as string}</p>
+          <p className="font-arabic text-base text-foreground mt-1">{card.meta.meaning as string}</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Tooltip anchored near the word (absolute within review root) ─────────────
+
 function AnchoredGhareebTooltip({
   visible,
   contentKey,
@@ -359,6 +427,7 @@ function AnchoredGhareebTooltip({
   meaning,
   surahName,
   verseNumber,
+  rootRef,
 }: {
   visible: boolean;
   contentKey: string;
@@ -366,6 +435,7 @@ function AnchoredGhareebTooltip({
   meaning: string;
   surahName: string;
   verseNumber: number;
+  rootRef: React.RefObject<HTMLDivElement>;
 }) {
   const [style, setStyle] = useState<React.CSSProperties | null>(null);
 
@@ -376,42 +446,56 @@ function AnchoredGhareebTooltip({
     }
 
     const updatePosition = () => {
-      const reviewRoot = document.querySelector<HTMLElement>('[data-ghareeb-review-root="true"]');
-      const wordEl = reviewRoot?.querySelector<HTMLElement>(`[data-ghareeb-key="${contentKey}"]`) || document.querySelector<HTMLElement>(`[data-ghareeb-key="${contentKey}"]`);
-      const rect = wordEl?.getBoundingClientRect();
-      if (!rect) {
-        setStyle({ position: 'fixed', top: '33%', left: '50%', transform: 'translateX(-50%)', zIndex: 50 });
+      const root = rootRef.current;
+      if (!root) return;
+      const wordEl = root.querySelector<HTMLElement>(`[data-ghareeb-key="${contentKey}"]`);
+      if (!wordEl) {
+        // Fallback: center in root
+        setStyle({ position: 'absolute', top: '30%', left: '50%', transform: 'translateX(-50%)', zIndex: 50 });
         return;
       }
 
-      const panelRect = reviewRoot?.getBoundingClientRect();
-      const maxLeft = panelRect ? panelRect.right - 260 : window.innerWidth - 260;
-      const minLeft = panelRect ? panelRect.left + 16 : 16;
-      const maxTop = panelRect ? panelRect.bottom - 160 : window.innerHeight - 160;
+      const rootRect = root.getBoundingClientRect();
+      const wordRect = wordEl.getBoundingClientRect();
+      const tooltipWidth = 240;
+
+      // Position relative to root (absolute positioning)
+      let top = wordRect.bottom - rootRect.top + 8;
+      let left = wordRect.left - rootRect.left + wordRect.width / 2 - tooltipWidth / 2;
+
+      // Clamp within root bounds
+      left = Math.max(8, Math.min(left, rootRect.width - tooltipWidth - 8));
+      // If tooltip would go below visible area, place above word
+      if (top + 100 > rootRect.height) {
+        top = wordRect.top - rootRect.top - 100;
+      }
 
       setStyle({
-        position: 'fixed',
-        top: Math.min(rect.bottom + 8, maxTop),
-        left: Math.max(minLeft, Math.min(rect.left + rect.width / 2 - 120, maxLeft)),
+        position: 'absolute',
+        top,
+        left,
         zIndex: 50,
       });
+
+      // Also auto-scroll the tooltip into view if needed
+      const scrollParent = root.closest('.overflow-auto');
+      if (scrollParent) {
+        const spRect = scrollParent.getBoundingClientRect();
+        if (wordRect.bottom + 100 > spRect.bottom || wordRect.top < spRect.top) {
+          const scrollTop = scrollParent.scrollTop + (wordRect.top - spRect.top) - spRect.height / 2;
+          scrollParent.scrollTo({ top: Math.max(0, scrollTop), behavior: 'smooth' });
+        }
+      }
     };
 
     const raf = requestAnimationFrame(updatePosition);
-    window.addEventListener('resize', updatePosition, { passive: true });
-    window.addEventListener('scroll', updatePosition, { passive: true });
+    return () => cancelAnimationFrame(raf);
+  }, [visible, contentKey, rootRef]);
 
-    return () => {
-      cancelAnimationFrame(raf);
-      window.removeEventListener('resize', updatePosition);
-      window.removeEventListener('scroll', updatePosition);
-    };
-  }, [visible, contentKey]);
-
-  if (!visible) return null;
+  if (!visible || !style) return null;
 
   return (
-    <div style={style || { position: 'fixed', top: '33%', left: '50%', transform: 'translateX(-50%)', zIndex: 50 }} className="bg-card border-2 border-primary rounded-xl shadow-2xl p-4 text-center animate-fade-in max-w-[240px] w-[240px]" dir="rtl">
+    <div style={style} className="bg-card border-2 border-primary rounded-xl shadow-2xl p-4 text-center animate-fade-in w-[240px]" dir="rtl">
       <p className="font-arabic text-lg font-bold text-primary">{wordText}</p>
       <p className="font-arabic text-base text-foreground mt-1">{meaning}</p>
       <p className="text-xs text-muted-foreground mt-1 font-arabic">{surahName} — آية {verseNumber}</p>
