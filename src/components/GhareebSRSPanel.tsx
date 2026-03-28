@@ -111,14 +111,22 @@ export function GhareebSRSPanel({
         renderCard={(card, answerRevealed, answerDisplayMode) => (
           <div className="p-2">
             {renderPageWithHighlight(card.page, card.contentKey, highlightStyle)}
-            {/* Tooltip answer near the word */}
-            {answerRevealed && answerDisplayMode === 'tooltip' && (
-              <div className="fixed top-1/3 left-1/2 -translate-x-1/2 z-50 bg-card border-2 border-primary rounded-xl shadow-2xl p-4 text-center animate-fade-in max-w-xs" dir="rtl">
-                <p className="font-arabic text-lg font-bold text-primary">{card.meta.wordText as string}</p>
-                <p className="font-arabic text-base text-foreground mt-1">{card.meta.meaning as string}</p>
-                <p className="text-xs text-muted-foreground mt-1 font-arabic">{card.meta.surahName as string} — آية {card.meta.verseNumber as number}</p>
-              </div>
-            )}
+            {/* Tooltip answer positioned near the highlighted word */}
+            {answerRevealed && answerDisplayMode === 'tooltip' && (() => {
+              // Find the highlighted word element in the DOM
+              const wordEl = document.querySelector(`[data-srs-word-key="${card.contentKey}"] .ghareeb-word-active, [data-srs-word-key="${card.contentKey}"] .ghareeb-highlighted`);
+              const rect = wordEl?.getBoundingClientRect();
+              const style: React.CSSProperties = rect
+                ? { position: 'fixed', top: Math.min(rect.bottom + 8, window.innerHeight - 160), left: Math.max(16, Math.min(rect.left + rect.width / 2 - 120, window.innerWidth - 260)), zIndex: 50 }
+                : { position: 'fixed', top: '33%', left: '50%', transform: 'translateX(-50%)', zIndex: 50 };
+              return (
+                <div style={style} className="bg-card border-2 border-primary rounded-xl shadow-2xl p-4 text-center animate-fade-in max-w-[240px] w-[240px]" dir="rtl">
+                  <p className="font-arabic text-lg font-bold text-primary">{card.meta.wordText as string}</p>
+                  <p className="font-arabic text-base text-foreground mt-1">{card.meta.meaning as string}</p>
+                  <p className="text-xs text-muted-foreground mt-1 font-arabic">{card.meta.surahName as string} — آية {card.meta.verseNumber as number}</p>
+                </div>
+              );
+            })()}
             {/* Inline answer (embedded in page area) */}
             {answerRevealed && answerDisplayMode === 'inline' && (
               <div className="mt-2 mx-auto max-w-md bg-accent/50 border border-border rounded-xl p-3 text-center animate-fade-in" dir="rtl">
