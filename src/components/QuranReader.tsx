@@ -388,18 +388,21 @@ export function QuranReader() {
               pageWords={pageWords}
               currentPage={currentPage}
               onNavigateToPage={goToPage}
-              renderPageWithHighlight={(pg, wordKey, _highlightStyle) => {
+              renderPageWithHighlight={(pg, wordKey, highlightStyle) => {
                 const pgData = pages.find(p => p.pageNumber === pg);
                 if (!pgData) return null;
-                const highlightIdx = wordKey ? pageWords.findIndex(w => w.uniqueKey === wordKey) : -1;
+                const pgWords = getPageGhareebWords;
+                const highlightIdx = wordKey ? pgWords.findIndex(w => w.uniqueKey === wordKey) : -1;
                 return (
-                  <PageView
-                    page={pgData}
-                    ghareebWords={pageWords}
-                    highlightedWordIndex={highlightIdx}
-                    meaningEnabled={highlightIdx >= 0}
-                    onWordClick={() => {}}
-                  />
+                  <div className="relative" data-srs-highlight-style={highlightStyle} data-srs-word-key={wordKey}>
+                    <PageView
+                      page={pgData}
+                      ghareebWords={pgWords}
+                      highlightedWordIndex={highlightIdx}
+                      meaningEnabled={highlightIdx >= 0}
+                      onWordClick={() => {}}
+                    />
+                  </div>
                 );
               }}
             />
