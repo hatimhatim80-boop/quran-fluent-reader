@@ -218,6 +218,95 @@ export function TahfeezAutoQuizSettings({ currentPage, quizPagesRange, onStart, 
           </AccordionContent>
         </AccordionItem>
 
+        {/* ═══ Section: Review Mode & Distribution ═══ */}
+        <AccordionItem value="distribution" className="border rounded-xl px-3 overflow-hidden">
+          <AccordionTrigger className="font-arabic text-sm font-bold hover:no-underline py-3">
+            <span className="flex items-center gap-2">🎲 نمط المراجعة والتوزيع</span>
+          </AccordionTrigger>
+          <AccordionContent className="pb-4 space-y-4">
+            {/* Review mode */}
+            <div className="space-y-2">
+              <p className="text-[11px] font-arabic text-muted-foreground font-medium">نوع المراجعة</p>
+              <div className="flex flex-wrap gap-1.5">
+                {[
+                  { value: 'ayah' as const, label: 'آيات' },
+                  { value: 'word' as const, label: 'كلمات' },
+                  { value: 'mixed' as const, label: 'مختلط' },
+                ].map(opt => (
+                  <Button key={opt.value}
+                    variant={reviewMode === opt.value ? 'default' : 'outline'}
+                    size="sm" onClick={() => setReviewMode(opt.value)}
+                    className="font-arabic text-[11px] h-7 px-2.5">
+                    {opt.label}
+                  </Button>
+                ))}
+              </div>
+            </div>
+
+            {/* Hidden ayat count */}
+            {(reviewMode === 'ayah' || reviewMode === 'mixed') && (
+              <div className="space-y-1">
+                <label className="text-[11px] font-arabic text-muted-foreground">عدد الآيات المخفية: <span className="text-primary font-bold">{hiddenAyatCount}</span></label>
+                <div className="flex flex-wrap gap-1.5">
+                  {[1, 2, 3, 5, 10].map(n => (
+                    <Button key={n}
+                      variant={hiddenAyatCount === n ? 'default' : 'outline'}
+                      size="sm" onClick={() => setHiddenAyatCount(n)}
+                      className="text-[11px] h-7 px-3 min-w-[2.2rem]">
+                      {n}
+                    </Button>
+                  ))}
+                </div>
+                <Slider value={[hiddenAyatCount]} onValueChange={([v]) => setHiddenAyatCount(v)} min={1} max={15} step={1} />
+              </div>
+            )}
+
+            {/* Hidden words count */}
+            {(reviewMode === 'word' || reviewMode === 'mixed') && (
+              <div className="space-y-1">
+                <label className="text-[11px] font-arabic text-muted-foreground">عدد الكلمات المخفية: <span className="text-primary font-bold">{hiddenWordsCount}</span></label>
+                <div className="flex flex-wrap gap-1.5">
+                  {[1, 2, 3, 5, 10].map(n => (
+                    <Button key={n}
+                      variant={hiddenWordsCount === n ? 'default' : 'outline'}
+                      size="sm" onClick={() => setHiddenWordsCount(n)}
+                      className="text-[11px] h-7 px-3 min-w-[2.2rem]">
+                      {n}
+                    </Button>
+                  ))}
+                </div>
+                <Slider value={[hiddenWordsCount]} onValueChange={([v]) => setHiddenWordsCount(v)} min={1} max={20} step={1} />
+              </div>
+            )}
+
+            {/* Distribution mode */}
+            <div className="space-y-2">
+              <p className="text-[11px] font-arabic text-muted-foreground font-medium">طريقة توزيع الإخفاء</p>
+              <div className="flex flex-wrap gap-1.5">
+                {[
+                  { value: 'sequential' as const, label: 'متتابع', desc: 'عناصر متجاورة' },
+                  { value: 'page-scattered' as const, label: 'موزع بالصفحة', desc: 'مواضع مختلفة بالصفحة' },
+                  { value: 'range-scattered' as const, label: 'موزع بالصفحات', desc: 'موزع على صفحات الجلسة' },
+                  { value: 'scope-scattered' as const, label: 'موزع بالنطاق', desc: 'موزع بكامل النطاق' },
+                ].map(opt => (
+                  <Button key={opt.value}
+                    variant={distributionMode === opt.value ? 'default' : 'outline'}
+                    size="sm" onClick={() => setDistributionMode(opt.value)}
+                    className="font-arabic text-[11px] h-7 px-2.5">
+                    {opt.label}
+                  </Button>
+                ))}
+              </div>
+              <p className="text-[10px] font-arabic text-muted-foreground">
+                {distributionMode === 'sequential' && 'العناصر المخفية ستكون متجاورة قدر الإمكان'}
+                {distributionMode === 'page-scattered' && 'توزيع متوازن داخل الصفحة الحالية'}
+                {distributionMode === 'range-scattered' && 'توزيع على الصفحات الداخلة في الجلسة'}
+                {distributionMode === 'scope-scattered' && 'توزيع على كامل النطاق المحدد (سورة / جزء / حزب)'}
+              </p>
+            </div>
+          </AccordionContent>
+        </AccordionItem>
+
         {/* ═══ Section 2: Quiz Scope ═══ */}
         <AccordionItem value="scope" className="border rounded-xl px-3 overflow-hidden">
           <AccordionTrigger className="font-arabic text-sm font-bold hover:no-underline py-3">
