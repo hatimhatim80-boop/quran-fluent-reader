@@ -212,6 +212,19 @@ interface TahfeezState {
   // Waqf display mode when blanking
   waqfDisplayMode: 'with-word' | 'sign-only';
   setWaqfDisplayMode: (mode: TahfeezState['waqfDisplayMode']) => void;
+
+  // Review mode & distribution
+  reviewMode: 'ayah' | 'word' | 'mixed';
+  setReviewMode: (mode: TahfeezState['reviewMode']) => void;
+  hiddenAyatCount: number;
+  setHiddenAyatCount: (n: number) => void;
+  hiddenWordsCount: number;
+  setHiddenWordsCount: (n: number) => void;
+  distributionMode: 'sequential' | 'page-scattered' | 'range-scattered' | 'scope-scattered';
+  setDistributionMode: (mode: TahfeezState['distributionMode']) => void;
+  /** Seed to avoid repeating same positions on consecutive rounds */
+  distributionSeed: number;
+  rotateDistributionSeed: () => void;
 }
 
 export const useTahfeezStore = create<TahfeezState>()(
