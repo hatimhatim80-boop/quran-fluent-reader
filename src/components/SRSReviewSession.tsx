@@ -19,7 +19,15 @@ interface SRSReviewSessionProps {
   portalName: string;
   /** Optional: render answer in bottom panel (used when answerDisplayMode === 'bottom') */
   renderAnswer?: (card: SRSCard) => React.ReactNode;
+  defaultAnswerMode?: AnswerDisplayMode;
+  answerModeOptions?: AnswerDisplayMode[];
 }
+
+const ANSWER_MODE_LABEL: Record<AnswerDisplayMode, string> = {
+  bottom: 'أسفل',
+  tooltip: 'عند الكلمة',
+  inline: 'في السطر',
+};
 
 export function SRSReviewSession({
   cards,
@@ -28,6 +36,8 @@ export function SRSReviewSession({
   renderCard,
   portalName,
   renderAnswer,
+  defaultAnswerMode = 'bottom',
+  answerModeOptions = ['bottom', 'tooltip', 'inline'],
 }: SRSReviewSessionProps) {
   const rateCard = useSRSStore(s => s.rateCard);
   const toggleFlag = useSRSStore(s => s.toggleFlag);
@@ -39,8 +49,14 @@ export function SRSReviewSession({
   const [reviewed, setReviewed] = useState<Set<number>>(new Set());
   const [ratings, setRatings] = useState<Map<number, SRSRating>>(new Map());
   const [showIndex, setShowIndex] = useState(false);
-  const [answerMode, setAnswerMode] = useState<AnswerDisplayMode>('bottom');
+  const [answerMode, setAnswerMode] = useState<AnswerDisplayMode>(defaultAnswerMode);
   const isMobile = useIsMobile();
+
+  const availableAnswerModes = useMemo(() => {
+    if (!answerModeOptions.length) return ['bottom', 'tooltip', 'inline'] as AnswerDisplayMode[];
+    const uniq = Array.from(new Set(answerModeOptions));
+    return uniq.length > 0 ? uniq : (['bottom', 'tooltip', 'inline'] as AnswerDisplayMode[]);
+  }, [answerModeOptions]);
 
   const card = cards[currentIdx];
   const total = cards.length;
@@ -57,6 +73,12 @@ export function SRSReviewSession({
     setAnswerRevealed(false);
     setShowManualInterval(false);
   }, [currentIdx]);
+
+  useEffect(() => {
+    if (!availableAnswerModes.includes(answerMode)) {
+      setAnswerMode(availableAnswerModes[0]);
+    }
+  }, [availableAnswerModes, answerMode]);
 
   const intervals = useMemo(() => {
     if (!card) return [];
@@ -90,6 +112,12 @@ export function SRSReviewSession({
   const goToCard = useCallback((idx: number) => {
     if (idx >= 0 && idx < total) setCurrentIdx(idx);
   }, [total]);
+
+  const switchAnswerMode = useCallback(() => {
+    const currentIndex = availableAnswerModes.indexOf(answerMode);
+    const nextIndex = (currentIndex + 1) % availableAnswerModes.length;
+    setAnswerMode(availableAnswerModes[nextIndex]);
+  }, [answerMode, availableAnswerModes]);
 
   if (!card) {
     return (
@@ -215,12 +243,14 @@ export function SRSReviewSession({
                 إظهار الإجابة
               </Button>
               {/* Settings row */}
-              <div className="flex items-center justify-center gap-3 text-[10px] text-muted-foreground font-arabic">
-                <button onClick={() => setAnswerMode(answerMode === 'bottom' ? 'tooltip' : answerMode === 'tooltip' ? 'inline' : 'bottom')} className="flex items-center gap-1 hover:text-foreground transition-colors">
-                  <Settings2 className="w-3 h-3" />
-                  عرض: {answerMode === 'bottom' ? 'أسفل' : answerMode === 'tooltip' ? 'عند الكلمة' : 'في السطر'}
-                </button>
-              </div>
+              {availableAnswerModes.length > 1 && (
+                <div className="flex items-center justify-center gap-3 text-[10px] text-muted-foreground font-arabic">
+                  <button onClick={switchAnswerMode} className="flex items-center gap-1 hover:text-foreground transition-colors">
+                    <Settings2 className="w-3 h-3" />
+                    عرض: {ANSWER_MODE_LABEL[answerMode]}
+                  </button>
+                </div>
+              )}
             </div>
           ) : (
             <>
