@@ -163,6 +163,21 @@ export default function TahfeezPage() {
   const swipeRef = useRef<{ startX: number; startY: number; startTime: number } | null>(null);
   const [quizPageIdx, setQuizPageIdx] = useState(0);
 
+  // Guard against stale persisted tab values from older app versions
+  useEffect(() => {
+    const validTabs: Array<typeof activeTab> = ['store', 'custom-quiz', 'auto-quiz', 'srs-review'];
+    if (!validTabs.includes(activeTab)) {
+      setActiveTab('auto-quiz');
+    }
+  }, [activeTab, setActiveTab]);
+
+  // Never keep "hide bars" active outside an active quiz
+  useEffect(() => {
+    if (!quizStarted && hideBars) setHideBars(false);
+  }, [quizStarted, hideBars]);
+
+  const shouldHideTopBars = hideBars && quizStarted;
+
   // MCQ state
   const [mcqStats, setMcqStats] = useState<MCQStats>({ correct: 0, wrong: 0, total: 0, startTime: Date.now(), answers: [] });
   const [mcqShowResults, setMcqShowResults] = useState(false);
@@ -896,7 +911,7 @@ export default function TahfeezPage() {
   return (
     <div className="min-h-screen bg-background" dir="rtl" ref={contentRef}>
       {/* Header */}
-      {!hideBars && (
+      {!shouldHideTopBars && (
         <div className="sticky top-0 z-30 bg-background/95 backdrop-blur-md border-b border-border/50">
           <div className="max-w-2xl mx-auto px-4 py-3 flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -915,9 +930,11 @@ export default function TahfeezPage() {
               <button onClick={() => { if (quizStarted) { setQuizStarted(false); if (revealTimerRef.current) clearTimeout(revealTimerRef.current); speech.stop(); } else { goToPage(currentPage - 1); } }} disabled={!quizStarted && currentPage <= 1} className="nav-button w-8 h-8 rounded-full flex items-center justify-center" title={quizStarted ? "العودة للإعدادات" : "الصفحة السابقة"}>
                 <ArrowRight className="w-4 h-4" />
               </button>
-              <button onClick={() => setHideBars(true)} className="nav-button w-8 h-8 rounded-full flex items-center justify-center" title="إخفاء الأزرار">
-                <EyeOff className="w-4 h-4" />
-              </button>
+              {quizStarted && (
+                <button onClick={() => setHideBars(true)} className="nav-button w-8 h-8 rounded-full flex items-center justify-center" title="إخفاء الأزرار">
+                  <EyeOff className="w-4 h-4" />
+                </button>
+              )}
             </div>
           </div>
           <div className="max-w-2xl mx-auto px-4 pb-2 flex items-center justify-center gap-2">
@@ -931,14 +948,14 @@ export default function TahfeezPage() {
       )}
 
       {/* Show bars overlay - floating when bars are hidden, with swipe support */}
-      {hideBars && (
+      {shouldHideTopBars && (
         <HiddenBarsOverlay onShow={() => setHideBars(false)} onNextPage={nextPage} onPrevPage={prevPage} />
       )}
 
       {/* Voice debug overlay disabled */}
 
       {/* Tab icons */}
-      {!quizStarted && !hideBars && (
+      {!quizStarted && (
         <div className="max-w-2xl mx-auto px-4 pt-4">
           <div className="flex justify-center gap-3">
             {tabs.map(tab => (
@@ -960,7 +977,7 @@ export default function TahfeezPage() {
       )}
 
       {/* Font settings - visible when not in quiz */}
-      {!quizStarted && !hideBars && (
+      {!quizStarted && (
         <div className="max-w-2xl mx-auto px-4 pt-3">
           <div className="page-frame p-4">
             <TahfeezFontSettings />
