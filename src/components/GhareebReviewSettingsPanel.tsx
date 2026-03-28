@@ -205,9 +205,9 @@ export function GhareebReviewSettingsPanel({ className, highlightStyle, onHighli
             </div>
 
             <div className="space-y-2">
-              <Label className="text-xs">حشوة الإطار: {settings.popover.padding}px</Label>
+              <Label className="text-xs">حشوة الإطار: {popover.padding}px</Label>
               <Slider
-                value={[settings.popover.padding]}
+                value={[popover.padding]}
                 onValueChange={([v]) => setPopover({ padding: Math.round(v) })}
                 min={8}
                 max={26}
