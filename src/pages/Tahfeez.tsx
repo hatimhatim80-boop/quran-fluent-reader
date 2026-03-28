@@ -11,8 +11,9 @@ import { useKeepAwake } from '@/hooks/useKeepAwake';
 import { useSpeech } from '@/hooks/useSpeech';
 import { normalizeArabic } from '@/utils/quranParser';
 import { Link, useNavigate } from 'react-router-dom';
-import { BookOpen, Play, Pause, Eye, EyeOff, ArrowRight, Save, Trash2, GraduationCap, ListChecks, Zap, Book, Layers, Hash, FileText, Search, X, ChevronLeft, Download, Upload, ChevronsRight, Undo2, Palette, Mic, MicOff, MousePointerClick, RotateCcw } from 'lucide-react';
+import { BookOpen, Play, Pause, Eye, EyeOff, ArrowRight, Save, Trash2, GraduationCap, ListChecks, Zap, Book, Layers, Hash, FileText, Search, X, ChevronLeft, Download, Upload, ChevronsRight, Undo2, Palette, Mic, MicOff, MousePointerClick, RotateCcw, Settings } from 'lucide-react';
 import { SpeedControlWidget } from '@/components/SpeedControlWidget';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 
 import { HiddenBarsOverlay } from '@/components/HiddenBarsOverlay';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -1695,7 +1696,30 @@ export default function TahfeezPage() {
                   الصفحة التالية
                 </Button>
               )}
-              
+              {/* Session settings sheet */}
+              <Sheet>
+                <SheetTrigger asChild>
+                  <Button variant="outline" size="sm" className="font-arabic">
+                    <Settings className="w-4 h-4 ml-1" />
+                    إعدادات
+                  </Button>
+                </SheetTrigger>
+                <SheetContent side="right" className="overflow-y-auto w-[340px] sm:max-w-[400px]">
+                  <SheetHeader>
+                    <SheetTitle className="font-arabic text-right">إعدادات الجلسة</SheetTitle>
+                  </SheetHeader>
+                  <div className="mt-4">
+                    <TahfeezAutoQuizSettings
+                      currentPage={currentPage}
+                      quizPagesRange={quizPagesRange}
+                      onStart={() => {}}
+                      disabled={false}
+                      compact
+                    />
+                  </div>
+                </SheetContent>
+              </Sheet>
+
               <Button variant="outline" size="sm" onClick={() => { setQuizStarted(false); if (revealTimerRef.current) clearTimeout(revealTimerRef.current); speech.stop(); }} className="font-arabic">
                 إعادة
               </Button>

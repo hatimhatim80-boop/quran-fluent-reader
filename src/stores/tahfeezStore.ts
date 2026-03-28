@@ -225,6 +225,16 @@ interface TahfeezState {
   /** Seed to avoid repeating same positions on consecutive rounds */
   distributionSeed: number;
   rotateDistributionSeed: () => void;
+
+  // New: word hiding mode (fixed count vs percentage)
+  hiddenWordsMode: 'fixed-count' | 'percentage';
+  setHiddenWordsMode: (mode: TahfeezState['hiddenWordsMode']) => void;
+  hiddenWordsPercentage: number;
+  setHiddenWordsPercentage: (n: number) => void;
+  percentageScope: 'per-ayah' | 'per-visible-block';
+  setPercentageScope: (scope: TahfeezState['percentageScope']) => void;
+  wordSequenceMode: 'same-ayah-only' | 'allow-cross-ayah';
+  setWordSequenceMode: (mode: TahfeezState['wordSequenceMode']) => void;
 }
 
 export const useTahfeezStore = create<TahfeezState>()(
@@ -392,6 +402,15 @@ export const useTahfeezStore = create<TahfeezState>()(
       setDistributionMode: (mode) => set({ distributionMode: mode }),
       distributionSeed: Date.now(),
       rotateDistributionSeed: () => set({ distributionSeed: Date.now() }),
+
+      hiddenWordsMode: 'fixed-count',
+      setHiddenWordsMode: (mode) => set({ hiddenWordsMode: mode }),
+      hiddenWordsPercentage: 25,
+      setHiddenWordsPercentage: (n) => set({ hiddenWordsPercentage: n }),
+      percentageScope: 'per-ayah',
+      setPercentageScope: (scope) => set({ percentageScope: scope }),
+      wordSequenceMode: 'same-ayah-only',
+      setWordSequenceMode: (mode) => set({ wordSequenceMode: mode }),
     }),
     {
       name: 'tahfeez.v2',
@@ -433,6 +452,10 @@ export const useTahfeezStore = create<TahfeezState>()(
         hiddenAyatCount: state.hiddenAyatCount,
         hiddenWordsCount: state.hiddenWordsCount,
         distributionMode: state.distributionMode,
+        hiddenWordsMode: state.hiddenWordsMode,
+        hiddenWordsPercentage: state.hiddenWordsPercentage,
+        percentageScope: state.percentageScope,
+        wordSequenceMode: state.wordSequenceMode,
       }),
     }
   )

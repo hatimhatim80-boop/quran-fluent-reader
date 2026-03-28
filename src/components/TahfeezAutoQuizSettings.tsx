@@ -21,10 +21,12 @@ interface TahfeezAutoQuizSettingsProps {
   quizPagesRange: number[];
   onStart: () => void;
   disabled: boolean;
+  /** When true, hide the start button (used in mid-session settings sheet) */
+  compact?: boolean;
 }
 
 /** Organized auto-quiz settings with collapsible sections */
-export function TahfeezAutoQuizSettings({ currentPage, quizPagesRange, onStart, disabled }: TahfeezAutoQuizSettingsProps) {
+export function TahfeezAutoQuizSettings({ currentPage, quizPagesRange, onStart, disabled, compact }: TahfeezAutoQuizSettingsProps) {
   const {
     autoBlankMode, setAutoBlankMode,
     waqfCombinedModes, setWaqfCombinedModes,
@@ -57,6 +59,10 @@ export function TahfeezAutoQuizSettings({ currentPage, quizPagesRange, onStart, 
     hiddenAyatCount, setHiddenAyatCount,
     hiddenWordsCount, setHiddenWordsCount,
     distributionMode, setDistributionMode,
+    hiddenWordsMode, setHiddenWordsMode,
+    hiddenWordsPercentage, setHiddenWordsPercentage,
+    percentageScope, setPercentageScope,
+    wordSequenceMode, setWordSequenceMode,
   } = useTahfeezStore();
 
   const speech = useSpeech();
@@ -261,21 +267,68 @@ export function TahfeezAutoQuizSettings({ currentPage, quizPagesRange, onStart, 
               </div>
             )}
 
-            {/* Hidden words count */}
+            {/* Hidden words — mode selector + controls */}
             {(reviewMode === 'word' || reviewMode === 'mixed') && (
-              <div className="space-y-1">
-                <label className="text-[11px] font-arabic text-muted-foreground">عدد الكلمات المخفية: <span className="text-primary font-bold">{hiddenWordsCount}</span></label>
+              <div className="space-y-2">
+                <p className="text-[11px] font-arabic text-muted-foreground font-medium">وضع إخفاء الكلمات</p>
                 <div className="flex flex-wrap gap-1.5">
-                  {[1, 2, 3, 5, 10].map(n => (
-                    <Button key={n}
-                      variant={hiddenWordsCount === n ? 'default' : 'outline'}
-                      size="sm" onClick={() => setHiddenWordsCount(n)}
-                      className="text-[11px] h-7 px-3 min-w-[2.2rem]">
-                      {n}
-                    </Button>
-                  ))}
+                  <Button variant={hiddenWordsMode === 'fixed-count' ? 'default' : 'outline'} size="sm"
+                    onClick={() => setHiddenWordsMode('fixed-count')} className="font-arabic text-[11px] h-7 px-2.5">
+                    عدد ثابت
+                  </Button>
+                  <Button variant={hiddenWordsMode === 'percentage' ? 'default' : 'outline'} size="sm"
+                    onClick={() => setHiddenWordsMode('percentage')} className="font-arabic text-[11px] h-7 px-2.5">
+                    نسبة مئوية
+                  </Button>
                 </div>
-                <Slider value={[hiddenWordsCount]} onValueChange={([v]) => setHiddenWordsCount(v)} min={1} max={20} step={1} />
+
+                {hiddenWordsMode === 'fixed-count' && (
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-arabic text-muted-foreground">عدد الكلمات المخفية: <span className="text-primary font-bold">{hiddenWordsCount}</span></label>
+                    <div className="flex flex-wrap gap-1.5">
+                      {[1, 2, 3, 5, 10].map(n => (
+                        <Button key={n}
+                          variant={hiddenWordsCount === n ? 'default' : 'outline'}
+                          size="sm" onClick={() => setHiddenWordsCount(n)}
+                          className="text-[11px] h-7 px-3 min-w-[2.2rem]">
+                          {n}
+                        </Button>
+                      ))}
+                    </div>
+                    <Slider value={[hiddenWordsCount]} onValueChange={([v]) => setHiddenWordsCount(v)} min={1} max={20} step={1} />
+                  </div>
+                )}
+
+                {hiddenWordsMode === 'percentage' && (
+                  <div className="space-y-2">
+                    <label className="text-[11px] font-arabic text-muted-foreground">نسبة الكلمات المخفية: <span className="text-primary font-bold">{hiddenWordsPercentage}%</span></label>
+                    <div className="flex flex-wrap gap-1.5">
+                      {[10, 20, 25, 30, 40, 50, 60, 70, 80].map(p => (
+                        <Button key={p}
+                          variant={hiddenWordsPercentage === p ? 'default' : 'outline'}
+                          size="sm" onClick={() => setHiddenWordsPercentage(p)}
+                          className="text-[11px] h-7 px-2.5 min-w-[2.5rem]">
+                          {p}%
+                        </Button>
+                      ))}
+                    </div>
+                    <Slider value={[hiddenWordsPercentage]} onValueChange={([v]) => setHiddenWordsPercentage(v)} min={5} max={90} step={5} />
+
+                    <div className="space-y-1 pt-1">
+                      <p className="text-[11px] font-arabic text-muted-foreground font-medium">نطاق حساب النسبة</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        <Button variant={percentageScope === 'per-ayah' ? 'default' : 'outline'} size="sm"
+                          onClick={() => setPercentageScope('per-ayah')} className="font-arabic text-[11px] h-7 px-2.5">
+                          لكل آية
+                        </Button>
+                        <Button variant={percentageScope === 'per-visible-block' ? 'default' : 'outline'} size="sm"
+                          onClick={() => setPercentageScope('per-visible-block')} className="font-arabic text-[11px] h-7 px-2.5">
+                          للمقطع الظاهر
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
@@ -304,6 +357,23 @@ export function TahfeezAutoQuizSettings({ currentPage, quizPagesRange, onStart, 
                 {distributionMode === 'scope-scattered' && 'توزيع على كامل النطاق المحدد (سورة / جزء / حزب)'}
               </p>
             </div>
+
+            {/* Word sequence mode (only when sequential + word/mixed) */}
+            {distributionMode === 'sequential' && (reviewMode === 'word' || reviewMode === 'mixed') && (
+              <div className="space-y-1.5">
+                <p className="text-[11px] font-arabic text-muted-foreground font-medium">تتابع الكلمات</p>
+                <div className="flex flex-wrap gap-1.5">
+                  <Button variant={wordSequenceMode === 'same-ayah-only' ? 'default' : 'outline'} size="sm"
+                    onClick={() => setWordSequenceMode('same-ayah-only')} className="font-arabic text-[11px] h-7 px-2.5">
+                    داخل الآية فقط
+                  </Button>
+                  <Button variant={wordSequenceMode === 'allow-cross-ayah' ? 'default' : 'outline'} size="sm"
+                    onClick={() => setWordSequenceMode('allow-cross-ayah')} className="font-arabic text-[11px] h-7 px-2.5">
+                    يمتد للآية التالية
+                  </Button>
+                </div>
+              </div>
+            )}
           </AccordionContent>
         </AccordionItem>
 
@@ -599,11 +669,52 @@ export function TahfeezAutoQuizSettings({ currentPage, quizPagesRange, onStart, 
         </AccordionItem>
       </Accordion>
 
-      {/* Start Button */}
-      <Button onClick={onStart} className="w-full font-arabic text-base h-12" disabled={disabled}>
-        <Play className="w-5 h-5 ml-2" />
-        ابدأ الاختبار {quizScope === 'current-page' ? `(صفحة ${currentPage})` : `(${quizPagesRange.length} صفحة)`}
-      </Button>
+      {/* Session Preview */}
+      <div className="border rounded-xl p-3 bg-muted/30 space-y-1.5">
+        <p className="text-[11px] font-arabic font-bold text-foreground">📋 ملخص الجلسة</p>
+        <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-[10px] font-arabic text-muted-foreground">
+          <span>نوع المراجعة:</span>
+          <span className="text-foreground font-medium">
+            {reviewMode === 'ayah' ? 'آيات' : reviewMode === 'word' ? 'كلمات' : 'مختلط'}
+          </span>
+          {(reviewMode === 'ayah' || reviewMode === 'mixed') && (
+            <>
+              <span>آيات مخفية:</span>
+              <span className="text-foreground font-medium">{hiddenAyatCount}</span>
+            </>
+          )}
+          {(reviewMode === 'word' || reviewMode === 'mixed') && (
+            <>
+              <span>كلمات مخفية:</span>
+              <span className="text-foreground font-medium">
+                {hiddenWordsMode === 'percentage' ? `${hiddenWordsPercentage}%` : `${hiddenWordsCount} كلمة`}
+              </span>
+            </>
+          )}
+          {hiddenWordsMode === 'percentage' && (reviewMode === 'word' || reviewMode === 'mixed') && (
+            <>
+              <span>نطاق النسبة:</span>
+              <span className="text-foreground font-medium">{percentageScope === 'per-ayah' ? 'لكل آية' : 'للمقطع'}</span>
+            </>
+          )}
+          <span>التوزيع:</span>
+          <span className="text-foreground font-medium">
+            {distributionMode === 'sequential' ? 'متتابع' : distributionMode === 'page-scattered' ? 'موزع بالصفحة' : distributionMode === 'range-scattered' ? 'موزع بالصفحات' : 'موزع بالنطاق'}
+          </span>
+          <span>النطاق:</span>
+          <span className="text-foreground font-medium">
+            {quizScope === 'current-page' ? `صفحة ${currentPage}` : quizScope === 'surah' ? 'سورة' : quizScope === 'juz' ? 'جزء' : quizScope === 'hizb' ? 'حزب' : `${quizPagesRange.length} صفحة`}
+          </span>
+        </div>
+      </div>
+
+      {/* Start Button — hidden in compact mode */}
+      {!compact && (
+        <Button onClick={onStart} className="w-full font-arabic text-base h-12" disabled={disabled}>
+          <Play className="w-5 h-5 ml-2" />
+          ابدأ الاختبار {quizScope === 'current-page' ? `(صفحة ${currentPage})` : `(${quizPagesRange.length} صفحة)`}
+        </Button>
+      )}
     </div>
   );
 }

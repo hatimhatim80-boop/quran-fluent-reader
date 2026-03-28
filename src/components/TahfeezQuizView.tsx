@@ -114,6 +114,10 @@ export function TahfeezQuizView({
   const hiddenWordsCount = useTahfeezStore(s => s.hiddenWordsCount);
   const distributionMode = useTahfeezStore(s => s.distributionMode);
   const distributionSeed = useTahfeezStore(s => s.distributionSeed);
+  const hiddenWordsMode = useTahfeezStore(s => s.hiddenWordsMode);
+  const hiddenWordsPercentage = useTahfeezStore(s => s.hiddenWordsPercentage);
+  const percentageScope = useTahfeezStore(s => s.percentageScope);
+  const wordSequenceMode = useTahfeezStore(s => s.wordSequenceMode);
   const displayMode = settings.display?.mode || 'auto15';
   const textDirection = settings.display?.textDirection || 'rtl';
   const mobileLinesPerPage = settings.display?.mobileLinesPerPage || 15;
@@ -242,10 +246,21 @@ export function TahfeezQuizView({
       if (autoBlankMode === 'full-page') {
         allWordTokens.forEach(t => keys.add(t.key));
       } else if (autoBlankMode === 'ayah-count') {
-        const count = Math.min(ayahCount, ayahGroups.length);
-        for (let a = 0; a < count; a++) {
-          ayahGroups[a].forEach(t => keys.add(t.key));
-        }
+        // Use the distributed engine for ayah-count mode too (handles sequential + scattered)
+        const distributed = computeDistributedBlanks({
+          reviewMode: 'ayah',
+          distributionMode,
+          hiddenAyatCount: ayahCount,
+          hiddenWordsCount: 0,
+          seed: distributionSeed + page.pageNumber,
+          ayahGroups,
+          allWordTokens,
+          hiddenWordsMode,
+          hiddenWordsPercentage,
+          percentageScope,
+          wordSequenceMode,
+        });
+        for (const k of distributed) keys.add(k.toString());
       } else if (waqfCombinedModes.length > 0) {
         // Waqf-based blanking modes (can combine multiple)
         const shouldKeepWaqfWord = waqfDisplayMode === 'with-word';
@@ -339,9 +354,8 @@ export function TahfeezQuizView({
       }
     }
 
-    // Apply distributed blanking (merges with existing pattern-based blanking)
-    if (quizSource === 'auto' && distributionMode !== 'sequential') {
-      // Use the distributed engine to add/replace blanks
+    // Apply distributed blanking for all modes (unified engine call)
+    if (quizSource === 'auto' && (reviewMode === 'word' || reviewMode === 'mixed' || reviewMode === 'ayah')) {
       const distributed = computeDistributedBlanks({
         reviewMode,
         distributionMode,
@@ -350,25 +364,16 @@ export function TahfeezQuizView({
         seed: distributionSeed + page.pageNumber,
         ayahGroups,
         allWordTokens,
-      });
-      // Merge: add distributed blanks to existing pattern blanks
-      for (const k of distributed) keys.add(k);
-    } else if (quizSource === 'auto' && distributionMode === 'sequential' && reviewMode !== 'ayah') {
-      // Sequential mode but word/mixed review: apply word blanking with sequential distribution
-      const distributed = computeDistributedBlanks({
-        reviewMode,
-        distributionMode: 'sequential',
-        hiddenAyatCount,
-        hiddenWordsCount,
-        seed: distributionSeed + page.pageNumber,
-        ayahGroups,
-        allWordTokens,
+        hiddenWordsMode,
+        hiddenWordsPercentage,
+        percentageScope,
+        wordSequenceMode,
       });
       for (const k of distributed) keys.add(k);
     }
 
     return keys;
-  }, [quizSource, storedItems, autoBlankMode, blankCount, ayahCount, page.pageNumber, allWordTokens, ayahGroups, waqfCombinedModes, waqfDisplayMode, forceBlankedKeys, reviewMode, hiddenAyatCount, hiddenWordsCount, distributionMode, distributionSeed]);
+  }, [quizSource, storedItems, autoBlankMode, blankCount, ayahCount, page.pageNumber, allWordTokens, ayahGroups, waqfCombinedModes, waqfDisplayMode, forceBlankedKeys, reviewMode, hiddenAyatCount, hiddenWordsCount, distributionMode, distributionSeed, hiddenWordsMode, hiddenWordsPercentage, percentageScope, wordSequenceMode]);
 
   // Export blanked keys list (ordered) for parent to use in sequencing
   // This is used by the parent component via a ref or callback
