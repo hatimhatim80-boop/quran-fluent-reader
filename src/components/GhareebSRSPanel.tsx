@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useCallback } from 'react';
 import { useSRSStore, SRSCard } from '@/stores/srsStore';
-import { SRSReviewSession, AnswerDisplayMode } from './SRSReviewSession';
+import { SRSReviewSession } from './SRSReviewSession';
 import { SRSScopeSelector, SRSScope, scopeToPages } from './SRSScopeSelector';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -113,8 +113,8 @@ export function GhareebSRSPanel({
             {renderPageWithHighlight(card.page, card.contentKey, highlightStyle)}
             {/* Tooltip answer positioned near the highlighted word */}
             {answerRevealed && answerDisplayMode === 'tooltip' && (() => {
-              // Find the highlighted word element in the DOM
-              const wordEl = document.querySelector(`[data-srs-word-key="${card.contentKey}"] .ghareeb-word-active, [data-srs-word-key="${card.contentKey}"] .ghareeb-highlighted`);
+              // Find the exact matched word by contentKey (no index-based matching)
+              const wordEl = document.querySelector<HTMLElement>(`[data-srs-word-key="${card.contentKey}"] [data-ghareeb-key="${card.contentKey}"]`);
               const rect = wordEl?.getBoundingClientRect();
               const style: React.CSSProperties = rect
                 ? { position: 'fixed', top: Math.min(rect.bottom + 8, window.innerHeight - 160), left: Math.max(16, Math.min(rect.left + rect.width / 2 - 120, window.innerWidth - 260)), zIndex: 50 }

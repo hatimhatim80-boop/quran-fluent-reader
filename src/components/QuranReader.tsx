@@ -76,7 +76,6 @@ export function QuranReader() {
   const [showIndex, setShowIndex] = useState(false);
   const [showControls, setShowControls] = useState(false);
   const [showSRS, setShowSRS] = useState(false);
-  const [srsHighlightKey, setSrsHighlightKey] = useState<string | null>(null);
   const [hideBars, setHideBars] = useState(false);
   const [showEntryDialog, setShowEntryDialog] = useState(false);
   const [showPageEndBanner, setShowPageEndBanner] = useState(false);
@@ -391,15 +390,16 @@ export function QuranReader() {
               renderPageWithHighlight={(pg, wordKey, highlightStyle) => {
                 const pgData = pages.find(p => p.pageNumber === pg);
                 if (!pgData) return null;
-                const pgWords = getPageGhareebWords;
-                const highlightIdx = wordKey ? pgWords.findIndex(w => w.uniqueKey === wordKey) : -1;
+                const pgWords = allGhareebWords.filter(w => w.pageNumber === pg);
                 return (
                   <div className="relative" data-srs-highlight-style={highlightStyle} data-srs-word-key={wordKey}>
                     <PageView
                       page={pgData}
                       ghareebWords={pgWords}
-                      highlightedWordIndex={highlightIdx}
-                      meaningEnabled={highlightIdx >= 0}
+                      highlightedWordIndex={-1}
+                      highlightedWordKey={wordKey}
+                      activeHighlightStyle={highlightStyle}
+                      meaningEnabled={!!wordKey}
                       onWordClick={() => {}}
                     />
                   </div>

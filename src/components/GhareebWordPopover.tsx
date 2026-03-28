@@ -21,6 +21,7 @@ interface GhareebWordPopoverProps {
   wasSeen?: boolean;
   extraClassName?: string;
   onExtraClick?: (e: React.MouseEvent) => void;
+  activeHighlightStyle?: 'default' | 'color' | 'bg' | 'border';
 }
 
 export function GhareebWordPopover({
@@ -38,6 +39,7 @@ export function GhareebWordPopover({
   wasSeen = false,
   extraClassName,
   onExtraClick,
+  activeHighlightStyle = 'default',
 }: GhareebWordPopoverProps) {
   const [isManualOpen, setIsManualOpen] = useState(false);
   const [position, setPosition] = useState(null);
@@ -259,13 +261,39 @@ export function GhareebWordPopover({
 
   // When active: force inline style to override CSS variables set on :root
   // CSS class !important cannot override inline CSS variables on :root
-  const activeWordStyle: React.CSSProperties = isHighlighted && highlightStyle !== 'text-only'
-    ? {
-        backgroundColor: 'hsl(200 70% 78% / 0.7)',
-        borderColor: 'hsl(200 70% 45% / 0.8)',
-        boxShadow: '0 0 10px 3px hsl(200 70% 60% / 0.45)',
-      }
-    : {};
+  const activeWordStyle: React.CSSProperties = (() => {
+    if (!isHighlighted) return {};
+    if (activeHighlightStyle === 'color') {
+      return {
+        color: 'hsl(var(--primary))',
+        backgroundColor: 'transparent',
+        borderColor: 'transparent',
+        boxShadow: 'none',
+      };
+    }
+    if (activeHighlightStyle === 'border') {
+      return {
+        color: 'hsl(var(--foreground))',
+        backgroundColor: 'transparent',
+        borderColor: 'hsl(var(--primary))',
+        boxShadow: '0 0 0 1px hsl(var(--primary) / 0.35)',
+      };
+    }
+    if (activeHighlightStyle === 'bg') {
+      return {
+        color: 'hsl(var(--foreground))',
+        backgroundColor: 'hsl(var(--primary) / 0.2)',
+        borderColor: 'hsl(var(--primary) / 0.5)',
+        boxShadow: '0 0 0 1px hsl(var(--primary) / 0.25)',
+      };
+    }
+    if (highlightStyle === 'text-only') return {};
+    return {
+      backgroundColor: 'hsl(200 70% 78% / 0.7)',
+      borderColor: 'hsl(200 70% 45% / 0.8)',
+      boxShadow: '0 0 10px 3px hsl(200 70% 60% / 0.45)',
+    };
+  })();
 
   return (
     <>

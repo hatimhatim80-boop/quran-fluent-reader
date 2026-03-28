@@ -1319,21 +1319,24 @@ export default function TahfeezPage() {
               totalPages={totalPages}
               pageData={pageData}
               onNavigateToPage={goToPage}
-              renderPageWithBlanks={(pg, _blankedKeys, card) => {
+              renderPageWithBlanks={(pg, blankedKeys, card) => {
                 const pgData = pages.find(p => p.pageNumber === pg);
                 if (!pgData) return null;
+                const answerRevealed = blankedKeys.length === 0;
+                const isWordsCard = card.type === 'tahfeez-words';
+                const cardPageStoredItems = storedItems.filter((item) => item.data.page === pg);
                 return (
                   <TahfeezQuizView
                     page={pgData}
-                    quizSource="auto"
-                    storedItems={storedItems}
-                    autoBlankMode={card.type === 'tahfeez-ayah' ? 'full-ayah' : 'full-page'}
+                    quizSource={isWordsCard ? 'custom' : 'auto'}
+                    storedItems={isWordsCard ? cardPageStoredItems : []}
+                    autoBlankMode={isWordsCard ? 'full-page' : 'ayah-count'}
                     waqfCombinedModes={[]}
                     blankCount={blankCount}
                     ayahCount={1}
                     activeBlankKey={null}
                     revealedKeys={new Set()}
-                    showAll={false}
+                    showAll={answerRevealed}
                   />
                 );
               }}
