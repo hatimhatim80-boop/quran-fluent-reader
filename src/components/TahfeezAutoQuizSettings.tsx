@@ -669,11 +669,52 @@ export function TahfeezAutoQuizSettings({ currentPage, quizPagesRange, onStart, 
         </AccordionItem>
       </Accordion>
 
-      {/* Start Button */}
-      <Button onClick={onStart} className="w-full font-arabic text-base h-12" disabled={disabled}>
-        <Play className="w-5 h-5 ml-2" />
-        ابدأ الاختبار {quizScope === 'current-page' ? `(صفحة ${currentPage})` : `(${quizPagesRange.length} صفحة)`}
-      </Button>
+      {/* Session Preview */}
+      <div className="border rounded-xl p-3 bg-muted/30 space-y-1.5">
+        <p className="text-[11px] font-arabic font-bold text-foreground">📋 ملخص الجلسة</p>
+        <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-[10px] font-arabic text-muted-foreground">
+          <span>نوع المراجعة:</span>
+          <span className="text-foreground font-medium">
+            {reviewMode === 'ayah' ? 'آيات' : reviewMode === 'word' ? 'كلمات' : 'مختلط'}
+          </span>
+          {(reviewMode === 'ayah' || reviewMode === 'mixed') && (
+            <>
+              <span>آيات مخفية:</span>
+              <span className="text-foreground font-medium">{hiddenAyatCount}</span>
+            </>
+          )}
+          {(reviewMode === 'word' || reviewMode === 'mixed') && (
+            <>
+              <span>كلمات مخفية:</span>
+              <span className="text-foreground font-medium">
+                {hiddenWordsMode === 'percentage' ? `${hiddenWordsPercentage}%` : `${hiddenWordsCount} كلمة`}
+              </span>
+            </>
+          )}
+          {hiddenWordsMode === 'percentage' && (reviewMode === 'word' || reviewMode === 'mixed') && (
+            <>
+              <span>نطاق النسبة:</span>
+              <span className="text-foreground font-medium">{percentageScope === 'per-ayah' ? 'لكل آية' : 'للمقطع'}</span>
+            </>
+          )}
+          <span>التوزيع:</span>
+          <span className="text-foreground font-medium">
+            {distributionMode === 'sequential' ? 'متتابع' : distributionMode === 'page-scattered' ? 'موزع بالصفحة' : distributionMode === 'range-scattered' ? 'موزع بالصفحات' : 'موزع بالنطاق'}
+          </span>
+          <span>النطاق:</span>
+          <span className="text-foreground font-medium">
+            {quizScope === 'current-page' ? `صفحة ${currentPage}` : quizScope === 'surah' ? 'سورة' : quizScope === 'juz' ? 'جزء' : quizScope === 'hizb' ? 'حزب' : `${quizPagesRange.length} صفحة`}
+          </span>
+        </div>
+      </div>
+
+      {/* Start Button — hidden in compact mode */}
+      {!compact && (
+        <Button onClick={onStart} className="w-full font-arabic text-base h-12" disabled={disabled}>
+          <Play className="w-5 h-5 ml-2" />
+          ابدأ الاختبار {quizScope === 'current-page' ? `(صفحة ${currentPage})` : `(${quizPagesRange.length} صفحة)`}
+        </Button>
+      )}
     </div>
   );
 }
