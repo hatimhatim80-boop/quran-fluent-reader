@@ -21,10 +21,12 @@ interface TahfeezAutoQuizSettingsProps {
   quizPagesRange: number[];
   onStart: () => void;
   disabled: boolean;
+  /** When true, hide the start button (used in mid-session settings sheet) */
+  compact?: boolean;
 }
 
 /** Organized auto-quiz settings with collapsible sections */
-export function TahfeezAutoQuizSettings({ currentPage, quizPagesRange, onStart, disabled }: TahfeezAutoQuizSettingsProps) {
+export function TahfeezAutoQuizSettings({ currentPage, quizPagesRange, onStart, disabled, compact }: TahfeezAutoQuizSettingsProps) {
   const {
     autoBlankMode, setAutoBlankMode,
     waqfCombinedModes, setWaqfCombinedModes,
