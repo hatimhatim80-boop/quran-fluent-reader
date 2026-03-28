@@ -21,7 +21,7 @@ export function GhareebSRSPanel({
   onNavigateToPage,
   renderPageWithHighlight,
 }: GhareebSRSPanelProps) {
-  const { addCard, hasCard, getDueCards, getDueCount, cards, exportData, importData, clearAll, getFlaggedCards } = useSRSStore();
+  const { addCard, hasCard, getDueCards, cards, exportData, importData, clearAll, getFlaggedCards } = useSRSStore();
   const [sessionMode, setSessionMode] = useState<'setup' | 'review'>('setup');
   const [sessionCards, setSessionCards] = useState<SRSCard[]>([]);
   const [sessionSize, setSessionSize] = useState<'all' | '10' | '20' | '50'>('all');
@@ -29,7 +29,11 @@ export function GhareebSRSPanel({
   const [highlightStyle, setHighlightStyle] = useState<'color' | 'bg' | 'border'>('bg');
 
   const scopePages = useMemo(() => scopeToPages({ ...scope, from: scope.type === 'current-page' ? currentPage : scope.from }), [scope, currentPage]);
-  const dueCount = getDueCount('ghareeb', scopePages || undefined);
+  const dueCards = useMemo(() => {
+    if (scope.type === 'flagged') return getFlaggedCards('ghareeb');
+    return getDueCards('ghareeb', undefined, scopePages || undefined);
+  }, [scope.type, getFlaggedCards, getDueCards, scopePages]);
+  const dueCount = dueCards.length;
   const totalCards = cards.filter(c => c.type === 'ghareeb').length;
 
   const addPageWords = useCallback(() => {
@@ -60,20 +64,14 @@ export function GhareebSRSPanel({
 
   const startReview = useCallback(() => {
     const maxCount = sessionSize === 'all' ? undefined : parseInt(sessionSize);
-    let due: SRSCard[];
-    if (scope.type === 'flagged') {
-      due = getFlaggedCards('ghareeb');
-      if (maxCount) due = due.slice(0, maxCount);
-    } else {
-      due = getDueCards('ghareeb', maxCount, scopePages || undefined);
-    }
-    if (due.length === 0) {
+    const selected = maxCount ? dueCards.slice(0, maxCount) : dueCards;
+    if (selected.length === 0) {
       toast.info('لا توجد بطاقات مستحقة للمراجعة الآن');
       return;
     }
-    setSessionCards(due);
+    setSessionCards(selected);
     setSessionMode('review');
-  }, [sessionSize, getDueCards, getFlaggedCards, scope, scopePages]);
+  }, [sessionSize, dueCards]);
 
   const handleExport = useCallback(() => {
     const json = exportData();
@@ -196,9 +194,9 @@ export function GhareebSRSPanel({
             </SelectContent>
           </Select>
         </div>
-        <Button onClick={startReview} disabled={dueCount === 0 && scope.type !== 'flagged'} className="w-full gap-2 font-arabic" size="lg">
+        <Button onClick={startReview} disabled={dueCount === 0} className="w-full gap-2 font-arabic" size="lg">
           <RotateCcw className="w-4 h-4" />
-          بدء المراجعة ({scope.type === 'flagged' ? getFlaggedCards('ghareeb').length : dueCount} بطاقة)
+          بدء المراجعة ({dueCount} بطاقة)
         </Button>
       </div>
 
