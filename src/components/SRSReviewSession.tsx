@@ -21,6 +21,7 @@ interface SRSReviewSessionProps {
   renderAnswer?: (card: SRSCard) => React.ReactNode;
   defaultAnswerMode?: AnswerDisplayMode;
   answerModeOptions?: AnswerDisplayMode[];
+  headerExtra?: React.ReactNode;
 }
 
 const ANSWER_MODE_LABEL: Record<AnswerDisplayMode, string> = {
@@ -38,6 +39,7 @@ export function SRSReviewSession({
   renderAnswer,
   defaultAnswerMode = 'bottom',
   answerModeOptions = ['bottom', 'tooltip', 'inline'],
+  headerExtra,
 }: SRSReviewSessionProps) {
   const rateCard = useSRSStore(s => s.rateCard);
   const toggleFlag = useSRSStore(s => s.toggleFlag);
@@ -62,6 +64,13 @@ export function SRSReviewSession({
   const total = cards.length;
   const doneCount = reviewed.size;
   const progress = total > 0 ? (doneCount / total) * 100 : 0;
+  const cardInfoLabel = useMemo(() => {
+    if (!card) return '';
+    if (portalName === 'الغريب' && !answerRevealed) {
+      return (card.meta.wordText as string) || 'كلمة غريب';
+    }
+    return card.label;
+  }, [card, portalName, answerRevealed]);
 
   // Navigate to card's page when card changes
   useEffect(() => {
@@ -80,6 +89,15 @@ export function SRSReviewSession({
     }
   }, [availableAnswerModes, answerMode]);
 
+  useEffect(() => {
+    setCurrentIdx(0);
+    setAnswerRevealed(false);
+    setShowManualInterval(false);
+    setReviewed(new Set());
+    setRatings(new Map());
+    setAnswerMode(defaultAnswerMode);
+  }, [cards, defaultAnswerMode]);
+
   const intervals = useMemo(() => {
     if (!card) return [];
     return previewIntervals(card);
@@ -91,26 +109,38 @@ export function SRSReviewSession({
 
   const handleRate = useCallback((rating: SRSRating, customInterval?: number) => {
     if (!card) return;
-    rateCard(card.id, rating, customInterval);
-    setReviewed(prev => new Set(prev).add(currentIdx));
-    setRatings(prev => new Map(prev).set(currentIdx, rating));
 
-    // Move to next unreviewed card
-    const nextUnreviewed = cards.findIndex((_, i) => i > currentIdx && !reviewed.has(i) && i !== currentIdx);
+    rateCard(card.id, rating, customInterval);
+
+    const nextReviewed = new Set(reviewed);
+    nextReviewed.add(currentIdx);
+    const nextRatings = new Map(ratings);
+    nextRatings.set(currentIdx, rating);
+
+    setReviewed(nextReviewed);
+    setRatings(nextRatings);
+    setAnswerRevealed(false);
+    setShowManualInterval(false);
+
+    let nextUnreviewed = cards.findIndex((_, i) => i > currentIdx && !nextReviewed.has(i));
+    if (nextUnreviewed < 0) {
+      nextUnreviewed = cards.findIndex((_, i) => i < currentIdx && !nextReviewed.has(i));
+    }
+
     if (nextUnreviewed >= 0) {
       setCurrentIdx(nextUnreviewed);
-    } else {
-      const prevUnreviewed = cards.findIndex((_, i) => i < currentIdx && !reviewed.has(i));
-      if (prevUnreviewed >= 0) {
-        setCurrentIdx(prevUnreviewed);
-      } else {
-        onFinish();
-      }
+      return;
     }
-  }, [card, currentIdx, cards, reviewed, rateCard, onFinish]);
+
+    onFinish();
+  }, [card, currentIdx, cards, reviewed, ratings, rateCard, onFinish]);
 
   const goToCard = useCallback((idx: number) => {
-    if (idx >= 0 && idx < total) setCurrentIdx(idx);
+    if (idx >= 0 && idx < total) {
+      setAnswerRevealed(false);
+      setShowManualInterval(false);
+      setCurrentIdx(idx);
+    }
   }, [total]);
 
   const switchAnswerMode = useCallback(() => {
@@ -192,6 +222,7 @@ export function SRSReviewSession({
             <span className="text-xs text-muted-foreground font-arabic">{doneCount}/{total}</span>
           </div>
           <div className="flex items-center gap-1">
+            {headerExtra}
             <button onClick={() => setShowIndex(!showIndex)} className={`w-7 h-7 rounded-full flex items-center justify-center transition-colors ${showIndex ? 'bg-primary text-primary-foreground' : 'hover:bg-accent'}`}>
               <List className="w-3.5 h-3.5" />
             </button>
@@ -225,7 +256,7 @@ export function SRSReviewSession({
 
         {/* Card info */}
         <div className="px-3 py-1 text-center shrink-0">
-          <p className="font-arabic text-sm text-muted-foreground">{card.label}</p>
+          <p className="font-arabic text-sm text-muted-foreground">{cardInfoLabel}</p>
           {card.lastReview > 0 && (
             <p className="text-[10px] text-muted-foreground/60 font-arabic">
               آخر مراجعة: {new Date(card.lastReview).toLocaleDateString('ar-SA')} · الفاصل: {formatInterval(card.interval)}

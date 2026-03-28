@@ -19,6 +19,7 @@ interface PageViewProps {
   highlightedWordKey?: string | null;
   activeHighlightStyle?: 'default' | 'color' | 'bg' | 'border';
   meaningEnabled: boolean;
+  disablePopover?: boolean;
   isPlaying?: boolean;
   onWordClick: (word: GhareebWord, index: number) => void;
   onRenderedWordsChange?: (words: GhareebWord[]) => void;
@@ -80,6 +81,7 @@ export function PageView({
   highlightedWordKey = null,
   activeHighlightStyle = 'default',
   meaningEnabled,
+  disablePopover = false,
   isPlaying = false,
   onWordClick,
   onRenderedWordsChange,
@@ -599,13 +601,25 @@ export function PageView({
             
             const phrase = phraseText.join('');
 
-            lineElements.push(
+            if (disablePopover) {
+              lineElements.push(
+                <span
+                  key={`${lineIdx}-phrase-${i}`}
+                  className={`ghareeb-word quran-word ${isHighlighted ? 'ghareeb-word--active' : ''}`}
+                  data-ghareeb-index={sequentialIndex}
+                  data-ghareeb-key={info.word.uniqueKey}
+                >
+                  {phrase}
+                </span>
+              );
+            } else {
+              lineElements.push(
                 <GhareebWordPopover
                   key={`${lineIdx}-phrase-${i}`}
                   word={info.word}
                   index={sequentialIndex}
                   isHighlighted={isHighlighted}
-                  forceOpen={isPlaying && isHighlighted}
+                  forceOpen={meaningEnabled && isPlaying && isHighlighted}
                   onSelect={onWordClick}
                   containerRef={containerRef}
                   dataAssemblyId={assemblyId}
@@ -618,17 +632,30 @@ export function PageView({
                   {phrase}
                 </GhareebWordPopover>
               );
+            }
             
             i = lastPhraseTokenIdx + 1;
             continue;
           } else if (!info.isPartOfPhrase) {
-            lineElements.push(
+            if (disablePopover) {
+              lineElements.push(
+                <span
+                  key={`${lineIdx}-${i}`}
+                  className={`ghareeb-word quran-word ${isHighlighted ? 'ghareeb-word--active' : ''}`}
+                  data-ghareeb-index={sequentialIndex}
+                  data-ghareeb-key={info.word.uniqueKey}
+                >
+                  {td.token}
+                </span>
+              );
+            } else {
+              lineElements.push(
                 <GhareebWordPopover
                   key={`${lineIdx}-${i}`}
                   word={info.word}
                   index={sequentialIndex}
                   isHighlighted={isHighlighted}
-                  forceOpen={isPlaying && isHighlighted}
+                  forceOpen={meaningEnabled && isPlaying && isHighlighted}
                   onSelect={onWordClick}
                   containerRef={containerRef}
                   dataAssemblyId={assemblyId}
@@ -641,6 +668,7 @@ export function PageView({
                   {td.token}
                 </GhareebWordPopover>
               );
+            }
             i++;
             continue;
           }
@@ -713,7 +741,7 @@ export function PageView({
     return isLines15 
       ? <div className="quran-lines-container">{allElements}</div>
       : <div className="quran-page">{allElements}</div>;
-  }, [effectivePageText, page.pageNumber, ghareebWords, highlightedWordIndex, highlightedWordKey, isPlaying, onWordClick, surahContextByLine, tokenMatchMap, highlightVersion, displayMode, tahfeezMode, toggleTahfeezWord, isTahfeezSelected, rangeAnchor, setRangeAnchor, addItem, storedItems, activeHighlightStyle]);
+  }, [effectivePageText, page.pageNumber, ghareebWords, highlightedWordIndex, highlightedWordKey, meaningEnabled, disablePopover, isPlaying, onWordClick, surahContextByLine, tokenMatchMap, highlightVersion, displayMode, tahfeezMode, toggleTahfeezWord, isTahfeezSelected, rangeAnchor, setRangeAnchor, addItem, storedItems, activeHighlightStyle]);
 
   const pageBackgroundColor = useSettingsStore((s) => (s.settings.colors as any).pageBackgroundColor || '');
   const containerBorderColor = useSettingsStore((s) => (s.settings.colors as any).containerBorderColor || '');

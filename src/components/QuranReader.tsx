@@ -400,7 +400,8 @@ export function QuranReader() {
                       highlightedWordIndex={-1}
                       highlightedWordKey={wordKey}
                       activeHighlightStyle={highlightStyle}
-                      meaningEnabled={!!wordKey}
+                      meaningEnabled={false}
+                      disablePopover
                       onWordClick={() => {}}
                     />
                   </div>

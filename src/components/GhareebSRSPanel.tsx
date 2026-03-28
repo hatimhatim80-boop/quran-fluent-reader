@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { GhareebWord } from '@/types/quran';
 import { Plus, RotateCcw, Download, Upload, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { GhareebReviewSettingsPanel } from './GhareebReviewSettingsPanel';
 
 interface GhareebSRSPanelProps {
   pageWords: GhareebWord[];
@@ -214,6 +215,13 @@ export function GhareebSRSPanel({
         portalName="الغريب"
         defaultAnswerMode="tooltip"
         answerModeOptions={['tooltip', 'inline']}
+        headerExtra={
+          <GhareebReviewSettingsPanel
+            className="h-7 px-2 text-[11px]"
+            highlightStyle={highlightStyle}
+            onHighlightStyleChange={setHighlightStyle}
+          />
+        }
         renderCard={(card, answerRevealed, answerDisplayMode) => (
           <GhareebReviewCardContent
             card={card}
