@@ -116,9 +116,9 @@ export function GhareebReviewSettingsPanel({ className, highlightStyle, onHighli
             </div>
 
             <div className="space-y-2">
-              <Label className="text-xs">حجم خط الصفحة: {settings.fonts.quranFontSize.toFixed(2)}rem</Label>
+              <Label className="text-xs">حجم خط الصفحة: {fonts.quranFontSize.toFixed(2)}rem</Label>
               <Slider
-                value={[settings.fonts.quranFontSize]}
+                value={[fonts.quranFontSize]}
                 onValueChange={([v]) => setFonts({ quranFontSize: +v.toFixed(2) })}
                 min={0.8}
                 max={2.2}
