@@ -379,6 +379,35 @@ export function QuranReader() {
       <FirstTimeSetupDialog open={showFirstTimeSetup} onClose={() => setShowFirstTimeSetup(false)} />
       <GhareebEntryDialog open={showEntryDialog} onClose={() => setShowEntryDialog(false)} />
 
+      {/* SRS Review Panel */}
+      {showSRS && (
+        <div className="fixed inset-0 z-50 flex">
+          <div className="fixed inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setShowSRS(false)} />
+          <div className="relative z-50 w-full max-w-md h-screen bg-background border-l border-border shadow-xl overflow-auto mr-auto">
+            <GhareebSRSPanel
+              pageWords={pageWords}
+              currentPage={currentPage}
+              onNavigateToPage={goToPage}
+              renderPageWithHighlight={(pg, wordKey) => {
+                const pgData = pages.find(p => p.pageNumber === pg);
+                if (!pgData) return null;
+                // Find word index matching wordKey for highlighting
+                const highlightIdx = wordKey ? pageWords.findIndex(w => w.uniqueKey === wordKey) : -1;
+                return (
+                  <PageView
+                    page={pgData}
+                    ghareebWords={pageWords}
+                    highlightedWordIndex={highlightIdx}
+                    meaningEnabled={highlightIdx >= 0}
+                    onWordClick={() => {}}
+                  />
+                );
+              }}
+            />
+          </div>
+        </div>
+      )}
+
       {/* Index Sidebar */}
       {showIndex && (
         <div className="fixed inset-0 z-40 flex sm:relative sm:inset-auto">
