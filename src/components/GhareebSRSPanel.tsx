@@ -1,21 +1,18 @@
 import React, { useState, useMemo, useCallback } from 'react';
 import { useSRSStore, SRSCard } from '@/stores/srsStore';
-import { SRSReviewSession } from './SRSReviewSession';
+import { SRSReviewSession, AnswerDisplayMode } from './SRSReviewSession';
+import { SRSScopeSelector, SRSScope, scopeToPages } from './SRSScopeSelector';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Switch } from '@/components/ui/switch';
 import { GhareebWord } from '@/types/quran';
-import { BookOpen, Plus, RotateCcw, Download, Upload, Trash2 } from 'lucide-react';
+import { Plus, RotateCcw, Download, Upload, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface GhareebSRSPanelProps {
-  /** All ghareeb words on current page */
   pageWords: GhareebWord[];
   currentPage: number;
-  /** Navigate to a page */
   onNavigateToPage: (page: number) => void;
-  /** Render a page with a specific word highlighted */
-  renderPageWithHighlight: (page: number, wordKey: string | null) => React.ReactNode;
+  renderPageWithHighlight: (page: number, wordKey: string | null, highlightStyle: 'color' | 'bg' | 'border') => React.ReactNode;
 }
 
 export function GhareebSRSPanel({
@@ -24,16 +21,17 @@ export function GhareebSRSPanel({
   onNavigateToPage,
   renderPageWithHighlight,
 }: GhareebSRSPanelProps) {
-  const { addCard, hasCard, getDueCards, getDueCount, cards, exportData, importData, clearAll } = useSRSStore();
+  const { addCard, hasCard, getDueCards, getDueCount, cards, exportData, importData, clearAll, getFlaggedCards } = useSRSStore();
   const [sessionMode, setSessionMode] = useState<'setup' | 'review'>('setup');
   const [sessionCards, setSessionCards] = useState<SRSCard[]>([]);
   const [sessionSize, setSessionSize] = useState<'all' | '10' | '20' | '50'>('all');
-  const [showMeaning, setShowMeaning] = useState(false);
+  const [scope, setScope] = useState<SRSScope>({ type: 'all-due', from: currentPage, to: currentPage });
+  const [highlightStyle, setHighlightStyle] = useState<'color' | 'bg' | 'border'>('bg');
 
-  const dueCount = getDueCount('ghareeb');
+  const scopePages = useMemo(() => scopeToPages({ ...scope, from: scope.type === 'current-page' ? currentPage : scope.from }), [scope, currentPage]);
+  const dueCount = getDueCount('ghareeb', scopePages || undefined);
   const totalCards = cards.filter(c => c.type === 'ghareeb').length;
 
-  // Add all words on current page as cards
   const addPageWords = useCallback(() => {
     let added = 0;
     pageWords.forEach(w => {
@@ -62,14 +60,20 @@ export function GhareebSRSPanel({
 
   const startReview = useCallback(() => {
     const maxCount = sessionSize === 'all' ? undefined : parseInt(sessionSize);
-    const due = getDueCards('ghareeb', maxCount);
+    let due: SRSCard[];
+    if (scope.type === 'flagged') {
+      due = getFlaggedCards('ghareeb');
+      if (maxCount) due = due.slice(0, maxCount);
+    } else {
+      due = getDueCards('ghareeb', maxCount, scopePages || undefined);
+    }
     if (due.length === 0) {
       toast.info('لا توجد بطاقات مستحقة للمراجعة الآن');
       return;
     }
     setSessionCards(due);
     setSessionMode('review');
-  }, [sessionSize, getDueCards]);
+  }, [sessionSize, getDueCards, getFlaggedCards, scope, scopePages]);
 
   const handleExport = useCallback(() => {
     const json = exportData();
@@ -91,11 +95,8 @@ export function GhareebSRSPanel({
       const file = (e.target as HTMLInputElement).files?.[0];
       if (!file) return;
       const text = await file.text();
-      if (importData(text)) {
-        toast.success('تم الاستيراد بنجاح');
-      } else {
-        toast.error('فشل الاستيراد');
-      }
+      if (importData(text)) toast.success('تم الاستيراد بنجاح');
+      else toast.error('فشل الاستيراد');
     };
     input.click();
   }, [importData]);
@@ -107,22 +108,31 @@ export function GhareebSRSPanel({
         onFinish={() => setSessionMode('setup')}
         onNavigateToPage={onNavigateToPage}
         portalName="الغريب"
-        renderCard={(card, revealed) => (
+        renderCard={(card, answerRevealed, answerDisplayMode) => (
           <div className="p-2">
-            {renderPageWithHighlight(card.page, card.contentKey)}
-            {revealed && (
-              <div className="mt-3 mx-auto max-w-md bg-accent/50 border border-border rounded-xl p-4 text-center animate-fade-in">
-                <p className="font-arabic text-lg font-bold text-primary" dir="rtl">
-                  {card.meta.wordText as string}
-                </p>
-                <p className="font-arabic text-base text-foreground mt-1" dir="rtl">
-                  {card.meta.meaning as string}
-                </p>
-                <p className="text-xs text-muted-foreground mt-1 font-arabic">
-                  {card.meta.surahName as string} — آية {card.meta.verseNumber as number}
-                </p>
+            {renderPageWithHighlight(card.page, card.contentKey, highlightStyle)}
+            {/* Tooltip answer near the word */}
+            {answerRevealed && answerDisplayMode === 'tooltip' && (
+              <div className="fixed top-1/3 left-1/2 -translate-x-1/2 z-50 bg-card border-2 border-primary rounded-xl shadow-2xl p-4 text-center animate-fade-in max-w-xs" dir="rtl">
+                <p className="font-arabic text-lg font-bold text-primary">{card.meta.wordText as string}</p>
+                <p className="font-arabic text-base text-foreground mt-1">{card.meta.meaning as string}</p>
+                <p className="text-xs text-muted-foreground mt-1 font-arabic">{card.meta.surahName as string} — آية {card.meta.verseNumber as number}</p>
               </div>
             )}
+            {/* Inline answer (embedded in page area) */}
+            {answerRevealed && answerDisplayMode === 'inline' && (
+              <div className="mt-2 mx-auto max-w-md bg-accent/50 border border-border rounded-xl p-3 text-center animate-fade-in" dir="rtl">
+                <p className="font-arabic text-lg font-bold text-primary">{card.meta.wordText as string}</p>
+                <p className="font-arabic text-base text-foreground mt-1">{card.meta.meaning as string}</p>
+              </div>
+            )}
+          </div>
+        )}
+        renderAnswer={(card) => (
+          <div className="text-center font-arabic" dir="rtl">
+            <p className="text-lg font-bold text-primary">{card.meta.wordText as string}</p>
+            <p className="text-base text-foreground mt-1">{card.meta.meaning as string}</p>
+            <p className="text-xs text-muted-foreground mt-1">{card.meta.surahName as string} — آية {card.meta.verseNumber as number}</p>
           </div>
         )}
       />
@@ -148,11 +158,27 @@ export function GhareebSRSPanel({
       </div>
 
       {/* Add words */}
-      <div className="space-y-2">
-        <Button onClick={addPageWords} variant="outline" className="w-full gap-2 font-arabic">
-          <Plus className="w-4 h-4" />
-          إضافة كلمات الصفحة الحالية ({pageWords.length} كلمة)
-        </Button>
+      <Button onClick={addPageWords} variant="outline" className="w-full gap-2 font-arabic">
+        <Plus className="w-4 h-4" />
+        إضافة كلمات الصفحة الحالية ({pageWords.length} كلمة)
+      </Button>
+
+      {/* Scope selector */}
+      <div className="bg-card border border-border rounded-lg p-3">
+        <SRSScopeSelector scope={scope} onChange={setScope} currentPage={currentPage} showFlagged />
+      </div>
+
+      {/* Highlight style */}
+      <div className="flex items-center justify-between">
+        <span className="text-sm">نوع التمييز</span>
+        <Select value={highlightStyle} onValueChange={v => setHighlightStyle(v as typeof highlightStyle)}>
+          <SelectTrigger className="w-28 h-8 text-xs font-arabic"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="color">لون</SelectItem>
+            <SelectItem value="bg">خلفية</SelectItem>
+            <SelectItem value="border">إطار</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
       {/* Session settings */}
@@ -161,9 +187,7 @@ export function GhareebSRSPanel({
         <div className="flex items-center justify-between">
           <span className="text-sm">عدد البطاقات</span>
           <Select value={sessionSize} onValueChange={(v) => setSessionSize(v as typeof sessionSize)}>
-            <SelectTrigger className="w-28 h-8 text-xs font-arabic">
-              <SelectValue />
-            </SelectTrigger>
+            <SelectTrigger className="w-28 h-8 text-xs font-arabic"><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">الكل ({dueCount})</SelectItem>
               <SelectItem value="10">١٠</SelectItem>
@@ -172,28 +196,23 @@ export function GhareebSRSPanel({
             </SelectContent>
           </Select>
         </div>
-        <Button onClick={startReview} disabled={dueCount === 0} className="w-full gap-2 font-arabic" size="lg">
+        <Button onClick={startReview} disabled={dueCount === 0 && scope.type !== 'flagged'} className="w-full gap-2 font-arabic" size="lg">
           <RotateCcw className="w-4 h-4" />
-          بدء المراجعة ({dueCount} بطاقة)
+          بدء المراجعة ({scope.type === 'flagged' ? getFlaggedCards('ghareeb').length : dueCount} بطاقة)
         </Button>
       </div>
 
       {/* Import/Export */}
       <div className="flex gap-2">
         <Button variant="outline" size="sm" className="flex-1 gap-1 font-arabic text-xs" onClick={handleExport}>
-          <Download className="w-3 h-3" />
-          تصدير
+          <Download className="w-3 h-3" /> تصدير
         </Button>
         <Button variant="outline" size="sm" className="flex-1 gap-1 font-arabic text-xs" onClick={handleImport}>
-          <Upload className="w-3 h-3" />
-          استيراد
+          <Upload className="w-3 h-3" /> استيراد
         </Button>
         {totalCards > 0 && (
           <Button variant="outline" size="sm" className="gap-1 font-arabic text-xs text-destructive" onClick={() => {
-            if (confirm('هل تريد حذف جميع البطاقات؟')) {
-              clearAll();
-              toast.success('تم الحذف');
-            }
+            if (confirm('هل تريد حذف جميع البطاقات؟')) { clearAll(); toast.success('تم الحذف'); }
           }}>
             <Trash2 className="w-3 h-3" />
           </Button>
