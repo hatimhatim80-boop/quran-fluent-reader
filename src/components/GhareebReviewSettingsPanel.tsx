@@ -184,7 +184,7 @@ export function GhareebReviewSettingsPanel({ className, highlightStyle, onHighli
             <div className="flex items-center justify-between rounded-md border border-border px-3 py-2">
               <span className="text-xs">تشغيل تلقائي عند الضغط على الكلمة</span>
               <Switch
-                checked={settings.autoplay.autoPlayOnWordClick}
+                checked={autoplay.autoPlayOnWordClick}
                 onCheckedChange={(v) => setAutoplay({ autoPlayOnWordClick: v })}
               />
             </div>
