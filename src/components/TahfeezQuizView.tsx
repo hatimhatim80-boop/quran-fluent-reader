@@ -203,9 +203,12 @@ export function TahfeezQuizView({
     return { lines, allWordTokens: ayahGroups.flat(), ayahGroups };
   }, [effectiveText]);
 
-  // Determine which keys should be blanked
   // Determine which keys should be blanked (uses precomputed ayahGroups)
   const blankedKeys = useMemo((): Set<string> => {
+    // If forceBlankedKeys is provided, use it directly (for SRS word-level review)
+    if (forceBlankedKeys && forceBlankedKeys.length > 0) {
+      return new Set(forceBlankedKeys);
+    }
     const keys = new Set<string>();
 
     if (quizSource === 'custom') {
