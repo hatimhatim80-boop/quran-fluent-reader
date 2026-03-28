@@ -795,6 +795,7 @@ export default function TahfeezPage() {
     { id: 'store' as const, icon: Save, label: 'تخزين' },
     { id: 'custom-quiz' as const, icon: ListChecks, label: 'اختبار المخزون' },
     { id: 'auto-quiz' as const, icon: Zap, label: 'اختبار تلقائي' },
+    { id: 'srs-review' as const, icon: RotateCcw, label: 'مراجعة' },
   ];
 
   // Index overlay
