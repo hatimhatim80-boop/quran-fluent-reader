@@ -194,9 +194,9 @@ export function GhareebReviewSettingsPanel({ className, highlightStyle, onHighli
             <h4 className="text-sm font-bold text-foreground">إعدادات إطار المعنى</h4>
 
             <div className="space-y-2">
-              <Label className="text-xs">عرض الإطار: {settings.popover.width}px</Label>
+              <Label className="text-xs">عرض الإطار: {popover.width}px</Label>
               <Slider
-                value={[settings.popover.width]}
+                value={[popover.width]}
                 onValueChange={([v]) => setPopover({ width: Math.round(v) })}
                 min={170}
                 max={360}
