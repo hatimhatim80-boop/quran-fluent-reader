@@ -246,10 +246,21 @@ export function TahfeezQuizView({
       if (autoBlankMode === 'full-page') {
         allWordTokens.forEach(t => keys.add(t.key));
       } else if (autoBlankMode === 'ayah-count') {
-        const count = Math.min(ayahCount, ayahGroups.length);
-        for (let a = 0; a < count; a++) {
-          ayahGroups[a].forEach(t => keys.add(t.key));
-        }
+        // Use the distributed engine for ayah-count mode too (handles sequential + scattered)
+        const distributed = computeDistributedBlanks({
+          reviewMode: 'ayah',
+          distributionMode,
+          hiddenAyatCount: ayahCount,
+          hiddenWordsCount: 0,
+          seed: distributionSeed + page.pageNumber,
+          ayahGroups,
+          allWordTokens,
+          hiddenWordsMode,
+          hiddenWordsPercentage,
+          percentageScope,
+          wordSequenceMode,
+        });
+        for (const k of distributed) keys.add(k.toString());
       } else if (waqfCombinedModes.length > 0) {
         // Waqf-based blanking modes (can combine multiple)
         const shouldKeepWaqfWord = waqfDisplayMode === 'with-word';
