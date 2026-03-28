@@ -55,6 +55,10 @@ export function GhareebReviewSettingsPanel({ className, highlightStyle, onHighli
   const setColors = useSettingsStore((s) => s.setColors);
 
   // Safe defaults for potentially missing persisted sub-objects
+  const fonts = settings.fonts ?? { quranFontSize: 1.35, lineHeight: 2.2, font: 'uthmanicHafs' };
+  const display = settings.display ?? { mode: 'continuous' as const, textAlign: 'justify' as const };
+  const autoplay = settings.autoplay ?? { speed: 1, thinkingGap: 500, autoPlayOnWordClick: false };
+  const popover = settings.popover ?? { width: 220, padding: 14 };
   const meaningBox = settings.meaningBox ?? { wordFontSize: 1.4, meaningFontSize: 1.1 };
   const colors = settings.colors ?? { highlightColor: '48 80% 90%', popoverBackground: '38 50% 97%', popoverWordColor: '25 30% 18%', popoverMeaningColor: '25 20% 35%' };
 
