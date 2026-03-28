@@ -429,6 +429,10 @@ export const useTahfeezStore = create<TahfeezState>()(
         segmentMcqMultiPage: state.segmentMcqMultiPage,
         segmentMcqBlankDuration: state.segmentMcqBlankDuration,
         waqfDisplayMode: state.waqfDisplayMode,
+        reviewMode: state.reviewMode,
+        hiddenAyatCount: state.hiddenAyatCount,
+        hiddenWordsCount: state.hiddenWordsCount,
+        distributionMode: state.distributionMode,
       }),
     }
   )
