@@ -59,22 +59,22 @@ export function GhareebReviewSettingsPanel({ className, highlightStyle, onHighli
   const colors = settings.colors ?? { highlightColor: '48 80% 90%', popoverBackground: '38 50% 97%', popoverWordColor: '25 30% 18%', popoverMeaningColor: '25 20% 35%' };
 
   const highlightValue = resolveSelectValue(
-    settings.colors.highlightColor,
+    colors.highlightColor,
     HIGHLIGHT_PRESETS,
     HIGHLIGHT_PRESETS[0].value,
   );
   const popoverBgValue = resolveSelectValue(
-    settings.colors.popoverBackground,
+    colors.popoverBackground,
     POPOVER_BG_PRESETS,
     POPOVER_BG_PRESETS[0].value,
   );
   const popoverWordValue = resolveSelectValue(
-    settings.colors.popoverWordColor,
+    colors.popoverWordColor,
     POPOVER_WORD_PRESETS,
     POPOVER_WORD_PRESETS[0].value,
   );
   const popoverMeaningValue = resolveSelectValue(
-    settings.colors.popoverMeaningColor,
+    colors.popoverMeaningColor,
     POPOVER_MEANING_PRESETS,
     POPOVER_MEANING_PRESETS[0].value,
   );
