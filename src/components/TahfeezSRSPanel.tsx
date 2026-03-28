@@ -33,7 +33,7 @@ export function TahfeezSRSPanel({
   onNavigateToPage,
   renderPageWithBlanks,
 }: TahfeezSRSPanelProps) {
-  const { addCard, hasCard, getDueCards, getDueCount, cards, exportData, importData, clearAll, getFlaggedCards } = useSRSStore();
+  const { addCard, hasCard, getDueCards, cards, exportData, importData, clearAll, getFlaggedCards } = useSRSStore();
   const storedItems = useTahfeezStore(s => s.storedItems);
   const [sessionMode, setSessionMode] = useState<'setup' | 'review'>('setup');
   const [sessionCards, setSessionCards] = useState<SRSCard[]>([]);
@@ -43,7 +43,11 @@ export function TahfeezSRSPanel({
 
   const scopePages = useMemo(() => scopeToPages({ ...scope, from: scope.type === 'current-page' ? currentPage : scope.from }), [scope, currentPage]);
   const srsType = cardType === 'ayah' ? 'tahfeez-ayah' as const : 'tahfeez-words' as const;
-  const dueCount = getDueCount(srsType, scopePages || undefined);
+  const dueCards = useMemo(() => {
+    if (scope.type === 'flagged') return getFlaggedCards(srsType);
+    return getDueCards(srsType, undefined, scopePages || undefined);
+  }, [scope.type, getFlaggedCards, getDueCards, srsType, scopePages]);
+  const dueCount = dueCards.length;
   const totalCards = cards.filter(c => c.type === srsType).length;
 
   const pageAyahs = useMemo(() => {
@@ -94,17 +98,11 @@ export function TahfeezSRSPanel({
 
   const startReview = useCallback(() => {
     const maxCount = sessionSize === 'all' ? undefined : parseInt(sessionSize);
-    let due: SRSCard[];
-    if (scope.type === 'flagged') {
-      due = getFlaggedCards(srsType);
-      if (maxCount) due = due.slice(0, maxCount);
-    } else {
-      due = getDueCards(srsType, maxCount, scopePages || undefined);
-    }
-    if (due.length === 0) { toast.info('لا توجد بطاقات مستحقة للمراجعة الآن'); return; }
-    setSessionCards(due);
+    const selected = maxCount ? dueCards.slice(0, maxCount) : dueCards;
+    if (selected.length === 0) { toast.info('لا توجد بطاقات مستحقة للمراجعة الآن'); return; }
+    setSessionCards(selected);
     setSessionMode('review');
-  }, [srsType, sessionSize, getDueCards, getFlaggedCards, scope, scopePages]);
+  }, [sessionSize, dueCards]);
 
   const handleExport = useCallback(() => {
     const json = exportData();
@@ -205,9 +203,9 @@ export function TahfeezSRSPanel({
             </SelectContent>
           </Select>
         </div>
-        <Button onClick={startReview} disabled={dueCount === 0 && scope.type !== 'flagged'} className="w-full gap-2 font-arabic" size="lg">
+        <Button onClick={startReview} disabled={dueCount === 0} className="w-full gap-2 font-arabic" size="lg">
           <RotateCcw className="w-4 h-4" />
-          بدء المراجعة ({scope.type === 'flagged' ? getFlaggedCards(srsType).length : dueCount})
+          بدء المراجعة ({dueCount})
         </Button>
       </div>
 
