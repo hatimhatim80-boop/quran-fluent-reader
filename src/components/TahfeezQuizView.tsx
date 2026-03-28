@@ -57,6 +57,8 @@ interface TahfeezQuizViewProps {
   inlineMCQ?: boolean;                 // Whether to show inline MCQ at active blank
   allWordTexts?: string[];             // All word texts for generating distractors
   onInlineMCQAnswer?: (key: string, correct: boolean) => void;
+  /** If provided, ONLY these keys are blanked (overrides autoBlankMode computation) */
+  forceBlankedKeys?: string[];
 }
 
 function isSurahHeader(line: string): boolean {
@@ -98,6 +100,7 @@ export function TahfeezQuizView({
   inlineMCQ,
   allWordTexts,
   onInlineMCQAnswer,
+  forceBlankedKeys,
 }: TahfeezQuizViewProps) {
   const { dotScale } = useTahfeezStore();
   const waqfDisplayMode = useTahfeezStore(s => s.waqfDisplayMode);
@@ -200,9 +203,12 @@ export function TahfeezQuizView({
     return { lines, allWordTokens: ayahGroups.flat(), ayahGroups };
   }, [effectiveText]);
 
-  // Determine which keys should be blanked
   // Determine which keys should be blanked (uses precomputed ayahGroups)
   const blankedKeys = useMemo((): Set<string> => {
+    // If forceBlankedKeys is provided, use it directly (for SRS word-level review)
+    if (forceBlankedKeys && forceBlankedKeys.length > 0) {
+      return new Set(forceBlankedKeys);
+    }
     const keys = new Set<string>();
 
     if (quizSource === 'custom') {
@@ -327,7 +333,7 @@ export function TahfeezQuizView({
       }
     }
     return keys;
-  }, [quizSource, storedItems, autoBlankMode, blankCount, ayahCount, page.pageNumber, allWordTokens, ayahGroups, waqfCombinedModes, waqfDisplayMode]);
+  }, [quizSource, storedItems, autoBlankMode, blankCount, ayahCount, page.pageNumber, allWordTokens, ayahGroups, waqfCombinedModes, waqfDisplayMode, forceBlankedKeys]);
 
   // Export blanked keys list (ordered) for parent to use in sequencing
   // This is used by the parent component via a ref or callback

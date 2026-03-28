@@ -49,7 +49,7 @@ export type SRSRating = 0 | 1 | 2 | 3 | 4 | 5;
 
 export interface SRSCard {
   id: string;
-  type: 'ghareeb' | 'tahfeez-ayah' | 'tahfeez-words';
+  type: 'ghareeb' | 'tahfeez-ayah' | 'tahfeez-words' | 'tahfeez-word';
   page: number;
   contentKey: string;
   label: string;

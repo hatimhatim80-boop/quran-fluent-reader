@@ -1318,11 +1318,34 @@ export default function TahfeezPage() {
               currentPage={currentPage}
               totalPages={totalPages}
               pageData={pageData}
+              allPages={pages}
               onNavigateToPage={goToPage}
               renderPageWithBlanks={(pg, blankedKeys, card) => {
                 const pgData = pages.find(p => p.pageNumber === pg);
                 if (!pgData) return null;
                 const answerRevealed = blankedKeys.length === 0;
+
+                if (card.type === 'tahfeez-word') {
+                  // Word-level: blank only the specific word key
+                  const wordKey = card.contentKey;
+                  return (
+                    <TahfeezQuizView
+                      page={pgData}
+                      quizSource="auto"
+                      storedItems={[]}
+                      autoBlankMode="full-page"
+                      waqfCombinedModes={[]}
+                      blankCount={0}
+                      ayahCount={1}
+                      activeBlankKey={answerRevealed ? null : wordKey}
+                      revealedKeys={answerRevealed ? new Set([wordKey]) : new Set()}
+                      showAll={false}
+                      forceBlankedKeys={answerRevealed ? [] : [wordKey]}
+                    />
+                  );
+                }
+
+                // Ayah-level or stored-words: blank all or show all
                 const isWordsCard = card.type === 'tahfeez-words';
                 const cardPageStoredItems = storedItems.filter((item) => item.data.page === pg);
                 return (
@@ -1330,7 +1353,7 @@ export default function TahfeezPage() {
                     page={pgData}
                     quizSource={isWordsCard ? 'custom' : 'auto'}
                     storedItems={isWordsCard ? cardPageStoredItems : []}
-                    autoBlankMode={isWordsCard ? 'full-page' : 'ayah-count'}
+                    autoBlankMode="full-page"
                     waqfCombinedModes={[]}
                     blankCount={blankCount}
                     ayahCount={1}
