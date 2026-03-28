@@ -150,13 +150,13 @@ export function SRSScopeSelector({ scope, onChange, currentPage, showFlagged }: 
   }, [pageSearch]);
 
   const handleSelectItem = (type: SRSScopeType, num: number) => {
-    if (selectingEnd === 'from') {
+    // If switching type, always start a fresh single-range selection.
+    if (scope.type !== type || selectingEnd === 'from') {
       onChange({ type, from: num, to: num });
       setSelectingEnd('to');
     } else {
-      const from = Math.min(scope.from, num);
-      const to = Math.max(scope.from, num);
-      onChange({ type, from, to });
+      // Keep exact clicked value for "to" (scopeToPages handles ordering safely).
+      onChange({ type, from: scope.from, to: num });
       setSelectingEnd('from');
     }
   };
