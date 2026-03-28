@@ -225,6 +225,16 @@ interface TahfeezState {
   /** Seed to avoid repeating same positions on consecutive rounds */
   distributionSeed: number;
   rotateDistributionSeed: () => void;
+
+  // New: word hiding mode (fixed count vs percentage)
+  hiddenWordsMode: 'fixed-count' | 'percentage';
+  setHiddenWordsMode: (mode: TahfeezState['hiddenWordsMode']) => void;
+  hiddenWordsPercentage: number;
+  setHiddenWordsPercentage: (n: number) => void;
+  percentageScope: 'per-ayah' | 'per-visible-block';
+  setPercentageScope: (scope: TahfeezState['percentageScope']) => void;
+  wordSequenceMode: 'same-ayah-only' | 'allow-cross-ayah';
+  setWordSequenceMode: (mode: TahfeezState['wordSequenceMode']) => void;
 }
 
 export const useTahfeezStore = create<TahfeezState>()(
