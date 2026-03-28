@@ -32,7 +32,7 @@ export function GhareebSRSPanel({
   const dueCards = useMemo(() => {
     if (scope.type === 'flagged') return getFlaggedCards('ghareeb');
     return getDueCards('ghareeb', undefined, scopePages || undefined);
-  }, [scope.type, getFlaggedCards, getDueCards, scopePages]);
+  }, [scope.type, getFlaggedCards, getDueCards, scopePages, cards]);
   const dueCount = dueCards.length;
   const totalCards = cards.filter(c => c.type === 'ghareeb').length;
 
