@@ -64,6 +64,13 @@ export function SRSReviewSession({
   const total = cards.length;
   const doneCount = reviewed.size;
   const progress = total > 0 ? (doneCount / total) * 100 : 0;
+  const cardInfoLabel = useMemo(() => {
+    if (!card) return '';
+    if (portalName === 'الغريب' && !answerRevealed) {
+      return (card.meta.wordText as string) || 'كلمة غريب';
+    }
+    return card.label;
+  }, [card, portalName, answerRevealed]);
 
   // Navigate to card's page when card changes
   useEffect(() => {
@@ -249,7 +256,7 @@ export function SRSReviewSession({
 
         {/* Card info */}
         <div className="px-3 py-1 text-center shrink-0">
-          <p className="font-arabic text-sm text-muted-foreground">{card.label}</p>
+          <p className="font-arabic text-sm text-muted-foreground">{cardInfoLabel}</p>
           {card.lastReview > 0 && (
             <p className="text-[10px] text-muted-foreground/60 font-arabic">
               آخر مراجعة: {new Date(card.lastReview).toLocaleDateString('ar-SA')} · الفاصل: {formatInterval(card.interval)}
