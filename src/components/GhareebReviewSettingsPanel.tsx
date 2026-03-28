@@ -54,6 +54,10 @@ export function GhareebReviewSettingsPanel({ className, highlightStyle, onHighli
   const setMeaningBox = useSettingsStore((s) => s.setMeaningBox);
   const setColors = useSettingsStore((s) => s.setColors);
 
+  // Safe defaults for potentially missing persisted sub-objects
+  const meaningBox = settings.meaningBox ?? { wordFontSize: 1.4, meaningFontSize: 1.1 };
+  const colors = settings.colors ?? { highlightColor: '48 80% 90%', popoverBackground: '38 50% 97%', popoverWordColor: '25 30% 18%', popoverMeaningColor: '25 20% 35%' };
+
   const highlightValue = resolveSelectValue(
     settings.colors.highlightColor,
     HIGHLIGHT_PRESETS,
