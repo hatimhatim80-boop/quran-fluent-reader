@@ -95,7 +95,7 @@ export default function TahfeezPage() {
 
   const speech = useSpeech();
 
-  const { currentPage, getCurrentPageData, goToPage, totalPages, nextPage, prevPage } = useQuranData();
+  const { pages, currentPage, getCurrentPageData, goToPage, totalPages, nextPage, prevPage } = useQuranData();
   useSettingsApplier(); // Apply font/display settings globally
   const displayMode = useSettingsStore((s) => s.settings.display?.mode || 'auto15');
   const autoplaySpeed = useSettingsStore((s) => s.settings.autoplay.speed);
