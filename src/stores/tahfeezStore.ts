@@ -452,6 +452,10 @@ export const useTahfeezStore = create<TahfeezState>()(
         hiddenAyatCount: state.hiddenAyatCount,
         hiddenWordsCount: state.hiddenWordsCount,
         distributionMode: state.distributionMode,
+        hiddenWordsMode: state.hiddenWordsMode,
+        hiddenWordsPercentage: state.hiddenWordsPercentage,
+        percentageScope: state.percentageScope,
+        wordSequenceMode: state.wordSequenceMode,
       }),
     }
   )
