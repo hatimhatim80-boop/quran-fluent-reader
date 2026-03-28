@@ -160,7 +160,7 @@ interface TahfeezState {
   setSingleWordMode: (on: boolean) => void;
 
   // Active tab in tahfeez page
-  activeTab: 'store' | 'custom-quiz' | 'auto-quiz';
+  activeTab: 'store' | 'custom-quiz' | 'auto-quiz' | 'srs-review';
   setActiveTab: (tab: TahfeezState['activeTab']) => void;
 
   // Quiz interaction mode: auto-reveal (timer/voice) or mcq (multiple choice)
