@@ -91,6 +91,7 @@ export default function TahfeezPage() {
     segmentMcqRandomOrder, setSegmentMcqRandomOrder,
     segmentMcqMultiPage, setSegmentMcqMultiPage,
     segmentMcqBlankDuration, setSegmentMcqBlankDuration,
+    rotateDistributionSeed,
   } = useTahfeezStore();
 
   const speech = useSpeech();
@@ -667,6 +668,7 @@ export default function TahfeezPage() {
 
       isFirstStartRef.current = true;
       autoResumeQuizRef.current = false;
+      rotateDistributionSeed();
       setQuizStarted(true);
       setSegmentMcqAccumulatedStats(null);
       setIsPaused(false);

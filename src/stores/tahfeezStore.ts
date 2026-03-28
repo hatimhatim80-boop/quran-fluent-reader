@@ -212,6 +212,19 @@ interface TahfeezState {
   // Waqf display mode when blanking
   waqfDisplayMode: 'with-word' | 'sign-only';
   setWaqfDisplayMode: (mode: TahfeezState['waqfDisplayMode']) => void;
+
+  // Review mode & distribution
+  reviewMode: 'ayah' | 'word' | 'mixed';
+  setReviewMode: (mode: TahfeezState['reviewMode']) => void;
+  hiddenAyatCount: number;
+  setHiddenAyatCount: (n: number) => void;
+  hiddenWordsCount: number;
+  setHiddenWordsCount: (n: number) => void;
+  distributionMode: 'sequential' | 'page-scattered' | 'range-scattered' | 'scope-scattered';
+  setDistributionMode: (mode: TahfeezState['distributionMode']) => void;
+  /** Seed to avoid repeating same positions on consecutive rounds */
+  distributionSeed: number;
+  rotateDistributionSeed: () => void;
 }
 
 export const useTahfeezStore = create<TahfeezState>()(
@@ -368,6 +381,17 @@ export const useTahfeezStore = create<TahfeezState>()(
 
       waqfDisplayMode: 'with-word',
       setWaqfDisplayMode: (mode) => set({ waqfDisplayMode: mode }),
+
+      reviewMode: 'ayah',
+      setReviewMode: (mode) => set({ reviewMode: mode }),
+      hiddenAyatCount: 1,
+      setHiddenAyatCount: (n) => set({ hiddenAyatCount: n }),
+      hiddenWordsCount: 3,
+      setHiddenWordsCount: (n) => set({ hiddenWordsCount: n }),
+      distributionMode: 'sequential',
+      setDistributionMode: (mode) => set({ distributionMode: mode }),
+      distributionSeed: Date.now(),
+      rotateDistributionSeed: () => set({ distributionSeed: Date.now() }),
     }),
     {
       name: 'tahfeez.v2',
@@ -405,6 +429,10 @@ export const useTahfeezStore = create<TahfeezState>()(
         segmentMcqMultiPage: state.segmentMcqMultiPage,
         segmentMcqBlankDuration: state.segmentMcqBlankDuration,
         waqfDisplayMode: state.waqfDisplayMode,
+        reviewMode: state.reviewMode,
+        hiddenAyatCount: state.hiddenAyatCount,
+        hiddenWordsCount: state.hiddenWordsCount,
+        distributionMode: state.distributionMode,
       }),
     }
   )

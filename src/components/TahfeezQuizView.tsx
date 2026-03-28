@@ -4,6 +4,7 @@ import { normalizeArabic } from '@/utils/quranParser';
 import { useSettingsStore } from '@/stores/settingsStore';
 import { TahfeezItem } from '@/stores/tahfeezStore';
 import { useTahfeezStore } from '@/stores/tahfeezStore';
+import { computeDistributedBlanks } from '@/utils/distributedBlanking';
 import { useAutoFlowFit } from '@/hooks/useAutoFlowFit';
 import { redistributeLines, shouldRedistribute } from '@/utils/lineRedistributor';
 import { formatBismillah, shouldNoJustify, bindVerseNumbersSimple } from '@/utils/lineTokenUtils';
@@ -108,6 +109,11 @@ export function TahfeezQuizView({
   const revealedColor = useTahfeezStore(s => s.revealedColor);
   const revealedWithBg = useTahfeezStore(s => s.revealedWithBg);
   const activeWordColor = useTahfeezStore(s => s.activeWordColor);
+  const reviewMode = useTahfeezStore(s => s.reviewMode);
+  const hiddenAyatCount = useTahfeezStore(s => s.hiddenAyatCount);
+  const hiddenWordsCount = useTahfeezStore(s => s.hiddenWordsCount);
+  const distributionMode = useTahfeezStore(s => s.distributionMode);
+  const distributionSeed = useTahfeezStore(s => s.distributionSeed);
   const displayMode = settings.display?.mode || 'auto15';
   const textDirection = settings.display?.textDirection || 'rtl';
   const mobileLinesPerPage = settings.display?.mobileLinesPerPage || 15;
@@ -332,8 +338,37 @@ export function TahfeezQuizView({
         }
       }
     }
+
+    // Apply distributed blanking (merges with existing pattern-based blanking)
+    if (quizSource === 'auto' && distributionMode !== 'sequential') {
+      // Use the distributed engine to add/replace blanks
+      const distributed = computeDistributedBlanks({
+        reviewMode,
+        distributionMode,
+        hiddenAyatCount,
+        hiddenWordsCount,
+        seed: distributionSeed + page.pageNumber,
+        ayahGroups,
+        allWordTokens,
+      });
+      // Merge: add distributed blanks to existing pattern blanks
+      for (const k of distributed) keys.add(k);
+    } else if (quizSource === 'auto' && distributionMode === 'sequential' && reviewMode !== 'ayah') {
+      // Sequential mode but word/mixed review: apply word blanking with sequential distribution
+      const distributed = computeDistributedBlanks({
+        reviewMode,
+        distributionMode: 'sequential',
+        hiddenAyatCount,
+        hiddenWordsCount,
+        seed: distributionSeed + page.pageNumber,
+        ayahGroups,
+        allWordTokens,
+      });
+      for (const k of distributed) keys.add(k);
+    }
+
     return keys;
-  }, [quizSource, storedItems, autoBlankMode, blankCount, ayahCount, page.pageNumber, allWordTokens, ayahGroups, waqfCombinedModes, waqfDisplayMode, forceBlankedKeys]);
+  }, [quizSource, storedItems, autoBlankMode, blankCount, ayahCount, page.pageNumber, allWordTokens, ayahGroups, waqfCombinedModes, waqfDisplayMode, forceBlankedKeys, reviewMode, hiddenAyatCount, hiddenWordsCount, distributionMode, distributionSeed]);
 
   // Export blanked keys list (ordered) for parent to use in sequencing
   // This is used by the parent component via a ref or callback
