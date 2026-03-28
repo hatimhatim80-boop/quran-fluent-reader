@@ -57,6 +57,8 @@ interface TahfeezQuizViewProps {
   inlineMCQ?: boolean;                 // Whether to show inline MCQ at active blank
   allWordTexts?: string[];             // All word texts for generating distractors
   onInlineMCQAnswer?: (key: string, correct: boolean) => void;
+  /** If provided, ONLY these keys are blanked (overrides autoBlankMode computation) */
+  forceBlankedKeys?: string[];
 }
 
 function isSurahHeader(line: string): boolean {
