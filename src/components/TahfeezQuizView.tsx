@@ -4,6 +4,7 @@ import { normalizeArabic } from '@/utils/quranParser';
 import { useSettingsStore } from '@/stores/settingsStore';
 import { TahfeezItem } from '@/stores/tahfeezStore';
 import { useTahfeezStore } from '@/stores/tahfeezStore';
+import { computeDistributedBlanks } from '@/utils/distributedBlanking';
 import { useAutoFlowFit } from '@/hooks/useAutoFlowFit';
 import { redistributeLines, shouldRedistribute } from '@/utils/lineRedistributor';
 import { formatBismillah, shouldNoJustify, bindVerseNumbersSimple } from '@/utils/lineTokenUtils';
