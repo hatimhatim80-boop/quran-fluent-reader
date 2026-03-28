@@ -338,8 +338,37 @@ export function TahfeezQuizView({
         }
       }
     }
+
+    // Apply distributed blanking (merges with existing pattern-based blanking)
+    if (quizSource === 'auto' && distributionMode !== 'sequential') {
+      // Use the distributed engine to add/replace blanks
+      const distributed = computeDistributedBlanks({
+        reviewMode,
+        distributionMode,
+        hiddenAyatCount,
+        hiddenWordsCount,
+        seed: distributionSeed + page.pageNumber,
+        ayahGroups,
+        allWordTokens,
+      });
+      // Merge: add distributed blanks to existing pattern blanks
+      for (const k of distributed) keys.add(k);
+    } else if (quizSource === 'auto' && distributionMode === 'sequential' && reviewMode !== 'ayah') {
+      // Sequential mode but word/mixed review: apply word blanking with sequential distribution
+      const distributed = computeDistributedBlanks({
+        reviewMode,
+        distributionMode: 'sequential',
+        hiddenAyatCount,
+        hiddenWordsCount,
+        seed: distributionSeed + page.pageNumber,
+        ayahGroups,
+        allWordTokens,
+      });
+      for (const k of distributed) keys.add(k);
+    }
+
     return keys;
-  }, [quizSource, storedItems, autoBlankMode, blankCount, ayahCount, page.pageNumber, allWordTokens, ayahGroups, waqfCombinedModes, waqfDisplayMode, forceBlankedKeys]);
+  }, [quizSource, storedItems, autoBlankMode, blankCount, ayahCount, page.pageNumber, allWordTokens, ayahGroups, waqfCombinedModes, waqfDisplayMode, forceBlankedKeys, reviewMode, hiddenAyatCount, hiddenWordsCount, distributionMode, distributionSeed]);
 
   // Export blanked keys list (ordered) for parent to use in sequencing
   // This is used by the parent component via a ref or callback
