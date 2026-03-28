@@ -16,6 +16,8 @@ interface PageViewProps {
   page: QuranPage;
   ghareebWords: GhareebWord[];
   highlightedWordIndex: number;
+  highlightedWordKey?: string | null;
+  activeHighlightStyle?: 'default' | 'color' | 'bg' | 'border';
   meaningEnabled: boolean;
   isPlaying?: boolean;
   onWordClick: (word: GhareebWord, index: number) => void;
@@ -75,6 +77,8 @@ export function PageView({
   page,
   ghareebWords,
   highlightedWordIndex,
+  highlightedWordKey = null,
+  activeHighlightStyle = 'default',
   meaningEnabled,
   isPlaying = false,
   onWordClick,
@@ -511,7 +515,9 @@ export function PageView({
         if (td.matched && td.matchInfo) {
           const info = td.matchInfo;
           const sequentialIndex = info.sequentialIndex;
-          const isHighlighted = highlightedWordIndex === sequentialIndex;
+          const isHighlighted =
+            highlightedWordIndex === sequentialIndex ||
+            (!!highlightedWordKey && info.word.uniqueKey === highlightedWordKey);
           
           // In tahfeez mode: render as plain spans (no ghareeb color) with selection border only
           if (tahfeezMode) {
@@ -607,6 +613,7 @@ export function PageView({
                   dataTokenIndex={i}
                   pageNumber={page.pageNumber}
                   wasSeen={highlightedWordIndex > sequentialIndex}
+                  activeHighlightStyle={activeHighlightStyle}
                 >
                   {phrase}
                 </GhareebWordPopover>
@@ -629,6 +636,7 @@ export function PageView({
                   dataTokenIndex={i}
                   pageNumber={page.pageNumber}
                   wasSeen={highlightedWordIndex > sequentialIndex}
+                  activeHighlightStyle={activeHighlightStyle}
                 >
                   {td.token}
                 </GhareebWordPopover>
@@ -705,7 +713,7 @@ export function PageView({
     return isLines15 
       ? <div className="quran-lines-container">{allElements}</div>
       : <div className="quran-page">{allElements}</div>;
-  }, [effectivePageText, page.pageNumber, ghareebWords, highlightedWordIndex, isPlaying, onWordClick, surahContextByLine, tokenMatchMap, highlightVersion, displayMode, tahfeezMode, toggleTahfeezWord, isTahfeezSelected, rangeAnchor, setRangeAnchor, addItem, storedItems]);
+  }, [effectivePageText, page.pageNumber, ghareebWords, highlightedWordIndex, highlightedWordKey, isPlaying, onWordClick, surahContextByLine, tokenMatchMap, highlightVersion, displayMode, tahfeezMode, toggleTahfeezWord, isTahfeezSelected, rangeAnchor, setRangeAnchor, addItem, storedItems, activeHighlightStyle]);
 
   const pageBackgroundColor = useSettingsStore((s) => (s.settings.colors as any).pageBackgroundColor || '');
   const containerBorderColor = useSettingsStore((s) => (s.settings.colors as any).containerBorderColor || '');
