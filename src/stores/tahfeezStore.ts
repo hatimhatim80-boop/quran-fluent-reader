@@ -402,6 +402,15 @@ export const useTahfeezStore = create<TahfeezState>()(
       setDistributionMode: (mode) => set({ distributionMode: mode }),
       distributionSeed: Date.now(),
       rotateDistributionSeed: () => set({ distributionSeed: Date.now() }),
+
+      hiddenWordsMode: 'fixed-count',
+      setHiddenWordsMode: (mode) => set({ hiddenWordsMode: mode }),
+      hiddenWordsPercentage: 25,
+      setHiddenWordsPercentage: (n) => set({ hiddenWordsPercentage: n }),
+      percentageScope: 'per-ayah',
+      setPercentageScope: (scope) => set({ percentageScope: scope }),
+      wordSequenceMode: 'same-ayah-only',
+      setWordSequenceMode: (mode) => set({ wordSequenceMode: mode }),
     }),
     {
       name: 'tahfeez.v2',
