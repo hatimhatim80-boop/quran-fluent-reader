@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback, useLayoutEffect } from 'react';
+import React, { useState, useMemo, useCallback, useLayoutEffect, useEffect, useRef } from 'react';
 import { useSRSStore, SRSCard } from '@/stores/srsStore';
 import { SRSReviewSession } from './SRSReviewSession';
 import { SRSScopeSelector, SRSScope, scopeToPages } from './SRSScopeSelector';
