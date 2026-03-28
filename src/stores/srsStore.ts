@@ -46,28 +46,28 @@ const idbStorage: StateStorage = {
 // ── SM-2 Algorithm ──────────────────────────────────────────────────────────
 
 export type SRSRating = 0 | 1 | 2 | 3 | 4 | 5;
-// 0 = Again, 1 = Hard-, 2 = Hard, 3 = Good, 4 = Easy-, 5 = Easy
 
 export interface SRSCard {
   id: string;
-  /** 'ghareeb' = vocabulary card, 'tahfeez-ayah' = full ayah blank, 'tahfeez-words' = stored words blank */
   type: 'ghareeb' | 'tahfeez-ayah' | 'tahfeez-words';
-  /** Page number in mushaf */
   page: number;
-  /** For ghareeb: the word uniqueKey. For tahfeez-ayah: surah_ayah. For tahfeez-words: page number */
   contentKey: string;
-  /** Human-readable label */
   label: string;
-  /** Additional data for rendering */
   meta: Record<string, unknown>;
 
   // SM-2 fields
-  easeFactor: number;    // starts at 2.5
-  interval: number;      // days until next review
-  repetitions: number;   // consecutive correct reviews
-  nextReview: number;    // timestamp (ms)
-  lastReview: number;    // timestamp (ms)
+  easeFactor: number;
+  interval: number;
+  repetitions: number;
+  nextReview: number;
+  lastReview: number;
   createdAt: number;
+
+  // Extended fields
+  flagged?: boolean;
+  tags?: string[];
+  successCount?: number;
+  failCount?: number;
 }
 
 export interface SRSReviewLog {
@@ -83,31 +83,22 @@ function sm2(card: SRSCard, rating: SRSRating): Pick<SRSCard, 'easeFactor' | 'in
   let { easeFactor, interval, repetitions } = card;
 
   if (rating < 3) {
-    // Failed — reset
     repetitions = 0;
-    interval = rating === 0 ? 0.007 : 1; // 0 = ~10 min, 1-2 = 1 day
+    interval = rating === 0 ? 0.007 : 1;
   } else {
-    // Passed
-    if (repetitions === 0) {
-      interval = 1;
-    } else if (repetitions === 1) {
-      interval = 3;
-    } else {
-      interval = Math.round(interval * easeFactor);
-    }
+    if (repetitions === 0) interval = 1;
+    else if (repetitions === 1) interval = 3;
+    else interval = Math.round(interval * easeFactor);
     repetitions += 1;
   }
 
-  // Adjust ease factor
   easeFactor = easeFactor + (0.1 - (5 - rating) * (0.08 + (5 - rating) * 0.02));
   if (easeFactor < 1.3) easeFactor = 1.3;
 
   const nextReview = now + interval * 24 * 60 * 60 * 1000;
-
   return { easeFactor, interval, repetitions, nextReview, lastReview: now };
 }
 
-// Rating labels for UI
 export const RATING_OPTIONS: { rating: SRSRating; label: string; color: string; icon: string }[] = [
   { rating: 0, label: 'أعد', color: 'text-red-600', icon: '🔄' },
   { rating: 2, label: 'صعب', color: 'text-orange-500', icon: '😓' },
@@ -115,7 +106,6 @@ export const RATING_OPTIONS: { rating: SRSRating; label: string; color: string; 
   { rating: 5, label: 'سهل', color: 'text-green-600', icon: '⭐' },
 ];
 
-// Interval display
 export function formatInterval(days: number): string {
   if (days < 0.05) return '١٠ دقائق';
   if (days < 1) return `${Math.round(days * 24)} ساعة`;
@@ -126,7 +116,6 @@ export function formatInterval(days: number): string {
   return `${(days / 365).toFixed(1)} سنة`;
 }
 
-// Preview what interval each rating would give
 export function previewIntervals(card: SRSCard): { rating: SRSRating; interval: number }[] {
   return RATING_OPTIONS.map(({ rating }) => ({
     rating,
@@ -138,20 +127,21 @@ interface SRSState {
   cards: SRSCard[];
   reviewLogs: SRSReviewLog[];
 
-  // Card management
-  addCard: (card: Omit<SRSCard, 'easeFactor' | 'interval' | 'repetitions' | 'nextReview' | 'lastReview' | 'createdAt'>) => void;
+  addCard: (card: Omit<SRSCard, 'easeFactor' | 'interval' | 'repetitions' | 'nextReview' | 'lastReview' | 'createdAt' | 'successCount' | 'failCount'>) => void;
   removeCard: (id: string) => void;
   hasCard: (id: string) => boolean;
+  toggleFlag: (id: string) => void;
+  addTag: (id: string, tag: string) => void;
+  removeTag: (id: string, tag: string) => void;
 
-  // Review
   rateCard: (id: string, rating: SRSRating, manualInterval?: number) => void;
 
-  // Queries
-  getDueCards: (type?: SRSCard['type'], maxCount?: number) => SRSCard[];
-  getDueCount: (type?: SRSCard['type']) => number;
+  getDueCards: (type?: SRSCard['type'], maxCount?: number, pageFilter?: number[]) => SRSCard[];
+  getDueCount: (type?: SRSCard['type'], pageFilter?: number[]) => number;
   getCardsByPage: (page: number, type?: SRSCard['type']) => SRSCard[];
+  getFlaggedCards: (type?: SRSCard['type']) => SRSCard[];
+  getCardsByPages: (pages: number[], type?: SRSCard['type']) => SRSCard[];
 
-  // Export/Import
   exportData: () => string;
   importData: (json: string) => boolean;
   clearAll: () => void;
@@ -172,9 +162,11 @@ export const useSRSStore = create<SRSState>()(
           easeFactor: 2.5,
           interval: 0,
           repetitions: 0,
-          nextReview: now, // due immediately
+          nextReview: now,
           lastReview: 0,
           createdAt: now,
+          successCount: 0,
+          failCount: 0,
         };
         set({ cards: [...existing, card] });
       },
@@ -185,6 +177,26 @@ export const useSRSStore = create<SRSState>()(
 
       hasCard: (id) => get().cards.some(c => c.id === id),
 
+      toggleFlag: (id) => {
+        set({ cards: get().cards.map(c => c.id === id ? { ...c, flagged: !c.flagged } : c) });
+      },
+
+      addTag: (id, tag) => {
+        set({
+          cards: get().cards.map(c =>
+            c.id === id ? { ...c, tags: [...new Set([...(c.tags || []), tag])] } : c
+          ),
+        });
+      },
+
+      removeTag: (id, tag) => {
+        set({
+          cards: get().cards.map(c =>
+            c.id === id ? { ...c, tags: (c.tags || []).filter(t => t !== tag) } : c
+          ),
+        });
+      },
+
       rateCard: (id, rating, manualInterval) => {
         const cards = get().cards;
         const idx = cards.findIndex(c => c.id === id);
@@ -194,7 +206,6 @@ export const useSRSStore = create<SRSState>()(
         let updates: Pick<SRSCard, 'easeFactor' | 'interval' | 'repetitions' | 'nextReview' | 'lastReview'>;
 
         if (manualInterval !== undefined) {
-          // Manual override
           const now = Date.now();
           updates = {
             ...sm2(card, rating),
@@ -215,27 +226,39 @@ export const useSRSStore = create<SRSState>()(
         };
 
         const newCards = [...cards];
-        newCards[idx] = { ...card, ...updates };
+        newCards[idx] = {
+          ...card,
+          ...updates,
+          successCount: (card.successCount || 0) + (rating >= 3 ? 1 : 0),
+          failCount: (card.failCount || 0) + (rating < 3 ? 1 : 0),
+        };
         set({
           cards: newCards,
           reviewLogs: [...get().reviewLogs, log],
         });
       },
 
-      getDueCards: (type, maxCount) => {
+      getDueCards: (type, maxCount, pageFilter) => {
         const now = Date.now();
         let due = get().cards.filter(c => c.nextReview <= now);
         if (type) due = due.filter(c => c.type === type);
-        // Sort: most overdue first
+        if (pageFilter && pageFilter.length > 0) {
+          const pageSet = new Set(pageFilter);
+          due = due.filter(c => pageSet.has(c.page));
+        }
         due.sort((a, b) => a.nextReview - b.nextReview);
         if (maxCount) due = due.slice(0, maxCount);
         return due;
       },
 
-      getDueCount: (type) => {
+      getDueCount: (type, pageFilter) => {
         const now = Date.now();
         let due = get().cards.filter(c => c.nextReview <= now);
         if (type) due = due.filter(c => c.type === type);
+        if (pageFilter && pageFilter.length > 0) {
+          const pageSet = new Set(pageFilter);
+          due = due.filter(c => pageSet.has(c.page));
+        }
         return due.length;
       },
 
@@ -245,9 +268,22 @@ export const useSRSStore = create<SRSState>()(
         return cards;
       },
 
+      getFlaggedCards: (type) => {
+        let cards = get().cards.filter(c => c.flagged);
+        if (type) cards = cards.filter(c => c.type === type);
+        return cards;
+      },
+
+      getCardsByPages: (pages, type) => {
+        const pageSet = new Set(pages);
+        let cards = get().cards.filter(c => pageSet.has(c.page));
+        if (type) cards = cards.filter(c => c.type === type);
+        return cards;
+      },
+
       exportData: () => {
         return JSON.stringify({
-          version: '1.0',
+          version: '1.1',
           exportedAt: new Date().toISOString(),
           cards: get().cards,
           reviewLogs: get().reviewLogs,
