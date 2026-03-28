@@ -75,6 +75,8 @@ export function QuranReader() {
   const [renderedWords, setRenderedWords] = useState<GhareebWord[]>([]);
   const [showIndex, setShowIndex] = useState(false);
   const [showControls, setShowControls] = useState(false);
+  const [showSRS, setShowSRS] = useState(false);
+  const [srsHighlightKey, setSrsHighlightKey] = useState<string | null>(null);
   const [hideBars, setHideBars] = useState(false);
   const [showEntryDialog, setShowEntryDialog] = useState(false);
   const [showPageEndBanner, setShowPageEndBanner] = useState(false);
@@ -89,6 +91,7 @@ export function QuranReader() {
   const setTahfeezMode = useTahfeezStore((s) => s.setSelectionMode);
   const tahfeezSelectedCount = useTahfeezStore((s) => s.selectedWords.length);
   const clearTahfeezSelection = useTahfeezStore((s) => s.clearSelection);
+  const srsDueCount = useSRSStore((s) => s.getDueCount('ghareeb'));
 
   const pageData = getCurrentPageData();
   const pageWords = getPageGhareebWords;
