@@ -10,6 +10,7 @@ import { toast } from 'sonner';
 
 interface GhareebSRSPanelProps {
   pageWords: GhareebWord[];
+  allWords: GhareebWord[];
   currentPage: number;
   onNavigateToPage: (page: number) => void;
   renderPageWithHighlight: (page: number, wordKey: string | null, highlightStyle: 'color' | 'bg' | 'border') => React.ReactNode;
@@ -17,6 +18,7 @@ interface GhareebSRSPanelProps {
 
 export function GhareebSRSPanel({
   pageWords,
+  allWords,
   currentPage,
   onNavigateToPage,
   renderPageWithHighlight,
@@ -27,10 +29,15 @@ export function GhareebSRSPanel({
   const [sessionSize, setSessionSize] = useState<'all' | '5' | '10' | '20' | '30' | '50' | '100'>('all');
   const [scope, setScope] = useState<SRSScope>({ type: 'all-due', from: currentPage, to: currentPage });
   const [highlightStyle, setHighlightStyle] = useState<'color' | 'bg' | 'border'>('bg');
-  const [reviewSource, setReviewSource] = useState<'due' | 'all'>('due');
+  const [reviewSource, setReviewSource] = useState<'due' | 'all'>('all');
   const [wordDistribution, setWordDistribution] = useState<'sequential' | 'by-ayah'>('sequential');
 
   const scopePages = useMemo(() => scopeToPages({ ...scope, from: scope.type === 'current-page' ? currentPage : scope.from }), [scope, currentPage]);
+  const scopeWords = useMemo(() => {
+    if (!scopePages || scopePages.length === 0) return [];
+    const pageSet = new Set(scopePages);
+    return allWords.filter((w) => pageSet.has(w.pageNumber));
+  }, [allWords, scopePages]);
 
   const dueCards = useMemo(
     () => getDueCards('ghareeb', undefined, scopePages || undefined),
@@ -56,6 +63,32 @@ export function GhareebSRSPanel({
   const dueCount = dueCards.length;
   const sessionPoolCount = scopedCards.length;
   const totalCards = cards.filter(c => c.type === 'ghareeb').length;
+  const canStartReview = reviewSource === 'all' ? (sessionPoolCount > 0 || scopeWords.length > 0) : sessionPoolCount > 0;
+
+  const addWordsAsCards = useCallback((words: GhareebWord[]) => {
+    let added = 0;
+    words.forEach((w) => {
+      const id = `ghareeb_${w.uniqueKey}`;
+      if (!hasCard(id)) {
+        addCard({
+          id,
+          type: 'ghareeb',
+          page: w.pageNumber,
+          contentKey: w.uniqueKey,
+          label: `${w.wordText} — ${w.meaning}`,
+          meta: {
+            wordText: w.wordText,
+            meaning: w.meaning,
+            surahName: w.surahName,
+            surahNumber: w.surahNumber,
+            verseNumber: w.verseNumber,
+          },
+        });
+        added += 1;
+      }
+    });
+    return added;
+  }, [addCard, hasCard]);
 
   const pickDistributedByAyah = useCallback((pool: SRSCard[], limit?: number) => {
     if (pool.length <= 1) return pool;
@@ -92,45 +125,59 @@ export function GhareebSRSPanel({
   }, []);
 
   const addPageWords = useCallback(() => {
-    let added = 0;
-    pageWords.forEach(w => {
-      const id = `ghareeb_${w.uniqueKey}`;
-      if (!hasCard(id)) {
-        addCard({
-          id,
-          type: 'ghareeb',
-          page: w.pageNumber,
-          contentKey: w.uniqueKey,
-          label: `${w.wordText} — ${w.meaning}`,
-          meta: {
-            wordText: w.wordText,
-            meaning: w.meaning,
-            surahName: w.surahName,
-            surahNumber: w.surahNumber,
-            verseNumber: w.verseNumber,
-          },
-        });
-        added++;
-      }
-    });
+    const added = addWordsAsCards(pageWords);
     if (added > 0) toast.success(`تمت إضافة ${added} كلمة للمراجعة`);
     else toast.info('جميع الكلمات مضافة بالفعل');
-  }, [pageWords, addCard, hasCard]);
+  }, [pageWords, addWordsAsCards]);
+
+  const addScopeWords = useCallback(() => {
+    if (!scopePages || scopePages.length === 0) {
+      toast.info('اختر نطاقًا محددًا أولاً (سورة/جزء/حزب/صفحات)');
+      return;
+    }
+    if (scopeWords.length === 0) {
+      toast.info('لا توجد كلمات غريب في هذا النطاق');
+      return;
+    }
+    const added = addWordsAsCards(scopeWords);
+    if (added > 0) toast.success(`تمت إضافة ${added} كلمة من النطاق المحدد`);
+    else toast.info('كل كلمات هذا النطاق مضافة بالفعل');
+  }, [scopePages, scopeWords, addWordsAsCards]);
 
   const startReview = useCallback(() => {
     const maxCount = sessionSize === 'all' ? undefined : parseInt(sessionSize);
-    const preparedPool = wordDistribution === 'by-ayah'
-      ? pickDistributedByAyah(scopedCards, maxCount)
-      : scopedCards;
-    const selected = maxCount ? preparedPool.slice(0, maxCount) : preparedPool;
+    let pool = scopedCards;
 
-    if (selected.length === 0) {
-      toast.info('لا توجد بطاقات مستحقة للمراجعة الآن');
+    if (pool.length === 0 && reviewSource === 'all' && scope.type !== 'flagged' && scopeWords.length > 0) {
+      const added = addWordsAsCards(scopeWords);
+      if (added > 0) {
+        toast.success(`تم تجهيز ${added} بطاقة من النطاق المحدد`);
+        const state = useSRSStore.getState();
+        if (scope.type === 'all-due') {
+          pool = state.cards.filter((c) => c.type === 'ghareeb');
+        } else if (scopePages && scopePages.length > 0) {
+          pool = state.getCardsByPages(scopePages, 'ghareeb');
+        }
+      }
+    }
+
+    if (pool.length === 0) {
+      if (reviewSource === 'due') {
+        toast.info('لا توجد بطاقات مستحقة الآن في هذا النطاق. جرّب اختيار "كل بطاقات النطاق"');
+      } else {
+        toast.info('لا توجد بطاقات متاحة للمراجعة في هذا النطاق');
+      }
       return;
     }
+
+    const preparedPool = wordDistribution === 'by-ayah'
+      ? pickDistributedByAyah(pool, maxCount)
+      : pool;
+    const selected = maxCount ? preparedPool.slice(0, maxCount) : preparedPool;
+
     setSessionCards(selected);
     setSessionMode('review');
-  }, [sessionSize, wordDistribution, pickDistributedByAyah, scopedCards]);
+  }, [sessionSize, wordDistribution, pickDistributedByAyah, scopedCards, reviewSource, scope.type, scopeWords, addWordsAsCards, scopePages]);
 
   const handleExport = useCallback(() => {
     const json = exportData();
@@ -168,7 +215,7 @@ export function GhareebSRSPanel({
         defaultAnswerMode="tooltip"
         answerModeOptions={['tooltip', 'inline']}
         renderCard={(card, answerRevealed, answerDisplayMode) => (
-          <div className="p-2">
+          <div className="p-2" data-ghareeb-review-root="true">
             {renderPageWithHighlight(card.page, card.contentKey, highlightStyle)}
             <AnchoredGhareebTooltip
               visible={answerRevealed && answerDisplayMode === 'tooltip'}
@@ -210,10 +257,18 @@ export function GhareebSRSPanel({
       </div>
 
       {/* Add words */}
-      <Button onClick={addPageWords} variant="outline" className="w-full gap-2 font-arabic">
-        <Plus className="w-4 h-4" />
-        إضافة كلمات الصفحة الحالية ({pageWords.length} كلمة)
-      </Button>
+      <div className="space-y-2">
+        <Button onClick={addPageWords} variant="outline" className="w-full gap-2 font-arabic">
+          <Plus className="w-4 h-4" />
+          إضافة كلمات الصفحة الحالية ({pageWords.length} كلمة)
+        </Button>
+        {scopeWords.length > 0 && (
+          <Button onClick={addScopeWords} variant="outline" className="w-full gap-2 font-arabic">
+            <Plus className="w-4 h-4" />
+            إضافة كلمات النطاق المحدد ({scopeWords.length} كلمة)
+          </Button>
+        )}
+      </div>
 
       {/* Scope selector */}
       <div className="bg-card border border-border rounded-lg p-3">
@@ -236,7 +291,7 @@ export function GhareebSRSPanel({
           {scope.type === 'all-due'
             ? 'وضع "كل المستحقة" يعتمد البطاقات المستحقة فقط تلقائياً.'
             : reviewSource === 'all'
-              ? 'سيتم إدخال كل بطاقات الغريب ضمن السورة/الأجزاء/الأحزاب المحددة.'
+              ? 'سيتم استخدام كل بطاقات الغريب ضمن السورة/الأجزاء/الأحزاب المحددة.'
               : 'سيتم إدخال البطاقات المستحقة حالياً ضمن النطاق المحدد فقط.'}
         </p>
       </div>
@@ -282,9 +337,9 @@ export function GhareebSRSPanel({
             </SelectContent>
           </Select>
         </div>
-        <Button onClick={startReview} disabled={sessionPoolCount === 0} className="w-full gap-2 font-arabic" size="lg">
+        <Button onClick={startReview} disabled={!canStartReview} className="w-full gap-2 font-arabic" size="lg">
           <RotateCcw className="w-4 h-4" />
-          بدء المراجعة ({sessionPoolCount} كلمة)
+          بدء المراجعة ({sessionPoolCount > 0 ? sessionPoolCount : scopeWords.length} كلمة)
         </Button>
       </div>
 
@@ -332,17 +387,23 @@ function AnchoredGhareebTooltip({
     }
 
     const updatePosition = () => {
-      const wordEl = document.querySelector<HTMLElement>(`[data-ghareeb-key="${contentKey}"]`);
+      const reviewRoot = document.querySelector<HTMLElement>('[data-ghareeb-review-root="true"]');
+      const wordEl = reviewRoot?.querySelector<HTMLElement>(`[data-ghareeb-key="${contentKey}"]`) || document.querySelector<HTMLElement>(`[data-ghareeb-key="${contentKey}"]`);
       const rect = wordEl?.getBoundingClientRect();
       if (!rect) {
         setStyle({ position: 'fixed', top: '33%', left: '50%', transform: 'translateX(-50%)', zIndex: 50 });
         return;
       }
 
+      const panelRect = reviewRoot?.getBoundingClientRect();
+      const maxLeft = panelRect ? panelRect.right - 260 : window.innerWidth - 260;
+      const minLeft = panelRect ? panelRect.left + 16 : 16;
+      const maxTop = panelRect ? panelRect.bottom - 160 : window.innerHeight - 160;
+
       setStyle({
         position: 'fixed',
-        top: Math.min(rect.bottom + 8, window.innerHeight - 160),
-        left: Math.max(16, Math.min(rect.left + rect.width / 2 - 120, window.innerWidth - 260)),
+        top: Math.min(rect.bottom + 8, maxTop),
+        left: Math.max(minLeft, Math.min(rect.left + rect.width / 2 - 120, maxLeft)),
         zIndex: 50,
       });
     };
