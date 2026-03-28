@@ -243,15 +243,13 @@ export function TahfeezQuizView({
       }
     } else {
       // Auto blanking
-      if (autoBlankMode === 'full-page') {
-        allWordTokens.forEach(t => keys.add(t.key));
-      } else if (autoBlankMode === 'ayah-count') {
-        // Use the distributed engine for ayah-count mode too (handles sequential + scattered)
+      if (autoBlankMode === 'ayah-count') {
+        // Unified distributed engine for ayah-count mode (respects review/distribution settings)
         const distributed = computeDistributedBlanks({
-          reviewMode: 'ayah',
+          reviewMode,
           distributionMode,
-          hiddenAyatCount: ayahCount,
-          hiddenWordsCount: 0,
+          hiddenAyatCount: reviewMode === 'word' ? ayahCount : hiddenAyatCount,
+          hiddenWordsCount,
           seed: distributionSeed + page.pageNumber,
           ayahGroups,
           allWordTokens,
@@ -260,7 +258,9 @@ export function TahfeezQuizView({
           percentageScope,
           wordSequenceMode,
         });
-        for (const k of distributed) keys.add(k.toString());
+        for (const k of distributed) keys.add(k);
+      } else if (autoBlankMode === 'full-page') {
+        allWordTokens.forEach(t => keys.add(t.key));
       } else if (waqfCombinedModes.length > 0) {
         // Waqf-based blanking modes (can combine multiple)
         const shouldKeepWaqfWord = waqfDisplayMode === 'with-word';
@@ -352,24 +352,6 @@ export function TahfeezQuizView({
           }
         }
       }
-    }
-
-    // Apply distributed blanking for all modes (unified engine call)
-    if (quizSource === 'auto' && (reviewMode === 'word' || reviewMode === 'mixed' || reviewMode === 'ayah')) {
-      const distributed = computeDistributedBlanks({
-        reviewMode,
-        distributionMode,
-        hiddenAyatCount,
-        hiddenWordsCount,
-        seed: distributionSeed + page.pageNumber,
-        ayahGroups,
-        allWordTokens,
-        hiddenWordsMode,
-        hiddenWordsPercentage,
-        percentageScope,
-        wordSequenceMode,
-      });
-      for (const k of distributed) keys.add(k);
     }
 
     return keys;
