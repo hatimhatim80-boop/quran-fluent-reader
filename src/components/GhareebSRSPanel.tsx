@@ -21,20 +21,75 @@ export function GhareebSRSPanel({
   onNavigateToPage,
   renderPageWithHighlight,
 }: GhareebSRSPanelProps) {
-  const { addCard, hasCard, getDueCards, cards, exportData, importData, clearAll, getFlaggedCards } = useSRSStore();
+  const { addCard, hasCard, getDueCards, getCardsByPages, cards, exportData, importData, clearAll, getFlaggedCards } = useSRSStore();
   const [sessionMode, setSessionMode] = useState<'setup' | 'review'>('setup');
   const [sessionCards, setSessionCards] = useState<SRSCard[]>([]);
-  const [sessionSize, setSessionSize] = useState<'all' | '10' | '20' | '50'>('all');
+  const [sessionSize, setSessionSize] = useState<'all' | '5' | '10' | '20' | '30' | '50' | '100'>('all');
   const [scope, setScope] = useState<SRSScope>({ type: 'all-due', from: currentPage, to: currentPage });
   const [highlightStyle, setHighlightStyle] = useState<'color' | 'bg' | 'border'>('bg');
+  const [reviewSource, setReviewSource] = useState<'due' | 'all'>('due');
+  const [wordDistribution, setWordDistribution] = useState<'sequential' | 'by-ayah'>('sequential');
 
   const scopePages = useMemo(() => scopeToPages({ ...scope, from: scope.type === 'current-page' ? currentPage : scope.from }), [scope, currentPage]);
-  const dueCards = useMemo(() => {
-    if (scope.type === 'flagged') return getFlaggedCards('ghareeb');
-    return getDueCards('ghareeb', undefined, scopePages || undefined);
-  }, [scope.type, getFlaggedCards, getDueCards, scopePages, cards]);
+
+  const dueCards = useMemo(
+    () => getDueCards('ghareeb', undefined, scopePages || undefined),
+    [getDueCards, scopePages, cards],
+  );
+
+  const scopedCards = useMemo(() => {
+    if (scope.type === 'flagged') {
+      const flagged = getFlaggedCards('ghareeb');
+      if (!scopePages || scopePages.length === 0) return flagged;
+      const pageSet = new Set(scopePages);
+      return flagged.filter((card) => pageSet.has(card.page));
+    }
+
+    if (reviewSource === 'due' || scope.type === 'all-due') return dueCards;
+
+    if (!scopePages || scopePages.length === 0) {
+      return cards.filter((card) => card.type === 'ghareeb');
+    }
+    return getCardsByPages(scopePages, 'ghareeb');
+  }, [scope.type, reviewSource, dueCards, getFlaggedCards, getCardsByPages, scopePages, cards]);
+
   const dueCount = dueCards.length;
+  const sessionPoolCount = scopedCards.length;
   const totalCards = cards.filter(c => c.type === 'ghareeb').length;
+
+  const pickDistributedByAyah = useCallback((pool: SRSCard[], limit?: number) => {
+    if (pool.length <= 1) return pool;
+    const maxItems = limit && limit > 0 ? Math.min(limit, pool.length) : pool.length;
+
+    const bucketsMap = new Map<string, SRSCard[]>();
+    pool.forEach((card) => {
+      const surah = Number(card.meta?.surahNumber || 0);
+      const ayah = Number(card.meta?.verseNumber || 0);
+      const key = surah > 0 && ayah > 0 ? `${surah}_${ayah}` : `page_${card.page}`;
+      const bucket = bucketsMap.get(key);
+      if (bucket) bucket.push(card);
+      else bucketsMap.set(key, [card]);
+    });
+
+    const buckets = Array.from(bucketsMap.values());
+    const picked: SRSCard[] = [];
+    let round = 0;
+
+    while (picked.length < maxItems) {
+      let progressed = false;
+      for (const bucket of buckets) {
+        const next = bucket[round];
+        if (!next) continue;
+        picked.push(next);
+        progressed = true;
+        if (picked.length >= maxItems) break;
+      }
+      if (!progressed) break;
+      round += 1;
+    }
+
+    return picked;
+  }, []);
 
   const addPageWords = useCallback(() => {
     let added = 0;
@@ -64,14 +119,18 @@ export function GhareebSRSPanel({
 
   const startReview = useCallback(() => {
     const maxCount = sessionSize === 'all' ? undefined : parseInt(sessionSize);
-    const selected = maxCount ? dueCards.slice(0, maxCount) : dueCards;
+    const preparedPool = wordDistribution === 'by-ayah'
+      ? pickDistributedByAyah(scopedCards, maxCount)
+      : scopedCards;
+    const selected = maxCount ? preparedPool.slice(0, maxCount) : preparedPool;
+
     if (selected.length === 0) {
       toast.info('لا توجد بطاقات مستحقة للمراجعة الآن');
       return;
     }
     setSessionCards(selected);
     setSessionMode('review');
-  }, [sessionSize, dueCards]);
+  }, [sessionSize, wordDistribution, pickDistributedByAyah, scopedCards]);
 
   const handleExport = useCallback(() => {
     const json = exportData();
@@ -106,6 +165,8 @@ export function GhareebSRSPanel({
         onFinish={() => setSessionMode('setup')}
         onNavigateToPage={onNavigateToPage}
         portalName="الغريب"
+        defaultAnswerMode="tooltip"
+        answerModeOptions={['tooltip', 'inline']}
         renderCard={(card, answerRevealed, answerDisplayMode) => (
           <div className="p-2">
             {renderPageWithHighlight(card.page, card.contentKey, highlightStyle)}
@@ -126,13 +187,6 @@ export function GhareebSRSPanel({
             )}
           </div>
         )}
-        renderAnswer={(card) => (
-          <div className="text-center font-arabic" dir="rtl">
-            <p className="text-lg font-bold text-primary">{card.meta.wordText as string}</p>
-            <p className="text-base text-foreground mt-1">{card.meta.meaning as string}</p>
-            <p className="text-xs text-muted-foreground mt-1">{card.meta.surahName as string} — آية {card.meta.verseNumber as number}</p>
-          </div>
-        )}
       />
     );
   }
@@ -146,12 +200,12 @@ export function GhareebSRSPanel({
           <p className="text-xs text-muted-foreground">إجمالي البطاقات</p>
         </div>
         <div className="bg-card border border-border rounded-lg p-3 text-center">
-          <p className="text-2xl font-bold text-orange-500">{dueCount}</p>
-          <p className="text-xs text-muted-foreground">مستحقة الآن</p>
+          <p className="text-2xl font-bold text-orange-500">{sessionPoolCount}</p>
+          <p className="text-xs text-muted-foreground">جاهزة للجلسة</p>
         </div>
         <div className="bg-card border border-border rounded-lg p-3 text-center">
-          <p className="text-2xl font-bold text-green-500">{totalCards - dueCount}</p>
-          <p className="text-xs text-muted-foreground">تمت مراجعتها</p>
+          <p className="text-2xl font-bold text-green-500">{dueCount}</p>
+          <p className="text-xs text-muted-foreground">مستحقة الآن</p>
         </div>
       </div>
 
@@ -164,6 +218,27 @@ export function GhareebSRSPanel({
       {/* Scope selector */}
       <div className="bg-card border border-border rounded-lg p-3">
         <SRSScopeSelector scope={scope} onChange={setScope} currentPage={currentPage} showFlagged />
+      </div>
+
+      {/* Session source */}
+      <div className="bg-card border border-border rounded-lg p-3 space-y-2">
+        <div className="flex items-center justify-between">
+          <span className="text-sm">مصدر البطاقات</span>
+          <Select value={reviewSource} onValueChange={(v) => setReviewSource(v as typeof reviewSource)}>
+            <SelectTrigger className="w-36 h-8 text-xs font-arabic"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="due">المستحقة فقط</SelectItem>
+              <SelectItem value="all">كل بطاقات النطاق</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <p className="text-[11px] text-muted-foreground">
+          {scope.type === 'all-due'
+            ? 'وضع "كل المستحقة" يعتمد البطاقات المستحقة فقط تلقائياً.'
+            : reviewSource === 'all'
+              ? 'سيتم إدخال كل بطاقات الغريب ضمن السورة/الأجزاء/الأحزاب المحددة.'
+              : 'سيتم إدخال البطاقات المستحقة حالياً ضمن النطاق المحدد فقط.'}
+        </p>
       </div>
 
       {/* Highlight style */}
@@ -183,20 +258,33 @@ export function GhareebSRSPanel({
       <div className="bg-card border border-border rounded-lg p-4 space-y-3">
         <h3 className="font-bold text-sm">إعدادات الجلسة</h3>
         <div className="flex items-center justify-between">
-          <span className="text-sm">عدد البطاقات</span>
-          <Select value={sessionSize} onValueChange={(v) => setSessionSize(v as typeof sessionSize)}>
-            <SelectTrigger className="w-28 h-8 text-xs font-arabic"><SelectValue /></SelectTrigger>
+          <span className="text-sm">توزيع الكلمات</span>
+          <Select value={wordDistribution} onValueChange={(v) => setWordDistribution(v as typeof wordDistribution)}>
+            <SelectTrigger className="w-32 h-8 text-xs font-arabic"><SelectValue /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">الكل ({dueCount})</SelectItem>
-              <SelectItem value="10">١٠</SelectItem>
-              <SelectItem value="20">٢٠</SelectItem>
-              <SelectItem value="50">٥٠</SelectItem>
+              <SelectItem value="sequential">متتابعة</SelectItem>
+              <SelectItem value="by-ayah">من آيات متعددة</SelectItem>
             </SelectContent>
           </Select>
         </div>
-        <Button onClick={startReview} disabled={dueCount === 0} className="w-full gap-2 font-arabic" size="lg">
+        <div className="flex items-center justify-between">
+          <span className="text-sm">عدد الكلمات</span>
+          <Select value={sessionSize} onValueChange={(v) => setSessionSize(v as typeof sessionSize)}>
+            <SelectTrigger className="w-28 h-8 text-xs font-arabic"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">الكل ({sessionPoolCount})</SelectItem>
+              <SelectItem value="5">٥</SelectItem>
+              <SelectItem value="10">١٠</SelectItem>
+              <SelectItem value="20">٢٠</SelectItem>
+              <SelectItem value="30">٣٠</SelectItem>
+              <SelectItem value="50">٥٠</SelectItem>
+              <SelectItem value="100">١٠٠</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <Button onClick={startReview} disabled={sessionPoolCount === 0} className="w-full gap-2 font-arabic" size="lg">
           <RotateCcw className="w-4 h-4" />
-          بدء المراجعة ({dueCount} بطاقة)
+          بدء المراجعة ({sessionPoolCount} كلمة)
         </Button>
       </div>
 
