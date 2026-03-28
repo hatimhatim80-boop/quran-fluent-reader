@@ -159,10 +159,10 @@ export function GhareebReviewSettingsPanel({ className, highlightStyle, onHighli
 
             <div className="space-y-2">
               <Label className="text-xs">
-                سرعة التشغيل: {settings.autoplay.speed < 1 ? `${Math.round(settings.autoplay.speed * 1000)}ms` : `${settings.autoplay.speed}s`} / كلمة
+                سرعة التشغيل: {autoplay.speed < 1 ? `${Math.round(autoplay.speed * 1000)}ms` : `${autoplay.speed}s`} / كلمة
               </Label>
               <Slider
-                value={[settings.autoplay.speed]}
+                value={[autoplay.speed]}
                 onValueChange={([v]) => setAutoplay({ speed: +v.toFixed(2) })}
                 min={0.1}
                 max={30}
