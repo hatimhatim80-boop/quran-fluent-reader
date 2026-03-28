@@ -171,9 +171,9 @@ export function GhareebReviewSettingsPanel({ className, highlightStyle, onHighli
             </div>
 
             <div className="space-y-2">
-              <Label className="text-xs">زمن الانتظار قبل الإظهار: {settings.autoplay.thinkingGap}ms</Label>
+              <Label className="text-xs">زمن الانتظار قبل الإظهار: {autoplay.thinkingGap}ms</Label>
               <Slider
-                value={[settings.autoplay.thinkingGap]}
+                value={[autoplay.thinkingGap]}
                 onValueChange={([v]) => setAutoplay({ thinkingGap: v })}
                 min={200}
                 max={2500}
