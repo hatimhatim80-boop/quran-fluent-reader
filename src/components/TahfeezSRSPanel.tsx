@@ -138,14 +138,8 @@ export function TahfeezSRSPanel({
         portalName="التحفيظ"
         renderCard={(card, answerRevealed) => (
           <div className="p-2">
-            {/* Always show page with blanks. Answer reveal controls visibility inside the page */}
-            {renderPageWithBlanks(card.page, [], card)}
-            {/* The answer is revealed in-place (blanks become visible) when answerRevealed is true */}
-            {answerRevealed && card.type === 'tahfeez-ayah' && (
-              <div className="mt-2 mx-auto max-w-md bg-accent/30 border border-border rounded-xl p-3 text-center animate-fade-in font-arabic" dir="rtl">
-                <p className="text-xs text-muted-foreground">{card.label}</p>
-              </div>
-            )}
+            {/* Render page - blanks are only revealed when answerRevealed is true */}
+            {renderPageWithBlanks(card.page, answerRevealed ? [] : ['__ALL_BLANKED__'], card)}
           </div>
         )}
       />
