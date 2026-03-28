@@ -668,6 +668,7 @@ export default function TahfeezPage() {
 
       isFirstStartRef.current = true;
       autoResumeQuizRef.current = false;
+      rotateDistributionSeed();
       setQuizStarted(true);
       setSegmentMcqAccumulatedStats(null);
       setIsPaused(false);
