@@ -1339,7 +1339,9 @@ export default function TahfeezPage() {
               }}
             />
           </div>
-        )]
+        )}
+
+        {/* Quiz view */}
         <AutoPlayDebugPanel visible={process.env.NODE_ENV !== 'production'} />
         {quizStarted && pageData && (autoBlankMode === 'next-ayah-mcq' || autoBlankMode === 'next-waqf-mcq') && (
           <div className="space-y-4 animate-fade-in">
