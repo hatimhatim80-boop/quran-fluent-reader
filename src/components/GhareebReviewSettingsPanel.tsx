@@ -54,23 +54,27 @@ export function GhareebReviewSettingsPanel({ className, highlightStyle, onHighli
   const setMeaningBox = useSettingsStore((s) => s.setMeaningBox);
   const setColors = useSettingsStore((s) => s.setColors);
 
+  // Safe defaults for potentially missing persisted sub-objects
+  const meaningBox = settings.meaningBox ?? { wordFontSize: 1.4, meaningFontSize: 1.1 };
+  const colors = settings.colors ?? { highlightColor: '48 80% 90%', popoverBackground: '38 50% 97%', popoverWordColor: '25 30% 18%', popoverMeaningColor: '25 20% 35%' };
+
   const highlightValue = resolveSelectValue(
-    settings.colors.highlightColor,
+    colors.highlightColor,
     HIGHLIGHT_PRESETS,
     HIGHLIGHT_PRESETS[0].value,
   );
   const popoverBgValue = resolveSelectValue(
-    settings.colors.popoverBackground,
+    colors.popoverBackground,
     POPOVER_BG_PRESETS,
     POPOVER_BG_PRESETS[0].value,
   );
   const popoverWordValue = resolveSelectValue(
-    settings.colors.popoverWordColor,
+    colors.popoverWordColor,
     POPOVER_WORD_PRESETS,
     POPOVER_WORD_PRESETS[0].value,
   );
   const popoverMeaningValue = resolveSelectValue(
-    settings.colors.popoverMeaningColor,
+    colors.popoverMeaningColor,
     POPOVER_MEANING_PRESETS,
     POPOVER_MEANING_PRESETS[0].value,
   );
@@ -208,9 +212,9 @@ export function GhareebReviewSettingsPanel({ className, highlightStyle, onHighli
             </div>
 
             <div className="space-y-2">
-              <Label className="text-xs">حجم كلمة الإطار: {settings.meaningBox.wordFontSize.toFixed(2)}rem</Label>
+              <Label className="text-xs">حجم كلمة الإطار: {meaningBox.wordFontSize.toFixed(2)}rem</Label>
               <Slider
-                value={[settings.meaningBox.wordFontSize]}
+                value={[meaningBox.wordFontSize]}
                 onValueChange={([v]) => setMeaningBox({ wordFontSize: +v.toFixed(2) })}
                 min={1}
                 max={2.5}
@@ -219,9 +223,9 @@ export function GhareebReviewSettingsPanel({ className, highlightStyle, onHighli
             </div>
 
             <div className="space-y-2">
-              <Label className="text-xs">حجم معنى الإطار: {settings.meaningBox.meaningFontSize.toFixed(2)}rem</Label>
+              <Label className="text-xs">حجم معنى الإطار: {meaningBox.meaningFontSize.toFixed(2)}rem</Label>
               <Slider
-                value={[settings.meaningBox.meaningFontSize]}
+                value={[meaningBox.meaningFontSize]}
                 onValueChange={([v]) => setMeaningBox({ meaningFontSize: +v.toFixed(2) })}
                 min={0.9}
                 max={2}
