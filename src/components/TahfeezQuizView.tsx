@@ -114,6 +114,10 @@ export function TahfeezQuizView({
   const hiddenWordsCount = useTahfeezStore(s => s.hiddenWordsCount);
   const distributionMode = useTahfeezStore(s => s.distributionMode);
   const distributionSeed = useTahfeezStore(s => s.distributionSeed);
+  const hiddenWordsMode = useTahfeezStore(s => s.hiddenWordsMode);
+  const hiddenWordsPercentage = useTahfeezStore(s => s.hiddenWordsPercentage);
+  const percentageScope = useTahfeezStore(s => s.percentageScope);
+  const wordSequenceMode = useTahfeezStore(s => s.wordSequenceMode);
   const displayMode = settings.display?.mode || 'auto15';
   const textDirection = settings.display?.textDirection || 'rtl';
   const mobileLinesPerPage = settings.display?.mobileLinesPerPage || 15;
