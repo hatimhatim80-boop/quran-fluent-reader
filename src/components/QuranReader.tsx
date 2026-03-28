@@ -388,10 +388,9 @@ export function QuranReader() {
               pageWords={pageWords}
               currentPage={currentPage}
               onNavigateToPage={goToPage}
-              renderPageWithHighlight={(pg, wordKey) => {
+              renderPageWithHighlight={(pg, wordKey, _highlightStyle) => {
                 const pgData = pages.find(p => p.pageNumber === pg);
                 if (!pgData) return null;
-                // Find word index matching wordKey for highlighting
                 const highlightIdx = wordKey ? pageWords.findIndex(w => w.uniqueKey === wordKey) : -1;
                 return (
                   <PageView
