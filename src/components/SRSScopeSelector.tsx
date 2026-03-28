@@ -3,7 +3,6 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { SURAH_INFO, SURAH_NAMES } from '@/utils/quranPageIndex';
 import { Book, Layers, Hash, FileText, Search, CheckCircle2, ArrowLeftRight } from 'lucide-react';
 
@@ -129,6 +128,7 @@ export function SRSScopeSelector({ scope, onChange, currentPage, showFlagged }: 
   const [expanded, setExpanded] = useState(false);
   const [activeTab, setActiveTab] = useState<string>('quick');
   const [search, setSearch] = useState('');
+  const [pageSearch, setPageSearch] = useState('');
   const [selectingEnd, setSelectingEnd] = useState<RangeEnd>('from');
 
   const pageCount = useMemo(() => {
@@ -141,6 +141,13 @@ export function SRSScopeSelector({ scope, onChange, currentPage, showFlagged }: 
     const q = search.trim();
     return SURAHS.filter(s => s.name.includes(q) || s.number.toString() === q);
   }, [search]);
+
+  const filteredPages = useMemo(() => {
+    const q = pageSearch.trim();
+    const pages = Array.from({ length: 604 }, (_, i) => i + 1);
+    if (!q) return pages;
+    return pages.filter((p) => p.toString().includes(q));
+  }, [pageSearch]);
 
   const handleSelectItem = (type: SRSScopeType, num: number) => {
     if (selectingEnd === 'from') {
@@ -369,46 +376,55 @@ export function SRSScopeSelector({ scope, onChange, currentPage, showFlagged }: 
             </TabsContent>
 
             {/* Pages Tab */}
-            <TabsContent value="pages" className="m-0 p-3 space-y-3">
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-muted-foreground shrink-0">من صفحة</span>
-                <Input
-                  type="number"
-                  min={1}
-                  max={604}
-                  value={scope.type === 'page-range' ? scope.from : currentPage}
-                  onChange={e => onChange({ type: 'page-range', from: parseInt(e.target.value) || 1, to: scope.type === 'page-range' ? scope.to : (parseInt(e.target.value) || 1) })}
-                  className="h-7 w-20 text-xs text-center"
-                />
-                <span className="text-xs text-muted-foreground shrink-0">إلى صفحة</span>
-                <Input
-                  type="number"
-                  min={1}
-                  max={604}
-                  value={scope.type === 'page-range' ? scope.to : currentPage}
-                  onChange={e => onChange({ type: 'page-range', from: scope.type === 'page-range' ? scope.from : currentPage, to: parseInt(e.target.value) || 604 })}
-                  className="h-7 w-20 text-xs text-center"
-                />
+            <TabsContent value="pages" className="m-0">
+              <div className="p-2 border-b border-border">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="relative flex-1">
+                    <Search className="absolute right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+                    <Input
+                      value={pageSearch}
+                      onChange={(e) => setPageSearch(e.target.value)}
+                      placeholder="بحث عن صفحة..."
+                      className="h-7 text-xs pr-8"
+                    />
+                  </div>
+                  <Button
+                    variant={selectingEnd === 'to' && scope.type === 'page-range' ? 'default' : 'outline'}
+                    size="sm"
+                    className="h-7 text-[10px] gap-1 shrink-0"
+                    onClick={() => setSelectingEnd(selectingEnd === 'from' ? 'to' : 'from')}
+                  >
+                    <ArrowLeftRight className="w-3 h-3" />
+                    {selectingEnd === 'from' ? 'اختر البداية' : 'اختر النهاية'}
+                  </Button>
+                </div>
+                {scope.type === 'page-range' && (
+                  <p className="text-[10px] text-primary text-center">
+                    الصفحة {scope.from}{scope.from !== scope.to ? ` → ${scope.to}` : ''}
+                  </p>
+                )}
               </div>
-              {/* Page slider */}
-              <div className="space-y-1">
-                <input
-                  type="range"
-                  min={1}
-                  max={604}
-                  value={scope.type === 'page-range' ? scope.from : currentPage}
-                  onChange={e => onChange({ type: 'page-range', from: parseInt(e.target.value), to: scope.type === 'page-range' ? Math.max(parseInt(e.target.value), scope.to) : parseInt(e.target.value) })}
-                  className="w-full h-1.5 accent-primary"
-                />
-                <input
-                  type="range"
-                  min={1}
-                  max={604}
-                  value={scope.type === 'page-range' ? scope.to : currentPage}
-                  onChange={e => onChange({ type: 'page-range', from: scope.type === 'page-range' ? scope.from : currentPage, to: parseInt(e.target.value) })}
-                  className="w-full h-1.5 accent-primary"
-                />
-              </div>
+              <ScrollArea className="h-60">
+                <div className="p-1.5 space-y-0.5">
+                  {filteredPages.map((pageNum) => (
+                    <button
+                      key={pageNum}
+                      onClick={() => handleSelectItem('page-range', pageNum)}
+                      className={`w-full flex items-center justify-between px-2.5 py-2 rounded-lg text-xs transition-colors ${
+                        isEndpoint('page-range', pageNum) ? 'bg-primary text-primary-foreground font-bold' :
+                        isInRange('page-range', pageNum) ? 'bg-primary/10 text-primary' :
+                        'hover:bg-muted/60 text-foreground'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className="w-6 h-6 rounded-full bg-muted/80 flex items-center justify-center text-[10px] text-muted-foreground shrink-0">{pageNum}</span>
+                        <span>الصفحة {pageNum}</span>
+                      </div>
+                      <span className="text-[10px] text-muted-foreground">ص {pageNum}</span>
+                    </button>
+                  ))}
+                </div>
+              </ScrollArea>
             </TabsContent>
           </Tabs>
 
