@@ -385,6 +385,7 @@ export function QuranReader() {
           <div className="relative z-50 w-full max-w-md h-screen bg-background border-l border-border shadow-xl overflow-auto mr-auto">
             <GhareebSRSPanel
               pageWords={pageWords}
+              allWords={allGhareebWords}
               currentPage={currentPage}
               onNavigateToPage={goToPage}
               renderPageWithHighlight={(pg, wordKey, highlightStyle) => {
