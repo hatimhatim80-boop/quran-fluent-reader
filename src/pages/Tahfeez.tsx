@@ -1696,7 +1696,30 @@ export default function TahfeezPage() {
                   الصفحة التالية
                 </Button>
               )}
-              
+              {/* Session settings sheet */}
+              <Sheet>
+                <SheetTrigger asChild>
+                  <Button variant="outline" size="sm" className="font-arabic">
+                    <Settings className="w-4 h-4 ml-1" />
+                    إعدادات
+                  </Button>
+                </SheetTrigger>
+                <SheetContent side="right" className="overflow-y-auto w-[340px] sm:max-w-[400px]">
+                  <SheetHeader>
+                    <SheetTitle className="font-arabic text-right">إعدادات الجلسة</SheetTitle>
+                  </SheetHeader>
+                  <div className="mt-4">
+                    <TahfeezAutoQuizSettings
+                      currentPage={currentPage}
+                      quizPagesRange={quizPagesRange}
+                      onStart={() => {}}
+                      disabled={false}
+                      compact
+                    />
+                  </div>
+                </SheetContent>
+              </Sheet>
+
               <Button variant="outline" size="sm" onClick={() => { setQuizStarted(false); if (revealTimerRef.current) clearTimeout(revealTimerRef.current); speech.stop(); }} className="font-arabic">
                 إعادة
               </Button>
