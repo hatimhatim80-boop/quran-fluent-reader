@@ -261,7 +261,7 @@ export function GhareebWordPopover({
 
   // When active: force inline style to override CSS variables set on :root
   // CSS class !important cannot override inline CSS variables on :root
-  const activeWordStyle: React.CSSProperties = (() => {
+  const activeWordStyle: Record<string, string> = (() => {
     if (!isHighlighted) return {};
     if (activeHighlightStyle === 'color') {
       return {
