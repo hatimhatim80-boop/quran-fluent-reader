@@ -215,24 +215,13 @@ export function GhareebSRSPanel({
         defaultAnswerMode="tooltip"
         answerModeOptions={['tooltip', 'inline']}
         renderCard={(card, answerRevealed, answerDisplayMode) => (
-          <div className="p-2" data-ghareeb-review-root="true">
-            {renderPageWithHighlight(card.page, card.contentKey, highlightStyle)}
-            <AnchoredGhareebTooltip
-              visible={answerRevealed && answerDisplayMode === 'tooltip'}
-              contentKey={card.contentKey}
-              wordText={String(card.meta.wordText || '')}
-              meaning={String(card.meta.meaning || '')}
-              surahName={String(card.meta.surahName || '')}
-              verseNumber={Number(card.meta.verseNumber || 0)}
-            />
-            {/* Inline answer (embedded in page area) */}
-            {answerRevealed && answerDisplayMode === 'inline' && (
-              <div className="mt-2 mx-auto max-w-md bg-accent/50 border border-border rounded-xl p-3 text-center animate-fade-in" dir="rtl">
-                <p className="font-arabic text-lg font-bold text-primary">{card.meta.wordText as string}</p>
-                <p className="font-arabic text-base text-foreground mt-1">{card.meta.meaning as string}</p>
-              </div>
-            )}
-          </div>
+          <GhareebReviewCardContent
+            card={card}
+            answerRevealed={answerRevealed}
+            answerDisplayMode={answerDisplayMode}
+            highlightStyle={highlightStyle}
+            renderPageWithHighlight={renderPageWithHighlight}
+          />
         )}
       />
     );
