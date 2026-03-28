@@ -46,7 +46,7 @@ export function TahfeezSRSPanel({
   const dueCards = useMemo(() => {
     if (scope.type === 'flagged') return getFlaggedCards(srsType);
     return getDueCards(srsType, undefined, scopePages || undefined);
-  }, [scope.type, getFlaggedCards, getDueCards, srsType, scopePages]);
+  }, [scope.type, getFlaggedCards, getDueCards, srsType, scopePages, cards]);
   const dueCount = dueCards.length;
   const totalCards = cards.filter(c => c.type === srsType).length;
 

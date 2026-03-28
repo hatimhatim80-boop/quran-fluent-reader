@@ -882,15 +882,16 @@
 
   /* Active word: override ALL colors with !important - must override CSS variables too */
   .ghareeb-word--active:not(.ghareeb-word--text-only) {
-    background-color: hsl(200 70% 78% / 0.7) !important;
-    border-color: hsl(200 70% 45% / 0.8) !important;
-    box-shadow: 0 0 10px 3px hsl(200 70% 60% / 0.45) !important;
+    background-color: var(--ghareeb-active-bg, hsl(200 70% 78% / 0.7)) !important;
+    border-color: var(--ghareeb-active-border, hsl(200 70% 45% / 0.8)) !important;
+    box-shadow: var(--ghareeb-active-shadow, 0 0 10px 3px hsl(200 70% 60% / 0.45)) !important;
+    color: var(--ghareeb-active-color, inherit) !important;
   }
   /* Also override the CSS variable selectors for active words */
   .ghareeb-word--active:not(.ghareeb-word--text-only)[style*="background"],
   [style*="--ghareeb-bg-color"] .ghareeb-word--active:not(.ghareeb-word--text-only) {
-    background-color: hsl(200 70% 78% / 0.7) !important;
-    border-color: hsl(200 70% 45% / 0.8) !important;
+    background-color: var(--ghareeb-active-bg, hsl(200 70% 78% / 0.7)) !important;
+    border-color: var(--ghareeb-active-border, hsl(200 70% 45% / 0.8)) !important;
   }
 
   /* Active word in text-only mode: change text color to golden */
