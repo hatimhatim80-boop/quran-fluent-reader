@@ -109,6 +109,11 @@ export function TahfeezQuizView({
   const revealedColor = useTahfeezStore(s => s.revealedColor);
   const revealedWithBg = useTahfeezStore(s => s.revealedWithBg);
   const activeWordColor = useTahfeezStore(s => s.activeWordColor);
+  const reviewMode = useTahfeezStore(s => s.reviewMode);
+  const hiddenAyatCount = useTahfeezStore(s => s.hiddenAyatCount);
+  const hiddenWordsCount = useTahfeezStore(s => s.hiddenWordsCount);
+  const distributionMode = useTahfeezStore(s => s.distributionMode);
+  const distributionSeed = useTahfeezStore(s => s.distributionSeed);
   const displayMode = settings.display?.mode || 'auto15';
   const textDirection = settings.display?.textDirection || 'rtl';
   const mobileLinesPerPage = settings.display?.mobileLinesPerPage || 15;
