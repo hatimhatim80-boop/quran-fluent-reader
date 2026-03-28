@@ -522,6 +522,22 @@ export function QuranReader() {
                   <SlidersHorizontal className="w-3.5 h-3.5" />
                 </button>
 
+                {/* SRS Review */}
+                <button
+                  onClick={() => setShowSRS(!showSRS)}
+                  className={`w-8 h-8 rounded-full flex items-center justify-center transition-all relative ${
+                    showSRS ? 'bg-primary text-primary-foreground' : 'nav-button'
+                  }`}
+                  title="مراجعة (أنكي)"
+                >
+                  <RotateCcw className="w-3.5 h-3.5" />
+                  {srsDueCount > 0 && (
+                    <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-destructive text-destructive-foreground text-[8px] flex items-center justify-center font-bold">
+                      {srsDueCount > 99 ? '99+' : srsDueCount}
+                    </span>
+                  )}
+                </button>
+
                 {/* Tahfeez mode - navigate to /tahfeez */}
                 <button
                   onClick={() => navigate('/tahfeez')}
