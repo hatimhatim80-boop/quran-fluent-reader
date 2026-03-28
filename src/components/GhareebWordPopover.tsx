@@ -265,33 +265,33 @@ export function GhareebWordPopover({
     if (!isHighlighted) return {};
     if (activeHighlightStyle === 'color') {
       return {
-        color: 'hsl(var(--primary))',
-        backgroundColor: 'transparent',
-        borderColor: 'transparent',
-        boxShadow: 'none',
+        '--ghareeb-active-color': 'hsl(var(--primary))',
+        '--ghareeb-active-bg': 'transparent',
+        '--ghareeb-active-border': 'transparent',
+        '--ghareeb-active-shadow': 'none',
       };
     }
     if (activeHighlightStyle === 'border') {
       return {
-        color: 'hsl(var(--foreground))',
-        backgroundColor: 'transparent',
-        borderColor: 'hsl(var(--primary))',
-        boxShadow: '0 0 0 1px hsl(var(--primary) / 0.35)',
+        '--ghareeb-active-color': 'hsl(var(--foreground))',
+        '--ghareeb-active-bg': 'transparent',
+        '--ghareeb-active-border': 'hsl(var(--primary))',
+        '--ghareeb-active-shadow': '0 0 0 1px hsl(var(--primary) / 0.35)',
       };
     }
     if (activeHighlightStyle === 'bg') {
       return {
-        color: 'hsl(var(--foreground))',
-        backgroundColor: 'hsl(var(--primary) / 0.2)',
-        borderColor: 'hsl(var(--primary) / 0.5)',
-        boxShadow: '0 0 0 1px hsl(var(--primary) / 0.25)',
+        '--ghareeb-active-color': 'hsl(var(--foreground))',
+        '--ghareeb-active-bg': 'hsl(var(--primary) / 0.2)',
+        '--ghareeb-active-border': 'hsl(var(--primary) / 0.5)',
+        '--ghareeb-active-shadow': '0 0 0 1px hsl(var(--primary) / 0.25)',
       };
     }
     if (highlightStyle === 'text-only') return {};
     return {
-      backgroundColor: 'hsl(200 70% 78% / 0.7)',
-      borderColor: 'hsl(200 70% 45% / 0.8)',
-      boxShadow: '0 0 10px 3px hsl(200 70% 60% / 0.45)',
+      '--ghareeb-active-bg': 'hsl(200 70% 78% / 0.7)',
+      '--ghareeb-active-border': 'hsl(200 70% 45% / 0.8)',
+      '--ghareeb-active-shadow': '0 0 10px 3px hsl(200 70% 60% / 0.45)',
     };
   })();
 

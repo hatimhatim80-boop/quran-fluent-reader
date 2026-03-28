@@ -1,15 +1,14 @@
-import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { useSRSStore, SRSCard, SRSRating, RATING_OPTIONS, formatInterval, previewIntervals } from '@/stores/srsStore';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
-import { ChevronLeft, ChevronRight, X, Eye, Settings2, Flag, List, Clock } from 'lucide-react';
+import { ChevronLeft, ChevronRight, X, Eye, Settings2, Flag, List } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from '@/components/ui/drawer';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
 export type AnswerDisplayMode = 'bottom' | 'tooltip' | 'inline';
-export type RevealMode = 'manual' | 'auto';
 
 interface SRSReviewSessionProps {
   cards: SRSCard[];
@@ -41,9 +40,6 @@ export function SRSReviewSession({
   const [ratings, setRatings] = useState<Map<number, SRSRating>>(new Map());
   const [showIndex, setShowIndex] = useState(false);
   const [answerMode, setAnswerMode] = useState<AnswerDisplayMode>('bottom');
-  const [revealMode, setRevealMode] = useState<RevealMode>('manual');
-  const [autoRevealSeconds, setAutoRevealSeconds] = useState(5);
-  const autoRevealTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isMobile = useIsMobile();
 
   const card = cards[currentIdx];
@@ -60,21 +56,7 @@ export function SRSReviewSession({
   useEffect(() => {
     setAnswerRevealed(false);
     setShowManualInterval(false);
-    // Clear any auto-reveal timer
-    if (autoRevealTimer.current) {
-      clearTimeout(autoRevealTimer.current);
-      autoRevealTimer.current = null;
-    }
-    // Start auto-reveal timer if mode is auto
-    if (revealMode === 'auto' && card) {
-      autoRevealTimer.current = setTimeout(() => {
-        setAnswerRevealed(true);
-      }, autoRevealSeconds * 1000);
-    }
-    return () => {
-      if (autoRevealTimer.current) clearTimeout(autoRevealTimer.current);
-    };
-  }, [currentIdx, revealMode, autoRevealSeconds, card]);
+  }, [currentIdx]);
 
   const intervals = useMemo(() => {
     if (!card) return [];
@@ -82,7 +64,6 @@ export function SRSReviewSession({
   }, [card]);
 
   const handleRevealAnswer = useCallback(() => {
-    if (autoRevealTimer.current) clearTimeout(autoRevealTimer.current);
     setAnswerRevealed(true);
   }, []);
 
@@ -239,19 +220,6 @@ export function SRSReviewSession({
                   <Settings2 className="w-3 h-3" />
                   عرض: {answerMode === 'bottom' ? 'أسفل' : answerMode === 'tooltip' ? 'عند الكلمة' : 'في السطر'}
                 </button>
-                <button onClick={() => setRevealMode(revealMode === 'manual' ? 'auto' : 'manual')} className="flex items-center gap-1 hover:text-foreground transition-colors">
-                  <Clock className="w-3 h-3" />
-                  {revealMode === 'manual' ? 'يدوي' : `تلقائي (${autoRevealSeconds}ث)`}
-                </button>
-                {revealMode === 'auto' && (
-                  <select value={autoRevealSeconds} onChange={e => setAutoRevealSeconds(parseInt(e.target.value))} className="bg-transparent border-none text-[10px] text-muted-foreground">
-                    <option value="1">١ث</option>
-                    <option value="3">٣ث</option>
-                    <option value="5">٥ث</option>
-                    <option value="10">١٠ث</option>
-                    <option value="15">١٥ث</option>
-                  </select>
-                )}
               </div>
             </div>
           ) : (
