@@ -83,11 +83,24 @@ export function computeDistributedBlanks(params: DistributedBlankingParams): Set
   const keys = new Set<string>();
   const rand = seededRandom(seed);
 
-  if (reviewMode === 'ayah' || reviewMode === 'mixed') {
+  // Explicit isolated paths per review mode (no cross-branch overlap)
+  if (reviewMode === 'ayah') {
     blankAyahs(keys, ayahGroups, hiddenAyatCount, distributionMode, rand);
+    return keys;
   }
 
-  if (reviewMode === 'word' || reviewMode === 'mixed') {
+  if (reviewMode === 'word') {
+    if (hiddenWordsMode === 'percentage') {
+      blankWordsByPercentage(keys, allWordTokens, ayahGroups, hiddenWordsPercentage, percentageScope, distributionMode, wordSequenceMode, rand);
+    } else {
+      blankWords(keys, allWordTokens, ayahGroups, hiddenWordsCount, distributionMode, wordSequenceMode, rand);
+    }
+    return keys;
+  }
+
+  // mixed => apply both explicitly: ayat first, then words from remaining tokens
+  if (reviewMode === 'mixed') {
+    blankAyahs(keys, ayahGroups, hiddenAyatCount, distributionMode, rand);
     if (hiddenWordsMode === 'percentage') {
       blankWordsByPercentage(keys, allWordTokens, ayahGroups, hiddenWordsPercentage, percentageScope, distributionMode, wordSequenceMode, rand);
     } else {
