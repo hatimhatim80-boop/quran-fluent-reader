@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useTahfeezStore } from '@/stores/tahfeezStore';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
