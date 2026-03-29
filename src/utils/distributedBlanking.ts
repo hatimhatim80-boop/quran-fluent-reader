@@ -149,7 +149,7 @@ function blankAyahs(
   distribution: string,
   rand: () => number
 ): number {
-  if (ayahGroups.length === 0) return;
+  if (ayahGroups.length === 0 || count <= 0) return 0;
   const n = Math.min(count, ayahGroups.length);
 
   let selectedIndices: number[];
@@ -180,6 +180,7 @@ function blankWords(
   wordSequenceMode: string,
   rand: () => number
 ): number {
+  if (count <= 0) return 0;
   // Filter out tokens already blanked (from ayah blanking in mixed mode) and non-actual words
   const available = allWordTokens.filter(t => !keys.has(t.key) && isActualWord(t.text));
   if (available.length === 0) return 0;
@@ -264,15 +265,17 @@ function blankWordsSequential(
   wordSequenceMode: string,
   rand: () => number
 ): number {
+  if (count <= 0 || available.length === 0) return 0;
   let selectedWords = 0;
   if (wordSequenceMode === 'same-ayah-only') {
     // Build a map: for each ayah group, find the available tokens in order
+    const availableKeys = new Set(available.map(a => a.key));
     const ayahAvailable: TokenInfo[][] = [];
     for (const group of ayahGroups) {
-      const avail = group.filter(t => available.some(a => a.key === t.key));
+      const avail = group.filter(t => availableKeys.has(t.key));
       if (avail.length > 0) ayahAvailable.push(avail);
     }
-    if (ayahAvailable.length === 0) return;
+    if (ayahAvailable.length === 0) return 0;
 
     // Pick a random ayah that has enough words, or pick the one with the most
     let remaining = count;
