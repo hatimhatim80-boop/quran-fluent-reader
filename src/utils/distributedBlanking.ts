@@ -65,6 +65,8 @@ export interface DistributedBlankingParams {
   percentageScope?: 'per-ayah' | 'per-visible-block';
   /** Whether sequential words stay within one ayah */
   wordSequenceMode?: 'same-ayah-only' | 'allow-cross-ayah';
+  /** Where to pick words within each ayah */
+  wordBlankPosition?: 'start' | 'middle' | 'end' | 'mixed';
 }
 
 export interface DistributedBlankingResult {
