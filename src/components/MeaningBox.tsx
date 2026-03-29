@@ -18,6 +18,7 @@ export function MeaningBox({ positionKey, identityKey, defaultMeaning, wordText,
   const getEffectiveMeaning = useHighlightOverrideStore((s) => s.getEffectiveMeaning);
   const { settings } = useSettingsStore();
   const colors = settings.colors;
+  const popover = settings.popover || { width: 200, padding: 12, borderRadius: 12, shadow: 'medium', opacity: 100 };
   const mb = settings.meaningBox || { wordFontSize: 1.4, meaningFontSize: 1.1 };
   const wordColor = colors.popoverWordColor || colors.popoverText || '25 30% 18%';
   const meaningColor = colors.popoverMeaningColor || colors.popoverText || '25 20% 35%';
