@@ -93,6 +93,11 @@ export default function TahfeezPage() {
     segmentMcqMultiPage, setSegmentMcqMultiPage,
     segmentMcqBlankDuration, setSegmentMcqBlankDuration,
     rotateDistributionSeed,
+    reviewMode,
+    hiddenAyatCount, setHiddenAyatCount,
+    hiddenWordsCount, setHiddenWordsCount,
+    hiddenWordsMode,
+    hiddenWordsPercentage, setHiddenWordsPercentage,
   } = useTahfeezStore();
 
   const speech = useSpeech();
@@ -1464,10 +1469,32 @@ export default function TahfeezPage() {
                 </span>
               </div>
               {/* Inline ayah/word count controls */}
-              {autoBlankMode === 'ayah-count' && (
+              {autoBlankMode === 'ayah-count' && (reviewMode === 'ayah' || reviewMode === 'mixed') && (
                 <div className="flex items-center gap-2" dir="rtl">
-                  <span className="text-xs font-arabic text-muted-foreground whitespace-nowrap">آيات: <span className="text-primary font-bold">{ayahCount}</span></span>
-                  <Slider className="flex-1" value={[ayahCount]} onValueChange={([v]) => setAyahCount(v)} min={1} max={15} step={1} />
+                  <span className="text-xs font-arabic text-muted-foreground whitespace-nowrap">آيات: <span className="text-primary font-bold">{hiddenAyatCount}</span></span>
+                  <Slider
+                    className="flex-1"
+                    value={[hiddenAyatCount]}
+                    onValueChange={([v]) => {
+                      setHiddenAyatCount(v);
+                      setAyahCount(v);
+                    }}
+                    min={1}
+                    max={15}
+                    step={1}
+                  />
+                </div>
+              )}
+              {autoBlankMode === 'ayah-count' && (reviewMode === 'word' || reviewMode === 'mixed') && hiddenWordsMode === 'fixed-count' && (
+                <div className="flex items-center gap-2" dir="rtl">
+                  <span className="text-xs font-arabic text-muted-foreground whitespace-nowrap">كلمات: <span className="text-primary font-bold">{hiddenWordsCount}</span></span>
+                  <Slider className="flex-1" value={[hiddenWordsCount]} onValueChange={([v]) => setHiddenWordsCount(v)} min={1} max={20} step={1} />
+                </div>
+              )}
+              {autoBlankMode === 'ayah-count' && (reviewMode === 'word' || reviewMode === 'mixed') && hiddenWordsMode === 'percentage' && (
+                <div className="flex items-center gap-2" dir="rtl">
+                  <span className="text-xs font-arabic text-muted-foreground whitespace-nowrap">نسبة: <span className="text-primary font-bold">{hiddenWordsPercentage}%</span></span>
+                  <Slider className="flex-1" value={[hiddenWordsPercentage]} onValueChange={([v]) => setHiddenWordsPercentage(v)} min={5} max={90} step={5} />
                 </div>
               )}
               {(['beginning', 'middle', 'end', 'beginning-middle', 'middle-end', 'beginning-end', 'beginning-middle-end'] as string[]).includes(autoBlankMode) && (
@@ -1483,6 +1510,21 @@ export default function TahfeezPage() {
                 className="h-full bg-primary transition-all duration-500 ease-linear"
                 style={{ width: `${progress}%` }}
               />
+            </div>
+
+            <div className="page-frame p-2">
+              <details open>
+                <summary className="cursor-pointer text-sm font-arabic font-semibold text-foreground px-2 py-1">⚙️ إعدادات المراجعة أثناء الجلسة</summary>
+                <div className="pt-2">
+                  <TahfeezAutoQuizSettings
+                    currentPage={currentPage}
+                    quizPagesRange={quizPagesRange}
+                    onStart={() => {}}
+                    disabled={false}
+                    compact
+                  />
+                </div>
+              </details>
             </div>
 
             {/* MCQ Panel - TOP position */}
