@@ -181,23 +181,65 @@ function blankWords(
   count: number,
   distribution: string,
   wordSequenceMode: string,
+  wordBlankPosition: string,
   rand: () => number
 ): number {
   if (count <= 0) return 0;
-  // Filter out tokens already blanked (from ayah blanking in mixed mode) and non-actual words
   const available = allWordTokens.filter(t => !keys.has(t.key) && isActualWord(t.text));
   if (available.length === 0) return 0;
   const n = Math.min(count, available.length);
 
   if (distribution === 'sequential') {
-    return blankWordsSequential(keys, available, ayahGroups, n, wordSequenceMode, rand);
+    return blankWordsSequential(keys, available, ayahGroups, n, wordSequenceMode, wordBlankPosition, rand);
   } else {
+    // For scattered distributions, apply position preference per ayah
+    if (wordBlankPosition !== 'mixed') {
+      return blankWordsPositioned(keys, ayahGroups, n, wordBlankPosition, rand);
+    }
     const indices = distributeEvenly(available.length, n, rand);
     for (const idx of indices) {
       keys.add(available[idx].key);
     }
     return indices.length;
   }
+}
+
+/** Pick words at a specific position (start/middle/end) within each ayah */
+function blankWordsPositioned(
+  keys: Set<string>,
+  ayahGroups: TokenInfo[][],
+  count: number,
+  position: string,
+  rand: () => number
+): number {
+  let remaining = count;
+  let selected = 0;
+  const groupIndices = shuffle(Array.from({ length: ayahGroups.length }, (_, i) => i), rand);
+
+  for (const gi of groupIndices) {
+    if (remaining <= 0) break;
+    const group = ayahGroups[gi];
+    const avail = group.filter(t => !keys.has(t.key) && isActualWord(t.text));
+    if (avail.length === 0) continue;
+    const n = Math.min(remaining, Math.max(1, Math.ceil(avail.length * 0.4)));
+    const start = getPositionStart(avail.length, n, position, rand);
+    for (let i = start; i < start + n && i < avail.length; i++) {
+      keys.add(avail[i].key);
+      selected++;
+    }
+    remaining -= n;
+  }
+  return selected;
+}
+
+/** Get start index based on position preference */
+function getPositionStart(total: number, count: number, position: string, rand: () => number): number {
+  const maxStart = Math.max(0, total - count);
+  if (position === 'start') return 0;
+  if (position === 'end') return maxStart;
+  if (position === 'middle') return Math.max(0, Math.floor(total / 2) - Math.floor(count / 2));
+  // mixed: random
+  return maxStart > 0 ? Math.floor(rand() * (maxStart + 1)) : 0;
 }
 
 function blankWordsByPercentage(
