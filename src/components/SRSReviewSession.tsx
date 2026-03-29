@@ -46,7 +46,6 @@ export function SRSReviewSession({
   // ⚠️ FIX: answer is ALWAYS hidden initially. Never auto-reveal.
   const [answerRevealed, setAnswerRevealed] = useState(false);
   const [showManualInterval, setShowManualInterval] = useState(false);
-  const [manualDays, setManualDays] = useState('3');
   const [reviewed, setReviewed] = useState<Set<number>>(new Set());
   const [ratings, setRatings] = useState<Map<number, SRSRating>>(new Map());
   const [showIndex, setShowIndex] = useState(false);

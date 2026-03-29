@@ -83,7 +83,10 @@ export function MeaningBox({ positionKey, identityKey, defaultMeaning, wordText,
           </div>
 
           {/* Meaning */}
-          <div className="rounded-xl p-4 border border-border/50" style={{ background: `hsl(${colors.popoverBackground})` }}>
+          <div className="rounded-xl p-3 border border-border/50" style={{
+            background: `hsl(${colors.popoverBackground})`,
+            borderRadius: `${Math.max(4, popover.borderRadius - 4)}px`,
+          }}>
             <p className="font-arabic leading-relaxed" style={{ color: `hsl(${meaningColor})`, fontSize: `${mb.meaningFontSize}rem` }}>{meaningInfo.meaning}</p>
           </div>
         </motion.div>
