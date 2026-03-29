@@ -201,14 +201,6 @@ export function TahfeezSessionReviewSettings({ showDebugBadge = false }: Tahfeez
         </div>
       </div>
 
-      <div className="border border-dashed border-border rounded-md p-2 bg-muted/30 text-[11px] text-muted-foreground space-y-0.5">
-        <p>reviewMode = {reviewMode}</p>
-        <p>hiddenAyatCount = {hiddenAyatCount}</p>
-        <p>hiddenWordsMode = {hiddenWordsMode}</p>
-        <p>hiddenWordsCount = {hiddenWordsCount}</p>
-        <p>hiddenWordsPercentage = {hiddenWordsPercentage}</p>
-        <p>distributionMode = {distributionMode}</p>
-      </div>
     </div>
   );
 }
