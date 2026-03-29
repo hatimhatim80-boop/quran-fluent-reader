@@ -468,6 +468,7 @@ export const useTahfeezStore = create<TahfeezState>()(
         hiddenWordsPercentage: state.hiddenWordsPercentage,
         percentageScope: state.percentageScope,
         wordSequenceMode: state.wordSequenceMode,
+        wordBlankPosition: state.wordBlankPosition,
       }),
     }
   )
