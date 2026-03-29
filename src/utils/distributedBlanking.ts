@@ -317,6 +317,7 @@ function blankWordsSequential(
   ayahGroups: TokenInfo[][],
   count: number,
   wordSequenceMode: string,
+  wordBlankPosition: string,
   rand: () => number
 ): number {
   if (count <= 0 || available.length === 0) return 0;
