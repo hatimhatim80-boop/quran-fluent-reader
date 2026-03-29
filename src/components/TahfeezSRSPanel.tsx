@@ -264,31 +264,43 @@ export function TahfeezSRSPanel({
 
   if (sessionMode === 'review') {
     return (
-      <div className="space-y-2">
-        <TahfeezSessionReviewSettings showDebugBadge />
-        <SRSReviewSession
-          cards={sessionCards}
-          onFinish={() => setSessionMode('setup')}
-          onNavigateToPage={onNavigateToPage}
-          portalName="التحفيظ"
-          renderCard={(card, answerRevealed) => {
-            if (card.type === 'tahfeez-word') {
-              // Word-level: blank only this specific word
-              return (
-                <div className="p-2">
-                  {renderPageWithBlanks(card.page, answerRevealed ? [] : [card.contentKey], card)}
-                </div>
-              );
-            }
-            // Ayah-level: blank everything or reveal
+      <SRSReviewSession
+        cards={sessionCards}
+        onFinish={() => setSessionMode('setup')}
+        onNavigateToPage={onNavigateToPage}
+        portalName="التحفيظ"
+        headerExtra={
+          <Sheet>
+            <SheetTrigger asChild>
+              <button className="w-7 h-7 rounded-full flex items-center justify-center hover:bg-accent transition-colors" title="إعدادات المراجعة">
+                <Settings className="w-3.5 h-3.5" />
+              </button>
+            </SheetTrigger>
+            <SheetContent side="right" className="overflow-y-auto w-[340px] sm:max-w-[400px]" dir="rtl">
+              <SheetHeader>
+                <SheetTitle className="font-arabic text-right">إعدادات المراجعة</SheetTitle>
+              </SheetHeader>
+              <div className="mt-4">
+                <TahfeezSessionReviewSettings />
+              </div>
+            </SheetContent>
+          </Sheet>
+        }
+        renderCard={(card, answerRevealed) => {
+          if (card.type === 'tahfeez-word') {
             return (
               <div className="p-2">
-                {renderPageWithBlanks(card.page, answerRevealed ? [] : ['__ALL_BLANKED__'], card)}
+                {renderPageWithBlanks(card.page, answerRevealed ? [] : [card.contentKey], card)}
               </div>
             );
-          }}
-        />
-      </div>
+          }
+          return (
+            <div className="p-2">
+              {renderPageWithBlanks(card.page, answerRevealed ? [] : ['__ALL_BLANKED__'], card)}
+            </div>
+          );
+        }}
+      />
     );
   }
 
