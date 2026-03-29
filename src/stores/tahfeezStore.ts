@@ -235,6 +235,8 @@ interface TahfeezState {
   setPercentageScope: (scope: TahfeezState['percentageScope']) => void;
   wordSequenceMode: 'same-ayah-only' | 'allow-cross-ayah';
   setWordSequenceMode: (mode: TahfeezState['wordSequenceMode']) => void;
+  wordBlankPosition: 'start' | 'middle' | 'end' | 'mixed';
+  setWordBlankPosition: (pos: TahfeezState['wordBlankPosition']) => void;
 }
 
 export const useTahfeezStore = create<TahfeezState>()(
