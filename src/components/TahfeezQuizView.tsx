@@ -276,6 +276,7 @@ export function TahfeezQuizView({
           hiddenWordsPercentage,
           percentageScope,
           wordSequenceMode,
+          wordBlankPosition,
         });
         distributedStats = {
           actualSelectedAyatCount: distributed.selectedAyatCount,
