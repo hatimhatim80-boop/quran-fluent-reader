@@ -281,7 +281,7 @@ export function TahfeezQuizView({
           actualSelectedWordCount: distributed.selectedWordCount,
           sampleSelectedKeys: distributed.sampleSelectedKeys,
         };
-        for (const k of distributed) keys.add(k);
+        for (const k of distributed.keys) keys.add(k);
       } else if (autoBlankMode === 'full-page') {
         generationPath = 'full-page';
         allWordTokens.forEach(t => keys.add(t.key));
