@@ -474,8 +474,26 @@ export function TahfeezQuizView({
       el.setAttribute('data-page', String(page.pageNumber));
       el.setAttribute('data-ayah-groups', JSON.stringify(revealKeyGroups.ayahGroups));
       el.setAttribute('data-waqf-groups', JSON.stringify(revealKeyGroups.waqfGroups));
+      el.setAttribute('data-generation-path', blankingComputation.generationPath);
+      el.setAttribute('data-review-mode', reviewMode);
+      el.setAttribute(
+        'data-actual-selected-ayat',
+        String(
+          blankingComputation.generationPath === 'distributed-ayah-count' && blankingComputation.distributedStats
+            ? blankingComputation.distributedStats.actualSelectedAyatCount
+            : 0
+        )
+      );
+      el.setAttribute(
+        'data-actual-selected-words',
+        String(
+          blankingComputation.generationPath === 'distributed-ayah-count' && blankingComputation.distributedStats
+            ? blankingComputation.distributedStats.actualSelectedWordCount
+            : 0
+        )
+      );
     }
-  }, [blankedKeysList, firstKeysSet, blankedWordTexts, revealKeyGroups]);
+  }, [blankedKeysList, firstKeysSet, blankedWordTexts, revealKeyGroups, page.pageNumber, blankingComputation, reviewMode]);
 
 
   // Build font string for measuring
