@@ -235,6 +235,8 @@ interface TahfeezState {
   setPercentageScope: (scope: TahfeezState['percentageScope']) => void;
   wordSequenceMode: 'same-ayah-only' | 'allow-cross-ayah';
   setWordSequenceMode: (mode: TahfeezState['wordSequenceMode']) => void;
+  wordBlankPosition: 'start' | 'middle' | 'end' | 'mixed';
+  setWordBlankPosition: (pos: TahfeezState['wordBlankPosition']) => void;
 }
 
 export const useTahfeezStore = create<TahfeezState>()(
@@ -411,6 +413,8 @@ export const useTahfeezStore = create<TahfeezState>()(
       setPercentageScope: (scope) => set({ percentageScope: scope }),
       wordSequenceMode: 'same-ayah-only',
       setWordSequenceMode: (mode) => set({ wordSequenceMode: mode }),
+      wordBlankPosition: 'mixed',
+      setWordBlankPosition: (pos) => set({ wordBlankPosition: pos }),
     }),
     {
       name: 'tahfeez.v2',
@@ -464,6 +468,7 @@ export const useTahfeezStore = create<TahfeezState>()(
         hiddenWordsPercentage: state.hiddenWordsPercentage,
         percentageScope: state.percentageScope,
         wordSequenceMode: state.wordSequenceMode,
+        wordBlankPosition: state.wordBlankPosition,
       }),
     }
   )

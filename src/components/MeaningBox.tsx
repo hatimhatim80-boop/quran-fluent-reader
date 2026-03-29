@@ -18,6 +18,7 @@ export function MeaningBox({ positionKey, identityKey, defaultMeaning, wordText,
   const getEffectiveMeaning = useHighlightOverrideStore((s) => s.getEffectiveMeaning);
   const { settings } = useSettingsStore();
   const colors = settings.colors;
+  const popover = settings.popover || { width: 200, padding: 12, borderRadius: 12, shadow: 'medium', opacity: 100 };
   const mb = settings.meaningBox || { wordFontSize: 1.4, meaningFontSize: 1.1 };
   const wordColor = colors.popoverWordColor || colors.popoverText || '25 30% 18%';
   const meaningColor = colors.popoverMeaningColor || colors.popoverText || '25 20% 35%';
@@ -36,11 +37,20 @@ export function MeaningBox({ positionKey, identityKey, defaultMeaning, wordText,
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: 20 }}
           transition={{ duration: 0.25, ease: "easeOut" }}
-          className="meaning-panel p-5 sm:p-6"
+          className="meaning-panel"
           dir="rtl"
           style={{
             background: `hsl(${colors.popoverBackground})`,
             borderColor: `hsl(${colors.popoverBorder})`,
+            borderWidth: '1px',
+            borderStyle: 'solid',
+            borderRadius: `${popover.borderRadius}px`,
+            padding: `${popover.padding}px`,
+            opacity: (popover.opacity ?? 100) / 100,
+            boxShadow: popover.shadow === 'none' ? 'none'
+              : popover.shadow === 'soft' ? '0 2px 8px hsl(var(--foreground) / 0.08)'
+              : popover.shadow === 'strong' ? '0 8px 30px hsl(var(--foreground) / 0.18)'
+              : '0 4px 16px hsl(var(--foreground) / 0.1)',
           }}
         >
           {/* Header */}
@@ -73,7 +83,10 @@ export function MeaningBox({ positionKey, identityKey, defaultMeaning, wordText,
           </div>
 
           {/* Meaning */}
-          <div className="rounded-xl p-4 border border-border/50" style={{ background: `hsl(${colors.popoverBackground})` }}>
+          <div className="rounded-xl p-3 border border-border/50" style={{
+            background: `hsl(${colors.popoverBackground})`,
+            borderRadius: `${Math.max(4, popover.borderRadius - 4)}px`,
+          }}>
             <p className="font-arabic leading-relaxed" style={{ color: `hsl(${meaningColor})`, fontSize: `${mb.meaningFontSize}rem` }}>{meaningInfo.meaning}</p>
           </div>
         </motion.div>

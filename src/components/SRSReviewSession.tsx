@@ -3,7 +3,6 @@ import { useSRSStore, SRSCard, SRSRating, RATING_OPTIONS, formatInterval, previe
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { ChevronLeft, ChevronRight, X, Eye, Settings2, Flag, List } from 'lucide-react';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from '@/components/ui/drawer';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -47,7 +46,6 @@ export function SRSReviewSession({
   // ⚠️ FIX: answer is ALWAYS hidden initially. Never auto-reveal.
   const [answerRevealed, setAnswerRevealed] = useState(false);
   const [showManualInterval, setShowManualInterval] = useState(false);
-  const [manualDays, setManualDays] = useState('3');
   const [reviewed, setReviewed] = useState<Set<number>>(new Set());
   const [ratings, setRatings] = useState<Map<number, SRSRating>>(new Map());
   const [showIndex, setShowIndex] = useState(false);
@@ -273,7 +271,6 @@ export function SRSReviewSession({
                 <Eye className="w-5 h-5" />
                 إظهار الإجابة
               </Button>
-              {/* Settings row */}
               {availableAnswerModes.length > 1 && (
                 <div className="flex items-center justify-center gap-3 text-[10px] text-muted-foreground font-arabic">
                   <button onClick={switchAnswerMode} className="flex items-center gap-1 hover:text-foreground transition-colors">
@@ -285,6 +282,7 @@ export function SRSReviewSession({
             </div>
           ) : (
             <>
+              {/* SM-2 Rating Buttons */}
               <div className="grid grid-cols-4 gap-2">
                 {RATING_OPTIONS.map(({ rating, label, icon }) => {
                   const intervalInfo = intervals.find(i => i.rating === rating);
@@ -304,33 +302,78 @@ export function SRSReviewSession({
                 })}
               </div>
 
-              <div className="flex items-center justify-center gap-2">
-                <button onClick={() => setShowManualInterval(!showManualInterval)} className="text-xs text-muted-foreground font-arabic flex items-center gap-1 hover:text-foreground transition-colors">
-                  <Settings2 className="w-3 h-3" />
-                  تعديل المدة يدوياً
-                </button>
+              {/* Smart Timing Buttons */}
+              <div className="space-y-1.5">
+                <p className="text-[10px] text-muted-foreground font-arabic text-center">مدة الإعادة الذكية</p>
+                <div className="flex flex-wrap justify-center gap-1.5">
+                  {[
+                    { label: '١ دقيقة', days: 0.0007 },
+                    { label: '٥ دقائق', days: 0.0035 },
+                    { label: '١٠ دقائق', days: 0.007 },
+                    { label: 'ساعة', days: 0.04 },
+                  ].map(({ label, days }) => (
+                    <button
+                      key={days}
+                      onClick={() => handleRate(3, days)}
+                      className="px-2.5 py-1.5 rounded-md border border-border text-[10px] font-arabic hover:bg-accent transition-colors"
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+                {showManualInterval ? (
+                  <div className="flex flex-wrap justify-center gap-1.5 animate-fade-in">
+                    {[
+                      { label: 'يوم', days: 1 },
+                      { label: '٣ أيام', days: 3 },
+                      { label: 'أسبوع', days: 7 },
+                      { label: 'أسبوعان', days: 14 },
+                      { label: 'شهر', days: 30 },
+                    ].map(({ label, days }) => (
+                      <button
+                        key={days}
+                        onClick={() => handleRate(3, days)}
+                        className="px-2.5 py-1.5 rounded-md border border-border text-[10px] font-arabic hover:bg-accent transition-colors"
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="flex justify-center">
+                    <button onClick={() => setShowManualInterval(true)} className="text-[10px] text-primary font-arabic hover:underline">
+                      المزيد من المدد ←
+                    </button>
+                  </div>
+                )}
               </div>
 
-              {showManualInterval && (
-                <div className="flex items-center justify-center gap-2 animate-fade-in">
-                  <Select value={manualDays} onValueChange={setManualDays}>
-                    <SelectTrigger className="w-32 h-8 text-xs font-arabic"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="0.007">١٠ دقائق</SelectItem>
-                      <SelectItem value="0.04">ساعة</SelectItem>
-                      <SelectItem value="1">يوم</SelectItem>
-                      <SelectItem value="3">٣ أيام</SelectItem>
-                      <SelectItem value="7">أسبوع</SelectItem>
-                      <SelectItem value="14">أسبوعان</SelectItem>
-                      <SelectItem value="30">شهر</SelectItem>
-                      <SelectItem value="90">٣ أشهر</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <Button size="sm" variant="outline" className="font-arabic text-xs h-8" onClick={() => handleRate(3, parseFloat(manualDays))}>
-                    تطبيق
-                  </Button>
+              {/* General Rating */}
+              <div className="space-y-1.5">
+                <p className="text-[10px] text-muted-foreground font-arabic text-center">التقييم العام</p>
+                <div className="flex flex-wrap justify-center gap-1.5">
+                  {[
+                    { label: 'مهمة', rating: 3 as SRSRating, action: 'flag', icon: '⭐' },
+                    { label: 'ضعيفة', rating: 1 as SRSRating, days: 0.007, icon: '😓' },
+                    { label: 'كررها', rating: 0 as SRSRating, days: 0.0007, icon: '🔄' },
+                    { label: 'تثبيت', rating: 5 as SRSRating, days: 90, icon: '📌' },
+                  ].map(({ label, rating, days, action, icon }) => (
+                    <button
+                      key={label}
+                      onClick={() => {
+                        if (action === 'flag' && card) {
+                          toggleFlag(card.id);
+                        }
+                        handleRate(rating, days);
+                      }}
+                      className="flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-border text-[10px] font-arabic hover:bg-accent transition-colors"
+                    >
+                      <span>{icon}</span>
+                      <span>{label}</span>
+                    </button>
+                  ))}
                 </div>
-              )}
+              </div>
             </>
           )}
 

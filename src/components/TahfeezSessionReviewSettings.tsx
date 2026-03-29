@@ -7,7 +7,7 @@ interface TahfeezSessionReviewSettingsProps {
   showDebugBadge?: boolean;
 }
 
-export function TahfeezSessionReviewSettings({ showDebugBadge = false }: TahfeezSessionReviewSettingsProps) {
+export function TahfeezSessionReviewSettings({ showDebugBadge: _showDebugBadge = false }: TahfeezSessionReviewSettingsProps) {
   const {
     reviewMode,
     setReviewMode,
@@ -23,6 +23,8 @@ export function TahfeezSessionReviewSettings({ showDebugBadge = false }: Tahfeez
     distributionMode,
     setDistributionMode,
     setAutoBlankMode,
+    wordBlankPosition,
+    setWordBlankPosition,
   } = useTahfeezStore();
 
   const applyAyahCountMode = () => setAutoBlankMode('ayah-count');
@@ -34,9 +36,6 @@ export function TahfeezSessionReviewSettings({ showDebugBadge = false }: Tahfeez
 
   return (
     <div className="bg-card border border-border rounded-lg p-3 space-y-3 font-arabic" dir="rtl" data-testid="tahfeez-session-review-settings">
-      {showDebugBadge && (
-        <div className="text-[11px] font-semibold text-primary">DEBUG: session-settings-mounted</div>
-      )}
 
       <div className="space-y-1.5">
         <p className="text-xs text-muted-foreground">نوع المراجعة</p>
@@ -201,14 +200,34 @@ export function TahfeezSessionReviewSettings({ showDebugBadge = false }: Tahfeez
         </div>
       </div>
 
-      <div className="border border-dashed border-border rounded-md p-2 bg-muted/30 text-[11px] text-muted-foreground space-y-0.5">
-        <p>reviewMode = {reviewMode}</p>
-        <p>hiddenAyatCount = {hiddenAyatCount}</p>
-        <p>hiddenWordsMode = {hiddenWordsMode}</p>
-        <p>hiddenWordsCount = {hiddenWordsCount}</p>
-        <p>hiddenWordsPercentage = {hiddenWordsPercentage}</p>
-        <p>distributionMode = {distributionMode}</p>
-      </div>
+      {/* Word blank position - only for word/mixed modes */}
+      {(reviewMode === 'word' || reviewMode === 'mixed') && (
+        <div className="space-y-1.5">
+          <p className="text-xs text-muted-foreground">موضع الكلمات المخفية</p>
+          <div className="flex flex-wrap gap-1.5">
+            {[
+              { value: 'start' as const, label: 'من الأول' },
+              { value: 'middle' as const, label: 'من الوسط' },
+              { value: 'end' as const, label: 'من الآخر' },
+              { value: 'mixed' as const, label: 'مختلط' },
+            ].map((opt) => (
+              <Button
+                key={opt.value}
+                variant={wordBlankPosition === opt.value ? 'default' : 'outline'}
+                size="sm"
+                className="text-[11px] h-7 px-2.5"
+                onClick={() => {
+                  setWordBlankPosition(opt.value);
+                  applyAyahCountMode();
+                }}
+              >
+                {opt.label}
+              </Button>
+            ))}
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }

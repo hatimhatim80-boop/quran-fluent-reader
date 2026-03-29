@@ -126,6 +126,7 @@ export function TahfeezQuizView({
   const hiddenWordsPercentage = useTahfeezStore(s => s.hiddenWordsPercentage);
   const percentageScope = useTahfeezStore(s => s.percentageScope);
   const wordSequenceMode = useTahfeezStore(s => s.wordSequenceMode);
+  const wordBlankPosition = useTahfeezStore(s => s.wordBlankPosition);
   const displayMode = settings.display?.mode || 'auto15';
   const textDirection = settings.display?.textDirection || 'rtl';
   const mobileLinesPerPage = settings.display?.mobileLinesPerPage || 15;
@@ -275,6 +276,7 @@ export function TahfeezQuizView({
           hiddenWordsPercentage,
           percentageScope,
           wordSequenceMode,
+          wordBlankPosition,
         });
         distributedStats = {
           actualSelectedAyatCount: distributed.selectedAyatCount,
@@ -380,7 +382,7 @@ export function TahfeezQuizView({
     }
 
     return { keys, generationPath, distributedStats };
-  }, [quizSource, storedItems, autoBlankMode, blankCount, ayahCount, page.pageNumber, allWordTokens, ayahGroups, waqfCombinedModes, waqfDisplayMode, forceBlankedKeys, reviewMode, hiddenAyatCount, hiddenWordsCount, distributionMode, distributionSeed, hiddenWordsMode, hiddenWordsPercentage, percentageScope, wordSequenceMode]);
+  }, [quizSource, storedItems, autoBlankMode, blankCount, ayahCount, page.pageNumber, allWordTokens, ayahGroups, waqfCombinedModes, waqfDisplayMode, forceBlankedKeys, reviewMode, hiddenAyatCount, hiddenWordsCount, distributionMode, distributionSeed, hiddenWordsMode, hiddenWordsPercentage, percentageScope, wordSequenceMode, wordBlankPosition]);
   const blankedKeys = blankingComputation.keys;
 
   // Export blanked keys list (ordered) for parent to use in sequencing
@@ -801,23 +803,7 @@ export function TahfeezQuizView({
   return (
     <div ref={autoFlowRef} className="page-frame p-4 sm:p-6" style={{ ...pageFrameStyle, ...(isAutoFlow15 ? { aspectRatio: '3 / 4.2', overflow: 'hidden' } : {}) }} dir={textDirection}>
       <div id="tahfeez-blanked-keys" className="hidden" />
-      {debugInfo && (
-        <div className="border border-dashed border-primary/40 rounded-md p-2 mb-3 bg-muted/30 text-[11px] font-mono space-y-0.5" dir="ltr">
-          <p className="font-bold text-primary">DEBUG blanking</p>
-          <p>generationPath = {debugInfo.generationPath}</p>
-          <p>reviewMode = {debugInfo.reviewMode}</p>
-          <p>hiddenAyatCount = {debugInfo.hiddenAyatCount}</p>
-          <p>hiddenWordsMode = {debugInfo.hiddenWordsMode}</p>
-          <p>hiddenWordsCount = {debugInfo.hiddenWordsCount}</p>
-          <p>hiddenWordsPercentage = {debugInfo.hiddenWordsPercentage}</p>
-          <p>distributionMode = {debugInfo.distributionMode}</p>
-          <p>requestedAyatCount = {debugInfo.requestedAyat}</p>
-          <p>actualSelectedAyatCount = {debugInfo.actualSelectedAyat}</p>
-          <p>requestedWords = {debugInfo.requestedWords}</p>
-          <p>actualSelectedWordCount = {debugInfo.actualSelectedWords}</p>
-          <p>sampleSelectedKeys = {debugInfo.sampleSelectedKeys.join(', ') || '-'}</p>
-        </div>
-      )}
+      {/* Debug panel removed — data retained in console only */}
       <div className="flex justify-center mb-5">
         <span className="bg-secondary/80 text-secondary-foreground px-4 py-1.5 rounded-full text-sm font-arabic shadow-sm">
           صفحة {page.pageNumber}
