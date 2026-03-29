@@ -793,10 +793,10 @@ export function TahfeezQuizView({
           <p>hiddenWordsCount = {debugInfo.hiddenWordsCount}</p>
           <p>hiddenWordsPercentage = {debugInfo.hiddenWordsPercentage}</p>
           <p>distributionMode = {debugInfo.distributionMode}</p>
-          <p>requestedAyat = {debugInfo.requestedAyat}</p>
-          <p>actualSelectedAyat = {debugInfo.actualSelectedAyat}</p>
+          <p>requestedAyatCount = {debugInfo.requestedAyat}</p>
+          <p>actualSelectedAyatCount = {debugInfo.actualSelectedAyat}</p>
           <p>requestedWords = {debugInfo.requestedWords}</p>
-          <p>actualSelectedWords = {debugInfo.actualSelectedWords}</p>
+          <p>actualSelectedWordCount = {debugInfo.actualSelectedWords}</p>
           <p>sampleSelectedKeys = {debugInfo.sampleSelectedKeys.join(', ') || '-'}</p>
         </div>
       )}
