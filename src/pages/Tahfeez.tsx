@@ -30,6 +30,7 @@ import { AutoPlayDebugPanel } from '@/components/AutoPlayDebugPanel';
 import { TahfeezFontSettings } from '@/components/TahfeezFontSettings';
 import { TahfeezAutoQuizSettings } from '@/components/TahfeezAutoQuizSettings';
 import { TahfeezSRSPanel } from '@/components/TahfeezSRSPanel';
+import { TahfeezSessionReviewSettings } from '@/components/TahfeezSessionReviewSettings';
 // ---- Quran Index Data ----
 const SURAHS = Object.entries(SURAH_NAMES).map(([name, number]) => ({
   number, name,
@@ -1512,131 +1513,7 @@ export default function TahfeezPage() {
               />
             </div>
 
-            {/* ═══ Inline Review Settings ═══ */}
-            <div className="page-frame p-3 space-y-3" dir="rtl">
-              <p className="text-sm font-arabic font-semibold text-foreground">⚙️ إعدادات المراجعة</p>
-
-              {/* Review mode */}
-              <div className="space-y-1.5">
-                <p className="text-[11px] font-arabic text-muted-foreground font-medium">نوع المراجعة</p>
-                <div className="flex flex-wrap gap-1.5">
-                  {[
-                    { value: 'ayah' as const, label: 'آيات' },
-                    { value: 'word' as const, label: 'كلمات' },
-                    { value: 'mixed' as const, label: 'مختلط' },
-                  ].map(opt => (
-                    <Button key={opt.value}
-                      variant={reviewMode === opt.value ? 'default' : 'outline'}
-                      size="sm" onClick={() => { useTahfeezStore.getState().setReviewMode(opt.value); setAutoBlankMode('ayah-count'); }}
-                      className="font-arabic text-[11px] h-7 px-2.5">
-                      {opt.label}
-                    </Button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Hidden ayat count */}
-              {(reviewMode === 'ayah' || reviewMode === 'mixed') && (
-                <div className="space-y-1">
-                  <label className="text-[11px] font-arabic text-muted-foreground">عدد الآيات المخفية: <span className="text-primary font-bold">{hiddenAyatCount}</span></label>
-                  <div className="flex flex-wrap gap-1.5">
-                    {[1, 2, 3, 5, 10].map(n => (
-                      <Button key={n}
-                        variant={hiddenAyatCount === n ? 'default' : 'outline'}
-                        size="sm" onClick={() => { setHiddenAyatCount(n); setAyahCount(n); setAutoBlankMode('ayah-count'); }}
-                        className="text-[11px] h-7 px-3 min-w-[2.2rem]">
-                        {n}
-                      </Button>
-                    ))}
-                  </div>
-                  <Slider value={[hiddenAyatCount]} onValueChange={([v]) => { setHiddenAyatCount(v); setAyahCount(v); }} min={1} max={15} step={1} />
-                </div>
-              )}
-
-              {/* Hidden words controls */}
-              {(reviewMode === 'word' || reviewMode === 'mixed') && (
-                <div className="space-y-2">
-                  <p className="text-[11px] font-arabic text-muted-foreground font-medium">وضع إخفاء الكلمات</p>
-                  <div className="flex flex-wrap gap-1.5">
-                    <Button variant={hiddenWordsMode === 'fixed-count' ? 'default' : 'outline'} size="sm"
-                      onClick={() => { useTahfeezStore.getState().setHiddenWordsMode('fixed-count'); setAutoBlankMode('ayah-count'); }} className="font-arabic text-[11px] h-7 px-2.5">
-                      عدد ثابت
-                    </Button>
-                    <Button variant={hiddenWordsMode === 'percentage' ? 'default' : 'outline'} size="sm"
-                      onClick={() => { useTahfeezStore.getState().setHiddenWordsMode('percentage'); setAutoBlankMode('ayah-count'); }} className="font-arabic text-[11px] h-7 px-2.5">
-                      نسبة مئوية
-                    </Button>
-                  </div>
-
-                  {hiddenWordsMode === 'fixed-count' && (
-                    <div className="space-y-1">
-                      <label className="text-[11px] font-arabic text-muted-foreground">عدد الكلمات المخفية: <span className="text-primary font-bold">{hiddenWordsCount}</span></label>
-                      <div className="flex flex-wrap gap-1.5">
-                        {[1, 2, 3, 5, 10].map(n => (
-                          <Button key={n}
-                            variant={hiddenWordsCount === n ? 'default' : 'outline'}
-                            size="sm" onClick={() => { setHiddenWordsCount(n); setAutoBlankMode('ayah-count'); }}
-                            className="text-[11px] h-7 px-3 min-w-[2.2rem]">
-                            {n}
-                          </Button>
-                        ))}
-                      </div>
-                      <Slider value={[hiddenWordsCount]} onValueChange={([v]) => { setHiddenWordsCount(v); setAutoBlankMode('ayah-count'); }} min={1} max={20} step={1} />
-                    </div>
-                  )}
-
-                  {hiddenWordsMode === 'percentage' && (
-                    <div className="space-y-1">
-                      <label className="text-[11px] font-arabic text-muted-foreground">نسبة الكلمات المخفية: <span className="text-primary font-bold">{hiddenWordsPercentage}%</span></label>
-                      <div className="flex flex-wrap gap-1.5">
-                        {[10, 25, 50, 70, 80].map(p => (
-                          <Button key={p}
-                            variant={hiddenWordsPercentage === p ? 'default' : 'outline'}
-                            size="sm" onClick={() => { setHiddenWordsPercentage(p); setAutoBlankMode('ayah-count'); }}
-                            className="text-[11px] h-7 px-2.5 min-w-[2.5rem]">
-                            {p}%
-                          </Button>
-                        ))}
-                      </div>
-                      <Slider value={[hiddenWordsPercentage]} onValueChange={([v]) => { setHiddenWordsPercentage(v); setAutoBlankMode('ayah-count'); }} min={5} max={90} step={5} />
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Distribution mode */}
-              <div className="space-y-1.5">
-                <p className="text-[11px] font-arabic text-muted-foreground font-medium">طريقة التوزيع</p>
-                <div className="flex flex-wrap gap-1.5">
-                  {[
-                    { value: 'sequential' as const, label: 'متتابع' },
-                    { value: 'page-scattered' as const, label: 'موزع بالصفحة' },
-                    { value: 'range-scattered' as const, label: 'موزع بالصفحات' },
-                  ].map(opt => (
-                    <Button key={opt.value}
-                      variant={useTahfeezStore.getState().distributionMode === opt.value ? 'default' : 'outline'}
-                      size="sm" onClick={() => { useTahfeezStore.getState().setDistributionMode(opt.value); setAutoBlankMode('ayah-count'); }}
-                      className="font-arabic text-[11px] h-7 px-2.5">
-                      {opt.label}
-                    </Button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Full settings expandable */}
-              <details>
-                <summary className="cursor-pointer text-[11px] font-arabic text-muted-foreground hover:text-foreground transition-colors">المزيد من الإعدادات...</summary>
-                <div className="pt-2">
-                  <TahfeezAutoQuizSettings
-                    currentPage={currentPage}
-                    quizPagesRange={quizPagesRange}
-                    onStart={() => {}}
-                    disabled={false}
-                    compact
-                  />
-                </div>
-              </details>
-            </div>
+            <TahfeezSessionReviewSettings showDebugBadge />
 
             {/* MCQ Panel - TOP position */}
             {quizInteraction === 'mcq' && mcqDisplayMode === 'panel' && mcqPanelPosition === 'top' && (
