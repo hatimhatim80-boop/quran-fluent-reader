@@ -138,7 +138,16 @@ export function TahfeezAutoQuizSettings({ currentPage, quizPagesRange, onStart, 
               {autoBlankMode === 'ayah-count' && (
                 <div className="space-y-1 pt-1">
                   <label className="text-[11px] font-arabic text-muted-foreground">عدد الآيات: <span className="text-primary font-bold">{ayahCount}</span></label>
-                  <Slider value={[ayahCount]} onValueChange={([v]) => setAyahCount(v)} min={1} max={15} step={1} />
+                  <Slider
+                    value={[ayahCount]}
+                    onValueChange={([v]) => {
+                      setAyahCount(v);
+                      setHiddenAyatCount(v);
+                    }}
+                    min={1}
+                    max={15}
+                    step={1}
+                  />
                 </div>
               )}
             </div>
@@ -257,13 +266,22 @@ export function TahfeezAutoQuizSettings({ currentPage, quizPagesRange, onStart, 
                   {[1, 2, 3, 5, 10].map(n => (
                     <Button key={n}
                       variant={hiddenAyatCount === n ? 'default' : 'outline'}
-                      size="sm" onClick={() => setHiddenAyatCount(n)}
+                      size="sm" onClick={() => { setHiddenAyatCount(n); setAyahCount(n); }}
                       className="text-[11px] h-7 px-3 min-w-[2.2rem]">
                       {n}
                     </Button>
                   ))}
                 </div>
-                <Slider value={[hiddenAyatCount]} onValueChange={([v]) => setHiddenAyatCount(v)} min={1} max={15} step={1} />
+                <Slider
+                  value={[hiddenAyatCount]}
+                  onValueChange={([v]) => {
+                    setHiddenAyatCount(v);
+                    setAyahCount(v);
+                  }}
+                  min={1}
+                  max={15}
+                  step={1}
+                />
               </div>
             )}
 
