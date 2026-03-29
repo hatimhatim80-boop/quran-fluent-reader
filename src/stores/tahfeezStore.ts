@@ -311,7 +311,7 @@ export const useTahfeezStore = create<TahfeezState>()(
 
       quizSource: 'custom',
       setQuizSource: (src) => set({ quizSource: src }),
-      autoBlankMode: 'end',
+      autoBlankMode: 'ayah-count',
       setAutoBlankMode: (mode) => set({ autoBlankMode: mode }),
       waqfCombinedModes: [],
       setWaqfCombinedModes: (modes) => set({ waqfCombinedModes: modes }),
@@ -415,6 +415,14 @@ export const useTahfeezStore = create<TahfeezState>()(
     {
       name: 'tahfeez.v2',
       storage: createJSONStorage(() => idbStorage),
+      merge: (persisted: any, current: any) => {
+        const merged = { ...current, ...(persisted || {}) };
+        // Force autoBlankMode to 'ayah-count' for the distributed engine
+        if (merged.autoBlankMode && merged.autoBlankMode !== 'ayah-count' && merged.autoBlankMode !== 'next-ayah-mcq' && merged.autoBlankMode !== 'next-waqf-mcq') {
+          merged.autoBlankMode = 'ayah-count';
+        }
+        return merged;
+      },
       partialize: (state) => ({
         storedItems: state.storedItems,
         quizSource: state.quizSource,

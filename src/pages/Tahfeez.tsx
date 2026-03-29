@@ -1415,7 +1415,7 @@ export default function TahfeezPage() {
                       page={pgData}
                       quizSource="auto"
                       storedItems={[]}
-                      autoBlankMode="full-page"
+                      autoBlankMode="ayah-count"
                       waqfCombinedModes={[]}
                       blankCount={0}
                       ayahCount={1}
@@ -1427,7 +1427,7 @@ export default function TahfeezPage() {
                   );
                 }
 
-                // Ayah-level or stored-words: blank all or show all
+                // Ayah-level or stored-words: use the distributed engine (respects reviewMode settings)
                 const isWordsCard = card.type === 'tahfeez-words';
                 const cardPageStoredItems = storedItems.filter((item) => item.data.page === pg);
                 return (
@@ -1435,7 +1435,7 @@ export default function TahfeezPage() {
                     page={pgData}
                     quizSource={isWordsCard ? 'custom' : 'auto'}
                     storedItems={isWordsCard ? cardPageStoredItems : []}
-                    autoBlankMode="full-page"
+                    autoBlankMode="ayah-count"
                     waqfCombinedModes={[]}
                     blankCount={blankCount}
                     ayahCount={1}
