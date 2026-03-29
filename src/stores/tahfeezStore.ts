@@ -311,7 +311,7 @@ export const useTahfeezStore = create<TahfeezState>()(
 
       quizSource: 'custom',
       setQuizSource: (src) => set({ quizSource: src }),
-      autoBlankMode: 'end',
+      autoBlankMode: 'ayah-count',
       setAutoBlankMode: (mode) => set({ autoBlankMode: mode }),
       waqfCombinedModes: [],
       setWaqfCombinedModes: (modes) => set({ waqfCombinedModes: modes }),
