@@ -3,6 +3,7 @@ import { useSRSStore, SRSCard } from '@/stores/srsStore';
 import { SRSReviewSession } from './SRSReviewSession';
 import { SRSScopeSelector, SRSScope, scopeToPages } from './SRSScopeSelector';
 import { useTahfeezStore } from '@/stores/tahfeezStore';
+import { TahfeezSessionReviewSettings } from './TahfeezSessionReviewSettings';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Plus, RotateCcw, Download, Upload, Trash2, BookOpen, Type } from 'lucide-react';
@@ -262,28 +263,31 @@ export function TahfeezSRSPanel({
 
   if (sessionMode === 'review') {
     return (
-      <SRSReviewSession
-        cards={sessionCards}
-        onFinish={() => setSessionMode('setup')}
-        onNavigateToPage={onNavigateToPage}
-        portalName="التحفيظ"
-        renderCard={(card, answerRevealed) => {
-          if (card.type === 'tahfeez-word') {
-            // Word-level: blank only this specific word
+      <div className="space-y-2">
+        <TahfeezSessionReviewSettings showDebugBadge />
+        <SRSReviewSession
+          cards={sessionCards}
+          onFinish={() => setSessionMode('setup')}
+          onNavigateToPage={onNavigateToPage}
+          portalName="التحفيظ"
+          renderCard={(card, answerRevealed) => {
+            if (card.type === 'tahfeez-word') {
+              // Word-level: blank only this specific word
+              return (
+                <div className="p-2">
+                  {renderPageWithBlanks(card.page, answerRevealed ? [] : [card.contentKey], card)}
+                </div>
+              );
+            }
+            // Ayah-level: blank everything or reveal
             return (
               <div className="p-2">
-                {renderPageWithBlanks(card.page, answerRevealed ? [] : [card.contentKey], card)}
+                {renderPageWithBlanks(card.page, answerRevealed ? [] : ['__ALL_BLANKED__'], card)}
               </div>
             );
-          }
-          // Ayah-level: blank everything or reveal
-          return (
-            <div className="p-2">
-              {renderPageWithBlanks(card.page, answerRevealed ? [] : ['__ALL_BLANKED__'], card)}
-            </div>
-          );
-        }}
-      />
+          }}
+        />
+      </div>
     );
   }
 
