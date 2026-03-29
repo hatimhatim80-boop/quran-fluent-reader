@@ -291,11 +291,11 @@ export function TahfeezAutoQuizSettings({ currentPage, quizPagesRange, onStart, 
                 <p className="text-[11px] font-arabic text-muted-foreground font-medium">وضع إخفاء الكلمات</p>
                 <div className="flex flex-wrap gap-1.5">
                   <Button variant={hiddenWordsMode === 'fixed-count' ? 'default' : 'outline'} size="sm"
-                    onClick={() => setHiddenWordsMode('fixed-count')} className="font-arabic text-[11px] h-7 px-2.5">
+                    onClick={() => { setHiddenWordsMode('fixed-count'); setAutoBlankMode('ayah-count'); }} className="font-arabic text-[11px] h-7 px-2.5">
                     عدد ثابت
                   </Button>
                   <Button variant={hiddenWordsMode === 'percentage' ? 'default' : 'outline'} size="sm"
-                    onClick={() => setHiddenWordsMode('percentage')} className="font-arabic text-[11px] h-7 px-2.5">
+                    onClick={() => { setHiddenWordsMode('percentage'); setAutoBlankMode('ayah-count'); }} className="font-arabic text-[11px] h-7 px-2.5">
                     نسبة مئوية
                   </Button>
                 </div>
@@ -307,13 +307,13 @@ export function TahfeezAutoQuizSettings({ currentPage, quizPagesRange, onStart, 
                       {[1, 2, 3, 5, 10].map(n => (
                         <Button key={n}
                           variant={hiddenWordsCount === n ? 'default' : 'outline'}
-                          size="sm" onClick={() => setHiddenWordsCount(n)}
+                          size="sm" onClick={() => { setHiddenWordsCount(n); setAutoBlankMode('ayah-count'); }}
                           className="text-[11px] h-7 px-3 min-w-[2.2rem]">
                           {n}
                         </Button>
                       ))}
                     </div>
-                    <Slider value={[hiddenWordsCount]} onValueChange={([v]) => setHiddenWordsCount(v)} min={1} max={20} step={1} />
+                    <Slider value={[hiddenWordsCount]} onValueChange={([v]) => { setHiddenWordsCount(v); setAutoBlankMode('ayah-count'); }} min={1} max={20} step={1} />
                   </div>
                 )}
 
@@ -324,23 +324,23 @@ export function TahfeezAutoQuizSettings({ currentPage, quizPagesRange, onStart, 
                       {[10, 20, 25, 30, 40, 50, 60, 70, 80].map(p => (
                         <Button key={p}
                           variant={hiddenWordsPercentage === p ? 'default' : 'outline'}
-                          size="sm" onClick={() => setHiddenWordsPercentage(p)}
+                          size="sm" onClick={() => { setHiddenWordsPercentage(p); setAutoBlankMode('ayah-count'); }}
                           className="text-[11px] h-7 px-2.5 min-w-[2.5rem]">
                           {p}%
                         </Button>
                       ))}
                     </div>
-                    <Slider value={[hiddenWordsPercentage]} onValueChange={([v]) => setHiddenWordsPercentage(v)} min={5} max={90} step={5} />
+                    <Slider value={[hiddenWordsPercentage]} onValueChange={([v]) => { setHiddenWordsPercentage(v); setAutoBlankMode('ayah-count'); }} min={5} max={90} step={5} />
 
                     <div className="space-y-1 pt-1">
                       <p className="text-[11px] font-arabic text-muted-foreground font-medium">نطاق حساب النسبة</p>
                       <div className="flex flex-wrap gap-1.5">
                         <Button variant={percentageScope === 'per-ayah' ? 'default' : 'outline'} size="sm"
-                          onClick={() => setPercentageScope('per-ayah')} className="font-arabic text-[11px] h-7 px-2.5">
+                          onClick={() => { setPercentageScope('per-ayah'); setAutoBlankMode('ayah-count'); }} className="font-arabic text-[11px] h-7 px-2.5">
                           لكل آية
                         </Button>
                         <Button variant={percentageScope === 'per-visible-block' ? 'default' : 'outline'} size="sm"
-                          onClick={() => setPercentageScope('per-visible-block')} className="font-arabic text-[11px] h-7 px-2.5">
+                          onClick={() => { setPercentageScope('per-visible-block'); setAutoBlankMode('ayah-count'); }} className="font-arabic text-[11px] h-7 px-2.5">
                           للمقطع الظاهر
                         </Button>
                       </div>
