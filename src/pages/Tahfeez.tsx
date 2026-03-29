@@ -1569,7 +1569,7 @@ export default function TahfeezPage() {
               />
             </div>
 
-            <TahfeezSessionReviewSettings showDebugBadge />
+            {/* Session review settings hidden during active quiz — accessible via ⚙️ button */}
 
             {runtimeDebug && (
               <div className="border border-dashed border-primary/40 rounded-md p-2 bg-muted/30 text-[11px] font-mono space-y-0.5" dir="ltr">
