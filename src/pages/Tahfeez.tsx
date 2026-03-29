@@ -164,6 +164,14 @@ export default function TahfeezPage() {
   const [indexTab, setIndexTab] = useState('surahs');
   const [hideBars, setHideBars] = useState(false);
   const [pinchScale, setPinchScale] = useState(1);
+  const [runtimeDebug, setRuntimeDebug] = useState<{
+    generationPath: string;
+    reviewMode: string;
+    actualSelectedAyatCount: number;
+    actualSelectedWordCount: number;
+    renderedKeysCount: number;
+    consumedKeysCount: number;
+  } | null>(null);
   const pinchRef = useRef<{ startDist: number; startScale: number } | null>(null);
   const contentRef = useRef<HTMLDivElement>(null);
   const swipeRef = useRef<{ startX: number; startY: number; startTime: number } | null>(null);
@@ -378,32 +386,81 @@ export default function TahfeezPage() {
     // Segment MCQ modes handle their own navigation — skip the blanked-keys observer entirely
     if (autoBlankMode === 'next-ayah-mcq' || autoBlankMode === 'next-waqf-mcq') return;
 
-    let settled = false;
+    let hasReceivedKeys = false;
     let fallbackTimer: ReturnType<typeof setTimeout> | null = null;
+    let lastKeysSig = '';
+    let lastFirstKeysSig = '';
+    let lastWordTextsSig = '';
+    let lastAyahGroupsSig = '';
+    let lastWaqfGroupsSig = '';
+    let lastRuntimeDebugSig = '';
 
     const processKeys = (el: HTMLElement) => {
       try {
         // Verify the element belongs to the current page (avoid stale data from previous page)
         const elPage = el.getAttribute('data-page');
         if (elPage && Number(elPage) !== currentPageRef.current) return false;
-        
-        const keys = JSON.parse(el.getAttribute('data-keys') || '[]');
-        const fKeys = JSON.parse(el.getAttribute('data-first-keys') || '[]');
-        const wordTexts = JSON.parse(el.getAttribute('data-word-texts') || '{}');
-        const ayahGrps = JSON.parse(el.getAttribute('data-ayah-groups') || '[]');
-        const waqfGrps = JSON.parse(el.getAttribute('data-waqf-groups') || '[]');
+
+        const keysSig = el.getAttribute('data-keys') || '[]';
+        const firstKeysSig = el.getAttribute('data-first-keys') || '[]';
+        const wordTextsSig = el.getAttribute('data-word-texts') || '{}';
+        const ayahGroupsSig = el.getAttribute('data-ayah-groups') || '[]';
+        const waqfGroupsSig = el.getAttribute('data-waqf-groups') || '[]';
+
+        const keys = JSON.parse(keysSig);
+        const fKeys = JSON.parse(firstKeysSig);
+        const wordTexts = JSON.parse(wordTextsSig);
+        const ayahGrps = JSON.parse(ayahGroupsSig);
+        const waqfGrps = JSON.parse(waqfGroupsSig);
+
         if (keys.length > 0) {
-          settled = true;
-          // Update refs SYNCHRONOUSLY before state updates so advance() reads correct data
-          blankedKeysListRef.current = keys;
-          firstKeysSetRef.current = new Set(fKeys);
-          wordTextsMapRef.current = wordTexts;
-          ayahKeyGroupsRef.current = ayahGrps;
-          waqfKeyGroupsRef.current = waqfGrps;
-          setBlankedKeysList(keys);
-          setFirstKeysSet(new Set(fKeys));
-          // Collect all word texts on this page for MCQ distractors
-          setAllPageWordTexts(Object.values(wordTexts));
+          hasReceivedKeys = true;
+
+          if (keysSig !== lastKeysSig) {
+            lastKeysSig = keysSig;
+            blankedKeysListRef.current = keys;
+            setBlankedKeysList(keys);
+          }
+
+          if (firstKeysSig !== lastFirstKeysSig) {
+            lastFirstKeysSig = firstKeysSig;
+            firstKeysSetRef.current = new Set(fKeys);
+            setFirstKeysSet(new Set(fKeys));
+          }
+
+          if (wordTextsSig !== lastWordTextsSig) {
+            lastWordTextsSig = wordTextsSig;
+            wordTextsMapRef.current = wordTexts;
+            // Collect all word texts on this page for MCQ distractors
+            setAllPageWordTexts(Object.values(wordTexts));
+          }
+
+          if (ayahGroupsSig !== lastAyahGroupsSig) {
+            lastAyahGroupsSig = ayahGroupsSig;
+            ayahKeyGroupsRef.current = ayahGrps;
+          }
+
+          if (waqfGroupsSig !== lastWaqfGroupsSig) {
+            lastWaqfGroupsSig = waqfGroupsSig;
+            waqfKeyGroupsRef.current = waqfGrps;
+          }
+
+          const generationPath = el.getAttribute('data-generation-path') || 'unknown';
+          const reviewModeValue = el.getAttribute('data-review-mode') || 'unknown';
+          const actualSelectedAyatCount = Number(el.getAttribute('data-actual-selected-ayat') || '0');
+          const actualSelectedWordCount = Number(el.getAttribute('data-actual-selected-words') || '0');
+          const runtimeSig = `${generationPath}|${reviewModeValue}|${actualSelectedAyatCount}|${actualSelectedWordCount}|${keys.length}|${blankedKeysListRef.current.length}`;
+          if (runtimeSig !== lastRuntimeDebugSig) {
+            lastRuntimeDebugSig = runtimeSig;
+            setRuntimeDebug({
+              generationPath,
+              reviewMode: reviewModeValue,
+              actualSelectedAyatCount,
+              actualSelectedWordCount,
+              renderedKeysCount: keys.length,
+              consumedKeysCount: blankedKeysListRef.current.length,
+            });
+          }
 
           // Auto-resume after page transition OR first start
           if (autoResumeQuizRef.current || isFirstStartRef.current) {
@@ -434,27 +491,26 @@ export default function TahfeezPage() {
 
     // Try immediately (element may already be rendered)
     const el = document.getElementById('tahfeez-blanked-keys');
-    if (el && processKeys(el)) {
-      return; // done instantly
-    }
+    if (el) processKeys(el);
 
-    // Use MutationObserver to detect attribute changes on the hidden element
+    // Use MutationObserver to keep parent sequencing synced with rendered keys.
     const observer = new MutationObserver(() => {
-      if (settled) return;
       const el = document.getElementById('tahfeez-blanked-keys');
-      if (el && processKeys(el)) {
-        observer.disconnect();
-        if (fallbackTimer) clearTimeout(fallbackTimer);
-      }
+      if (el) processKeys(el);
     });
 
     // Observe the entire container for subtree changes and attribute mutations
     const container = document.body;
-    observer.observe(container, { childList: true, subtree: true, attributes: true, attributeFilter: ['data-keys'] });
+    observer.observe(container, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+      attributeFilter: ['data-keys', 'data-first-keys', 'data-word-texts', 'data-ayah-groups', 'data-waqf-groups', 'data-page', 'data-generation-path', 'data-review-mode', 'data-actual-selected-ayat', 'data-actual-selected-words'],
+    });
 
     // Fallback timeout: if no keys after 5s, skip page
     fallbackTimer = setTimeout(() => {
-      if (settled) return;
+      if (hasReceivedKeys) return;
       observer.disconnect();
       if (autoResumeQuizRef.current || isFirstStartRef.current) {
         autoResumeQuizRef.current = false;
@@ -483,7 +539,7 @@ export default function TahfeezPage() {
       if (fallbackTimer) clearTimeout(fallbackTimer);
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [quizStarted, pageData, currentPage, autoBlankMode]);
+  }, [quizStarted, pageData, currentPage, autoBlankMode, quizInteraction]);
 
   // Ref to track reveal index internally (avoids re-triggering the advance effect)
   const currentRevealIdxRef = useRef(-1);
@@ -1514,6 +1570,18 @@ export default function TahfeezPage() {
             </div>
 
             <TahfeezSessionReviewSettings showDebugBadge />
+
+            {runtimeDebug && (
+              <div className="border border-dashed border-primary/40 rounded-md p-2 bg-muted/30 text-[11px] font-mono space-y-0.5" dir="ltr">
+                <p className="font-bold text-primary">DEBUG runtime-sync</p>
+                <p>generationPath(render) = {runtimeDebug.generationPath}</p>
+                <p>reviewMode(render) = {runtimeDebug.reviewMode}</p>
+                <p>actualSelectedAyatCount(render) = {runtimeDebug.actualSelectedAyatCount}</p>
+                <p>actualSelectedWordCount(render) = {runtimeDebug.actualSelectedWordCount}</p>
+                <p>renderedKeysCount = {runtimeDebug.renderedKeysCount}</p>
+                <p>consumedKeysCount(parent) = {runtimeDebug.consumedKeysCount}</p>
+              </div>
+            )}
 
             {/* MCQ Panel - TOP position */}
             {quizInteraction === 'mcq' && mcqDisplayMode === 'panel' && mcqPanelPosition === 'top' && (
