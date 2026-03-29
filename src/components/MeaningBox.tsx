@@ -37,11 +37,20 @@ export function MeaningBox({ positionKey, identityKey, defaultMeaning, wordText,
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: 20 }}
           transition={{ duration: 0.25, ease: "easeOut" }}
-          className="meaning-panel p-5 sm:p-6"
+          className="meaning-panel"
           dir="rtl"
           style={{
             background: `hsl(${colors.popoverBackground})`,
             borderColor: `hsl(${colors.popoverBorder})`,
+            borderWidth: '1px',
+            borderStyle: 'solid',
+            borderRadius: `${popover.borderRadius}px`,
+            padding: `${popover.padding}px`,
+            opacity: (popover.opacity ?? 100) / 100,
+            boxShadow: popover.shadow === 'none' ? 'none'
+              : popover.shadow === 'soft' ? '0 2px 8px hsl(var(--foreground) / 0.08)'
+              : popover.shadow === 'strong' ? '0 8px 30px hsl(var(--foreground) / 0.18)'
+              : '0 4px 16px hsl(var(--foreground) / 0.1)',
           }}
         >
           {/* Header */}
