@@ -4,7 +4,7 @@ import { normalizeArabic } from '@/utils/quranParser';
 import { useSettingsStore } from '@/stores/settingsStore';
 import { TahfeezItem } from '@/stores/tahfeezStore';
 import { useTahfeezStore } from '@/stores/tahfeezStore';
-import { computeDistributedBlanks } from '@/utils/distributedBlanking';
+import { computeDistributedBlanksDetailed } from '@/utils/distributedBlanking';
 import { useAutoFlowFit } from '@/hooks/useAutoFlowFit';
 import { redistributeLines, shouldRedistribute } from '@/utils/lineRedistributor';
 import { formatBismillah, shouldNoJustify, bindVerseNumbersSimple } from '@/utils/lineTokenUtils';
@@ -82,6 +82,14 @@ interface TokenInfo {
   hasWaqf: boolean;
   waqfMark: string;
 }
+
+type BlankingGenerationPath =
+  | 'forceBlankedKeys'
+  | 'custom-items'
+  | 'distributed-ayah-count'
+  | 'full-page'
+  | 'waqf-combined'
+  | 'legacy-auto-mode';
 
 export function TahfeezQuizView({
   page,
@@ -214,14 +222,23 @@ export function TahfeezQuizView({
   }, [effectiveText]);
 
   // Determine which keys should be blanked (uses precomputed ayahGroups)
-  const blankedKeys = useMemo((): Set<string> => {
+  const blankingComputation = useMemo(() => {
     // If forceBlankedKeys is provided, use it directly (for SRS word-level review)
     if (forceBlankedKeys && forceBlankedKeys.length > 0) {
-      return new Set(forceBlankedKeys);
+      const keys = new Set(forceBlankedKeys);
+      return {
+        keys,
+        generationPath: 'forceBlankedKeys' as BlankingGenerationPath,
+        distributedStats: null,
+      };
     }
+
     const keys = new Set<string>();
+    let generationPath: BlankingGenerationPath = 'legacy-auto-mode';
+    let distributedStats: { actualSelectedAyatCount: number; actualSelectedWordCount: number; sampleSelectedKeys: string[] } | null = null;
 
     if (quizSource === 'custom') {
+      generationPath = 'custom-items';
       for (const item of storedItems) {
         if (item.data.page !== page.pageNumber) continue;
         if (item.type === 'word') {
@@ -245,7 +262,8 @@ export function TahfeezQuizView({
       // Auto blanking
       if (autoBlankMode === 'ayah-count') {
         // Unified distributed engine for ayah-count mode (respects review/distribution settings)
-        const distributed = computeDistributedBlanks({
+        generationPath = 'distributed-ayah-count';
+        const distributed = computeDistributedBlanksDetailed({
           reviewMode,
           distributionMode,
           hiddenAyatCount,
@@ -258,10 +276,17 @@ export function TahfeezQuizView({
           percentageScope,
           wordSequenceMode,
         });
-        for (const k of distributed) keys.add(k);
+        distributedStats = {
+          actualSelectedAyatCount: distributed.selectedAyatCount,
+          actualSelectedWordCount: distributed.selectedWordCount,
+          sampleSelectedKeys: distributed.sampleSelectedKeys,
+        };
+        for (const k of distributed.keys) keys.add(k);
       } else if (autoBlankMode === 'full-page') {
+        generationPath = 'full-page';
         allWordTokens.forEach(t => keys.add(t.key));
       } else if (waqfCombinedModes.length > 0) {
+        generationPath = 'waqf-combined';
         // Waqf-based blanking modes (can combine multiple)
         const shouldKeepWaqfWord = waqfDisplayMode === 'with-word';
 
@@ -354,8 +379,9 @@ export function TahfeezQuizView({
       }
     }
 
-    return keys;
+    return { keys, generationPath, distributedStats };
   }, [quizSource, storedItems, autoBlankMode, blankCount, ayahCount, page.pageNumber, allWordTokens, ayahGroups, waqfCombinedModes, waqfDisplayMode, forceBlankedKeys, reviewMode, hiddenAyatCount, hiddenWordsCount, distributionMode, distributionSeed, hiddenWordsMode, hiddenWordsPercentage, percentageScope, wordSequenceMode]);
+  const blankedKeys = blankingComputation.keys;
 
   // Export blanked keys list (ordered) for parent to use in sequencing
   // This is used by the parent component via a ref or callback
@@ -693,30 +719,66 @@ export function TahfeezQuizView({
 
   // Debug info: compute actual blanked ayah and word counts
   const debugInfo = useMemo(() => {
-    if (quizSource !== 'auto' || autoBlankMode !== 'ayah-count') return null;
-    // Count blanked ayahs (an ayah is "blanked" if ALL its words are blanked)
+    if (quizSource !== 'auto') return null;
+
+    // Fallback counts based on visible blanked keys
     let blankedAyahCount = 0;
     let blankedWordCount = 0;
     for (const group of ayahGroups) {
       const allBlanked = group.length > 0 && group.every(t => blankedKeys.has(t.key));
       if (allBlanked) blankedAyahCount++;
     }
-    // Count individual blanked words (excluding full-ayah blanks in ayah mode)
     for (const t of allWordTokens) {
       if (blankedKeys.has(t.key)) blankedWordCount++;
     }
+
+    const actualSelectedAyatCount =
+      blankingComputation.generationPath === 'distributed-ayah-count' && blankingComputation.distributedStats
+        ? blankingComputation.distributedStats.actualSelectedAyatCount
+        : blankedAyahCount;
+    const actualSelectedWordCount =
+      blankingComputation.generationPath === 'distributed-ayah-count' && blankingComputation.distributedStats
+        ? blankingComputation.distributedStats.actualSelectedWordCount
+        : blankedWordCount;
+    const sampleSelectedKeys =
+      blankingComputation.generationPath === 'distributed-ayah-count' && blankingComputation.distributedStats
+        ? blankingComputation.distributedStats.sampleSelectedKeys
+        : Array.from(blankedKeys).slice(0, 10);
+
     return {
+      generationPath: blankingComputation.generationPath,
       reviewMode,
+      hiddenAyatCount,
+      hiddenWordsMode,
+      hiddenWordsCount,
+      hiddenWordsPercentage,
+      distributionMode,
       requestedAyat: (reviewMode === 'ayah' || reviewMode === 'mixed') ? hiddenAyatCount : 0,
-      actualSelectedAyat: blankedAyahCount,
+      actualSelectedAyat: actualSelectedAyatCount,
       requestedWords: (reviewMode === 'word' || reviewMode === 'mixed')
         ? (hiddenWordsMode === 'percentage' ? `${hiddenWordsPercentage}%` : hiddenWordsCount)
         : 0,
-      actualSelectedWords: blankedWordCount,
-      hiddenWordsMode,
-      distributionMode,
+      actualSelectedWords: actualSelectedWordCount,
+      sampleSelectedKeys,
     };
-  }, [blankedKeys, ayahGroups, allWordTokens, reviewMode, hiddenAyatCount, hiddenWordsCount, hiddenWordsMode, hiddenWordsPercentage, distributionMode, quizSource, autoBlankMode]);
+  }, [blankedKeys, ayahGroups, allWordTokens, reviewMode, hiddenAyatCount, hiddenWordsCount, hiddenWordsMode, hiddenWordsPercentage, distributionMode, quizSource, blankingComputation]);
+
+  useEffect(() => {
+    if (!debugInfo) return;
+    console.debug('[tahfeez][blanking-debug]', {
+      page: page.pageNumber,
+      reviewMode: debugInfo.reviewMode,
+      hiddenAyatCount: debugInfo.hiddenAyatCount,
+      hiddenWordsMode: debugInfo.hiddenWordsMode,
+      hiddenWordsCount: debugInfo.hiddenWordsCount,
+      hiddenWordsPercentage: debugInfo.hiddenWordsPercentage,
+      distributionMode: debugInfo.distributionMode,
+      actualSelectedAyatCount: debugInfo.actualSelectedAyat,
+      actualSelectedWordCount: debugInfo.actualSelectedWords,
+      sampleSelectedKeys: debugInfo.sampleSelectedKeys,
+      generationPath: debugInfo.generationPath,
+    });
+  }, [debugInfo, page.pageNumber]);
 
   return (
     <div ref={autoFlowRef} className="page-frame p-4 sm:p-6" style={{ ...pageFrameStyle, ...(isAutoFlow15 ? { aspectRatio: '3 / 4.2', overflow: 'hidden' } : {}) }} dir={textDirection}>
@@ -724,13 +786,18 @@ export function TahfeezQuizView({
       {debugInfo && (
         <div className="border border-dashed border-primary/40 rounded-md p-2 mb-3 bg-muted/30 text-[11px] font-mono space-y-0.5" dir="ltr">
           <p className="font-bold text-primary">DEBUG blanking</p>
+          <p>generationPath = {debugInfo.generationPath}</p>
           <p>reviewMode = {debugInfo.reviewMode}</p>
-          <p>requestedAyat = {debugInfo.requestedAyat}</p>
-          <p>actualSelectedAyat = {debugInfo.actualSelectedAyat}</p>
-          <p>requestedWords = {debugInfo.requestedWords}</p>
-          <p>actualSelectedWords = {debugInfo.actualSelectedWords}</p>
+          <p>hiddenAyatCount = {debugInfo.hiddenAyatCount}</p>
           <p>hiddenWordsMode = {debugInfo.hiddenWordsMode}</p>
+          <p>hiddenWordsCount = {debugInfo.hiddenWordsCount}</p>
+          <p>hiddenWordsPercentage = {debugInfo.hiddenWordsPercentage}</p>
           <p>distributionMode = {debugInfo.distributionMode}</p>
+          <p>requestedAyatCount = {debugInfo.requestedAyat}</p>
+          <p>actualSelectedAyatCount = {debugInfo.actualSelectedAyat}</p>
+          <p>requestedWords = {debugInfo.requestedWords}</p>
+          <p>actualSelectedWordCount = {debugInfo.actualSelectedWords}</p>
+          <p>sampleSelectedKeys = {debugInfo.sampleSelectedKeys.join(', ') || '-'}</p>
         </div>
       )}
       <div className="flex justify-center mb-5">
