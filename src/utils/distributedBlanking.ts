@@ -95,6 +95,7 @@ export function computeDistributedBlanksDetailed(params: DistributedBlankingPara
     hiddenWordsPercentage = 25,
     percentageScope = 'per-ayah',
     wordSequenceMode = 'same-ayah-only',
+    wordBlankPosition = 'mixed',
   } = params;
   const keys = new Set<string>();
   const rand = seededRandom(seed);
