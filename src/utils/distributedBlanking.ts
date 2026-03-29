@@ -250,6 +250,7 @@ function blankWordsByPercentage(
   percentageScope: string,
   distribution: string,
   wordSequenceMode: string,
+  wordBlankPosition: string,
   rand: () => number
 ): number {
   if (percentage <= 0) return 0;
@@ -257,7 +258,6 @@ function blankWordsByPercentage(
   let selectedWords = 0;
 
   if (percentageScope === 'per-ayah') {
-    // Calculate count per ayah independently
     for (const group of ayahGroups) {
       const available = group.filter(t => !keys.has(t.key) && isActualWord(t.text));
       if (available.length === 0) continue;
@@ -265,13 +265,38 @@ function blankWordsByPercentage(
       const n = Math.min(countToHide, available.length);
 
       if (distribution === 'sequential') {
-        // Pick a random start within this ayah
-        const maxStart = Math.max(0, available.length - n);
-        const start = maxStart > 0 ? Math.floor(rand() * (maxStart + 1)) : 0;
+        const start = getPositionStart(available.length, n, wordBlankPosition, rand);
         for (let i = start; i < start + n && i < available.length; i++) {
           keys.add(available[i].key);
           selectedWords++;
         }
+      } else {
+        if (wordBlankPosition !== 'mixed') {
+          const start = getPositionStart(available.length, n, wordBlankPosition, rand);
+          for (let i = start; i < start + n && i < available.length; i++) {
+            keys.add(available[i].key);
+            selectedWords++;
+          }
+        } else {
+          const indices = distributeEvenly(available.length, n, rand);
+          for (const idx of indices) {
+            keys.add(available[idx].key);
+          }
+          selectedWords += indices.length;
+        }
+      }
+    }
+  } else {
+    const available = allWordTokens.filter(t => !keys.has(t.key) && isActualWord(t.text));
+    if (available.length === 0) return 0;
+    const countToHide = Math.max(1, Math.round((percentage / 100) * available.length));
+    const n = Math.min(countToHide, available.length);
+
+    if (distribution === 'sequential') {
+      selectedWords += blankWordsSequential(keys, available, ayahGroups, n, wordSequenceMode, wordBlankPosition, rand);
+    } else {
+      if (wordBlankPosition !== 'mixed') {
+        selectedWords += blankWordsPositioned(keys, ayahGroups, n, wordBlankPosition, rand);
       } else {
         const indices = distributeEvenly(available.length, n, rand);
         for (const idx of indices) {
@@ -279,22 +304,6 @@ function blankWordsByPercentage(
         }
         selectedWords += indices.length;
       }
-    }
-  } else {
-    // per-visible-block: calculate from total
-    const available = allWordTokens.filter(t => !keys.has(t.key) && isActualWord(t.text));
-    if (available.length === 0) return 0;
-    const countToHide = Math.max(1, Math.round((percentage / 100) * available.length));
-    const n = Math.min(countToHide, available.length);
-
-    if (distribution === 'sequential') {
-      selectedWords += blankWordsSequential(keys, available, ayahGroups, n, wordSequenceMode, rand);
-    } else {
-      const indices = distributeEvenly(available.length, n, rand);
-      for (const idx of indices) {
-        keys.add(available[idx].key);
-      }
-      selectedWords += indices.length;
     }
   }
 
