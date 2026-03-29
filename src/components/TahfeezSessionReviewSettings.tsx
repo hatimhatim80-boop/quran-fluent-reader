@@ -7,7 +7,7 @@ interface TahfeezSessionReviewSettingsProps {
   showDebugBadge?: boolean;
 }
 
-export function TahfeezSessionReviewSettings({ showDebugBadge = false }: TahfeezSessionReviewSettingsProps) {
+export function TahfeezSessionReviewSettings({ showDebugBadge: _showDebugBadge = false }: TahfeezSessionReviewSettingsProps) {
   const {
     reviewMode,
     setReviewMode,
@@ -23,6 +23,8 @@ export function TahfeezSessionReviewSettings({ showDebugBadge = false }: Tahfeez
     distributionMode,
     setDistributionMode,
     setAutoBlankMode,
+    wordBlankPosition,
+    setWordBlankPosition,
   } = useTahfeezStore();
 
   const applyAyahCountMode = () => setAutoBlankMode('ayah-count');
