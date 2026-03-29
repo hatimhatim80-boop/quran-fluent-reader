@@ -1571,17 +1571,7 @@ export default function TahfeezPage() {
 
             {/* Session review settings hidden during active quiz — accessible via ⚙️ button */}
 
-            {runtimeDebug && (
-              <div className="border border-dashed border-primary/40 rounded-md p-2 bg-muted/30 text-[11px] font-mono space-y-0.5" dir="ltr">
-                <p className="font-bold text-primary">DEBUG runtime-sync</p>
-                <p>generationPath(render) = {runtimeDebug.generationPath}</p>
-                <p>reviewMode(render) = {runtimeDebug.reviewMode}</p>
-                <p>actualSelectedAyatCount(render) = {runtimeDebug.actualSelectedAyatCount}</p>
-                <p>actualSelectedWordCount(render) = {runtimeDebug.actualSelectedWordCount}</p>
-                <p>renderedKeysCount = {runtimeDebug.renderedKeysCount}</p>
-                <p>consumedKeysCount(parent) = {runtimeDebug.consumedKeysCount}</p>
-              </div>
-            )}
+            {/* Runtime debug panel removed */}
 
             {/* MCQ Panel - TOP position */}
             {quizInteraction === 'mcq' && mcqDisplayMode === 'panel' && mcqPanelPosition === 'top' && (
