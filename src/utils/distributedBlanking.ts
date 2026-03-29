@@ -348,9 +348,7 @@ function blankWordsSequential(
       remaining -= n;
     }
   } else {
-    // allow-cross-ayah: pick consecutive words from the flat available list
-    const maxStart = Math.max(0, available.length - count);
-    const start = maxStart > 0 ? Math.floor(rand() * (maxStart + 1)) : 0;
+    const start = getPositionStart(available.length, count, wordBlankPosition, rand);
     for (let i = start; i < start + count && i < available.length; i++) {
       keys.add(available[i].key);
       selectedWords++;
