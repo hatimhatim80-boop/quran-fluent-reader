@@ -248,7 +248,7 @@ export function TahfeezQuizView({
         const distributed = computeDistributedBlanks({
           reviewMode,
           distributionMode,
-          hiddenAyatCount: reviewMode === 'word' ? ayahCount : hiddenAyatCount,
+          hiddenAyatCount,
           hiddenWordsCount,
           seed: distributionSeed + page.pageNumber,
           ayahGroups,
