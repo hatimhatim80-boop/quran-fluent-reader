@@ -340,8 +340,7 @@ function blankWordsSequential(
       if (remaining <= 0) break;
       const avail = ayahAvailable[ai];
       const n = Math.min(remaining, avail.length);
-      const maxStart = Math.max(0, avail.length - n);
-      const start = maxStart > 0 ? Math.floor(rand() * (maxStart + 1)) : 0;
+      const start = getPositionStart(avail.length, n, wordBlankPosition, rand);
       for (let i = start; i < start + n; i++) {
         keys.add(avail[i].key);
         selectedWords++;
