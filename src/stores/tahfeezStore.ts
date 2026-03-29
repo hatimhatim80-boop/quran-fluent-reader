@@ -413,6 +413,8 @@ export const useTahfeezStore = create<TahfeezState>()(
       setPercentageScope: (scope) => set({ percentageScope: scope }),
       wordSequenceMode: 'same-ayah-only',
       setWordSequenceMode: (mode) => set({ wordSequenceMode: mode }),
+      wordBlankPosition: 'mixed',
+      setWordBlankPosition: (pos) => set({ wordBlankPosition: pos }),
     }),
     {
       name: 'tahfeez.v2',
