@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useTahfeezStore } from '@/stores/tahfeezStore';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
@@ -26,6 +26,11 @@ export function TahfeezSessionReviewSettings({ showDebugBadge = false }: Tahfeez
   } = useTahfeezStore();
 
   const applyAyahCountMode = () => setAutoBlankMode('ayah-count');
+
+  // Force autoBlankMode='ayah-count' on mount so the distributed engine is always used
+  useEffect(() => {
+    setAutoBlankMode('ayah-count');
+  }, [setAutoBlankMode]);
 
   return (
     <div className="bg-card border border-border rounded-lg p-3 space-y-3 font-arabic" dir="rtl" data-testid="tahfeez-session-review-settings">

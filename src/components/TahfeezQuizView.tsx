@@ -691,9 +691,48 @@ export function TahfeezQuizView({
     }
   }, [activeBlankKey]);
 
+  // Debug info: compute actual blanked ayah and word counts
+  const debugInfo = useMemo(() => {
+    if (quizSource !== 'auto' || autoBlankMode !== 'ayah-count') return null;
+    // Count blanked ayahs (an ayah is "blanked" if ALL its words are blanked)
+    let blankedAyahCount = 0;
+    let blankedWordCount = 0;
+    for (const group of ayahGroups) {
+      const allBlanked = group.length > 0 && group.every(t => blankedKeys.has(t.key));
+      if (allBlanked) blankedAyahCount++;
+    }
+    // Count individual blanked words (excluding full-ayah blanks in ayah mode)
+    for (const t of allWordTokens) {
+      if (blankedKeys.has(t.key)) blankedWordCount++;
+    }
+    return {
+      reviewMode,
+      requestedAyat: (reviewMode === 'ayah' || reviewMode === 'mixed') ? hiddenAyatCount : 0,
+      actualSelectedAyat: blankedAyahCount,
+      requestedWords: (reviewMode === 'word' || reviewMode === 'mixed')
+        ? (hiddenWordsMode === 'percentage' ? `${hiddenWordsPercentage}%` : hiddenWordsCount)
+        : 0,
+      actualSelectedWords: blankedWordCount,
+      hiddenWordsMode,
+      distributionMode,
+    };
+  }, [blankedKeys, ayahGroups, allWordTokens, reviewMode, hiddenAyatCount, hiddenWordsCount, hiddenWordsMode, hiddenWordsPercentage, distributionMode, quizSource, autoBlankMode]);
+
   return (
     <div ref={autoFlowRef} className="page-frame p-4 sm:p-6" style={{ ...pageFrameStyle, ...(isAutoFlow15 ? { aspectRatio: '3 / 4.2', overflow: 'hidden' } : {}) }} dir={textDirection}>
       <div id="tahfeez-blanked-keys" className="hidden" />
+      {debugInfo && (
+        <div className="border border-dashed border-primary/40 rounded-md p-2 mb-3 bg-muted/30 text-[11px] font-mono space-y-0.5" dir="ltr">
+          <p className="font-bold text-primary">DEBUG blanking</p>
+          <p>reviewMode = {debugInfo.reviewMode}</p>
+          <p>requestedAyat = {debugInfo.requestedAyat}</p>
+          <p>actualSelectedAyat = {debugInfo.actualSelectedAyat}</p>
+          <p>requestedWords = {debugInfo.requestedWords}</p>
+          <p>actualSelectedWords = {debugInfo.actualSelectedWords}</p>
+          <p>hiddenWordsMode = {debugInfo.hiddenWordsMode}</p>
+          <p>distributionMode = {debugInfo.distributionMode}</p>
+        </div>
+      )}
       <div className="flex justify-center mb-5">
         <span className="bg-secondary/80 text-secondary-foreground px-4 py-1.5 rounded-full text-sm font-arabic shadow-sm">
           صفحة {page.pageNumber}
