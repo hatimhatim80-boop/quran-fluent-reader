@@ -115,9 +115,9 @@ export function computeDistributedBlanksDetailed(params: DistributedBlankingPara
 
   if (reviewMode === 'word') {
     if (hiddenWordsMode === 'percentage') {
-      selectedWordCount = blankWordsByPercentage(keys, allWordTokens, ayahGroups, hiddenWordsPercentage, percentageScope, distributionMode, wordSequenceMode, rand);
+      selectedWordCount = blankWordsByPercentage(keys, allWordTokens, ayahGroups, hiddenWordsPercentage, percentageScope, distributionMode, wordSequenceMode, wordBlankPosition, rand);
     } else {
-      selectedWordCount = blankWords(keys, allWordTokens, ayahGroups, hiddenWordsCount, distributionMode, wordSequenceMode, rand);
+      selectedWordCount = blankWords(keys, allWordTokens, ayahGroups, hiddenWordsCount, distributionMode, wordSequenceMode, wordBlankPosition, rand);
     }
     return {
       keys,
