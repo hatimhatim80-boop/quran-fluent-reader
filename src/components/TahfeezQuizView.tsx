@@ -382,7 +382,7 @@ export function TahfeezQuizView({
     }
 
     return { keys, generationPath, distributedStats };
-  }, [quizSource, storedItems, autoBlankMode, blankCount, ayahCount, page.pageNumber, allWordTokens, ayahGroups, waqfCombinedModes, waqfDisplayMode, forceBlankedKeys, reviewMode, hiddenAyatCount, hiddenWordsCount, distributionMode, distributionSeed, hiddenWordsMode, hiddenWordsPercentage, percentageScope, wordSequenceMode]);
+  }, [quizSource, storedItems, autoBlankMode, blankCount, ayahCount, page.pageNumber, allWordTokens, ayahGroups, waqfCombinedModes, waqfDisplayMode, forceBlankedKeys, reviewMode, hiddenAyatCount, hiddenWordsCount, distributionMode, distributionSeed, hiddenWordsMode, hiddenWordsPercentage, percentageScope, wordSequenceMode, wordBlankPosition]);
   const blankedKeys = blankingComputation.keys;
 
   // Export blanked keys list (ordered) for parent to use in sequencing
