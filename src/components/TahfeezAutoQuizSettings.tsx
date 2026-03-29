@@ -64,6 +64,15 @@ export function TahfeezAutoQuizSettings({ currentPage, quizPagesRange, onStart, 
     percentageScope, setPercentageScope,
     wordSequenceMode, setWordSequenceMode,
   } = useTahfeezStore();
+  // reviewMode, distributionMode etc. are kept in TahfeezSessionReviewSettings only
+  void reviewMode; void setReviewMode;
+  void hiddenAyatCount; void setHiddenAyatCount;
+  void hiddenWordsCount; void setHiddenWordsCount;
+  void distributionMode; void setDistributionMode;
+  void hiddenWordsMode; void setHiddenWordsMode;
+  void hiddenWordsPercentage; void setHiddenWordsPercentage;
+  void percentageScope; void setPercentageScope;
+  void wordSequenceMode; void setWordSequenceMode;
 
   const speech = useSpeech();
   const keepScreenAwake = useSettingsStore((s) => s.settings.autoplay.keepScreenAwake ?? false);
@@ -230,168 +239,6 @@ export function TahfeezAutoQuizSettings({ currentPage, quizPagesRange, onStart, 
                 ))}
               </div>
             </div>
-          </AccordionContent>
-        </AccordionItem>
-
-        {/* ═══ Section: Review Mode & Distribution ═══ */}
-        <AccordionItem value="distribution" className="border rounded-xl px-3 overflow-hidden">
-          <AccordionTrigger className="font-arabic text-sm font-bold hover:no-underline py-3">
-            <span className="flex items-center gap-2">🎲 نمط المراجعة والتوزيع</span>
-          </AccordionTrigger>
-          <AccordionContent className="pb-4 space-y-4">
-            {/* Review mode */}
-            <div className="space-y-2">
-              <p className="text-[11px] font-arabic text-muted-foreground font-medium">نوع المراجعة</p>
-              <div className="flex flex-wrap gap-1.5">
-                {[
-                  { value: 'ayah' as const, label: 'آيات' },
-                  { value: 'word' as const, label: 'كلمات' },
-                  { value: 'mixed' as const, label: 'مختلط' },
-                ].map(opt => (
-                  <Button key={opt.value}
-                    variant={reviewMode === opt.value ? 'default' : 'outline'}
-                    size="sm" onClick={() => { setReviewMode(opt.value); setAutoBlankMode('ayah-count'); }}
-                    className="font-arabic text-[11px] h-7 px-2.5">
-                    {opt.label}
-                  </Button>
-                ))}
-              </div>
-            </div>
-
-            {/* Hidden ayat count */}
-            {(reviewMode === 'ayah' || reviewMode === 'mixed') && (
-              <div className="space-y-1">
-                <label className="text-[11px] font-arabic text-muted-foreground">عدد الآيات المخفية: <span className="text-primary font-bold">{hiddenAyatCount}</span></label>
-                <div className="flex flex-wrap gap-1.5">
-                  {[1, 2, 3, 5, 10].map(n => (
-                    <Button key={n}
-                      variant={hiddenAyatCount === n ? 'default' : 'outline'}
-                      size="sm" onClick={() => { setHiddenAyatCount(n); setAyahCount(n); }}
-                      className="text-[11px] h-7 px-3 min-w-[2.2rem]">
-                      {n}
-                    </Button>
-                  ))}
-                </div>
-                <Slider
-                  value={[hiddenAyatCount]}
-                  onValueChange={([v]) => {
-                    setHiddenAyatCount(v);
-                    setAyahCount(v);
-                  }}
-                  min={1}
-                  max={15}
-                  step={1}
-                />
-              </div>
-            )}
-
-            {/* Hidden words — mode selector + controls */}
-            {(reviewMode === 'word' || reviewMode === 'mixed') && (
-              <div className="space-y-2">
-                <p className="text-[11px] font-arabic text-muted-foreground font-medium">وضع إخفاء الكلمات</p>
-                <div className="flex flex-wrap gap-1.5">
-                  <Button variant={hiddenWordsMode === 'fixed-count' ? 'default' : 'outline'} size="sm"
-                    onClick={() => { setHiddenWordsMode('fixed-count'); setAutoBlankMode('ayah-count'); }} className="font-arabic text-[11px] h-7 px-2.5">
-                    عدد ثابت
-                  </Button>
-                  <Button variant={hiddenWordsMode === 'percentage' ? 'default' : 'outline'} size="sm"
-                    onClick={() => { setHiddenWordsMode('percentage'); setAutoBlankMode('ayah-count'); }} className="font-arabic text-[11px] h-7 px-2.5">
-                    نسبة مئوية
-                  </Button>
-                </div>
-
-                {hiddenWordsMode === 'fixed-count' && (
-                  <div className="space-y-1">
-                    <label className="text-[11px] font-arabic text-muted-foreground">عدد الكلمات المخفية: <span className="text-primary font-bold">{hiddenWordsCount}</span></label>
-                    <div className="flex flex-wrap gap-1.5">
-                      {[1, 2, 3, 5, 10].map(n => (
-                        <Button key={n}
-                          variant={hiddenWordsCount === n ? 'default' : 'outline'}
-                          size="sm" onClick={() => { setHiddenWordsCount(n); setAutoBlankMode('ayah-count'); }}
-                          className="text-[11px] h-7 px-3 min-w-[2.2rem]">
-                          {n}
-                        </Button>
-                      ))}
-                    </div>
-                    <Slider value={[hiddenWordsCount]} onValueChange={([v]) => { setHiddenWordsCount(v); setAutoBlankMode('ayah-count'); }} min={1} max={20} step={1} />
-                  </div>
-                )}
-
-                {hiddenWordsMode === 'percentage' && (
-                  <div className="space-y-2">
-                    <label className="text-[11px] font-arabic text-muted-foreground">نسبة الكلمات المخفية: <span className="text-primary font-bold">{hiddenWordsPercentage}%</span></label>
-                    <div className="flex flex-wrap gap-1.5">
-                      {[10, 20, 25, 30, 40, 50, 60, 70, 80].map(p => (
-                        <Button key={p}
-                          variant={hiddenWordsPercentage === p ? 'default' : 'outline'}
-                          size="sm" onClick={() => { setHiddenWordsPercentage(p); setAutoBlankMode('ayah-count'); }}
-                          className="text-[11px] h-7 px-2.5 min-w-[2.5rem]">
-                          {p}%
-                        </Button>
-                      ))}
-                    </div>
-                    <Slider value={[hiddenWordsPercentage]} onValueChange={([v]) => { setHiddenWordsPercentage(v); setAutoBlankMode('ayah-count'); }} min={5} max={90} step={5} />
-
-                    <div className="space-y-1 pt-1">
-                      <p className="text-[11px] font-arabic text-muted-foreground font-medium">نطاق حساب النسبة</p>
-                      <div className="flex flex-wrap gap-1.5">
-                        <Button variant={percentageScope === 'per-ayah' ? 'default' : 'outline'} size="sm"
-                          onClick={() => { setPercentageScope('per-ayah'); setAutoBlankMode('ayah-count'); }} className="font-arabic text-[11px] h-7 px-2.5">
-                          لكل آية
-                        </Button>
-                        <Button variant={percentageScope === 'per-visible-block' ? 'default' : 'outline'} size="sm"
-                          onClick={() => { setPercentageScope('per-visible-block'); setAutoBlankMode('ayah-count'); }} className="font-arabic text-[11px] h-7 px-2.5">
-                          للمقطع الظاهر
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Distribution mode */}
-            <div className="space-y-2">
-              <p className="text-[11px] font-arabic text-muted-foreground font-medium">طريقة توزيع الإخفاء</p>
-              <div className="flex flex-wrap gap-1.5">
-                {[
-                  { value: 'sequential' as const, label: 'متتابع', desc: 'عناصر متجاورة' },
-                  { value: 'page-scattered' as const, label: 'موزع بالصفحة', desc: 'مواضع مختلفة بالصفحة' },
-                  { value: 'range-scattered' as const, label: 'موزع بالصفحات', desc: 'موزع على صفحات الجلسة' },
-                  { value: 'scope-scattered' as const, label: 'موزع بالنطاق', desc: 'موزع بكامل النطاق' },
-                ].map(opt => (
-                  <Button key={opt.value}
-                    variant={distributionMode === opt.value ? 'default' : 'outline'}
-                    size="sm" onClick={() => { setDistributionMode(opt.value); setAutoBlankMode('ayah-count'); }}
-                    className="font-arabic text-[11px] h-7 px-2.5">
-                    {opt.label}
-                  </Button>
-                ))}
-              </div>
-              <p className="text-[10px] font-arabic text-muted-foreground">
-                {distributionMode === 'sequential' && 'العناصر المخفية ستكون متجاورة قدر الإمكان'}
-                {distributionMode === 'page-scattered' && 'توزيع متوازن داخل الصفحة الحالية'}
-                {distributionMode === 'range-scattered' && 'توزيع على الصفحات الداخلة في الجلسة'}
-                {distributionMode === 'scope-scattered' && 'توزيع على كامل النطاق المحدد (سورة / جزء / حزب)'}
-              </p>
-            </div>
-
-            {/* Word sequence mode (only when sequential + word/mixed) */}
-            {distributionMode === 'sequential' && (reviewMode === 'word' || reviewMode === 'mixed') && (
-              <div className="space-y-1.5">
-                <p className="text-[11px] font-arabic text-muted-foreground font-medium">تتابع الكلمات</p>
-                <div className="flex flex-wrap gap-1.5">
-                  <Button variant={wordSequenceMode === 'same-ayah-only' ? 'default' : 'outline'} size="sm"
-                    onClick={() => setWordSequenceMode('same-ayah-only')} className="font-arabic text-[11px] h-7 px-2.5">
-                    داخل الآية فقط
-                  </Button>
-                  <Button variant={wordSequenceMode === 'allow-cross-ayah' ? 'default' : 'outline'} size="sm"
-                    onClick={() => setWordSequenceMode('allow-cross-ayah')} className="font-arabic text-[11px] h-7 px-2.5">
-                    يمتد للآية التالية
-                  </Button>
-                </div>
-              </div>
-            )}
           </AccordionContent>
         </AccordionItem>
 
