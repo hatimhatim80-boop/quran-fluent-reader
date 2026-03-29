@@ -34,9 +34,6 @@ export function TahfeezSessionReviewSettings({ showDebugBadge = false }: Tahfeez
 
   return (
     <div className="bg-card border border-border rounded-lg p-3 space-y-3 font-arabic" dir="rtl" data-testid="tahfeez-session-review-settings">
-      {showDebugBadge && (
-        <div className="text-[11px] font-semibold text-primary">DEBUG: session-settings-mounted</div>
-      )}
 
       <div className="space-y-1.5">
         <p className="text-xs text-muted-foreground">نوع المراجعة</p>
