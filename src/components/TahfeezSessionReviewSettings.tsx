@@ -200,6 +200,34 @@ export function TahfeezSessionReviewSettings({ showDebugBadge: _showDebugBadge =
         </div>
       </div>
 
+      {/* Word blank position - only for word/mixed modes */}
+      {(reviewMode === 'word' || reviewMode === 'mixed') && (
+        <div className="space-y-1.5">
+          <p className="text-xs text-muted-foreground">موضع الكلمات المخفية</p>
+          <div className="flex flex-wrap gap-1.5">
+            {[
+              { value: 'start' as const, label: 'من الأول' },
+              { value: 'middle' as const, label: 'من الوسط' },
+              { value: 'end' as const, label: 'من الآخر' },
+              { value: 'mixed' as const, label: 'مختلط' },
+            ].map((opt) => (
+              <Button
+                key={opt.value}
+                variant={wordBlankPosition === opt.value ? 'default' : 'outline'}
+                size="sm"
+                className="text-[11px] h-7 px-2.5"
+                onClick={() => {
+                  setWordBlankPosition(opt.value);
+                  applyAyahCountMode();
+                }}
+              >
+                {opt.label}
+              </Button>
+            ))}
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
