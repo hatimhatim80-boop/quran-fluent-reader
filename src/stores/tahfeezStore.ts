@@ -423,7 +423,6 @@ export const useTahfeezStore = create<TahfeezState>()(
         }
         return merged;
       },
-      storage: createJSONStorage(() => idbStorage),
       partialize: (state) => ({
         storedItems: state.storedItems,
         quizSource: state.quizSource,
