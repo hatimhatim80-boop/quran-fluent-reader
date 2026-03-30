@@ -206,7 +206,7 @@ export function TahfeezSRSPanel({
   const availableCount = usesRawScopeCount ? rawScopeCount : sessionPoolCount;
   const requestedCount = sessionSize === 'all' ? availableCount : Math.max(1, parseInt(sessionSize, 10) || 1);
   const plannedSessionCount = sessionSize === 'all' ? availableCount : Math.min(requestedCount, availableCount);
-  const quickSessionSizes = Array.from(new Set([10, 20, 50, 100, availableCount].filter((n) => n > 0))).sort((a, b) => a - b);
+  const quickSessionSizes = Array.from(new Set([10, 20, 50, 100, 200, 300, availableCount].filter((n) => n > 0))).sort((a, b) => a - b);
 
   useMemo(() => {
     return cards;
