@@ -264,13 +264,19 @@ export function TahfeezQuizView({
       }
     } else {
       // Auto blanking
-      if (autoBlankMode === 'ayah-count') {
-        // Unified distributed engine for ayah-count mode (respects review/distribution settings)
+      if (autoBlankMode === 'ayah-count' || autoBlankMode === 'full-ayah') {
+        // full-ayah: hide ALL ayahs on the page (not the whole page, just all ayah groups)
+        // ayah-count: use hiddenAyatCount, but if scope is multi-page (hizb/juz/surah), hide all ayahs per page
+        const isMultiPageScope = quizScope === 'hizb' || quizScope === 'juz' || quizScope === 'surah';
+        const effectiveAyatCount = (autoBlankMode === 'full-ayah' || isMultiPageScope)
+          ? ayahGroups.length  // Hide all ayahs on this page
+          : hiddenAyatCount;
+
         generationPath = 'distributed-ayah-count';
         const distributed = computeDistributedBlanksDetailed({
           reviewMode,
           distributionMode,
-          hiddenAyatCount,
+          hiddenAyatCount: effectiveAyatCount,
           hiddenWordsCount,
           seed: distributionSeed + page.pageNumber,
           ayahGroups,
