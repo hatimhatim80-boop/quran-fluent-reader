@@ -1410,7 +1410,7 @@ export default function TahfeezPage() {
                 if (card.type === 'tahfeez-word') {
                   // Word-level: blank only the specific word key
                   const wordKey = card.contentKey;
-                  console.log('[tahfeez][SRS-render] word card:', card.id, 'key:', wordKey, 'revealed:', answerRevealed);
+                  if (import.meta.env.DEV) console.log('[tahfeez][SRS-render] word card:', card.id, 'key:', wordKey, 'revealed:', answerRevealed);
                   return (
                     <TahfeezQuizView
                       page={pgData}
