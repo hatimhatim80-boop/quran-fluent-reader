@@ -28,7 +28,7 @@ export function GhareebSRSPanel({
   const { addCard, hasCard, getDueCards, getCardsByPages, cards, exportData, importData, clearAll, getFlaggedCards } = useSRSStore();
   const [sessionMode, setSessionMode] = useState<'setup' | 'review'>('setup');
   const [sessionCards, setSessionCards] = useState<SRSCard[]>([]);
-  const [sessionSize, setSessionSize] = useState<'all' | '5' | '10' | '20' | '30' | '50' | '100'>('all');
+  const [sessionSize, setSessionSize] = useState<string>('all');
   const [scope, setScope] = useState<SRSScope>({ type: 'all-due', from: currentPage, to: currentPage });
   const [highlightStyle, setHighlightStyle] = useState<'color' | 'bg' | 'border'>('color');
   const [reviewSource, setReviewSource] = useState<'due' | 'all'>('all');
