@@ -539,20 +539,10 @@ export function TahfeezAutoQuizSettings({ currentPage, quizPagesRange, onStart, 
         <p className="text-[11px] font-arabic font-bold text-foreground">📋 ملخص الجلسة</p>
         <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-[10px] font-arabic text-muted-foreground">
           <span>نوع المراجعة:</span>
+          <span className="text-foreground font-medium">كلمات</span>
+          <span>كلمات مخفية:</span>
           <span className="text-foreground font-medium">
-            {reviewMode === 'ayah' ? 'آيات' : reviewMode === 'word' ? 'كلمات' : 'مختلط'}
-          </span>
-          {(reviewMode === 'ayah' || reviewMode === 'mixed') && (
-            <>
-              <span>آيات مخفية:</span>
-              <span className="text-foreground font-medium">{hiddenAyatCount}</span>
-            </>
-          )}
-          {(reviewMode === 'word' || reviewMode === 'mixed') && (
-            <>
-              <span>كلمات مخفية:</span>
-              <span className="text-foreground font-medium">
-                {hiddenWordsMode === 'percentage' ? `${hiddenWordsPercentage}%` : `${hiddenWordsCount} كلمة`}
+            {hiddenWordsMode === 'percentage' ? `${hiddenWordsPercentage}%` : `${hiddenWordsCount} كلمة`}
               </span>
             </>
           )}

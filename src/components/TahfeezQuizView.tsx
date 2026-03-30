@@ -916,11 +916,10 @@ export function TahfeezQuizView({
       hiddenWordsCount,
       hiddenWordsPercentage,
       distributionMode,
-      requestedAyat: (reviewMode === 'ayah' || reviewMode === 'mixed') ? hiddenAyatCount : 0,
+      requestedAyat: 0,
       actualSelectedAyat: actualSelectedAyatCount,
-      requestedWords: (reviewMode === 'word' || reviewMode === 'mixed')
-        ? (hiddenWordsMode === 'percentage' ? `${hiddenWordsPercentage}%` : hiddenWordsCount)
-        : 0,
+      requestedWords: hiddenWordsMode === 'percentage' ? `${hiddenWordsPercentage}%` : hiddenWordsCount,
+      actualSelectedWords: actualSelectedWordCount,
       actualSelectedWords: actualSelectedWordCount,
       sampleSelectedKeys,
     };
