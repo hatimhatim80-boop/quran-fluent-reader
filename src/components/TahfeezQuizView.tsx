@@ -45,6 +45,8 @@ interface TahfeezQuizViewProps {
   storedItems: TahfeezItem[];
   autoBlankMode: 'beginning' | 'middle' | 'end' | 'beginning-middle' | 'middle-end' | 'beginning-end' | 'beginning-middle-end' | 'full-ayah' | 'full-page' | 'ayah-count' | 'between-waqf' | 'waqf-to-ayah' | 'ayah-to-waqf' | 'next-ayah-mcq' | 'next-waqf-mcq';
   waqfCombinedModes: ('between-waqf' | 'waqf-to-ayah' | 'ayah-to-waqf' | 'between-ayah')[];
+  /** Quiz scope - used to determine if hiding should cover all ayahs per page */
+  quizScope?: 'current-page' | 'page-range' | 'hizb' | 'surah' | 'juz';
   blankCount: number;
   ayahCount: number;
   activeBlankKey: string | null;       // Currently active blank (highlighted)
@@ -97,6 +99,7 @@ export function TahfeezQuizView({
   storedItems,
   autoBlankMode,
   waqfCombinedModes,
+  quizScope,
   blankCount,
   ayahCount,
   activeBlankKey,
@@ -261,13 +264,19 @@ export function TahfeezQuizView({
       }
     } else {
       // Auto blanking
-      if (autoBlankMode === 'ayah-count') {
-        // Unified distributed engine for ayah-count mode (respects review/distribution settings)
+      if (autoBlankMode === 'ayah-count' || autoBlankMode === 'full-ayah') {
+        // full-ayah: hide ALL ayahs on the page (not the whole page, just all ayah groups)
+        // ayah-count: use hiddenAyatCount, but if scope is multi-page (hizb/juz/surah), hide all ayahs per page
+        const isMultiPageScope = quizScope === 'hizb' || quizScope === 'juz' || quizScope === 'surah';
+        const effectiveAyatCount = (autoBlankMode === 'full-ayah' || isMultiPageScope)
+          ? ayahGroups.length  // Hide all ayahs on this page
+          : hiddenAyatCount;
+
         generationPath = 'distributed-ayah-count';
         const distributed = computeDistributedBlanksDetailed({
           reviewMode,
           distributionMode,
-          hiddenAyatCount,
+          hiddenAyatCount: effectiveAyatCount,
           hiddenWordsCount,
           seed: distributionSeed + page.pageNumber,
           ayahGroups,
@@ -343,11 +352,8 @@ export function TahfeezQuizView({
       } else {
         for (const group of ayahGroups) {
           const wc = group.length;
-          const isFullAyah = autoBlankMode === 'full-ayah';
 
-          if (isFullAyah) {
-            group.forEach(t => keys.add(t.key));
-          } else if (autoBlankMode === 'beginning' || autoBlankMode === 'middle' || autoBlankMode === 'end') {
+          if (autoBlankMode === 'beginning' || autoBlankMode === 'middle' || autoBlankMode === 'end') {
             const n = Math.min(blankCount, wc);
             let start = 0;
             if (autoBlankMode === 'beginning') start = 0;
@@ -382,7 +388,7 @@ export function TahfeezQuizView({
     }
 
     return { keys, generationPath, distributedStats };
-  }, [quizSource, storedItems, autoBlankMode, blankCount, ayahCount, page.pageNumber, allWordTokens, ayahGroups, waqfCombinedModes, waqfDisplayMode, forceBlankedKeys, reviewMode, hiddenAyatCount, hiddenWordsCount, distributionMode, distributionSeed, hiddenWordsMode, hiddenWordsPercentage, percentageScope, wordSequenceMode, wordBlankPosition]);
+  }, [quizSource, storedItems, autoBlankMode, blankCount, ayahCount, page.pageNumber, allWordTokens, ayahGroups, waqfCombinedModes, waqfDisplayMode, forceBlankedKeys, reviewMode, hiddenAyatCount, hiddenWordsCount, distributionMode, distributionSeed, hiddenWordsMode, hiddenWordsPercentage, percentageScope, wordSequenceMode, wordBlankPosition, quizScope]);
   const blankedKeys = blankingComputation.keys;
 
   // Export blanked keys list (ordered) for parent to use in sequencing
