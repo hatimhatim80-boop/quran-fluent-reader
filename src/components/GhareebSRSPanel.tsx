@@ -309,20 +309,27 @@ export function GhareebSRSPanel({
             </SelectContent>
           </Select>
         </div>
-        <div className="flex items-center justify-between">
-          <span className="text-sm">عدد الكلمات</span>
-          <Select value={sessionSize} onValueChange={(v) => setSessionSize(v as typeof sessionSize)}>
-            <SelectTrigger className="w-28 h-8 text-xs font-arabic"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">الكل ({sessionPoolCount})</SelectItem>
-              <SelectItem value="5">٥</SelectItem>
-              <SelectItem value="10">١٠</SelectItem>
-              <SelectItem value="20">٢٠</SelectItem>
-              <SelectItem value="30">٣٠</SelectItem>
-              <SelectItem value="50">٥٠</SelectItem>
-              <SelectItem value="100">١٠٠</SelectItem>
-            </SelectContent>
-          </Select>
+        <div className="space-y-2">
+          <span className="text-sm font-arabic">عدد البطاقات</span>
+          <div className="flex items-center gap-2">
+            <Button type="button" variant={sessionSize === 'all' ? 'default' : 'outline'} size="sm" className="font-arabic" onClick={() => setSessionSize('all')}>الكل</Button>
+            <Input
+              type="number"
+              min={1}
+              inputMode="numeric"
+              value={sessionSize === 'all' ? '' : sessionSize}
+              onChange={(e) => setSessionSize(e.target.value === '' ? 'all' : e.target.value)}
+              placeholder={`حتى ${sessionPoolCount}`}
+              className="h-10 text-center text-xl font-bold font-arabic flex-1"
+            />
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {[10, 20, 50, 100, 200, 300, sessionPoolCount].filter((n, i, a) => n > 0 && a.indexOf(n) === i).sort((a, b) => a - b).map((count) => (
+              <Button key={count} type="button" variant={sessionSize !== 'all' && parseInt(sessionSize) === count ? 'default' : 'outline'} size="sm" className="font-arabic min-w-[3.5rem]" onClick={() => setSessionSize(String(count))}>
+                {count}
+              </Button>
+            ))}
+          </div>
         </div>
         <Button onClick={startReview} disabled={!canStartReview} className="w-full gap-2 font-arabic" size="lg">
           <RotateCcw className="w-4 h-4" />
