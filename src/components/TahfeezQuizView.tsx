@@ -338,8 +338,8 @@ export function TahfeezQuizView({
           // Enforce strict mode separation: word-only → no ayahs; ayah-only → no words
           reviewMode,
           distributionMode,
-          hiddenAyatCount: reviewMode === 'word' ? 0 : effectiveAyatCount,
-          hiddenWordsCount: reviewMode === 'ayah' ? 0 : hiddenWordsCount,
+          hiddenAyatCount: 0,
+          hiddenWordsCount: hiddenWordsCount,
           seed: distributionSeed + page.pageNumber,
           ayahGroups,
           allWordTokens,
@@ -916,11 +916,9 @@ export function TahfeezQuizView({
       hiddenWordsCount,
       hiddenWordsPercentage,
       distributionMode,
-      requestedAyat: (reviewMode === 'ayah' || reviewMode === 'mixed') ? hiddenAyatCount : 0,
+      requestedAyat: 0,
       actualSelectedAyat: actualSelectedAyatCount,
-      requestedWords: (reviewMode === 'word' || reviewMode === 'mixed')
-        ? (hiddenWordsMode === 'percentage' ? `${hiddenWordsPercentage}%` : hiddenWordsCount)
-        : 0,
+      requestedWords: hiddenWordsMode === 'percentage' ? `${hiddenWordsPercentage}%` : hiddenWordsCount,
       actualSelectedWords: actualSelectedWordCount,
       sampleSelectedKeys,
     };

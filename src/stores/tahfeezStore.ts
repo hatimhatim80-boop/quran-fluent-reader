@@ -224,7 +224,7 @@ interface TahfeezState {
   setWaqfDisplayMode: (mode: TahfeezState['waqfDisplayMode']) => void;
 
   // Review mode & distribution
-  reviewMode: 'ayah' | 'word' | 'mixed';
+  reviewMode: 'word';
   setReviewMode: (mode: TahfeezState['reviewMode']) => void;
   hiddenAyatCount: number;
   setHiddenAyatCount: (n: number) => void;
@@ -412,7 +412,7 @@ export const useTahfeezStore = create<TahfeezState>()(
       waqfDisplayMode: 'with-word',
       setWaqfDisplayMode: (mode) => set({ waqfDisplayMode: mode }),
 
-      reviewMode: 'ayah',
+      reviewMode: 'word',
       setReviewMode: (mode) => set({ reviewMode: mode }),
       hiddenAyatCount: 1,
       setHiddenAyatCount: (n) => set({ hiddenAyatCount: n }),

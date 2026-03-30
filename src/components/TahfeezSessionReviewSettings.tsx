@@ -44,69 +44,12 @@ export function TahfeezSessionReviewSettings({ showDebugBadge: _showDebugBadge =
   return (
     <div className="bg-card border border-border rounded-lg p-3 space-y-3 font-arabic" dir="rtl" data-testid="tahfeez-session-review-settings">
 
+      {/* Word-only mode — ayah hiding removed */}
       <div className="space-y-1.5">
         <p className="text-xs text-muted-foreground">نوع المراجعة</p>
-        <div className="flex flex-wrap gap-1.5">
-          {[
-            { value: 'ayah' as const, label: 'آيات' },
-            { value: 'word' as const, label: 'كلمات' },
-            { value: 'mixed' as const, label: 'مختلط' },
-          ].map((opt) => (
-            <Button
-              key={opt.value}
-              variant={reviewMode === opt.value ? 'default' : 'outline'}
-              size="sm"
-              className="text-[11px] h-7 px-2.5"
-              onClick={() => {
-                setReviewMode(opt.value);
-                applyAyahCountMode();
-              }}
-            >
-              {opt.label}
-            </Button>
-          ))}
-        </div>
         <p className="text-[11px] text-muted-foreground leading-5">
-          {reviewMode === 'word'
-            ? '⬅ في وضع الكلمات يتم إخفاء كلمات فقط، ولن تُخفى آية كاملة.'
-            : reviewMode === 'ayah'
-              ? '⬅ في وضع الآيات يتم إخفاء آيات فقط، ولن تُخفى كلمات مفردة.'
-              : '⬅ الوضع المختلط يجمع بين النوعين فقط عند اختياره صراحة.'}
+          ⬅ يتم إخفاء كلمات فقط، ولن تُخفى آية كاملة.
         </p>
-      </div>
-
-      <div className="space-y-1">
-        <label className="text-xs text-muted-foreground">
-          عدد الآيات المخفية: <span className="text-primary font-bold">{hiddenAyatCount}</span>
-        </label>
-        <div className="flex flex-wrap gap-1.5">
-          {[1, 2, 3, 5, 10].map((n) => (
-            <Button
-              key={n}
-              variant={hiddenAyatCount === n ? 'default' : 'outline'}
-              size="sm"
-              className="text-[11px] h-7 px-3 min-w-[2.2rem]"
-              onClick={() => {
-                setHiddenAyatCount(n);
-                setAyahCount(n);
-                applyAyahCountMode();
-              }}
-            >
-              {n}
-            </Button>
-          ))}
-        </div>
-        <Slider
-          value={[hiddenAyatCount]}
-          onValueChange={([v]) => {
-            setHiddenAyatCount(v);
-            setAyahCount(v);
-            applyAyahCountMode();
-          }}
-          min={1}
-          max={15}
-          step={1}
-        />
       </div>
 
       <div className="space-y-1.5">
@@ -214,9 +157,8 @@ export function TahfeezSessionReviewSettings({ showDebugBadge: _showDebugBadge =
         </div>
       </div>
 
-      {/* Word blank position - only for word/mixed modes */}
-      {(reviewMode === 'word' || reviewMode === 'mixed') && (
-        <div className="space-y-1.5">
+      {/* Word blank position */}
+      <div className="space-y-1.5">
           <p className="text-xs text-muted-foreground">موضع الكلمات المخفية</p>
           <div className="flex flex-wrap gap-1.5">
             {[
@@ -240,7 +182,6 @@ export function TahfeezSessionReviewSettings({ showDebugBadge: _showDebugBadge =
             ))}
           </div>
         </div>
-      )}
 
       {/* Revealed ayah highlight settings */}
       <div className="space-y-1.5 border-t border-border pt-3">
