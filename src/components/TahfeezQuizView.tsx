@@ -352,11 +352,8 @@ export function TahfeezQuizView({
       } else {
         for (const group of ayahGroups) {
           const wc = group.length;
-          const isFullAyah = autoBlankMode === 'full-ayah';
 
-          if (isFullAyah) {
-            group.forEach(t => keys.add(t.key));
-          } else if (autoBlankMode === 'beginning' || autoBlankMode === 'middle' || autoBlankMode === 'end') {
+          if (autoBlankMode === 'beginning' || autoBlankMode === 'middle' || autoBlankMode === 'end') {
             const n = Math.min(blankCount, wc);
             let start = 0;
             if (autoBlankMode === 'beginning') start = 0;
