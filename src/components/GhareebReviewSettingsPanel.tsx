@@ -10,10 +10,11 @@ import { useSettingsStore } from '@/stores/settingsStore';
 import { cn } from '@/lib/utils';
 
 const HIGHLIGHT_PRESETS = [
-  { value: '48 80% 90%', label: 'ذهبي فاتح' },
-  { value: '210 75% 88%', label: 'أزرق هادئ' },
-  { value: '150 45% 86%', label: 'أخضر فاتح' },
-  { value: '20 70% 88%', label: 'برتقالي فاتح' },
+  { value: '0 85% 45%', label: 'أحمر داكن' },
+  { value: '210 80% 40%', label: 'أزرق داكن' },
+  { value: '270 65% 42%', label: 'بنفسجي داكن' },
+  { value: '25 85% 42%', label: 'برتقالي داكن' },
+  { value: '340 70% 40%', label: 'وردي داكن' },
 ];
 
 const POPOVER_BG_PRESETS = [

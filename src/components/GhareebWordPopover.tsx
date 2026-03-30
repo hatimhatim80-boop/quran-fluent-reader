@@ -267,7 +267,7 @@ export function GhareebWordPopover({
   // Build inline styles based on the effective highlight mode
   const activeWordStyle: Record<string, string> = (() => {
     if (!isHighlighted) return {};
-    const hlColor = settings.colors.highlightColor || '48 80% 90%';
+    const hlColor = settings.colors.highlightColor || '0 85% 45%';
     const base: Record<string, string> = {
       '--ghareeb-active-color': 'inherit',
       '--ghareeb-active-bg': 'transparent',
