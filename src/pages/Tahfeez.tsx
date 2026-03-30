@@ -1430,6 +1430,7 @@ export default function TahfeezPage() {
                 // Ayah-level or stored-words: use the distributed engine (respects reviewMode settings)
                 const isWordsCard = card.type === 'tahfeez-words';
                 const cardPageStoredItems = storedItems.filter((item) => item.data.page === pg);
+                const forcedAyahIndex = typeof card.meta?.ayahIndex === 'number' ? Number(card.meta.ayahIndex) : null;
                 return (
                   <TahfeezQuizView
                     page={pgData}
@@ -1442,6 +1443,7 @@ export default function TahfeezPage() {
                     activeBlankKey={null}
                     revealedKeys={new Set()}
                     showAll={answerRevealed}
+                    forceAyahIndices={!answerRevealed && forcedAyahIndex !== null ? [forcedAyahIndex] : undefined}
                   />
                 );
               }}

@@ -62,6 +62,8 @@ interface TahfeezQuizViewProps {
   onInlineMCQAnswer?: (key: string, correct: boolean) => void;
   /** If provided, ONLY these keys are blanked (overrides autoBlankMode computation) */
   forceBlankedKeys?: string[];
+  /** If provided, ONLY these ayah group indices are blanked (overrides autoBlankMode computation) */
+  forceAyahIndices?: number[];
 }
 
 function isSurahHeader(line: string): boolean {
@@ -86,6 +88,7 @@ interface TokenInfo {
 }
 
 type BlankingGenerationPath =
+  | 'forceAyahIndices'
   | 'forceBlankedKeys'
   | 'custom-items'
   | 'distributed-ayah-count'
@@ -113,6 +116,7 @@ export function TahfeezQuizView({
   allWordTexts,
   onInlineMCQAnswer,
   forceBlankedKeys,
+  forceAyahIndices,
 }: TahfeezQuizViewProps) {
   const { dotScale } = useTahfeezStore();
   const waqfDisplayMode = useTahfeezStore(s => s.waqfDisplayMode);
@@ -227,6 +231,20 @@ export function TahfeezQuizView({
 
   // Determine which keys should be blanked (uses precomputed ayahGroups)
   const blankingComputation = useMemo(() => {
+    if (forceAyahIndices && forceAyahIndices.length > 0) {
+      const keys = new Set<string>();
+      forceAyahIndices.forEach((ayahIndex) => {
+        const group = ayahGroups[ayahIndex];
+        if (!group) return;
+        group.forEach((token) => keys.add(token.key));
+      });
+      return {
+        keys,
+        generationPath: 'forceAyahIndices' as BlankingGenerationPath,
+        distributedStats: null,
+      };
+    }
+
     // If forceBlankedKeys is provided, use it directly (for SRS word-level review)
     if (forceBlankedKeys && forceBlankedKeys.length > 0) {
       const keys = new Set(forceBlankedKeys);
@@ -265,12 +283,14 @@ export function TahfeezQuizView({
     } else {
       // Auto blanking
       if (autoBlankMode === 'ayah-count' || autoBlankMode === 'full-ayah') {
-        // full-ayah: hide ALL ayahs on the page (not the whole page, just all ayah groups)
+        // full-ayah: hide one complete ayah only
         // ayah-count: use hiddenAyatCount, but if scope is multi-page (hizb/juz/surah), hide all ayahs per page
         const isMultiPageScope = quizScope === 'hizb' || quizScope === 'juz' || quizScope === 'surah';
-        const effectiveAyatCount = (autoBlankMode === 'full-ayah' || isMultiPageScope)
-          ? ayahGroups.length  // Hide all ayahs on this page
-          : hiddenAyatCount;
+        const effectiveAyatCount = autoBlankMode === 'full-ayah'
+          ? 1
+          : isMultiPageScope
+            ? ayahGroups.length
+            : hiddenAyatCount;
 
         generationPath = 'distributed-ayah-count';
         const distributed = computeDistributedBlanksDetailed({
@@ -388,7 +408,7 @@ export function TahfeezQuizView({
     }
 
     return { keys, generationPath, distributedStats };
-  }, [quizSource, storedItems, autoBlankMode, blankCount, ayahCount, page.pageNumber, allWordTokens, ayahGroups, waqfCombinedModes, waqfDisplayMode, forceBlankedKeys, reviewMode, hiddenAyatCount, hiddenWordsCount, distributionMode, distributionSeed, hiddenWordsMode, hiddenWordsPercentage, percentageScope, wordSequenceMode, wordBlankPosition, quizScope]);
+  }, [quizSource, storedItems, autoBlankMode, blankCount, ayahCount, page.pageNumber, allWordTokens, ayahGroups, waqfCombinedModes, waqfDisplayMode, forceBlankedKeys, forceAyahIndices, reviewMode, hiddenAyatCount, hiddenWordsCount, distributionMode, distributionSeed, hiddenWordsMode, hiddenWordsPercentage, percentageScope, wordSequenceMode, wordBlankPosition, quizScope]);
   const blankedKeys = blankingComputation.keys;
 
   // Export blanked keys list (ordered) for parent to use in sequencing
