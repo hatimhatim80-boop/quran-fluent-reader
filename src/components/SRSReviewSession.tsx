@@ -282,30 +282,10 @@ export function SRSReviewSession({
             </div>
           ) : (
             <>
-              {/* SM-2 Rating Buttons */}
-              <div className="grid grid-cols-4 gap-2">
-                {RATING_OPTIONS.map(({ rating, label, icon }) => {
-                  const intervalInfo = intervals.find(i => i.rating === rating);
-                  return (
-                    <button
-                      key={rating}
-                      onClick={() => handleRate(rating)}
-                      className="flex flex-col items-center gap-0.5 py-2 px-1 rounded-lg border border-border hover:bg-accent transition-colors"
-                    >
-                      <span className="text-lg">{icon}</span>
-                      <span className="font-arabic text-xs font-bold">{label}</span>
-                      {intervalInfo && (
-                        <span className="text-[9px] text-muted-foreground font-arabic">{formatInterval(intervalInfo.interval)}</span>
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
-
-              {/* Smart Timing Buttons */}
-              <div className="space-y-1.5">
-                <p className="text-[10px] text-muted-foreground font-arabic text-center">مدة الإعادة الذكية</p>
-                <div className="flex flex-wrap justify-center gap-1.5">
+              {/* Smart Timing Buttons — PRIMARY */}
+              <div className="space-y-2">
+                <p className="text-xs text-muted-foreground font-arabic text-center font-bold">⏱ مدة الإعادة الذكية</p>
+                <div className="grid grid-cols-4 gap-2">
                   {[
                     { label: '١ دقيقة', days: 0.0007 },
                     { label: '٥ دقائق', days: 0.0035 },
@@ -315,14 +295,14 @@ export function SRSReviewSession({
                     <button
                       key={days}
                       onClick={() => handleRate(3, days)}
-                      className="px-2.5 py-1.5 rounded-md border border-border text-[10px] font-arabic hover:bg-accent transition-colors"
+                      className="py-2.5 px-2 rounded-lg border-2 border-primary/30 bg-primary/5 text-sm font-arabic font-bold hover:bg-primary/15 hover:border-primary/50 transition-colors"
                     >
                       {label}
                     </button>
                   ))}
                 </div>
                 {showManualInterval ? (
-                  <div className="flex flex-wrap justify-center gap-1.5 animate-fade-in">
+                  <div className="grid grid-cols-5 gap-1.5 animate-fade-in">
                     {[
                       { label: 'يوم', days: 1 },
                       { label: '٣ أيام', days: 3 },
@@ -333,7 +313,7 @@ export function SRSReviewSession({
                       <button
                         key={days}
                         onClick={() => handleRate(3, days)}
-                        className="px-2.5 py-1.5 rounded-md border border-border text-[10px] font-arabic hover:bg-accent transition-colors"
+                        className="py-2 px-1 rounded-md border border-border text-[11px] font-arabic hover:bg-accent transition-colors"
                       >
                         {label}
                       </button>
@@ -341,39 +321,62 @@ export function SRSReviewSession({
                   </div>
                 ) : (
                   <div className="flex justify-center">
-                    <button onClick={() => setShowManualInterval(true)} className="text-[10px] text-primary font-arabic hover:underline">
+                    <button onClick={() => setShowManualInterval(true)} className="text-xs text-primary font-arabic hover:underline">
                       المزيد من المدد ←
                     </button>
                   </div>
                 )}
               </div>
 
-              {/* General Rating */}
-              <div className="space-y-1.5">
-                <p className="text-[10px] text-muted-foreground font-arabic text-center">التقييم العام</p>
-                <div className="flex flex-wrap justify-center gap-1.5">
-                  {[
-                    { label: 'مهمة', rating: 3 as SRSRating, action: 'flag', icon: '⭐' },
-                    { label: 'ضعيفة', rating: 1 as SRSRating, days: 0.007, icon: '😓' },
-                    { label: 'كررها', rating: 0 as SRSRating, days: 0.0007, icon: '🔄' },
-                    { label: 'تثبيت', rating: 5 as SRSRating, days: 90, icon: '📌' },
-                  ].map(({ label, rating, days, action, icon }) => (
-                    <button
-                      key={label}
-                      onClick={() => {
-                        if (action === 'flag' && card) {
-                          toggleFlag(card.id);
-                        }
-                        handleRate(rating, days);
-                      }}
-                      className="flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-border text-[10px] font-arabic hover:bg-accent transition-colors"
-                    >
-                      <span>{icon}</span>
-                      <span>{label}</span>
-                    </button>
-                  ))}
+              {/* Difficulty / General Rating — SECONDARY (collapsed) */}
+              <details className="group">
+                <summary className="text-[10px] text-muted-foreground font-arabic text-center cursor-pointer hover:text-foreground transition-colors list-none flex items-center justify-center gap-1">
+                  <span>تقييم إضافي (اختياري)</span>
+                  <span className="group-open:rotate-180 transition-transform">▼</span>
+                </summary>
+                <div className="mt-2 space-y-2">
+                  <div className="grid grid-cols-4 gap-2">
+                    {RATING_OPTIONS.map(({ rating, label, icon }) => {
+                      const intervalInfo = intervals.find(i => i.rating === rating);
+                      return (
+                        <button
+                          key={rating}
+                          onClick={() => handleRate(rating)}
+                          className="flex flex-col items-center gap-0.5 py-1.5 px-1 rounded-lg border border-border hover:bg-accent transition-colors"
+                        >
+                          <span className="text-base">{icon}</span>
+                          <span className="font-arabic text-[10px]">{label}</span>
+                          {intervalInfo && (
+                            <span className="text-[8px] text-muted-foreground font-arabic">{formatInterval(intervalInfo.interval)}</span>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <div className="flex flex-wrap justify-center gap-1.5">
+                    {[
+                      { label: 'مهمة', rating: 3 as SRSRating, action: 'flag', icon: '⭐' },
+                      { label: 'ضعيفة', rating: 1 as SRSRating, days: 0.007, icon: '😓' },
+                      { label: 'كررها', rating: 0 as SRSRating, days: 0.0007, icon: '🔄' },
+                      { label: 'تثبيت', rating: 5 as SRSRating, days: 90, icon: '📌' },
+                    ].map(({ label, rating, days, action, icon }) => (
+                      <button
+                        key={label}
+                        onClick={() => {
+                          if (action === 'flag' && card) {
+                            toggleFlag(card.id);
+                          }
+                          handleRate(rating, days);
+                        }}
+                        className="flex items-center gap-1 px-2 py-1 rounded-md border border-border text-[10px] font-arabic hover:bg-accent transition-colors"
+                      >
+                        <span>{icon}</span>
+                        <span>{label}</span>
+                      </button>
+                    ))}
+                  </div>
                 </div>
-              </div>
+              </details>
             </>
           )}
 
