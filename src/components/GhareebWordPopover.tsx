@@ -248,10 +248,15 @@ export function GhareebWordPopover({
     color: `hsl(${meaningColor})`,
   };
 
-  const highlightStyle = settings.colors.highlightStyle || 'background';
+  const globalHighlightStyle = settings.colors.highlightStyle || 'background';
+  // Determine effective highlight mode: prop > global setting
+  const effectiveHighlightMode = activeHighlightStyle !== 'default'
+    ? activeHighlightStyle
+    : (globalHighlightStyle === 'text-only' ? 'color' : 'bg');
+
   const wordClasses = [
     "ghareeb-word quran-word",
-    highlightStyle === 'text-only' ? "ghareeb-word--text-only" : "",
+    globalHighlightStyle === 'text-only' ? "ghareeb-word--text-only" : "",
     isHighlighted ? "ghareeb-word--active" : "",
     wasSeen && !isHighlighted ? "ghareeb-word--seen" : "",
     extraClassName || "",
@@ -259,18 +264,27 @@ export function GhareebWordPopover({
     .filter(Boolean)
     .join(" ");
 
-  // When active: force inline style to override CSS variables set on :root
-  // CSS class !important cannot override inline CSS variables on :root
-  // Always use text-color-only highlighting — no background, no border
+  // Build inline styles based on the effective highlight mode
   const activeWordStyle: Record<string, string> = (() => {
     if (!isHighlighted) return {};
     const hlColor = settings.colors.highlightColor || '48 80% 90%';
-    return {
-      '--ghareeb-active-color': `hsl(${hlColor})`,
+    const base: Record<string, string> = {
+      '--ghareeb-active-color': 'inherit',
       '--ghareeb-active-bg': 'transparent',
       '--ghareeb-active-border': 'transparent',
       '--ghareeb-active-shadow': 'none',
     };
+    if (effectiveHighlightMode === 'color') {
+      base['--ghareeb-active-color'] = `hsl(${hlColor})`;
+    } else if (effectiveHighlightMode === 'bg') {
+      base['--ghareeb-active-bg'] = `hsl(${hlColor} / 0.35)`;
+      base['--ghareeb-active-border'] = `hsl(${hlColor} / 0.6)`;
+      base['--ghareeb-active-shadow'] = `0 0 8px 2px hsl(${hlColor} / 0.3)`;
+    } else if (effectiveHighlightMode === 'border') {
+      base['--ghareeb-active-border'] = `hsl(${hlColor})`;
+      base['--ghareeb-active-shadow'] = `0 0 0 2px hsl(${hlColor} / 0.35)`;
+    }
+    return base;
   })();
 
   return (

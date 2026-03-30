@@ -30,7 +30,7 @@ export function GhareebSRSPanel({
   const [sessionCards, setSessionCards] = useState<SRSCard[]>([]);
   const [sessionSize, setSessionSize] = useState<'all' | '5' | '10' | '20' | '30' | '50' | '100'>('all');
   const [scope, setScope] = useState<SRSScope>({ type: 'all-due', from: currentPage, to: currentPage });
-  const [highlightStyle, setHighlightStyle] = useState<'color' | 'bg' | 'border'>('bg');
+  const [highlightStyle, setHighlightStyle] = useState<'color' | 'bg' | 'border'>('color');
   const [reviewSource, setReviewSource] = useState<'due' | 'all'>('all');
   const [wordDistribution, setWordDistribution] = useState<'sequential' | 'by-ayah'>('sequential');
 
