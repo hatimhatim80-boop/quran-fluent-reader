@@ -54,13 +54,27 @@ export function GhareebReviewSettingsPanel({ className, highlightStyle, onHighli
   const setMeaningBox = useSettingsStore((s) => s.setMeaningBox);
   const setColors = useSettingsStore((s) => s.setColors);
 
-  // Safe defaults – merge with defaults so individual missing keys don't crash
-  const fonts = { quranFontSize: 1.35, lineHeight: 2.2, font: 'uthmanicHafs' as const, ...settings.fonts };
-  const display = { mode: 'continuous' as const, textAlign: 'justify' as const, ...settings.display };
-  const autoplay = { speed: 1, thinkingGap: 500, autoPlayOnWordClick: false, ...settings.autoplay };
-  const popover = { width: 220, padding: 14, ...settings.popover };
-  const meaningBox = { wordFontSize: 1.4, meaningFontSize: 1.1, ...settings.meaningBox };
-  const colors = { highlightColor: '48 80% 90%', popoverBackground: '38 50% 97%', popoverWordColor: '25 30% 18%', popoverMeaningColor: '25 20% 35%', ...settings.colors };
+  // Safe defaults – single merge source to avoid duplicated definitions
+  const defaults = {
+    fonts: { quranFontSize: 1.35, lineHeight: 2.2, font: 'uthmanicHafs' as const },
+    display: { mode: 'continuous' as const, textAlign: 'justify' as const },
+    autoplay: { speed: 1, thinkingGap: 500, autoPlayOnWordClick: false },
+    popover: { width: 220, padding: 14 },
+    meaningBox: { wordFontSize: 1.4, meaningFontSize: 1.1 },
+    colors: {
+      highlightColor: '48 80% 90%',
+      popoverBackground: '38 50% 97%',
+      popoverWordColor: '25 30% 18%',
+      popoverMeaningColor: '25 20% 35%',
+    },
+  };
+
+  const fonts = { ...defaults.fonts, ...settings.fonts };
+  const display = { ...defaults.display, ...settings.display };
+  const autoplay = { ...defaults.autoplay, ...settings.autoplay };
+  const popover = { ...defaults.popover, ...settings.popover };
+  const meaningBox = { ...defaults.meaningBox, ...settings.meaningBox };
+  const colors = { ...defaults.colors, ...settings.colors };
 
   const highlightValue = resolveSelectValue(
     colors.highlightColor,
