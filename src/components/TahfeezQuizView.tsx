@@ -791,23 +791,54 @@ export function TahfeezQuizView({
             }
           }
         } else if (shouldShowAsRevealedAyah) {
-          // Ayah-level revealed highlight (distinct from word-level)
+          // Ayah-level revealed highlight — inline styles to guarantee visibility
+          const ayahPalette = REVEALED_AYAH_COLORS[revealedAyahColor] || REVEALED_AYAH_COLORS.green;
+          const ayahInline: React.CSSProperties = {
+            display: 'inline-block',
+            color: ayahPalette.color,
+            fontWeight: 700,
+            transition: 'all 0.35s ease',
+            ...(storeMode ? { cursor: 'pointer' } : {}),
+          };
+          if (revealedAyahStyle === 'background') {
+            ayahInline.background = ayahPalette.bg;
+            ayahInline.borderRadius = '0.45rem';
+            ayahInline.paddingInline = '0.12em';
+          } else if (revealedAyahStyle === 'border') {
+            ayahInline.borderRadius = '0.45rem';
+            ayahInline.paddingInline = '0.12em';
+            ayahInline.boxShadow = `inset 0 -2px 0 ${ayahPalette.color}, 0 0 0 1px hsl(var(--foreground) / 0.08)`;
+          }
           lineElements.push(
             <span
               key={`${lineIdx}-${tokenIdx}`}
-              className={`tahfeez-ayah-revealed tahfeez-ayah-revealed--${revealedAyahStyle} tahfeez-ayah-revealed--${revealedAyahColor}${storeMode ? ' tahfeez-store-target' : ''}${isStored ? ' tahfeez-stored' : ''}`}
+              className={`${storeMode ? 'tahfeez-store-target' : ''}${isStored ? ' tahfeez-stored' : ''}`}
               onClick={storeClickHandler}
-              style={storeMode ? { cursor: 'pointer' } : undefined}
+              style={ayahInline}
             >
               {t}
             </span>
           );
         } else if (shouldShowAsRevealed) {
-          const baseClass = !revealedWithBg ? 'tahfeez-revealed--text-only' : 'tahfeez-revealed';
-          const colorClass = revealedColor !== 'green' ? ` tahfeez-revealed--${revealedColor}` : '';
+          // Word-level revealed — inline styles to guarantee visibility
+          const wordPalette = REVEALED_WORD_COLORS[revealedColor] || REVEALED_WORD_COLORS.green;
+          const wordInline: React.CSSProperties = {
+            display: 'inline-block',
+            color: wordPalette.color,
+            fontWeight: 600,
+            transition: 'all 0.4s ease',
+            ...(storeMode ? { cursor: 'pointer' } : {}),
+          };
+          if (revealedWithBg) {
+            wordInline.background = wordPalette.bg;
+            wordInline.borderRadius = '4px';
+            wordInline.padding = '0 3px';
+            wordInline.margin = '0 -3px';
+          }
           lineElements.push(
-            <span key={`${lineIdx}-${tokenIdx}`} className={`${baseClass}${colorClass}${storeMode ? ' tahfeez-store-target' : ''}${isStored ? ' tahfeez-stored' : ''}`}
-              onClick={storeClickHandler} style={storeMode ? { cursor: 'pointer' } : undefined}>{t}</span>
+            <span key={`${lineIdx}-${tokenIdx}`}
+              className={`${storeMode ? 'tahfeez-store-target' : ''}${isStored ? ' tahfeez-stored' : ''}`}
+              onClick={storeClickHandler} style={wordInline}>{t}</span>
           );
         } else {
           lineElements.push(
