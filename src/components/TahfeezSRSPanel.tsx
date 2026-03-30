@@ -215,9 +215,7 @@ export function TahfeezSRSPanel({
   const plannedSessionCount = sessionSize === 'all' ? availableCount : Math.min(requestedCount, availableCount);
   const quickSessionSizes = Array.from(new Set([10, 20, 50, 100, 200, 300, availableCount].filter((n) => n > 0))).sort((a, b) => a - b);
 
-  useMemo(() => {
-    return cards;
-  }, [cards]);
+  // (dead useMemo removed)
 
   React.useEffect(() => {
     const needsMigration = cards.some((card) => {

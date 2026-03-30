@@ -1410,6 +1410,7 @@ export default function TahfeezPage() {
                 if (card.type === 'tahfeez-word') {
                   // Word-level: blank only the specific word key
                   const wordKey = card.contentKey;
+                  console.log('[tahfeez][SRS-render] word card:', card.id, 'key:', wordKey, 'revealed:', answerRevealed);
                   return (
                     <TahfeezQuizView
                       page={pgData}
@@ -1430,6 +1431,7 @@ export default function TahfeezPage() {
                 // Ayah-level: use stable ayah ID for precise binding
                 const stableAyahId = typeof card.meta?.ayahStableId === 'string' ? String(card.meta.ayahStableId) : null;
                 const forcedAyahIndex = typeof card.meta?.ayahIndex === 'number' ? Number(card.meta.ayahIndex) : null;
+                console.log('[tahfeez][SRS-render] ayah card:', card.id, 'stableId:', stableAyahId, 'ayahIndex:', forcedAyahIndex, 'revealed:', answerRevealed);
                 return (
                   <TahfeezQuizView
                     page={pgData}

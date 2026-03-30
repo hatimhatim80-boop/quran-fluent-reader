@@ -250,6 +250,7 @@ export function TahfeezQuizView({
       ayahIdToKeys.set(ayahId, keys);
       keys.forEach((key) => keyToAyahId.set(key, ayahId));
     });
+    console.log('[tahfeez][ayahMeta] page:', page.pageNumber, 'ayahGroups:', ayahGroups.length, 'stableIds:', [...ayahIdToKeys.keys()].slice(0, 5));
     return { keyToAyahId, ayahIdToKeys };
   }, [ayahGroups, page.pageNumber]);
 
@@ -259,8 +260,13 @@ export function TahfeezQuizView({
     if (forceAyahIds && forceAyahIds.length > 0) {
       const keys = new Set<string>();
       forceAyahIds.forEach((ayahId) => {
-        ayahEntityMeta.ayahIdToKeys.get(ayahId)?.forEach((key) => keys.add(key));
+        const mappedKeys = ayahEntityMeta.ayahIdToKeys.get(ayahId);
+        console.log('[tahfeez][blanking] forceAyahId:', ayahId, '→ keys:', mappedKeys?.length ?? 0, mappedKeys ? `[${mappedKeys.slice(0, 3).join(',')}...]` : '(not found)');
+        mappedKeys?.forEach((key) => keys.add(key));
       });
+      if (keys.size === 0) {
+        console.warn('[tahfeez][blanking] forceAyahIds provided but no keys matched! ayahIds:', forceAyahIds, 'available:', [...ayahEntityMeta.ayahIdToKeys.keys()].slice(0, 5));
+      }
       return {
         keys,
         generationPath: 'forceAyahIds' as BlankingGenerationPath,
@@ -453,8 +459,13 @@ export function TahfeezQuizView({
   const revealedAyahKeySet = useMemo(() => {
     const keys = new Set<string>();
     (revealedAyahIds || []).forEach((ayahId) => {
-      ayahEntityMeta.ayahIdToKeys.get(ayahId)?.forEach((key) => keys.add(key));
+      const mappedKeys = ayahEntityMeta.ayahIdToKeys.get(ayahId);
+      console.log('[tahfeez][reveal] revealedAyahId:', ayahId, '→ highlight keys:', mappedKeys?.length ?? 0);
+      mappedKeys?.forEach((key) => keys.add(key));
     });
+    if (revealedAyahIds && revealedAyahIds.length > 0 && keys.size === 0) {
+      console.warn('[tahfeez][reveal] revealedAyahIds provided but no keys matched!', revealedAyahIds);
+    }
     return keys;
   }, [revealedAyahIds, ayahEntityMeta]);
 
