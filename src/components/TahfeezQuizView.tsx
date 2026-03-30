@@ -920,7 +920,6 @@ export function TahfeezQuizView({
       actualSelectedAyat: actualSelectedAyatCount,
       requestedWords: hiddenWordsMode === 'percentage' ? `${hiddenWordsPercentage}%` : hiddenWordsCount,
       actualSelectedWords: actualSelectedWordCount,
-      actualSelectedWords: actualSelectedWordCount,
       sampleSelectedKeys,
     };
   }, [blankedKeys, ayahGroups, allWordTokens, reviewMode, hiddenAyatCount, hiddenWordsCount, hiddenWordsMode, hiddenWordsPercentage, distributionMode, quizSource, blankingComputation]);
