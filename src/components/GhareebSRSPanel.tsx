@@ -8,6 +8,7 @@ import { GhareebWord } from '@/types/quran';
 import { Plus, RotateCcw, Download, Upload, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { GhareebReviewSettingsPanel } from './GhareebReviewSettingsPanel';
+import { useSettingsStore } from '@/stores/settingsStore';
 
 interface GhareebSRSPanelProps {
   pageWords: GhareebWord[];
