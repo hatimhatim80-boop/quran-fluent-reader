@@ -99,6 +99,7 @@ export function TahfeezQuizView({
   storedItems,
   autoBlankMode,
   waqfCombinedModes,
+  quizScope,
   blankCount,
   ayahCount,
   activeBlankKey,
