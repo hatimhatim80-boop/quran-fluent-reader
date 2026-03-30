@@ -259,7 +259,7 @@ export function TahfeezQuizView({
       const keys = new Set<string>();
       forceAyahIds.forEach((ayahId) => {
         const mappedKeys = ayahEntityMeta.ayahIdToKeys.get(ayahId);
-        console.log('[tahfeez][blanking] forceAyahId:', ayahId, '→ keys:', mappedKeys?.length ?? 0, mappedKeys ? `[${mappedKeys.slice(0, 3).join(',')}...]` : '(not found)');
+        if (import.meta.env.DEV) console.log('[tahfeez][blanking] forceAyahId:', ayahId, '→ keys:', mappedKeys?.length ?? 0, mappedKeys ? `[${mappedKeys.slice(0, 3).join(',')}...]` : '(not found)');
         mappedKeys?.forEach((key) => keys.add(key));
       });
       if (keys.size === 0) {
