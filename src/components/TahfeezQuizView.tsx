@@ -62,8 +62,12 @@ interface TahfeezQuizViewProps {
   onInlineMCQAnswer?: (key: string, correct: boolean) => void;
   /** If provided, ONLY these keys are blanked (overrides autoBlankMode computation) */
   forceBlankedKeys?: string[];
+  /** Stable ayah IDs to blank (preferred over indices in review mode) */
+  forceAyahIds?: string[];
   /** If provided, ONLY these ayah group indices are blanked (overrides autoBlankMode computation) */
   forceAyahIndices?: number[];
+  /** Stable ayah IDs already revealed — triggers ayah-revealed highlight */
+  revealedAyahIds?: string[];
 }
 
 function isSurahHeader(line: string): boolean {
@@ -88,6 +92,7 @@ interface TokenInfo {
 }
 
 type BlankingGenerationPath =
+  | 'forceAyahIds'
   | 'forceAyahIndices'
   | 'forceBlankedKeys'
   | 'custom-items'
@@ -116,12 +121,16 @@ export function TahfeezQuizView({
   allWordTexts,
   onInlineMCQAnswer,
   forceBlankedKeys,
+  forceAyahIds,
   forceAyahIndices,
+  revealedAyahIds,
 }: TahfeezQuizViewProps) {
   const { dotScale } = useTahfeezStore();
   const waqfDisplayMode = useTahfeezStore(s => s.waqfDisplayMode);
   const { settings } = useSettingsStore();
   const revealedColor = useTahfeezStore(s => s.revealedColor);
+  const revealedAyahColor = useTahfeezStore(s => s.revealedAyahColor);
+  const revealedAyahStyle = useTahfeezStore(s => s.revealedAyahStyle);
   const revealedWithBg = useTahfeezStore(s => s.revealedWithBg);
   const activeWordColor = useTahfeezStore(s => s.activeWordColor);
   const reviewMode = useTahfeezStore(s => s.reviewMode);
@@ -229,8 +238,36 @@ export function TahfeezQuizView({
     return { lines, allWordTokens: ayahGroups.flat(), ayahGroups };
   }, [effectiveText]);
 
+  // Build stable ayah entity metadata (stable ID per ayah group)
+  const ayahEntityMeta = useMemo(() => {
+    const keyToAyahId = new Map<string, string>();
+    const ayahIdToKeys = new Map<string, string[]>();
+    ayahGroups.forEach((group, ayahIndex) => {
+      const firstKey = group[0]?.key ?? 'start';
+      const lastKey = group[group.length - 1]?.key ?? 'end';
+      const ayahId = `ayah_${page.pageNumber}_${ayahIndex}_${firstKey}_${lastKey}`;
+      const keys = group.map((token) => token.key);
+      ayahIdToKeys.set(ayahId, keys);
+      keys.forEach((key) => keyToAyahId.set(key, ayahId));
+    });
+    return { keyToAyahId, ayahIdToKeys };
+  }, [ayahGroups, page.pageNumber]);
+
   // Determine which keys should be blanked (uses precomputed ayahGroups)
   const blankingComputation = useMemo(() => {
+    // Stable ayah ID-based blanking (preferred for SRS review)
+    if (forceAyahIds && forceAyahIds.length > 0) {
+      const keys = new Set<string>();
+      forceAyahIds.forEach((ayahId) => {
+        ayahEntityMeta.ayahIdToKeys.get(ayahId)?.forEach((key) => keys.add(key));
+      });
+      return {
+        keys,
+        generationPath: 'forceAyahIds' as BlankingGenerationPath,
+        distributedStats: null,
+      };
+    }
+
     if (forceAyahIndices && forceAyahIndices.length > 0) {
       const keys = new Set<string>();
       forceAyahIndices.forEach((ayahIndex) => {
@@ -408,8 +445,17 @@ export function TahfeezQuizView({
     }
 
     return { keys, generationPath, distributedStats };
-  }, [quizSource, storedItems, autoBlankMode, blankCount, ayahCount, page.pageNumber, allWordTokens, ayahGroups, waqfCombinedModes, waqfDisplayMode, forceBlankedKeys, forceAyahIndices, reviewMode, hiddenAyatCount, hiddenWordsCount, distributionMode, distributionSeed, hiddenWordsMode, hiddenWordsPercentage, percentageScope, wordSequenceMode, wordBlankPosition, quizScope]);
+  }, [quizSource, storedItems, autoBlankMode, blankCount, ayahCount, page.pageNumber, allWordTokens, ayahGroups, waqfCombinedModes, waqfDisplayMode, forceBlankedKeys, forceAyahIds, forceAyahIndices, reviewMode, hiddenAyatCount, hiddenWordsCount, distributionMode, distributionSeed, hiddenWordsMode, hiddenWordsPercentage, percentageScope, wordSequenceMode, wordBlankPosition, quizScope, ayahEntityMeta]);
   const blankedKeys = blankingComputation.keys;
+
+  // Build set of keys whose ayah has been revealed (for ayah-level highlight)
+  const revealedAyahKeySet = useMemo(() => {
+    const keys = new Set<string>();
+    (revealedAyahIds || []).forEach((ayahId) => {
+      ayahEntityMeta.ayahIdToKeys.get(ayahId)?.forEach((key) => keys.add(key));
+    });
+    return keys;
+  }, [revealedAyahIds, ayahEntityMeta]);
 
   // Export blanked keys list (ordered) for parent to use in sequencing
   // This is used by the parent component via a ref or callback
@@ -616,11 +662,13 @@ export function TahfeezQuizView({
         const isBlanked = blankedKeys.has(key);
         const isActive = activeBlankKey === key;
         const isRevealed = revealedKeys.has(key);
+        const isAyahRevealed = revealedAyahKeySet.has(key);
 
         // Determine display state
-        const shouldHide = isBlanked && !isRevealed && !showAll && !isActive;
-        const shouldShowAsActive = isBlanked && isActive && !isRevealed && !showAll;
-        const shouldShowAsRevealed = isBlanked && (isRevealed || showAll);
+        const shouldHide = isBlanked && !isRevealed && !isAyahRevealed && !showAll && !isActive;
+        const shouldShowAsActive = isBlanked && isActive && !isRevealed && !isAyahRevealed && !showAll;
+        const shouldShowAsRevealedAyah = isBlanked && isAyahRevealed && !isActive;
+        const shouldShowAsRevealed = isBlanked && (isRevealed || showAll) && !isAyahRevealed;
 
         // Check if this word is already stored (for store mode visual feedback)
         const isStored = storeMode && storedItems.some(item => {
@@ -716,6 +764,18 @@ export function TahfeezQuizView({
               );
             }
           }
+        } else if (shouldShowAsRevealedAyah) {
+          // Ayah-level revealed highlight (distinct from word-level)
+          lineElements.push(
+            <span
+              key={`${lineIdx}-${tokenIdx}`}
+              className={`tahfeez-ayah-revealed tahfeez-ayah-revealed--${revealedAyahStyle} tahfeez-ayah-revealed--${revealedAyahColor}${storeMode ? ' tahfeez-store-target' : ''}${isStored ? ' tahfeez-stored' : ''}`}
+              onClick={storeClickHandler}
+              style={storeMode ? { cursor: 'pointer' } : undefined}
+            >
+              {t}
+            </span>
+          );
         } else if (shouldShowAsRevealed) {
           const baseClass = !revealedWithBg ? 'tahfeez-revealed--text-only' : 'tahfeez-revealed';
           const colorClass = revealedColor !== 'green' ? ` tahfeez-revealed--${revealedColor}` : '';
@@ -744,7 +804,7 @@ export function TahfeezQuizView({
     return isLines15 
       ? <div className="quran-lines-container">{elements}</div>
       : <div className="quran-page">{elements}</div>;
-  }, [lines, blankedKeys, activeBlankKey, revealedKeys, showAll, isLines15, storeMode, storedItems, onStoreWord, page.pageNumber, inlineMCQ, inlineMCQOptions, inlineMCQFeedback, inlineMCQSelected]);
+  }, [lines, blankedKeys, activeBlankKey, revealedKeys, revealedAyahKeySet, showAll, isLines15, storeMode, storedItems, onStoreWord, page.pageNumber, inlineMCQ, inlineMCQOptions, inlineMCQFeedback, inlineMCQSelected, revealedAyahColor, revealedAyahStyle, revealedColor, revealedWithBg]);
 
 
   // Auto-scroll active blank word into view when it's near the bottom
