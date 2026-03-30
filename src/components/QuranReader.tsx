@@ -392,8 +392,28 @@ export function QuranReader() {
                 const pgData = pages.find(p => p.pageNumber === pg);
                 if (!pgData) return null;
                 const pgWords = allGhareebWords.filter(w => w.pageNumber === pg);
+                const hlColor = settingsStore.settings.colors.highlightColor || '48 80% 90%';
+                const hlVars: Record<string, string> = {};
+                if (highlightStyle === 'color') {
+                  hlVars['--ghareeb-active-color'] = `hsl(${hlColor})`;
+                  hlVars['--ghareeb-active-bg'] = 'transparent';
+                  hlVars['--ghareeb-active-border'] = 'transparent';
+                  hlVars['--ghareeb-active-shadow'] = 'none';
+                } else if (highlightStyle === 'border') {
+                  hlVars['--ghareeb-active-bg'] = 'transparent';
+                  hlVars['--ghareeb-active-border'] = `hsl(${hlColor})`;
+                  hlVars['--ghareeb-active-shadow'] = `0 0 0 2px hsl(${hlColor} / 0.35)`;
+                } else if (highlightStyle === 'bg') {
+                  hlVars['--ghareeb-active-bg'] = `hsl(${hlColor} / 0.35)`;
+                  hlVars['--ghareeb-active-border'] = `hsl(${hlColor} / 0.6)`;
+                  hlVars['--ghareeb-active-shadow'] = `0 0 0 1px hsl(${hlColor} / 0.25)`;
+                } else {
+                  hlVars['--ghareeb-active-bg'] = `hsl(${hlColor} / 0.35)`;
+                  hlVars['--ghareeb-active-border'] = `hsl(${hlColor} / 0.6)`;
+                  hlVars['--ghareeb-active-shadow'] = `0 0 10px 3px hsl(${hlColor} / 0.45)`;
+                }
                 return (
-                  <div className="relative" data-srs-highlight-style={highlightStyle} data-srs-word-key={wordKey}>
+                  <div className="relative" style={hlVars as React.CSSProperties} data-srs-highlight-style={highlightStyle} data-srs-word-key={wordKey}>
                     <PageView
                       page={pgData}
                       ghareebWords={pgWords}
