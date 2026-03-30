@@ -10,10 +10,11 @@ import { useSettingsStore } from '@/stores/settingsStore';
 import { cn } from '@/lib/utils';
 
 const HIGHLIGHT_PRESETS = [
-  { value: '48 80% 90%', label: 'ذهبي فاتح' },
-  { value: '210 75% 88%', label: 'أزرق هادئ' },
-  { value: '150 45% 86%', label: 'أخضر فاتح' },
-  { value: '20 70% 88%', label: 'برتقالي فاتح' },
+  { value: '0 85% 45%', label: 'أحمر داكن' },
+  { value: '210 80% 40%', label: 'أزرق داكن' },
+  { value: '270 65% 42%', label: 'بنفسجي داكن' },
+  { value: '25 85% 42%', label: 'برتقالي داكن' },
+  { value: '340 70% 40%', label: 'وردي داكن' },
 ];
 
 const POPOVER_BG_PRESETS = [
@@ -62,7 +63,7 @@ export function GhareebReviewSettingsPanel({ className, highlightStyle, onHighli
     popover: { width: 220, padding: 14 },
     meaningBox: { wordFontSize: 1.4, meaningFontSize: 1.1 },
     colors: {
-      highlightColor: '48 80% 90%',
+      highlightColor: '0 85% 45%',
       popoverBackground: '38 50% 97%',
       popoverWordColor: '25 30% 18%',
       popoverMeaningColor: '25 20% 35%',

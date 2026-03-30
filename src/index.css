@@ -881,7 +881,7 @@
     filter: brightness(0.92);
   }
 
-  /* Review mode surface: no base chip/pill styling so only active style is visible */
+  /* Review mode surface: show all ghareeb words in a muted color, active word in contrasting color */
   [data-ghareeb-review-surface="true"] .ghareeb-word {
     padding: 0 !important;
     margin: 0 !important;
@@ -889,9 +889,12 @@
     background-color: transparent !important;
     border-color: transparent !important;
     box-shadow: none !important;
+    /* All ghareeb words visible in a muted teal during review */
+    color: hsl(195 60% 38%) !important;
   }
 
   [data-ghareeb-review-surface="true"] .ghareeb-word--seen {
+    color: hsl(140 40% 45%) !important;
     background-color: transparent !important;
     border-color: transparent !important;
   }
@@ -900,13 +903,15 @@
     filter: none;
   }
 
+  /* Active word: contrasting dark color that stands out from the muted ghareeb words */
   [data-ghareeb-review-surface="true"] .ghareeb-word--active {
     background-color: var(--ghareeb-active-bg, transparent) !important;
     border-color: var(--ghareeb-active-border, transparent) !important;
     box-shadow: var(--ghareeb-active-shadow, none) !important;
-    color: var(--ghareeb-active-color, inherit) !important;
+    color: var(--ghareeb-active-color, hsl(0 85% 45%)) !important;
     border-style: solid;
     border-width: 1px;
+    font-weight: 700;
   }
 
   /* Active word: use inline CSS variables for ALL highlight modes */
@@ -966,11 +971,18 @@
     color: var(--ghareeb-active-color, inherit) !important;
   }
 
+  .dark [data-ghareeb-review-surface="true"] .ghareeb-word {
+    color: hsl(195 55% 55%) !important;
+  }
+  .dark [data-ghareeb-review-surface="true"] .ghareeb-word--seen {
+    color: hsl(140 45% 55%) !important;
+  }
   .dark [data-ghareeb-review-surface="true"] .ghareeb-word--active {
     background-color: var(--ghareeb-active-bg, transparent) !important;
     border-color: var(--ghareeb-active-border, transparent) !important;
     box-shadow: var(--ghareeb-active-shadow, none) !important;
-    color: var(--ghareeb-active-color, inherit) !important;
+    color: var(--ghareeb-active-color, hsl(0 80% 60%)) !important;
+    font-weight: 700;
   }
 
   .dark .ghareeb-word--text-only:nth-child(5n+1) { color: hsl(210 70% 65%); }

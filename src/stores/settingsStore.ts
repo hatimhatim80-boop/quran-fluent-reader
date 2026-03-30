@@ -114,7 +114,7 @@ const defaultSettings: AppSettings = {
     fontWeight: 400,
   },
   colors: {
-    highlightColor: '48 80% 90%',
+    highlightColor: '0 85% 45%',
     highlightTextColor: '',
     highlightIntensity: 'medium',
     highlightStyle: 'background',
