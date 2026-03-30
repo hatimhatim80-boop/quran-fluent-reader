@@ -8,6 +8,7 @@ import { GhareebWord } from '@/types/quran';
 import { Plus, RotateCcw, Download, Upload, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { GhareebReviewSettingsPanel } from './GhareebReviewSettingsPanel';
+import { useSettingsStore } from '@/stores/settingsStore';
 
 interface GhareebSRSPanelProps {
   pageWords: GhareebWord[];
@@ -415,13 +416,40 @@ function GhareebReviewCardContent({
           rootRef={rootRef}
         />
       )}
-      {/* Inline answer */}
+      {/* Inline answer — uses settings */}
       {answerRevealed && answerDisplayMode === 'inline' && (
-        <div className="mt-2 mx-auto max-w-md bg-accent/50 border border-border rounded-xl p-3 text-center animate-fade-in" dir="rtl">
-          <p className="font-arabic text-lg font-bold text-primary">{card.meta.wordText as string}</p>
-          <p className="font-arabic text-base text-foreground mt-1">{card.meta.meaning as string}</p>
-        </div>
+        <InlineGhareebAnswer card={card} />
       )}
+    </div>
+  );
+}
+
+function InlineGhareebAnswer({ card }: { card: SRSCard }) {
+  const { settings } = useSettingsStore();
+  const popover = settings.popover || { padding: 12, borderRadius: 12, opacity: 100, shadow: 'medium' };
+  const colors = settings.colors;
+  const mb = settings.meaningBox || { wordFontSize: 1.4, meaningFontSize: 1.1 };
+  const wordColor = colors.popoverWordColor || '25 30% 18%';
+  const meaningColor = colors.popoverMeaningColor || '25 20% 35%';
+  const shadowMap: Record<string, string> = { none: 'none', soft: '0 2px 8px rgba(0,0,0,0.08)', medium: '0 4px 16px rgba(0,0,0,0.12)', strong: '0 8px 30px rgba(0,0,0,0.18)' };
+
+  return (
+    <div
+      className="mt-2 mx-auto max-w-md text-center animate-fade-in"
+      dir="rtl"
+      style={{
+        padding: popover.padding,
+        borderRadius: popover.borderRadius,
+        opacity: (popover.opacity ?? 100) / 100,
+        background: `hsl(${colors.popoverBackground || '38 50% 97%'})`,
+        borderColor: `hsl(${colors.popoverBorder || '35 25% 88%'})`,
+        borderWidth: '1px',
+        borderStyle: 'solid',
+        boxShadow: shadowMap[popover.shadow] || shadowMap.medium,
+      }}
+    >
+      <p className="font-arabic font-bold" style={{ color: `hsl(${wordColor})`, fontSize: `${mb.wordFontSize}rem` }}>{card.meta.wordText as string}</p>
+      <p className="font-arabic mt-1" style={{ color: `hsl(${meaningColor})`, fontSize: `${mb.meaningFontSize}rem` }}>{card.meta.meaning as string}</p>
     </div>
   );
 }
@@ -446,6 +474,14 @@ function AnchoredGhareebTooltip({
   rootRef: React.RefObject<HTMLDivElement>;
 }) {
   const [style, setStyle] = useState<React.CSSProperties | null>(null);
+  const { settings } = useSettingsStore();
+  const popover = settings.popover || { width: 240, padding: 16, borderRadius: 12, shadow: 'medium', opacity: 100 };
+  const colors = settings.colors;
+  const mb = settings.meaningBox || { wordFontSize: 1.4, meaningFontSize: 1.1 };
+  const wordColor = colors.popoverWordColor || '25 30% 18%';
+  const meaningColor = colors.popoverMeaningColor || '25 20% 35%';
+
+  const tooltipWidth = popover.width || 240;
 
   useLayoutEffect(() => {
     if (!visible) {
@@ -458,22 +494,17 @@ function AnchoredGhareebTooltip({
       if (!root) return;
       const wordEl = root.querySelector<HTMLElement>(`[data-ghareeb-key="${contentKey}"]`);
       if (!wordEl) {
-        // Fallback: center in root
         setStyle({ position: 'absolute', top: '30%', left: '50%', transform: 'translateX(-50%)', zIndex: 50 });
         return;
       }
 
       const rootRect = root.getBoundingClientRect();
       const wordRect = wordEl.getBoundingClientRect();
-      const tooltipWidth = 240;
 
-      // Position relative to root (absolute positioning)
       let top = wordRect.bottom - rootRect.top + 8;
       let left = wordRect.left - rootRect.left + wordRect.width / 2 - tooltipWidth / 2;
 
-      // Clamp within root bounds
       left = Math.max(8, Math.min(left, rootRect.width - tooltipWidth - 8));
-      // If tooltip would go below visible area, place above word
       if (top + 100 > rootRect.height) {
         top = wordRect.top - rootRect.top - 100;
       }
@@ -485,7 +516,6 @@ function AnchoredGhareebTooltip({
         zIndex: 50,
       });
 
-      // Also auto-scroll the tooltip into view if needed
       const scrollParent = root.closest('.overflow-auto');
       if (scrollParent) {
         const spRect = scrollParent.getBoundingClientRect();
@@ -498,14 +528,36 @@ function AnchoredGhareebTooltip({
 
     const raf = requestAnimationFrame(updatePosition);
     return () => cancelAnimationFrame(raf);
-  }, [visible, contentKey, rootRef]);
+  }, [visible, contentKey, rootRef, tooltipWidth]);
 
   if (!visible || !style) return null;
 
+  const shadowMap: Record<string, string> = {
+    none: 'none',
+    soft: '0 2px 8px rgba(0,0,0,0.08)',
+    medium: '0 4px 16px rgba(0,0,0,0.12)',
+    strong: '0 8px 30px rgba(0,0,0,0.18)',
+  };
+
   return (
-    <div style={style} className="bg-card border-2 border-primary rounded-xl shadow-2xl p-4 text-center animate-fade-in w-[240px]" dir="rtl">
-      <p className="font-arabic text-lg font-bold text-primary">{wordText}</p>
-      <p className="font-arabic text-base text-foreground mt-1">{meaning}</p>
+    <div
+      style={{
+        ...style,
+        width: tooltipWidth,
+        padding: popover.padding,
+        borderRadius: popover.borderRadius,
+        opacity: (popover.opacity ?? 100) / 100,
+        background: `hsl(${colors.popoverBackground || '38 50% 97%'})`,
+        borderColor: `hsl(${colors.popoverBorder || '35 25% 88%'})`,
+        borderWidth: '2px',
+        borderStyle: 'solid',
+        boxShadow: shadowMap[popover.shadow] || shadowMap.medium,
+      }}
+      className="text-center animate-fade-in"
+      dir="rtl"
+    >
+      <p className="font-arabic font-bold" style={{ color: `hsl(${wordColor})`, fontSize: `${mb.wordFontSize}rem` }}>{wordText}</p>
+      <p className="font-arabic mt-1" style={{ color: `hsl(${meaningColor})`, fontSize: `${mb.meaningFontSize}rem` }}>{meaning}</p>
       <p className="text-xs text-muted-foreground mt-1 font-arabic">{surahName} — آية {verseNumber}</p>
     </div>
   );
