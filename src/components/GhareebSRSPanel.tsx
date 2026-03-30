@@ -416,13 +416,40 @@ function GhareebReviewCardContent({
           rootRef={rootRef}
         />
       )}
-      {/* Inline answer */}
+      {/* Inline answer — uses settings */}
       {answerRevealed && answerDisplayMode === 'inline' && (
-        <div className="mt-2 mx-auto max-w-md bg-accent/50 border border-border rounded-xl p-3 text-center animate-fade-in" dir="rtl">
-          <p className="font-arabic text-lg font-bold text-primary">{card.meta.wordText as string}</p>
-          <p className="font-arabic text-base text-foreground mt-1">{card.meta.meaning as string}</p>
-        </div>
+        <InlineGhareebAnswer card={card} />
       )}
+    </div>
+  );
+}
+
+function InlineGhareebAnswer({ card }: { card: SRSCard }) {
+  const { settings } = useSettingsStore();
+  const popover = settings.popover || { padding: 12, borderRadius: 12, opacity: 100, shadow: 'medium' };
+  const colors = settings.colors;
+  const mb = settings.meaningBox || { wordFontSize: 1.4, meaningFontSize: 1.1 };
+  const wordColor = colors.popoverWordColor || '25 30% 18%';
+  const meaningColor = colors.popoverMeaningColor || '25 20% 35%';
+  const shadowMap: Record<string, string> = { none: 'none', soft: '0 2px 8px rgba(0,0,0,0.08)', medium: '0 4px 16px rgba(0,0,0,0.12)', strong: '0 8px 30px rgba(0,0,0,0.18)' };
+
+  return (
+    <div
+      className="mt-2 mx-auto max-w-md text-center animate-fade-in"
+      dir="rtl"
+      style={{
+        padding: popover.padding,
+        borderRadius: popover.borderRadius,
+        opacity: (popover.opacity ?? 100) / 100,
+        background: `hsl(${colors.popoverBackground || '38 50% 97%'})`,
+        borderColor: `hsl(${colors.popoverBorder || '35 25% 88%'})`,
+        borderWidth: '1px',
+        borderStyle: 'solid',
+        boxShadow: shadowMap[popover.shadow] || shadowMap.medium,
+      }}
+    >
+      <p className="font-arabic font-bold" style={{ color: `hsl(${wordColor})`, fontSize: `${mb.wordFontSize}rem` }}>{card.meta.wordText as string}</p>
+      <p className="font-arabic mt-1" style={{ color: `hsl(${meaningColor})`, fontSize: `${mb.meaningFontSize}rem` }}>{card.meta.meaning as string}</p>
     </div>
   );
 }
