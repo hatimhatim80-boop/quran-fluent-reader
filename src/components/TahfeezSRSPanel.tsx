@@ -218,7 +218,14 @@ export function TahfeezSRSPanel({
   React.useEffect(() => {
     const needsMigration = cards.some((card) => {
       if (card.type === 'tahfeez-ayah') {
-        return typeof card.meta?.ayahIndex !== 'number' || typeof card.meta?.ayahStableId !== 'string';
+        if (typeof card.meta?.ayahIndex !== 'number') return true;
+        // Detect old-format stableId (ayah_page_idx_key_key) vs new (ayah_page_idx)
+        const sid = card.meta?.ayahStableId;
+        if (typeof sid !== 'string') return true;
+        const parts = sid.split('_');
+        // New format: ayah_{page}_{idx} = 3 parts; old had 5+
+        if (parts.length > 3) return true;
+        return false;
       }
       return false;
     });
