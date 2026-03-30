@@ -3,6 +3,7 @@ import { useSRSStore, SRSCard } from '@/stores/srsStore';
 import { SRSReviewSession } from './SRSReviewSession';
 import { SRSScopeSelector, SRSScope, scopeToPages } from './SRSScopeSelector';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { GhareebWord } from '@/types/quran';
 import { Plus, RotateCcw, Download, Upload, Trash2 } from 'lucide-react';
