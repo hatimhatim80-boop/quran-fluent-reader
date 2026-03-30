@@ -123,6 +123,7 @@ export function TahfeezSessionReviewSettings({ showDebugBadge: _showDebugBadge =
 
       {/* Word hiding settings — shown for word and mixed modes */}
       {(reviewMode === 'word' || reviewMode === 'mixed') && (
+      <>
       <div className="space-y-1.5">
         <p className="text-xs text-muted-foreground">وضع الكلمات</p>
         <div className="flex flex-wrap gap-1.5">
@@ -253,7 +254,7 @@ export function TahfeezSessionReviewSettings({ showDebugBadge: _showDebugBadge =
             ))}
           </div>
         </div>
-
+      </>
       )}
 
       {/* Revealed ayah highlight settings */}
