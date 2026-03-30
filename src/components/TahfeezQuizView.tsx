@@ -263,7 +263,7 @@ export function TahfeezQuizView({
         mappedKeys?.forEach((key) => keys.add(key));
       });
       if (keys.size === 0) {
-        console.warn('[tahfeez][blanking] forceAyahIds provided but no keys matched! ayahIds:', forceAyahIds, 'available:', [...ayahEntityMeta.ayahIdToKeys.keys()].slice(0, 5));
+        if (import.meta.env.DEV) console.warn('[tahfeez][blanking] forceAyahIds provided but no keys matched! ayahIds:', forceAyahIds, 'available:', [...ayahEntityMeta.ayahIdToKeys.keys()]);
       }
       return {
         keys,
