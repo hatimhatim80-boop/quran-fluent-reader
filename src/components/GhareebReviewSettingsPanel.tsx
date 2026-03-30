@@ -198,8 +198,8 @@ export function GhareebReviewSettingsPanel({ className, highlightStyle, onHighli
               <Slider
                 value={[popover.width]}
                 onValueChange={([v]) => setPopover({ width: Math.round(v) })}
-                min={170}
-                max={360}
+                min={100}
+                max={500}
                 step={5}
               />
             </div>
@@ -209,8 +209,8 @@ export function GhareebReviewSettingsPanel({ className, highlightStyle, onHighli
               <Slider
                 value={[popover.padding]}
                 onValueChange={([v]) => setPopover({ padding: Math.round(v) })}
-                min={8}
-                max={26}
+                min={0}
+                max={36}
                 step={1}
               />
             </div>
