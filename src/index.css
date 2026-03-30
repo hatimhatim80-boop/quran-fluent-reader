@@ -1416,6 +1416,39 @@
   .dark .tahfeez-revealed--purple.tahfeez-revealed--text-only { background: none; color: hsl(270 60% 70%); }
   .tahfeez-revealed--primary.tahfeez-revealed--text-only { background: none; color: hsl(var(--primary)); }
 
+  /* ── Ayah-level revealed highlight (separate from word-level) ── */
+  .tahfeez-ayah-revealed {
+    display: inline-block;
+    font-weight: 700;
+    --tahfeez-ayah-color: hsl(var(--primary));
+    --tahfeez-ayah-bg: hsl(var(--primary) / 0.14);
+  }
+  .tahfeez-ayah-revealed--text-only {
+    color: var(--tahfeez-ayah-color);
+  }
+  .tahfeez-ayah-revealed--background {
+    color: var(--tahfeez-ayah-color);
+    background: var(--tahfeez-ayah-bg);
+    border-radius: 0.45rem;
+    padding-inline: 0.12em;
+  }
+  .tahfeez-ayah-revealed--border {
+    color: var(--tahfeez-ayah-color);
+    border-radius: 0.45rem;
+    padding-inline: 0.12em;
+    box-shadow: inset 0 -2px 0 var(--tahfeez-ayah-color), 0 0 0 1px hsl(var(--foreground) / 0.08);
+  }
+  /* Color variants */
+  .tahfeez-ayah-revealed--green  { --tahfeez-ayah-color: hsl(140 55% 35%); --tahfeez-ayah-bg: hsl(140 55% 35% / 0.14); }
+  .tahfeez-ayah-revealed--blue   { --tahfeez-ayah-color: hsl(210 70% 40%); --tahfeez-ayah-bg: hsl(210 70% 40% / 0.14); }
+  .tahfeez-ayah-revealed--orange { --tahfeez-ayah-color: hsl(30 80% 38%);  --tahfeez-ayah-bg: hsl(30 80% 38% / 0.14);  }
+  .tahfeez-ayah-revealed--purple { --tahfeez-ayah-color: hsl(270 60% 42%); --tahfeez-ayah-bg: hsl(270 60% 42% / 0.14); }
+  .tahfeez-ayah-revealed--primary { --tahfeez-ayah-color: hsl(var(--primary)); --tahfeez-ayah-bg: hsl(var(--primary) / 0.14); }
+  .dark .tahfeez-ayah-revealed--green  { --tahfeez-ayah-color: hsl(140 60% 70%); --tahfeez-ayah-bg: hsl(140 60% 70% / 0.16); }
+  .dark .tahfeez-ayah-revealed--blue   { --tahfeez-ayah-color: hsl(210 70% 72%); --tahfeez-ayah-bg: hsl(210 70% 72% / 0.16); }
+  .dark .tahfeez-ayah-revealed--orange { --tahfeez-ayah-color: hsl(30 75% 72%);  --tahfeez-ayah-bg: hsl(30 75% 72% / 0.16);  }
+  .dark .tahfeez-ayah-revealed--purple { --tahfeez-ayah-color: hsl(270 60% 75%); --tahfeez-ayah-bg: hsl(270 60% 75% / 0.16); }
+
   /* Store mode - tappable words during quiz */
   .tahfeez-store-target {
     cursor: pointer;
