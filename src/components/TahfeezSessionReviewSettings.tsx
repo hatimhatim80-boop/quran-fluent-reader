@@ -157,8 +157,8 @@ export function TahfeezSessionReviewSettings({ showDebugBadge: _showDebugBadge =
         </div>
       </div>
 
-      {/* Word blank position - only for word/mixed modes */}
-      {(reviewMode === 'word' || reviewMode === 'mixed') && (
+      {/* Word blank position */}
+      <div className="space-y-1.5">
         <div className="space-y-1.5">
           <p className="text-xs text-muted-foreground">موضع الكلمات المخفية</p>
           <div className="flex flex-wrap gap-1.5">
