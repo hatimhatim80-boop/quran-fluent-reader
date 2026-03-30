@@ -45,6 +45,8 @@ interface TahfeezQuizViewProps {
   storedItems: TahfeezItem[];
   autoBlankMode: 'beginning' | 'middle' | 'end' | 'beginning-middle' | 'middle-end' | 'beginning-end' | 'beginning-middle-end' | 'full-ayah' | 'full-page' | 'ayah-count' | 'between-waqf' | 'waqf-to-ayah' | 'ayah-to-waqf' | 'next-ayah-mcq' | 'next-waqf-mcq';
   waqfCombinedModes: ('between-waqf' | 'waqf-to-ayah' | 'ayah-to-waqf' | 'between-ayah')[];
+  /** Quiz scope - used to determine if hiding should cover all ayahs per page */
+  quizScope?: 'current-page' | 'page-range' | 'hizb' | 'surah' | 'juz';
   blankCount: number;
   ayahCount: number;
   activeBlankKey: string | null;       // Currently active blank (highlighted)
