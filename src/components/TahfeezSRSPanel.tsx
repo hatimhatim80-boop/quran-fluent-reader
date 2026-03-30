@@ -7,6 +7,7 @@ import { TahfeezSessionReviewSettings } from './TahfeezSessionReviewSettings';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
+import { Input } from '@/components/ui/input';
 import { Plus, RotateCcw, Download, Upload, Trash2, BookOpen, Type, Settings } from 'lucide-react';
 import { toast } from 'sonner';
 import { QuranPage } from '@/types/quran';
@@ -21,6 +22,19 @@ interface WordToken {
   lineIdx: number;
   tokenIdx: number;
   key: string; // `${lineIdx}_${tokenIdx}`
+}
+
+function isSurahHeader(line: string): boolean {
+  return line.startsWith('سُورَةُ') || line.startsWith('سورة ');
+}
+
+function isBismillah(line: string): boolean {
+  const normalized = normalizeArabic(line);
+  return normalized.includes('بسم الله الرحمن الرحيم') || normalized.includes('بسم الله');
+}
+
+function formatArabicNumber(value: number): string {
+  return new Intl.NumberFormat('ar-SA').format(value);
 }
 
 function extractPageWords(text: string, pageNumber: number): WordToken[] {
@@ -45,6 +59,55 @@ function extractPageWords(text: string, pageNumber: number): WordToken[] {
     }
   }
   return tokens;
+}
+
+function extractPageAyahGroups(text: string, pageNumber: number): WordToken[][] {
+  const lines = text.split('\n');
+  const ayahGroups: WordToken[][] = [];
+  const isFatiha = pageNumber === 1;
+
+  if (isFatiha) {
+    for (let li = 0; li < lines.length; li++) {
+      const line = lines[li];
+      if (isSurahHeader(line)) continue;
+      const parts = line.split(/(\s+)/);
+      const group: WordToken[] = [];
+      for (let ti = 0; ti < parts.length; ti++) {
+        const t = parts[ti];
+        if (/^\s+$/.test(t)) continue;
+        const c = t.replace(CLEAN_RE, '').trim();
+        if (/^[٠-٩0-9۰-۹]+$/.test(c) || c.length === 0) continue;
+        group.push({ text: t, lineIdx: li, tokenIdx: ti, key: `${li}_${ti}` });
+      }
+      if (group.length > 0) ayahGroups.push(group);
+    }
+    return ayahGroups;
+  }
+
+  let currentGroup: WordToken[] = [];
+  for (let li = 0; li < lines.length; li++) {
+    const line = lines[li];
+    if (isSurahHeader(line) || isBismillah(line)) continue;
+    const parts = line.split(/(\s+)/);
+    for (let ti = 0; ti < parts.length; ti++) {
+      const t = parts[ti];
+      if (/^\s+$/.test(t)) continue;
+      const c = t.replace(CLEAN_RE, '').trim();
+      const isVerseNumber = /^[٠-٩0-9۰-۹]+$/.test(c);
+      if (isVerseNumber) {
+        if (currentGroup.length > 0) {
+          ayahGroups.push(currentGroup);
+          currentGroup = [];
+        }
+        continue;
+      }
+      if (c.length === 0) continue;
+      currentGroup.push({ text: t, lineIdx: li, tokenIdx: ti, key: `${li}_${ti}` });
+    }
+  }
+
+  if (currentGroup.length > 0) ayahGroups.push(currentGroup);
+  return ayahGroups;
 }
 
 // ── Props ────────────────────────────────────────────────────────────────────
@@ -75,7 +138,7 @@ export function TahfeezSRSPanel({
 
   const [sessionMode, setSessionMode] = useState<'setup' | 'review'>('setup');
   const [sessionCards, setSessionCards] = useState<SRSCard[]>([]);
-  const [sessionSize, setSessionSize] = useState<'all' | '10' | '20' | '50'>('all');
+  const [sessionSize, setSessionSize] = useState<string>('all');
   const [reviewLevel, setReviewLevel] = useState<'ayah' | 'word'>('ayah');
   const [reviewSource, setReviewSource] = useState<'due' | 'all'>('all');
   const [scope, setScope] = useState<SRSScope>({
@@ -114,22 +177,108 @@ export function TahfeezSRSPanel({
   const sessionPoolCount = scopedCards.length;
   const dueCount = dueCards.length;
 
+  const pageAyahCounts = useMemo(() => {
+    const counts = new Map<number, number>();
+    allPages.forEach((page) => {
+      counts.set(page.pageNumber, extractPageAyahGroups(page.text, page.pageNumber).length);
+    });
+    return counts;
+  }, [allPages]);
+
+  const pageWordCounts = useMemo(() => {
+    const counts = new Map<number, number>();
+    allPages.forEach((page) => {
+      counts.set(page.pageNumber, extractPageWords(page.text, page.pageNumber).length);
+    });
+    return counts;
+  }, [allPages]);
+
+  const rawScopeCount = useMemo(() => {
+    if (!scopePages || scopePages.length === 0) return 0;
+    return scopePages.reduce((sum, pageNumber) => {
+      return sum + (reviewLevel === 'ayah'
+        ? (pageAyahCounts.get(pageNumber) ?? 0)
+        : (pageWordCounts.get(pageNumber) ?? 0));
+    }, 0);
+  }, [scopePages, reviewLevel, pageAyahCounts, pageWordCounts]);
+
+  const usesRawScopeCount = reviewSource === 'all' && scope.type !== 'flagged' && scope.type !== 'all-due';
+  const availableCount = usesRawScopeCount ? rawScopeCount : sessionPoolCount;
+  const requestedCount = sessionSize === 'all' ? availableCount : Math.max(1, parseInt(sessionSize, 10) || 1);
+  const plannedSessionCount = sessionSize === 'all' ? availableCount : Math.min(requestedCount, availableCount);
+  const quickSessionSizes = Array.from(new Set([10, 20, 50, 100, availableCount].filter((n) => n > 0))).sort((a, b) => a - b);
+
+  useMemo(() => {
+    return cards;
+  }, [cards]);
+
+  React.useEffect(() => {
+    const legacyAyahCards = cards.filter(
+      (card) => card.type === 'tahfeez-ayah' && typeof card.meta?.ayahIndex !== 'number'
+    );
+    if (legacyAyahCards.length === 0) return;
+
+    useSRSStore.setState((state) => {
+      const existingIds = new Set(state.cards.map((card) => card.id));
+      const migrated: SRSCard[] = [];
+      const keptCards: SRSCard[] = [];
+      let changed = false;
+
+      state.cards.forEach((card) => {
+        const isLegacyAyahCard = card.type === 'tahfeez-ayah' && typeof card.meta?.ayahIndex !== 'number';
+        if (!isLegacyAyahCard) {
+          keptCards.push(card);
+          return;
+        }
+
+        const pageDataForCard = allPages.find((page) => page.pageNumber === card.page);
+        const ayahGroups = pageDataForCard ? extractPageAyahGroups(pageDataForCard.text, card.page) : [];
+        if (ayahGroups.length === 0) {
+          keptCards.push(card);
+          return;
+        }
+
+        changed = true;
+        ayahGroups.forEach((group, ayahIndex) => {
+          const id = `tahfeez_ayah_${card.page}_${ayahIndex}`;
+          if (existingIds.has(id)) return;
+          existingIds.add(id);
+          migrated.push({
+            ...card,
+            id,
+            contentKey: `ayah_${card.page}_${ayahIndex}`,
+            label: `ص${card.page} — آية ${ayahIndex + 1}`,
+            meta: { ...card.meta, ayahIndex, wordCount: group.length },
+          });
+        });
+      });
+
+      return changed ? { cards: [...keptCards, ...migrated] } : state;
+    });
+  }, [cards, allPages]);
+
   // ── Card generation helpers ──
 
-  const generateAyahCard = useCallback(
+  const generateAyahCards = useCallback(
     (pg: number, pgData: QuranPage) => {
-      const id = `tahfeez_ayah_${pg}`;
-      if (hasCard(id)) return false;
-      const tokens = extractPageWords(pgData.text, pg);
-      addCard({
-        id,
-        type: 'tahfeez-ayah',
-        page: pg,
-        contentKey: `page_${pg}`,
-        label: `ص${pg} — ${tokens.length} كلمة`,
-        meta: { wordCount: tokens.length },
+      const ayahGroups = extractPageAyahGroups(pgData.text, pg);
+      let added = 0;
+
+      ayahGroups.forEach((group, ayahIndex) => {
+        const id = `tahfeez_ayah_${pg}_${ayahIndex}`;
+        if (hasCard(id)) return;
+        addCard({
+          id,
+          type: 'tahfeez-ayah',
+          page: pg,
+          contentKey: `ayah_${pg}_${ayahIndex}`,
+          label: `ص${pg} — آية ${ayahIndex + 1}`,
+          meta: { ayahIndex, wordCount: group.length },
+        });
+        added += 1;
       });
-      return true;
+
+      return added;
     },
     [addCard, hasCard],
   );
@@ -162,14 +311,15 @@ export function TahfeezSRSPanel({
   const addCurrentPage = useCallback(() => {
     if (!pageData) return;
     if (reviewLevel === 'ayah') {
-      if (generateAyahCard(currentPage, pageData)) toast.success(`تمت إضافة صفحة ${currentPage}`);
+      const added = generateAyahCards(currentPage, pageData);
+      if (added > 0) toast.success(`تمت إضافة ${formatArabicNumber(added)} آية من الصفحة ${formatArabicNumber(currentPage)}`);
       else toast.info('الصفحة مضافة بالفعل');
     } else {
       const added = generateWordCards(currentPage, pageData);
-      if (added > 0) toast.success(`تمت إضافة ${added} كلمة`);
+      if (added > 0) toast.success(`تمت إضافة ${formatArabicNumber(added)} كلمة`);
       else toast.info('جميع الكلمات مضافة بالفعل');
     }
-  }, [pageData, currentPage, reviewLevel, generateAyahCard, generateWordCards]);
+  }, [pageData, currentPage, reviewLevel, generateAyahCards, generateWordCards]);
 
   const addScopeCards = useCallback(() => {
     if (!scopePages || scopePages.length === 0) {
@@ -181,14 +331,14 @@ export function TahfeezSRSPanel({
       const pgData = allPages.find((p) => p.pageNumber === pg);
       if (!pgData) continue;
       if (reviewLevel === 'ayah') {
-        if (generateAyahCard(pg, pgData)) added++;
+        added += generateAyahCards(pg, pgData);
       } else {
         added += generateWordCards(pg, pgData);
       }
     }
-    if (added > 0) toast.success(`تمت إضافة ${added} ${reviewLevel === 'ayah' ? 'صفحة' : 'كلمة'}`);
+    if (added > 0) toast.success(`تمت إضافة ${formatArabicNumber(added)} ${reviewLevel === 'ayah' ? 'آية' : 'كلمة'}`);
     else toast.info('جميع العناصر مضافة بالفعل');
-  }, [scopePages, allPages, reviewLevel, generateAyahCard, generateWordCards]);
+  }, [scopePages, allPages, reviewLevel, generateAyahCards, generateWordCards]);
 
   const startReview = useCallback(() => {
     let pool = scopedCards;
@@ -200,13 +350,13 @@ export function TahfeezSRSPanel({
         const pgData = allPages.find((p) => p.pageNumber === pg);
         if (!pgData) continue;
         if (reviewLevel === 'ayah') {
-          if (generateAyahCard(pg, pgData)) autoAdded++;
+          autoAdded += generateAyahCards(pg, pgData);
         } else {
           autoAdded += generateWordCards(pg, pgData);
         }
       }
       if (autoAdded > 0) {
-        toast.success(`تم تجهيز ${autoAdded} بطاقة`);
+        toast.success(`تم تجهيز ${formatArabicNumber(autoAdded)} بطاقة`);
         const state = useSRSStore.getState();
         pool = scopePages.length > 0
           ? state.getCardsByPages(scopePages, srsType)
@@ -223,14 +373,18 @@ export function TahfeezSRSPanel({
       return;
     }
 
-    const maxCount = sessionSize === 'all' ? undefined : parseInt(sessionSize);
-    const selected = maxCount ? pool.slice(0, maxCount) : pool;
+    const maxCount = sessionSize === 'all' ? pool.length : Math.max(1, parseInt(sessionSize, 10) || 1);
+    const selected = pool.slice(0, maxCount);
+
+    if (sessionSize !== 'all' && selected.length < maxCount) {
+      toast.info(`تم اختيار ${formatArabicNumber(selected.length)} بطاقة فقط لأن المتاح في هذا النطاق هو ${formatArabicNumber(pool.length)}`);
+    }
+
     setSessionCards(selected);
     setSessionMode('review');
-  }, [scopedCards, reviewSource, scope.type, scopePages, allPages, reviewLevel, generateAyahCard, generateWordCards, srsType, sessionSize]);
+  }, [scopedCards, reviewSource, scope.type, scopePages, allPages, reviewLevel, generateAyahCards, generateWordCards, srsType, sessionSize]);
 
-  const canStart =
-    sessionPoolCount > 0 || (reviewSource === 'all' && scopePages && scopePages.length > 0);
+  const canStart = availableCount > 0;
 
   // ── Export / Import ──
 
@@ -296,7 +450,7 @@ export function TahfeezSRSPanel({
           }
           return (
             <div className="p-2">
-              {renderPageWithBlanks(card.page, answerRevealed ? [] : ['__ALL_BLANKED__'], card)}
+              {renderPageWithBlanks(card.page, answerRevealed ? [] : [card.contentKey], card)}
             </div>
           );
         }}
@@ -382,20 +536,64 @@ export function TahfeezSRSPanel({
       {/* Session settings */}
       <div className="bg-card border border-border rounded-lg p-4 space-y-3">
         <h3 className="font-bold text-sm">إعدادات الجلسة</h3>
-        <div className="flex items-center justify-between">
-          <span className="text-sm">عدد البطاقات</span>
-          <Select value={sessionSize} onValueChange={(v) => setSessionSize(v as typeof sessionSize)}>
-            <SelectTrigger className="w-28 h-8 text-xs font-arabic">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">الكل ({sessionPoolCount})</SelectItem>
-              <SelectItem value="10">١٠</SelectItem>
-              <SelectItem value="20">٢٠</SelectItem>
-              <SelectItem value="50">٥٠</SelectItem>
-            </SelectContent>
-          </Select>
+        <div className="grid grid-cols-2 gap-3">
+          <div className="bg-muted/40 border border-border rounded-lg p-3 text-center">
+            <p className="text-4xl font-bold text-primary leading-none">{formatArabicNumber(plannedSessionCount)}</p>
+            <p className="text-xs text-muted-foreground mt-2">سيبدأ بهذا العدد</p>
+          </div>
+          <div className="bg-muted/40 border border-border rounded-lg p-3 text-center">
+            <p className="text-4xl font-bold text-foreground leading-none">{formatArabicNumber(availableCount)}</p>
+            <p className="text-xs text-muted-foreground mt-2">المتاح في النطاق</p>
+          </div>
         </div>
+
+        <div className="space-y-2">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-sm">عدد البطاقات</span>
+            <Button
+              type="button"
+              variant={sessionSize === 'all' ? 'default' : 'outline'}
+              size="sm"
+              className="font-arabic"
+              onClick={() => setSessionSize('all')}
+            >
+              الكل
+            </Button>
+          </div>
+
+          <Input
+            type="number"
+            min={1}
+            inputMode="numeric"
+            value={sessionSize === 'all' ? '' : sessionSize}
+            onChange={(e) => setSessionSize(e.target.value === '' ? 'all' : e.target.value)}
+            placeholder={availableCount > 0 ? `حتى ${formatArabicNumber(availableCount)}` : '0'}
+            className="h-12 text-center text-2xl font-bold font-arabic"
+            disabled={availableCount === 0}
+          />
+
+          <div className="flex flex-wrap gap-2">
+            {quickSessionSizes.map((count) => (
+              <Button
+                key={count}
+                type="button"
+                variant={sessionSize !== 'all' && requestedCount === count ? 'default' : 'outline'}
+                size="sm"
+                className="font-arabic min-w-[4.5rem]"
+                onClick={() => setSessionSize(String(count))}
+              >
+                {formatArabicNumber(count)}
+              </Button>
+            ))}
+          </div>
+
+          {sessionSize !== 'all' && requestedCount > availableCount && availableCount > 0 && (
+            <p className="text-xs text-muted-foreground">
+              المتاح الآن {formatArabicNumber(availableCount)} فقط، لذلك ستبدأ الجلسة بهذا العدد.
+            </p>
+          )}
+        </div>
+
         <Button
           onClick={startReview}
           disabled={!canStart}
@@ -403,7 +601,7 @@ export function TahfeezSRSPanel({
           size="lg"
         >
           <RotateCcw className="w-4 h-4" />
-          بدء المراجعة ({sessionPoolCount > 0 ? sessionPoolCount : scopePages?.length || 0})
+          بدء المراجعة ({formatArabicNumber(plannedSessionCount)})
         </Button>
       </div>
 
