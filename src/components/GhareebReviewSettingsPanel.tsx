@@ -241,19 +241,7 @@ export function GhareebReviewSettingsPanel({ className, highlightStyle, onHighli
           <section className="space-y-3 pb-4">
             <h4 className="text-sm font-bold text-foreground">إعدادات الألوان</h4>
 
-            {highlightStyle && onHighlightStyleChange && (
-              <div className="space-y-2">
-                <Label className="text-xs">نوع التمييز أثناء المراجعة</Label>
-                <Select value={highlightStyle} onValueChange={(v) => onHighlightStyleChange(v as 'color' | 'bg' | 'border')}>
-                  <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="color">لون</SelectItem>
-                    <SelectItem value="bg">خلفية</SelectItem>
-                    <SelectItem value="border">إطار</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
+            {/* تمييز الكلمة بلون النص فقط — لا إطار ولا خلفية */}
 
             <div className="space-y-2">
               <Label className="text-xs">لون تمييز الكلمة</Label>
