@@ -224,7 +224,7 @@ interface TahfeezState {
   setWaqfDisplayMode: (mode: TahfeezState['waqfDisplayMode']) => void;
 
   // Review mode & distribution
-  reviewMode: 'ayah' | 'word' | 'mixed';
+  reviewMode: 'word';
   setReviewMode: (mode: TahfeezState['reviewMode']) => void;
   hiddenAyatCount: number;
   setHiddenAyatCount: (n: number) => void;
