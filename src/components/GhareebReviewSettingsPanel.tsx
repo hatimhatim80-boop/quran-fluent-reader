@@ -54,13 +54,13 @@ export function GhareebReviewSettingsPanel({ className, highlightStyle, onHighli
   const setMeaningBox = useSettingsStore((s) => s.setMeaningBox);
   const setColors = useSettingsStore((s) => s.setColors);
 
-  // Safe defaults for potentially missing persisted sub-objects
-  const fonts = settings.fonts ?? { quranFontSize: 1.35, lineHeight: 2.2, font: 'uthmanicHafs' };
-  const display = settings.display ?? { mode: 'continuous' as const, textAlign: 'justify' as const };
-  const autoplay = settings.autoplay ?? { speed: 1, thinkingGap: 500, autoPlayOnWordClick: false };
-  const popover = settings.popover ?? { width: 220, padding: 14 };
-  const meaningBox = settings.meaningBox ?? { wordFontSize: 1.4, meaningFontSize: 1.1 };
-  const colors = settings.colors ?? { highlightColor: '48 80% 90%', popoverBackground: '38 50% 97%', popoverWordColor: '25 30% 18%', popoverMeaningColor: '25 20% 35%' };
+  // Safe defaults – merge with defaults so individual missing keys don't crash
+  const fonts = { quranFontSize: 1.35, lineHeight: 2.2, font: 'uthmanicHafs' as const, ...settings.fonts };
+  const display = { mode: 'continuous' as const, textAlign: 'justify' as const, ...settings.display };
+  const autoplay = { speed: 1, thinkingGap: 500, autoPlayOnWordClick: false, ...settings.autoplay };
+  const popover = { width: 220, padding: 14, ...settings.popover };
+  const meaningBox = { wordFontSize: 1.4, meaningFontSize: 1.1, ...settings.meaningBox };
+  const colors = { highlightColor: '48 80% 90%', popoverBackground: '38 50% 97%', popoverWordColor: '25 30% 18%', popoverMeaningColor: '25 20% 35%', ...settings.colors };
 
   const highlightValue = resolveSelectValue(
     colors.highlightColor,
