@@ -692,6 +692,22 @@ export function TahfeezQuizView({
 
         const storeClickHandler = storeMode && onStoreWord ? () => onStoreWord(lineIdx, tokenIdx, t) : undefined;
 
+        // ── Inline style maps for revealed states (bypass CSS specificity issues) ──
+        const REVEALED_AYAH_COLORS: Record<string, { color: string; bg: string }> = {
+          green:   { color: 'hsl(140 55% 35%)', bg: 'hsl(140 55% 35% / 0.18)' },
+          blue:    { color: 'hsl(210 70% 40%)', bg: 'hsl(210 70% 40% / 0.18)' },
+          orange:  { color: 'hsl(30 80% 38%)',  bg: 'hsl(30 80% 38% / 0.18)' },
+          purple:  { color: 'hsl(270 60% 42%)', bg: 'hsl(270 60% 42% / 0.18)' },
+          primary: { color: 'hsl(var(--primary))', bg: 'hsl(var(--primary) / 0.18)' },
+        };
+        const REVEALED_WORD_COLORS: Record<string, { color: string; bg: string }> = {
+          green:   { color: 'hsl(140 55% 35%)', bg: 'hsl(140 50% 90%)' },
+          blue:    { color: 'hsl(210 70% 35%)', bg: 'hsl(210 60% 90%)' },
+          orange:  { color: 'hsl(30 80% 35%)',  bg: 'hsl(30 70% 90%)' },
+          purple:  { color: 'hsl(270 60% 40%)', bg: 'hsl(270 50% 92%)' },
+          primary: { color: 'hsl(var(--primary))', bg: 'hsl(var(--primary) / 0.15)' },
+        };
+
         if (shouldHide) {
           const blankClickHandler = !storeMode && onClickBlankWord ? () => onClickBlankWord(key) : storeClickHandler;
           // Separate waqf mark from word if waqfDisplayMode is 'sign-only'
