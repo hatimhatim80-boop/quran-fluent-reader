@@ -294,18 +294,7 @@ export function GhareebSRSPanel({
         </p>
       </div>
 
-      {/* Highlight style */}
-      <div className="flex items-center justify-between">
-        <span className="text-sm">نوع التمييز</span>
-        <Select value={highlightStyle} onValueChange={v => setHighlightStyle(v as typeof highlightStyle)}>
-          <SelectTrigger className="w-28 h-8 text-xs font-arabic"><SelectValue /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="color">لون</SelectItem>
-            <SelectItem value="bg">خلفية</SelectItem>
-            <SelectItem value="border">إطار</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
+      {/* Highlight is always text-color-only */}
 
       {/* Session settings */}
       <div className="bg-card border border-border rounded-lg p-4 space-y-3">

@@ -261,38 +261,15 @@ export function GhareebWordPopover({
 
   // When active: force inline style to override CSS variables set on :root
   // CSS class !important cannot override inline CSS variables on :root
+  // Always use text-color-only highlighting — no background, no border
   const activeWordStyle: Record<string, string> = (() => {
     if (!isHighlighted) return {};
     const hlColor = settings.colors.highlightColor || '48 80% 90%';
-    if (activeHighlightStyle === 'color') {
-      return {
-        '--ghareeb-active-color': `hsl(${hlColor})`,
-        '--ghareeb-active-bg': 'transparent',
-        '--ghareeb-active-border': 'transparent',
-        '--ghareeb-active-shadow': 'none',
-      };
-    }
-    if (activeHighlightStyle === 'border') {
-      return {
-        '--ghareeb-active-color': 'hsl(var(--foreground))',
-        '--ghareeb-active-bg': 'transparent',
-        '--ghareeb-active-border': `hsl(${hlColor})`,
-        '--ghareeb-active-shadow': `0 0 0 2px hsl(${hlColor} / 0.35)`,
-      };
-    }
-    if (activeHighlightStyle === 'bg') {
-      return {
-        '--ghareeb-active-color': 'hsl(var(--foreground))',
-        '--ghareeb-active-bg': `hsl(${hlColor} / 0.35)`,
-        '--ghareeb-active-border': `hsl(${hlColor} / 0.6)`,
-        '--ghareeb-active-shadow': `0 0 0 1px hsl(${hlColor} / 0.25)`,
-      };
-    }
-    if (highlightStyle === 'text-only') return {};
     return {
-      '--ghareeb-active-bg': `hsl(${hlColor} / 0.35)`,
-      '--ghareeb-active-border': `hsl(${hlColor} / 0.6)`,
-      '--ghareeb-active-shadow': `0 0 10px 3px hsl(${hlColor} / 0.45)`,
+      '--ghareeb-active-color': `hsl(${hlColor})`,
+      '--ghareeb-active-bg': 'transparent',
+      '--ghareeb-active-border': 'transparent',
+      '--ghareeb-active-shadow': 'none',
     };
   })();
 
