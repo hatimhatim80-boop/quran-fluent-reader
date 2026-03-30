@@ -44,14 +44,85 @@ export function TahfeezSessionReviewSettings({ showDebugBadge: _showDebugBadge =
   return (
     <div className="bg-card border border-border rounded-lg p-3 space-y-3 font-arabic" dir="rtl" data-testid="tahfeez-session-review-settings">
 
-      {/* Word-only mode — ayah hiding removed */}
+      {/* Review mode: ayah / word / mixed */}
       <div className="space-y-1.5">
         <p className="text-xs text-muted-foreground">نوع المراجعة</p>
-        <p className="text-[11px] text-muted-foreground leading-5">
-          ⬅ يتم إخفاء كلمات فقط، ولن تُخفى آية كاملة.
-        </p>
+        <div className="flex flex-wrap gap-1.5">
+          <Button
+            variant={reviewMode === 'ayah' ? 'default' : 'outline'}
+            size="sm"
+            className="text-[11px] h-7 px-2.5"
+            onClick={() => {
+              setReviewMode('ayah');
+              applyAyahCountMode();
+            }}
+          >
+            إخفاء آيات
+          </Button>
+          <Button
+            variant={reviewMode === 'word' ? 'default' : 'outline'}
+            size="sm"
+            className="text-[11px] h-7 px-2.5"
+            onClick={() => {
+              setReviewMode('word');
+              applyAyahCountMode();
+            }}
+          >
+            إخفاء كلمات
+          </Button>
+          <Button
+            variant={reviewMode === 'mixed' ? 'default' : 'outline'}
+            size="sm"
+            className="text-[11px] h-7 px-2.5"
+            onClick={() => {
+              setReviewMode('mixed');
+              applyAyahCountMode();
+            }}
+          >
+            مختلط
+          </Button>
+        </div>
       </div>
 
+      {/* Hidden ayat count — shown for ayah and mixed modes */}
+      {(reviewMode === 'ayah' || reviewMode === 'mixed') && (
+        <div className="space-y-1">
+          <label className="text-xs text-muted-foreground">
+            عدد الآيات المخفية: <span className="text-primary font-bold">{hiddenAyatCount}</span>
+          </label>
+          <div className="flex flex-wrap gap-1.5">
+            {[1, 2, 3, 5].map((n) => (
+              <Button
+                key={n}
+                variant={hiddenAyatCount === n ? 'default' : 'outline'}
+                size="sm"
+                className="text-[11px] h-7 px-3 min-w-[2.2rem]"
+                onClick={() => {
+                  setHiddenAyatCount(n);
+                  setAyahCount(n);
+                  applyAyahCountMode();
+                }}
+              >
+                {n}
+              </Button>
+            ))}
+          </div>
+          <Slider
+            value={[hiddenAyatCount]}
+            onValueChange={([v]) => {
+              setHiddenAyatCount(v);
+              setAyahCount(v);
+              applyAyahCountMode();
+            }}
+            min={1}
+            max={15}
+            step={1}
+          />
+        </div>
+      )}
+
+      {/* Word hiding settings — shown for word and mixed modes */}
+      {(reviewMode === 'word' || reviewMode === 'mixed') && (
       <div className="space-y-1.5">
         <p className="text-xs text-muted-foreground">وضع الكلمات</p>
         <div className="flex flex-wrap gap-1.5">
