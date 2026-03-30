@@ -458,10 +458,10 @@ export function TahfeezQuizView({
     const keys = new Set<string>();
     (revealedAyahIds || []).forEach((ayahId) => {
       const mappedKeys = ayahEntityMeta.ayahIdToKeys.get(ayahId);
-      console.log('[tahfeez][reveal] revealedAyahId:', ayahId, '→ highlight keys:', mappedKeys?.length ?? 0);
+      if (import.meta.env.DEV) console.log('[tahfeez][reveal] revealedAyahId:', ayahId, '→ highlight keys:', mappedKeys?.length ?? 0);
       mappedKeys?.forEach((key) => keys.add(key));
     });
-    if (revealedAyahIds && revealedAyahIds.length > 0 && keys.size === 0) {
+    if (import.meta.env.DEV && revealedAyahIds && revealedAyahIds.length > 0 && keys.size === 0) {
       console.warn('[tahfeez][reveal] revealedAyahIds provided but no keys matched!', revealedAyahIds);
     }
     return keys;
