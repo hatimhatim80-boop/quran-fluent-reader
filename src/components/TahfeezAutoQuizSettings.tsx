@@ -128,37 +128,15 @@ export function TahfeezAutoQuizSettings({ currentPage, quizPagesRange, onStart, 
             <div className="space-y-2">
               <p className="text-[11px] font-arabic text-muted-foreground font-medium">إخفاء كامل</p>
               <div className="flex flex-wrap gap-1.5">
-                {[
-                  { value: 'full-ayah' as const, label: 'آية كاملة' },
-                  { value: 'ayah-count' as const, label: 'عدد آيات' },
-                  { value: 'full-page' as const, label: 'صفحة كاملة' },
-                ].map(opt => (
-                  <Button
-                    key={opt.value}
-                    variant={autoBlankMode === opt.value && waqfCombinedModes.length === 0 ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => { setAutoBlankMode(opt.value); setWaqfCombinedModes([]); }}
-                    className="font-arabic text-[11px] h-7 px-2.5"
-                  >
-                    {opt.label}
-                  </Button>
-                ))}
+                <Button
+                  variant={autoBlankMode === 'full-page' && waqfCombinedModes.length === 0 ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => { setAutoBlankMode('full-page'); setWaqfCombinedModes([]); }}
+                  className="font-arabic text-[11px] h-7 px-2.5"
+                >
+                  صفحة كاملة
+                </Button>
               </div>
-              {autoBlankMode === 'ayah-count' && (
-                <div className="space-y-1 pt-1">
-                  <label className="text-[11px] font-arabic text-muted-foreground">عدد الآيات: <span className="text-primary font-bold">{ayahCount}</span></label>
-                  <Slider
-                    value={[ayahCount]}
-                    onValueChange={([v]) => {
-                      setAyahCount(v);
-                      setHiddenAyatCount(v);
-                    }}
-                    min={1}
-                    max={15}
-                    step={1}
-                  />
-                </div>
-              )}
             </div>
 
             {/* Waqf-based patterns */}

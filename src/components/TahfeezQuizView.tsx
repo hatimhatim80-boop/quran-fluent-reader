@@ -338,7 +338,7 @@ export function TahfeezQuizView({
           // Enforce strict mode separation: word-only → no ayahs; ayah-only → no words
           reviewMode,
           distributionMode,
-          hiddenAyatCount: 0,
+          hiddenAyatCount: reviewMode === 'word' ? 0 : hiddenAyatCount,
           hiddenWordsCount: hiddenWordsCount,
           seed: distributionSeed + page.pageNumber,
           ayahGroups,
