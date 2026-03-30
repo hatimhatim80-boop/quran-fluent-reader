@@ -243,14 +243,12 @@ export function TahfeezQuizView({
     const keyToAyahId = new Map<string, string>();
     const ayahIdToKeys = new Map<string, string[]>();
     ayahGroups.forEach((group, ayahIndex) => {
-      const firstKey = group[0]?.key ?? 'start';
-      const lastKey = group[group.length - 1]?.key ?? 'end';
-      const ayahId = `ayah_${page.pageNumber}_${ayahIndex}_${firstKey}_${lastKey}`;
+      const ayahId = `ayah_${page.pageNumber}_${ayahIndex}`;
       const keys = group.map((token) => token.key);
       ayahIdToKeys.set(ayahId, keys);
       keys.forEach((key) => keyToAyahId.set(key, ayahId));
     });
-    console.log('[tahfeez][ayahMeta] page:', page.pageNumber, 'ayahGroups:', ayahGroups.length, 'stableIds:', [...ayahIdToKeys.keys()].slice(0, 5));
+    if (import.meta.env.DEV) console.log('[tahfeez][ayahMeta] page:', page.pageNumber, 'ayahGroups:', ayahGroups.length, 'stableIds:', [...ayahIdToKeys.keys()]);
     return { keyToAyahId, ayahIdToKeys };
   }, [ayahGroups, page.pageNumber]);
 

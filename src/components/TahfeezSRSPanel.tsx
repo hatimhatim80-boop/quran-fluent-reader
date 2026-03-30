@@ -37,10 +37,8 @@ function formatArabicNumber(value: number): string {
   return new Intl.NumberFormat('ar-SA').format(value);
 }
 
-function buildAyahStableId(pageNumber: number, ayahIndex: number, group: WordToken[]): string {
-  const firstKey = group[0]?.key ?? 'start';
-  const lastKey = group[group.length - 1]?.key ?? 'end';
-  return `ayah_${pageNumber}_${ayahIndex}_${firstKey}_${lastKey}`;
+function buildAyahStableId(pageNumber: number, ayahIndex: number): string {
+  return `ayah_${pageNumber}_${ayahIndex}`;
 }
 
 function extractPageWords(text: string, pageNumber: number): WordToken[] {
