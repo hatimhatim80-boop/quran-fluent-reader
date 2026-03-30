@@ -331,10 +331,11 @@ export function TahfeezQuizView({
 
         generationPath = 'distributed-ayah-count';
         const distributed = computeDistributedBlanksDetailed({
+          // Enforce strict mode separation: word-only → no ayahs; ayah-only → no words
           reviewMode,
           distributionMode,
-          hiddenAyatCount: effectiveAyatCount,
-          hiddenWordsCount,
+          hiddenAyatCount: reviewMode === 'word' ? 0 : effectiveAyatCount,
+          hiddenWordsCount: reviewMode === 'ayah' ? 0 : hiddenWordsCount,
           seed: distributionSeed + page.pageNumber,
           ayahGroups,
           allWordTokens,
