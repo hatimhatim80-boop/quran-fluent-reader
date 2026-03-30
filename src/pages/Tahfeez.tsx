@@ -1598,6 +1598,7 @@ export default function TahfeezPage() {
               storedItems={storedItems}
               autoBlankMode={autoBlankMode}
               waqfCombinedModes={waqfCombinedModes}
+              quizScope={quizScope}
               blankCount={blankCount}
               ayahCount={ayahCount}
               activeBlankKey={activeBlankKey}
