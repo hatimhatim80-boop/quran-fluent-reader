@@ -1537,7 +1537,7 @@ export default function TahfeezPage() {
                   <Slider className="flex-1" value={[hiddenWordsCount]} onValueChange={([v]) => setHiddenWordsCount(v)} min={1} max={20} step={1} />
                 </div>
               )}
-              {autoBlankMode === 'ayah-count' && (reviewMode === 'word' || reviewMode === 'mixed') && hiddenWordsMode === 'percentage' && (
+              {autoBlankMode === 'ayah-count' && hiddenWordsMode === 'percentage' && (
                 <div className="flex items-center gap-2" dir="rtl">
                   <span className="text-xs font-arabic text-muted-foreground whitespace-nowrap">نسبة: <span className="text-primary font-bold">{hiddenWordsPercentage}%</span></span>
                   <Slider className="flex-1" value={[hiddenWordsPercentage]} onValueChange={([v]) => setHiddenWordsPercentage(v)} min={5} max={90} step={5} />
