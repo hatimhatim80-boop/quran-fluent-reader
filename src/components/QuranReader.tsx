@@ -392,7 +392,7 @@ export function QuranReader() {
                 const pgData = pages.find(p => p.pageNumber === pg);
                 if (!pgData) return null;
                 const pgWords = allGhareebWords.filter(w => w.pageNumber === pg);
-                const hlColor = settingsStore.settings.colors.highlightColor || '48 80% 90%';
+                const hlColor = useSettingsStore.getState().settings.colors.highlightColor || '48 80% 90%';
                 const hlVars: Record<string, string> = {};
                 if (highlightStyle === 'color') {
                   hlVars['--ghareeb-active-color'] = `hsl(${hlColor})`;
