@@ -250,6 +250,7 @@ export function TahfeezQuizView({
       ayahIdToKeys.set(ayahId, keys);
       keys.forEach((key) => keyToAyahId.set(key, ayahId));
     });
+    console.log('[tahfeez][ayahMeta] page:', page.pageNumber, 'ayahGroups:', ayahGroups.length, 'stableIds:', [...ayahIdToKeys.keys()].slice(0, 5));
     return { keyToAyahId, ayahIdToKeys };
   }, [ayahGroups, page.pageNumber]);
 
