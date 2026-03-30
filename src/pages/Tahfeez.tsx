@@ -1422,28 +1422,29 @@ export default function TahfeezPage() {
                       activeBlankKey={answerRevealed ? null : wordKey}
                       revealedKeys={answerRevealed ? new Set([wordKey]) : new Set()}
                       showAll={false}
-                      forceBlankedKeys={answerRevealed ? [] : [wordKey]}
+                      forceBlankedKeys={[wordKey]}
                     />
                   );
                 }
 
-                // Ayah-level or stored-words: use the distributed engine (respects reviewMode settings)
-                const isWordsCard = card.type === 'tahfeez-words';
-                const cardPageStoredItems = storedItems.filter((item) => item.data.page === pg);
+                // Ayah-level: use stable ayah ID for precise binding
+                const stableAyahId = typeof card.meta?.ayahStableId === 'string' ? String(card.meta.ayahStableId) : null;
                 const forcedAyahIndex = typeof card.meta?.ayahIndex === 'number' ? Number(card.meta.ayahIndex) : null;
                 return (
                   <TahfeezQuizView
                     page={pgData}
-                    quizSource={isWordsCard ? 'custom' : 'auto'}
-                    storedItems={isWordsCard ? cardPageStoredItems : []}
+                    quizSource="auto"
+                    storedItems={[]}
                     autoBlankMode="ayah-count"
                     waqfCombinedModes={[]}
                     blankCount={blankCount}
                     ayahCount={1}
                     activeBlankKey={null}
                     revealedKeys={new Set()}
-                    showAll={answerRevealed}
-                    forceAyahIndices={!answerRevealed && forcedAyahIndex !== null ? [forcedAyahIndex] : undefined}
+                    showAll={false}
+                    forceAyahIds={stableAyahId ? [stableAyahId] : undefined}
+                    forceAyahIndices={!stableAyahId && forcedAyahIndex !== null ? [forcedAyahIndex] : undefined}
+                    revealedAyahIds={answerRevealed && stableAyahId ? [stableAyahId] : undefined}
                   />
                 );
               }}

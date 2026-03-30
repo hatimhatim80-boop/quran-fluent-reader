@@ -2,6 +2,7 @@ import React, { useEffect } from 'react';
 import { useTahfeezStore } from '@/stores/tahfeezStore';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
+import { Switch } from '@/components/ui/switch';
 
 interface TahfeezSessionReviewSettingsProps {
   showDebugBadge?: boolean;
@@ -25,6 +26,12 @@ export function TahfeezSessionReviewSettings({ showDebugBadge: _showDebugBadge =
     setAutoBlankMode,
     wordBlankPosition,
     setWordBlankPosition,
+    revealedAyahColor,
+    setRevealedAyahColor,
+    revealedAyahStyle,
+    setRevealedAyahStyle,
+    showHiddenWordsPreview,
+    setShowHiddenWordsPreview,
   } = useTahfeezStore();
 
   const applyAyahCountMode = () => setAutoBlankMode('ayah-count');
@@ -59,6 +66,13 @@ export function TahfeezSessionReviewSettings({ showDebugBadge: _showDebugBadge =
             </Button>
           ))}
         </div>
+        <p className="text-[11px] text-muted-foreground leading-5">
+          {reviewMode === 'word'
+            ? '⬅ في وضع الكلمات يتم إخفاء كلمات فقط، ولن تُخفى آية كاملة.'
+            : reviewMode === 'ayah'
+              ? '⬅ في وضع الآيات يتم إخفاء آيات فقط، ولن تُخفى كلمات مفردة.'
+              : '⬅ الوضع المختلط يجمع بين النوعين فقط عند اختياره صراحة.'}
+        </p>
       </div>
 
       <div className="space-y-1">
@@ -227,6 +241,56 @@ export function TahfeezSessionReviewSettings({ showDebugBadge: _showDebugBadge =
           </div>
         </div>
       )}
+
+      {/* Revealed ayah highlight settings */}
+      <div className="space-y-1.5 border-t border-border pt-3">
+        <p className="text-xs text-muted-foreground">تمييز الآية بعد كشفها</p>
+        <div className="flex flex-wrap gap-1.5">
+          {([
+            { value: 'primary' as const, label: 'أساسي' },
+            { value: 'green' as const, label: 'أخضر' },
+            { value: 'blue' as const, label: 'أزرق' },
+            { value: 'orange' as const, label: 'برتقالي' },
+            { value: 'purple' as const, label: 'بنفسجي' },
+          ] as const).map((opt) => (
+            <Button
+              key={opt.value}
+              variant={revealedAyahColor === opt.value ? 'default' : 'outline'}
+              size="sm"
+              className="text-[11px] h-7 px-2.5"
+              onClick={() => setRevealedAyahColor(opt.value)}
+            >
+              {opt.label}
+            </Button>
+          ))}
+        </div>
+        <div className="flex flex-wrap gap-1.5">
+          {([
+            { value: 'text-only' as const, label: 'لون النص' },
+            { value: 'background' as const, label: 'خلفية' },
+            { value: 'border' as const, label: 'إطار' },
+          ] as const).map((opt) => (
+            <Button
+              key={opt.value}
+              variant={revealedAyahStyle === opt.value ? 'default' : 'outline'}
+              size="sm"
+              className="text-[11px] h-7 px-2.5"
+              onClick={() => setRevealedAyahStyle(opt.value)}
+            >
+              {opt.label}
+            </Button>
+          ))}
+        </div>
+      </div>
+
+      {/* Hidden words preview toggle */}
+      <div className="flex items-center justify-between gap-3 rounded-lg border border-border px-3 py-2">
+        <div className="space-y-0.5">
+          <p className="text-xs text-foreground">إظهار الكلمات المخفية أسفل الصفحة</p>
+          <p className="text-[11px] text-muted-foreground">معطّل افتراضيًا حتى لا تُكشف الإجابة أثناء المراجعة.</p>
+        </div>
+        <Switch checked={showHiddenWordsPreview} onCheckedChange={setShowHiddenWordsPreview} />
+      </div>
 
     </div>
   );

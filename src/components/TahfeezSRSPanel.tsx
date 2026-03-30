@@ -37,6 +37,12 @@ function formatArabicNumber(value: number): string {
   return new Intl.NumberFormat('ar-SA').format(value);
 }
 
+function buildAyahStableId(pageNumber: number, ayahIndex: number, group: WordToken[]): string {
+  const firstKey = group[0]?.key ?? 'start';
+  const lastKey = group[group.length - 1]?.key ?? 'end';
+  return `ayah_${pageNumber}_${ayahIndex}_${firstKey}_${lastKey}`;
+}
+
 function extractPageWords(text: string, pageNumber: number): WordToken[] {
   const lines = text.split('\n');
   const tokens: WordToken[] = [];
@@ -131,6 +137,7 @@ export function TahfeezSRSPanel({
   onNavigateToPage,
   renderPageWithBlanks,
 }: TahfeezSRSPanelProps) {
+  const showHiddenWordsPreview = useTahfeezStore((s) => s.showHiddenWordsPreview);
   const {
     addCard, hasCard, getDueCards, getCardsByPages, cards,
     exportData, importData, clearAll, getFlaggedCards,
@@ -213,28 +220,31 @@ export function TahfeezSRSPanel({
   }, [cards]);
 
   React.useEffect(() => {
-    const legacyAyahCards = cards.filter(
-      (card) => card.type === 'tahfeez-ayah' && typeof card.meta?.ayahIndex !== 'number'
-    );
-    if (legacyAyahCards.length === 0) return;
+    const needsMigration = cards.some((card) => {
+      if (card.type === 'tahfeez-ayah') {
+        return typeof card.meta?.ayahIndex !== 'number' || typeof card.meta?.ayahStableId !== 'string';
+      }
+      return false;
+    });
+    if (!needsMigration) return;
 
     useSRSStore.setState((state) => {
       const existingIds = new Set(state.cards.map((card) => card.id));
       const migrated: SRSCard[] = [];
-      const keptCards: SRSCard[] = [];
+      const nextCards: SRSCard[] = [];
       let changed = false;
 
       state.cards.forEach((card) => {
-        const isLegacyAyahCard = card.type === 'tahfeez-ayah' && typeof card.meta?.ayahIndex !== 'number';
+        const isLegacyAyahCard = card.type === 'tahfeez-ayah' && (typeof card.meta?.ayahIndex !== 'number' || typeof card.meta?.ayahStableId !== 'string');
         if (!isLegacyAyahCard) {
-          keptCards.push(card);
+          nextCards.push(card);
           return;
         }
 
         const pageDataForCard = allPages.find((page) => page.pageNumber === card.page);
         const ayahGroups = pageDataForCard ? extractPageAyahGroups(pageDataForCard.text, card.page) : [];
         if (ayahGroups.length === 0) {
-          keptCards.push(card);
+          nextCards.push(card);
           return;
         }
 
@@ -248,12 +258,12 @@ export function TahfeezSRSPanel({
             id,
             contentKey: `ayah_${card.page}_${ayahIndex}`,
             label: `ص${card.page} — آية ${ayahIndex + 1}`,
-            meta: { ...card.meta, ayahIndex, wordCount: group.length },
+            meta: { ...card.meta, ayahIndex, wordCount: group.length, ayahStableId: buildAyahStableId(card.page, ayahIndex, group) },
           });
         });
       });
 
-      return changed ? { cards: [...keptCards, ...migrated] } : state;
+      return changed ? { cards: [...nextCards, ...migrated] } : state;
     });
   }, [cards, allPages]);
 
@@ -273,7 +283,7 @@ export function TahfeezSRSPanel({
           page: pg,
           contentKey: `ayah_${pg}_${ayahIndex}`,
           label: `ص${pg} — آية ${ayahIndex + 1}`,
-          meta: { ayahIndex, wordCount: group.length },
+          meta: { ayahIndex, wordCount: group.length, ayahStableId: buildAyahStableId(pg, ayahIndex, group) },
         });
         added += 1;
       });
@@ -295,8 +305,8 @@ export function TahfeezSRSPanel({
             type: 'tahfeez-word',
             page: pg,
             contentKey: tok.key,
-            label: `${tok.text} — ص${pg}`,
-            meta: { wordText: tok.text, lineIdx: tok.lineIdx, tokenIdx: tok.tokenIdx },
+            label: `ص${pg} — كلمة مراجعة`,
+            meta: { wordText: tok.text, lineIdx: tok.lineIdx, tokenIdx: tok.tokenIdx, reviewItemId: `word_${pg}_${tok.key}` },
           });
           added++;
         }
@@ -440,14 +450,12 @@ export function TahfeezSRSPanel({
             </SheetContent>
           </Sheet>
         }
+        defaultAnswerMode={showHiddenWordsPreview ? 'bottom' : 'inline'}
+        answerModeOptions={showHiddenWordsPreview ? ['inline', 'bottom'] : ['inline']}
+        renderAnswer={showHiddenWordsPreview ? ((card) => card.type === 'tahfeez-word' ? (
+          <div className="text-center font-arabic text-lg text-foreground">{String(card.meta.wordText || '')}</div>
+        ) : null) : undefined}
         renderCard={(card, answerRevealed) => {
-          if (card.type === 'tahfeez-word') {
-            return (
-              <div className="p-2">
-                {renderPageWithBlanks(card.page, answerRevealed ? [] : [card.contentKey], card)}
-              </div>
-            );
-          }
           return (
             <div className="p-2">
               {renderPageWithBlanks(card.page, answerRevealed ? [] : [card.contentKey], card)}

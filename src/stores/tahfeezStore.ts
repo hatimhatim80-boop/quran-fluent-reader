@@ -147,6 +147,16 @@ interface TahfeezState {
   revealedColor: 'green' | 'blue' | 'orange' | 'purple' | 'primary';
   setRevealedColor: (color: TahfeezState['revealedColor']) => void;
 
+  // Revealed ayah highlight color/style in review mode (after reveal)
+  revealedAyahColor: 'green' | 'blue' | 'orange' | 'purple' | 'primary';
+  setRevealedAyahColor: (color: TahfeezState['revealedAyahColor']) => void;
+  revealedAyahStyle: 'text-only' | 'background' | 'border';
+  setRevealedAyahStyle: (style: TahfeezState['revealedAyahStyle']) => void;
+
+  // Show hidden words preview below the page during review (default: OFF)
+  showHiddenWordsPreview: boolean;
+  setShowHiddenWordsPreview: (on: boolean) => void;
+
   // Whether revealed words show with background highlight or text-only
   revealedWithBg: boolean;
   setRevealedWithBg: (on: boolean) => void;
@@ -344,6 +354,14 @@ export const useTahfeezStore = create<TahfeezState>()(
       revealedColor: 'green',
       setRevealedColor: (color) => set({ revealedColor: color }),
 
+      revealedAyahColor: 'primary',
+      setRevealedAyahColor: (color) => set({ revealedAyahColor: color }),
+      revealedAyahStyle: 'background',
+      setRevealedAyahStyle: (style) => set({ revealedAyahStyle: style }),
+
+      showHiddenWordsPreview: false,
+      setShowHiddenWordsPreview: (on) => set({ showHiddenWordsPreview: on }),
+
       revealedWithBg: true,
       setRevealedWithBg: (on) => set({ revealedWithBg: on }),
 
@@ -441,6 +459,9 @@ export const useTahfeezStore = create<TahfeezState>()(
         voiceMode: state.voiceMode,
         matchLevel: state.matchLevel,
         revealedColor: state.revealedColor,
+        revealedAyahColor: state.revealedAyahColor,
+        revealedAyahStyle: state.revealedAyahStyle,
+        showHiddenWordsPreview: state.showHiddenWordsPreview,
         revealedWithBg: state.revealedWithBg,
         activeWordColor: state.activeWordColor,
         singleWordMode: state.singleWordMode,
