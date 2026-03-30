@@ -1431,7 +1431,7 @@ export default function TahfeezPage() {
                 // Ayah-level: use stable ayah ID for precise binding
                 const stableAyahId = typeof card.meta?.ayahStableId === 'string' ? String(card.meta.ayahStableId) : null;
                 const forcedAyahIndex = typeof card.meta?.ayahIndex === 'number' ? Number(card.meta.ayahIndex) : null;
-                console.log('[tahfeez][SRS-render] ayah card:', card.id, 'stableId:', stableAyahId, 'ayahIndex:', forcedAyahIndex, 'revealed:', answerRevealed);
+                if (import.meta.env.DEV) console.log('[tahfeez][SRS-render] ayah card:', card.id, 'stableId:', stableAyahId, 'ayahIndex:', forcedAyahIndex, 'revealed:', answerRevealed);
                 return (
                   <TahfeezQuizView
                     page={pgData}
