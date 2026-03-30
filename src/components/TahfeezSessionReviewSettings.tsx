@@ -183,7 +183,6 @@ export function TahfeezSessionReviewSettings({ showDebugBadge: _showDebugBadge =
             ))}
           </div>
         </div>
-      )}
 
       {/* Revealed ayah highlight settings */}
       <div className="space-y-1.5 border-t border-border pt-3">
