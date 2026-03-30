@@ -63,7 +63,7 @@ export function GhareebReviewSettingsPanel({ className, highlightStyle, onHighli
     popover: { width: 220, padding: 14 },
     meaningBox: { wordFontSize: 1.4, meaningFontSize: 1.1 },
     colors: {
-      highlightColor: '48 80% 90%',
+      highlightColor: '0 85% 45%',
       popoverBackground: '38 50% 97%',
       popoverWordColor: '25 30% 18%',
       popoverMeaningColor: '25 20% 35%',
