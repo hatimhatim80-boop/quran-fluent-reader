@@ -1530,24 +1530,8 @@ export default function TahfeezPage() {
                   {showAll ? '✓ تم الكشف' : `${progress}%`}
                 </span>
               </div>
-              {/* Inline ayah/word count controls */}
-              {autoBlankMode === 'ayah-count' && (reviewMode === 'ayah' || reviewMode === 'mixed') && (
-                <div className="flex items-center gap-2" dir="rtl">
-                  <span className="text-xs font-arabic text-muted-foreground whitespace-nowrap">آيات: <span className="text-primary font-bold">{hiddenAyatCount}</span></span>
-                  <Slider
-                    className="flex-1"
-                    value={[hiddenAyatCount]}
-                    onValueChange={([v]) => {
-                      setHiddenAyatCount(v);
-                      setAyahCount(v);
-                    }}
-                    min={1}
-                    max={15}
-                    step={1}
-                  />
-                </div>
-              )}
-              {autoBlankMode === 'ayah-count' && (reviewMode === 'word' || reviewMode === 'mixed') && hiddenWordsMode === 'fixed-count' && (
+              {/* Inline word count controls */}
+              {autoBlankMode === 'ayah-count' && hiddenWordsMode === 'fixed-count' && (
                 <div className="flex items-center gap-2" dir="rtl">
                   <span className="text-xs font-arabic text-muted-foreground whitespace-nowrap">كلمات: <span className="text-primary font-bold">{hiddenWordsCount}</span></span>
                   <Slider className="flex-1" value={[hiddenWordsCount]} onValueChange={([v]) => setHiddenWordsCount(v)} min={1} max={20} step={1} />
