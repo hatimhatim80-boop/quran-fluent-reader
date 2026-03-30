@@ -279,7 +279,7 @@ export function TahfeezSRSPanel({
           page: pg,
           contentKey: `ayah_${pg}_${ayahIndex}`,
           label: `ص${pg} — آية ${ayahIndex + 1}`,
-          meta: { ayahIndex, wordCount: group.length, ayahStableId: buildAyahStableId(pg, ayahIndex, group) },
+          meta: { ayahIndex, wordCount: group.length, ayahStableId: buildAyahStableId(pg, ayahIndex) },
         });
         added += 1;
       });
