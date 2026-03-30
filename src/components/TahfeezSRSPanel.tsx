@@ -254,7 +254,7 @@ export function TahfeezSRSPanel({
             id,
             contentKey: `ayah_${card.page}_${ayahIndex}`,
             label: `ص${card.page} — آية ${ayahIndex + 1}`,
-            meta: { ...card.meta, ayahIndex, wordCount: group.length, ayahStableId: buildAyahStableId(card.page, ayahIndex, group) },
+            meta: { ...card.meta, ayahIndex, wordCount: group.length, ayahStableId: buildAyahStableId(card.page, ayahIndex) },
           });
         });
       });
