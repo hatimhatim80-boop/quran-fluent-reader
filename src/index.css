@@ -881,30 +881,17 @@
     filter: brightness(0.92);
   }
 
-  /* Active word: override ALL colors with !important - must override CSS variables too */
-  .ghareeb-word--active:not(.ghareeb-word--text-only) {
-    background-color: var(--ghareeb-active-bg, hsl(200 70% 78% / 0.7)) !important;
-    border-color: var(--ghareeb-active-border, hsl(200 70% 45% / 0.8)) !important;
-    box-shadow: var(--ghareeb-active-shadow, 0 0 10px 3px hsl(200 70% 60% / 0.45)) !important;
+  /* Active word: use inline CSS variables for ALL highlight modes */
+  .ghareeb-word--active {
+    background-color: var(--ghareeb-active-bg, transparent) !important;
+    border-color: var(--ghareeb-active-border, transparent) !important;
+    box-shadow: var(--ghareeb-active-shadow, none) !important;
     color: var(--ghareeb-active-color, inherit) !important;
   }
-  /* Also override the CSS variable selectors for active words */
-  .ghareeb-word--active:not(.ghareeb-word--text-only)[style*="background"],
-  [style*="--ghareeb-bg-color"] .ghareeb-word--active:not(.ghareeb-word--text-only) {
-    background-color: var(--ghareeb-active-bg, hsl(200 70% 78% / 0.7)) !important;
-    border-color: var(--ghareeb-active-border, hsl(200 70% 45% / 0.8)) !important;
-  }
-
-  /* Active word in text-only mode: change text color to golden */
-  .ghareeb-word--active.ghareeb-word--text-only {
-    color: hsl(36 80% 38%) !important;
-    text-shadow: 0 0 8px hsl(36 80% 55% / 0.5);
-    font-weight: bold;
-  }
-
-  .dark .ghareeb-word--active.ghareeb-word--text-only {
-    color: hsl(48 90% 65%) !important;
-    text-shadow: 0 0 8px hsl(48 90% 60% / 0.6);
+  /* Override rotating/custom bg colors for active words */
+  [style*="--ghareeb-bg-color"] .ghareeb-word--active {
+    background-color: var(--ghareeb-active-bg, transparent) !important;
+    border-color: var(--ghareeb-active-border, transparent) !important;
   }
 
   /* Word that was already shown during autoplay - subtle green tint */
