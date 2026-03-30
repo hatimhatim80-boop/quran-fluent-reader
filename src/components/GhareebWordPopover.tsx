@@ -256,7 +256,7 @@ export function GhareebWordPopover({
 
   const wordClasses = [
     "ghareeb-word quran-word",
-    globalHighlightStyle === 'text-only' ? "ghareeb-word--text-only" : "",
+    effectiveHighlightMode === 'color' ? "ghareeb-word--text-only" : "",
     isHighlighted ? "ghareeb-word--active" : "",
     wasSeen && !isHighlighted ? "ghareeb-word--seen" : "",
     extraClassName || "",
@@ -278,11 +278,8 @@ export function GhareebWordPopover({
       base['--ghareeb-active-color'] = `hsl(${hlColor})`;
     } else if (effectiveHighlightMode === 'bg') {
       base['--ghareeb-active-bg'] = `hsl(${hlColor} / 0.35)`;
-      base['--ghareeb-active-border'] = `hsl(${hlColor} / 0.6)`;
-      base['--ghareeb-active-shadow'] = `0 0 8px 2px hsl(${hlColor} / 0.3)`;
     } else if (effectiveHighlightMode === 'border') {
       base['--ghareeb-active-border'] = `hsl(${hlColor})`;
-      base['--ghareeb-active-shadow'] = `0 0 0 2px hsl(${hlColor} / 0.35)`;
     }
     return base;
   })();
