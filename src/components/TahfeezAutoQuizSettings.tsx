@@ -543,10 +543,8 @@ export function TahfeezAutoQuizSettings({ currentPage, quizPagesRange, onStart, 
           <span>كلمات مخفية:</span>
           <span className="text-foreground font-medium">
             {hiddenWordsMode === 'percentage' ? `${hiddenWordsPercentage}%` : `${hiddenWordsCount} كلمة`}
-              </span>
-            </>
-          )}
-          {hiddenWordsMode === 'percentage' && (reviewMode === 'word' || reviewMode === 'mixed') && (
+          </span>
+          {hiddenWordsMode === 'percentage' && (
             <>
               <span>نطاق النسبة:</span>
               <span className="text-foreground font-medium">{percentageScope === 'per-ayah' ? 'لكل آية' : 'للمقطع'}</span>
