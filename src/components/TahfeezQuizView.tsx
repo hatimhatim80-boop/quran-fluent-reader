@@ -338,8 +338,8 @@ export function TahfeezQuizView({
           // Enforce strict mode separation: word-only → no ayahs; ayah-only → no words
           reviewMode,
           distributionMode,
-          hiddenAyatCount: reviewMode === 'word' ? 0 : effectiveAyatCount,
-          hiddenWordsCount: reviewMode === 'ayah' ? 0 : hiddenWordsCount,
+          hiddenAyatCount: 0,
+          hiddenWordsCount: hiddenWordsCount,
           seed: distributionSeed + page.pageNumber,
           ayahGroups,
           allWordTokens,
