@@ -238,7 +238,8 @@ export function TahfeezSRSPanel({
       let changed = false;
 
       state.cards.forEach((card) => {
-        const isLegacyAyahCard = card.type === 'tahfeez-ayah' && (typeof card.meta?.ayahIndex !== 'number' || typeof card.meta?.ayahStableId !== 'string');
+        const sid = card.meta?.ayahStableId;
+        const isLegacyAyahCard = card.type === 'tahfeez-ayah' && (typeof card.meta?.ayahIndex !== 'number' || typeof sid !== 'string' || (typeof sid === 'string' && sid.split('_').length > 3));
         if (!isLegacyAyahCard) {
           nextCards.push(card);
           return;
