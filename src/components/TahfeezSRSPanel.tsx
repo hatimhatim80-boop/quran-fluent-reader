@@ -37,10 +37,8 @@ function formatArabicNumber(value: number): string {
   return new Intl.NumberFormat('ar-SA').format(value);
 }
 
-function buildAyahStableId(pageNumber: number, ayahIndex: number, group: WordToken[]): string {
-  const firstKey = group[0]?.key ?? 'start';
-  const lastKey = group[group.length - 1]?.key ?? 'end';
-  return `ayah_${pageNumber}_${ayahIndex}_${firstKey}_${lastKey}`;
+function buildAyahStableId(pageNumber: number, ayahIndex: number): string {
+  return `ayah_${pageNumber}_${ayahIndex}`;
 }
 
 function extractPageWords(text: string, pageNumber: number): WordToken[] {
@@ -220,7 +218,14 @@ export function TahfeezSRSPanel({
   React.useEffect(() => {
     const needsMigration = cards.some((card) => {
       if (card.type === 'tahfeez-ayah') {
-        return typeof card.meta?.ayahIndex !== 'number' || typeof card.meta?.ayahStableId !== 'string';
+        if (typeof card.meta?.ayahIndex !== 'number') return true;
+        // Detect old-format stableId (ayah_page_idx_key_key) vs new (ayah_page_idx)
+        const sid = card.meta?.ayahStableId;
+        if (typeof sid !== 'string') return true;
+        const parts = sid.split('_');
+        // New format: ayah_{page}_{idx} = 3 parts; old had 5+
+        if (parts.length > 3) return true;
+        return false;
       }
       return false;
     });
@@ -233,7 +238,8 @@ export function TahfeezSRSPanel({
       let changed = false;
 
       state.cards.forEach((card) => {
-        const isLegacyAyahCard = card.type === 'tahfeez-ayah' && (typeof card.meta?.ayahIndex !== 'number' || typeof card.meta?.ayahStableId !== 'string');
+        const sid = card.meta?.ayahStableId;
+        const isLegacyAyahCard = card.type === 'tahfeez-ayah' && (typeof card.meta?.ayahIndex !== 'number' || typeof sid !== 'string' || (typeof sid === 'string' && sid.split('_').length > 3));
         if (!isLegacyAyahCard) {
           nextCards.push(card);
           return;
@@ -256,7 +262,7 @@ export function TahfeezSRSPanel({
             id,
             contentKey: `ayah_${card.page}_${ayahIndex}`,
             label: `ص${card.page} — آية ${ayahIndex + 1}`,
-            meta: { ...card.meta, ayahIndex, wordCount: group.length, ayahStableId: buildAyahStableId(card.page, ayahIndex, group) },
+            meta: { ...card.meta, ayahIndex, wordCount: group.length, ayahStableId: buildAyahStableId(card.page, ayahIndex) },
           });
         });
       });
@@ -281,7 +287,7 @@ export function TahfeezSRSPanel({
           page: pg,
           contentKey: `ayah_${pg}_${ayahIndex}`,
           label: `ص${pg} — آية ${ayahIndex + 1}`,
-          meta: { ayahIndex, wordCount: group.length, ayahStableId: buildAyahStableId(pg, ayahIndex, group) },
+          meta: { ayahIndex, wordCount: group.length, ayahStableId: buildAyahStableId(pg, ayahIndex) },
         });
         added += 1;
       });
