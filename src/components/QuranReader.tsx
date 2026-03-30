@@ -403,13 +403,17 @@ export function QuranReader() {
                   hlVars['--ghareeb-active-color'] = `hsl(${hlColor})`;
                 } else if (highlightStyle === 'border') {
                   hlVars['--ghareeb-active-border'] = `hsl(${hlColor})`;
-                  hlVars['--ghareeb-active-shadow'] = `0 0 0 2px hsl(${hlColor} / 0.35)`;
                 } else if (highlightStyle === 'bg') {
                   hlVars['--ghareeb-active-bg'] = `hsl(${hlColor} / 0.35)`;
-                  hlVars['--ghareeb-active-border'] = `hsl(${hlColor} / 0.6)`;
                 }
                 return (
-                  <div className="relative" style={hlVars as React.CSSProperties} data-srs-highlight-style={highlightStyle} data-srs-word-key={wordKey}>
+                  <div
+                    className="relative"
+                    style={hlVars as React.CSSProperties}
+                    data-ghareeb-review-surface="true"
+                    data-srs-highlight-style={highlightStyle}
+                    data-srs-word-key={wordKey}
+                  >
                     <PageView
                       page={pgData}
                       ghareebWords={pgWords}
