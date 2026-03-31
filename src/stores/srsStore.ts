@@ -107,12 +107,16 @@ export const RATING_OPTIONS: { rating: SRSRating; label: string; color: string; 
 ];
 
 export function formatInterval(days: number): string {
-  if (days < 0.05) return '١٠ دقائق';
-  if (days < 1) return `${Math.round(days * 24)} ساعة`;
-  if (days === 1) return 'غداً';
-  if (days < 7) return `${Math.round(days)} أيام`;
-  if (days < 30) return `${Math.round(days / 7)} أسابيع`;
-  if (days < 365) return `${Math.round(days / 30)} أشهر`;
+  const minutes = Math.round(days * 24 * 60);
+  if (minutes < 1) return 'الآن';
+  if (minutes === 1) return '١ دقيقة';
+  if (minutes < 60) return `${new Intl.NumberFormat('ar-SA').format(minutes)} دقيقة`;
+  const hours = Math.round(days * 24);
+  if (hours < 24) return `${new Intl.NumberFormat('ar-SA').format(hours)} ساعة`;
+  if (days < 2) return 'غداً';
+  if (days < 7) return `${new Intl.NumberFormat('ar-SA').format(Math.round(days))} أيام`;
+  if (days < 30) return `${new Intl.NumberFormat('ar-SA').format(Math.round(days / 7))} أسابيع`;
+  if (days < 365) return `${new Intl.NumberFormat('ar-SA').format(Math.round(days / 30))} أشهر`;
   return `${(days / 365).toFixed(1)} سنة`;
 }
 

@@ -356,8 +356,8 @@ export function SRSReviewSession({
                   <div className="flex flex-wrap justify-center gap-1.5">
                     {[
                       { label: 'مهمة', rating: 3 as SRSRating, action: 'flag', icon: '⭐' },
-                      { label: 'ضعيفة', rating: 1 as SRSRating, days: 0.007, icon: '😓' },
-                      { label: 'كررها', rating: 0 as SRSRating, days: 0.0007, icon: '🔄' },
+                      { label: 'ضعيفة', rating: 1 as SRSRating, days: 10 / 1440, icon: '😓' },
+                      { label: 'كررها', rating: 0 as SRSRating, days: 1 / 1440, icon: '🔄' },
                       { label: 'تثبيت', rating: 5 as SRSRating, days: 90, icon: '📌' },
                     ].map(({ label, rating, days, action, icon }) => (
                       <button
