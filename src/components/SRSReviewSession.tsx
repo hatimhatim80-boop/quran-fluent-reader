@@ -287,10 +287,10 @@ export function SRSReviewSession({
                 <p className="text-xs text-muted-foreground font-arabic text-center font-bold">⏱ مدة الإعادة الذكية</p>
                 <div className="grid grid-cols-4 gap-2">
                   {[
-                    { label: '١ دقيقة', days: 0.0007 },
-                    { label: '٥ دقائق', days: 0.0035 },
-                    { label: '١٠ دقائق', days: 0.007 },
-                    { label: 'ساعة', days: 0.04 },
+                    { label: '١ دقيقة', days: 1 / 1440 },
+                    { label: '٥ دقائق', days: 5 / 1440 },
+                    { label: '١٠ دقائق', days: 10 / 1440 },
+                    { label: 'ساعة', days: 1 / 24 },
                   ].map(({ label, days }) => (
                     <button
                       key={days}
@@ -356,8 +356,8 @@ export function SRSReviewSession({
                   <div className="flex flex-wrap justify-center gap-1.5">
                     {[
                       { label: 'مهمة', rating: 3 as SRSRating, action: 'flag', icon: '⭐' },
-                      { label: 'ضعيفة', rating: 1 as SRSRating, days: 0.007, icon: '😓' },
-                      { label: 'كررها', rating: 0 as SRSRating, days: 0.0007, icon: '🔄' },
+                      { label: 'ضعيفة', rating: 1 as SRSRating, days: 10 / 1440, icon: '😓' },
+                      { label: 'كررها', rating: 0 as SRSRating, days: 1 / 1440, icon: '🔄' },
                       { label: 'تثبيت', rating: 5 as SRSRating, days: 90, icon: '📌' },
                     ].map(({ label, rating, days, action, icon }) => (
                       <button
