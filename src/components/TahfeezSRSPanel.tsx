@@ -644,3 +644,50 @@ export function TahfeezSRSPanel({
     </div>
   );
 }
+
+// ── Tahfeez review card with auto-scroll ─────────────────────────────────────
+
+function TahfeezReviewCardContent({
+  card,
+  answerRevealed,
+  renderPageWithBlanks,
+}: {
+  card: SRSCard;
+  answerRevealed: boolean;
+  renderPageWithBlanks: (page: number, blankedKeys: string[], card: SRSCard) => React.ReactNode;
+}) {
+  const rootRef = useRef<HTMLDivElement>(null);
+
+  // Auto-scroll to the blanked element when card changes
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (!rootRef.current) return;
+      // Look for the blanked word element
+      const blankedEl = rootRef.current.querySelector<HTMLElement>('[data-blanked="true"], .tahfeez-blank, .bg-muted');
+      if (!blankedEl) return;
+      let scrollParent: Element | null = rootRef.current.parentElement;
+      while (scrollParent) {
+        const style = getComputedStyle(scrollParent);
+        if (style.overflow === 'auto' || style.overflowY === 'auto' || style.overflow === 'scroll' || style.overflowY === 'scroll') break;
+        scrollParent = scrollParent.parentElement;
+      }
+      if (!scrollParent) {
+        blankedEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        return;
+      }
+      const parentRect = scrollParent.getBoundingClientRect();
+      const elRect = blankedEl.getBoundingClientRect();
+      if (elRect.top < parentRect.top + 40 || elRect.bottom > parentRect.bottom - 40) {
+        const scrollTop = scrollParent.scrollTop + (elRect.top - parentRect.top) - parentRect.height / 2 + elRect.height / 2;
+        scrollParent.scrollTo({ top: Math.max(0, scrollTop), behavior: 'smooth' });
+      }
+    }, 250);
+    return () => clearTimeout(timer);
+  }, [card.contentKey, card.id]);
+
+  return (
+    <div ref={rootRef} className="p-2">
+      {renderPageWithBlanks(card.page, answerRevealed ? [] : [card.contentKey], card)}
+    </div>
+  );
+}
