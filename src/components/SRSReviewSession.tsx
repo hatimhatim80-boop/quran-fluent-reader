@@ -472,7 +472,7 @@ export function SRSReviewSession({
           {/* Quick index dots */}
           {total <= 50 && (
             <div className="flex flex-wrap justify-center gap-1 pt-1">
-              {cards.map((_, i) => (
+              {liveCards.map((_, i) => (
                 <button
                   key={i}
                   onClick={() => goToCard(i)}
