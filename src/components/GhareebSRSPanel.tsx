@@ -381,20 +381,24 @@ function GhareebReviewCardContent({
       if (!rootRef.current) return;
       const wordEl = rootRef.current.querySelector<HTMLElement>(`[data-ghareeb-key="${card.contentKey}"]`);
       if (!wordEl) return;
-      // Find the scrollable parent (the overflow-auto div in SRSReviewSession)
-      const scrollParent = rootRef.current.closest('.overflow-auto') || rootRef.current.closest('[style*="overflow"]');
+      // Walk up to find the scrollable container
+      let scrollParent: Element | null = rootRef.current.parentElement;
+      while (scrollParent) {
+        const style = getComputedStyle(scrollParent);
+        if (style.overflow === 'auto' || style.overflowY === 'auto' || style.overflow === 'scroll' || style.overflowY === 'scroll') break;
+        scrollParent = scrollParent.parentElement;
+      }
       if (!scrollParent) {
         wordEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
         return;
       }
       const parentRect = scrollParent.getBoundingClientRect();
       const wordRect = wordEl.getBoundingClientRect();
-      // If word is outside visible area, scroll to center it
-      if (wordRect.top < parentRect.top || wordRect.bottom > parentRect.bottom) {
+      if (wordRect.top < parentRect.top + 40 || wordRect.bottom > parentRect.bottom - 40) {
         const scrollTop = scrollParent.scrollTop + (wordRect.top - parentRect.top) - parentRect.height / 2 + wordRect.height / 2;
         scrollParent.scrollTo({ top: Math.max(0, scrollTop), behavior: 'smooth' });
       }
-    }, 200); // small delay for DOM to render
+    }, 250);
     return () => clearTimeout(timer);
   }, [card.contentKey, card.id]);
 
