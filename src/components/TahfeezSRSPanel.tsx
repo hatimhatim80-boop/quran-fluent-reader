@@ -459,13 +459,13 @@ export function TahfeezSRSPanel({
         renderAnswer={showHiddenWordsPreview ? ((card) => card.type === 'tahfeez-word' ? (
           <div className="text-center font-arabic text-lg text-foreground">{String(card.meta.wordText || '')}</div>
         ) : null) : undefined}
-        renderCard={(card, answerRevealed) => {
-          return (
-            <div className="p-2">
-              {renderPageWithBlanks(card.page, answerRevealed ? [] : [card.contentKey], card)}
-            </div>
-          );
-        }}
+        renderCard={(card, answerRevealed) => (
+          <TahfeezReviewCardContent
+            card={card}
+            answerRevealed={answerRevealed}
+            renderPageWithBlanks={renderPageWithBlanks}
+          />
+        )}
       />
     );
   }
