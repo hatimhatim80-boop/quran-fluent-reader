@@ -174,6 +174,12 @@ export function SRSReviewSession({
 
     rateCard(card.id, rating, customInterval);
 
+    // Track this card for re-due detection
+    const updatedCard = useSRSStore.getState().cards.find(c => c.id === card.id);
+    if (updatedCard && updatedCard.nextReview > Date.now()) {
+      reviewedIdsRef.current.set(card.id, updatedCard.nextReview);
+    }
+
     const nextReviewed = new Set(reviewed);
     nextReviewed.add(currentIdx);
     const nextRatings = new Map(ratings);
@@ -184,9 +190,9 @@ export function SRSReviewSession({
     setAnswerRevealed(false);
     setShowManualInterval(false);
 
-    let nextUnreviewed = cards.findIndex((_, i) => i > currentIdx && !nextReviewed.has(i));
+    let nextUnreviewed = liveCards.findIndex((_, i) => i > currentIdx && !nextReviewed.has(i));
     if (nextUnreviewed < 0) {
-      nextUnreviewed = cards.findIndex((_, i) => i < currentIdx && !nextReviewed.has(i));
+      nextUnreviewed = liveCards.findIndex((_, i) => i < currentIdx && !nextReviewed.has(i));
     }
 
     if (nextUnreviewed >= 0) {
@@ -194,8 +200,14 @@ export function SRSReviewSession({
       return;
     }
 
+    // Check if there are pending re-due cards coming soon
+    if (reviewedIdsRef.current.size > 0) {
+      // Don't finish — wait for re-due cards
+      return;
+    }
+
     onFinish();
-  }, [card, currentIdx, cards, reviewed, ratings, rateCard, onFinish]);
+  }, [card, currentIdx, liveCards, reviewed, ratings, rateCard, onFinish]);
 
   const goToCard = useCallback((idx: number) => {
     if (idx >= 0 && idx < total) {
