@@ -250,7 +250,7 @@ export function SRSReviewSession({
     <ScrollArea className="h-full">
       <div className="p-3 space-y-1 font-arabic" dir="rtl">
         <p className="text-xs text-muted-foreground mb-2">{doneCount}/{total} تمت مراجعتها</p>
-        {cards.map((c, i) => (
+        {liveCards.map((c, i) => (
           <button
             key={i}
             onClick={() => { goToCard(i); setShowIndex(false); }}
