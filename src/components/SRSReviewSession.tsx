@@ -52,26 +52,33 @@ export function SRSReviewSession({
   const [answerMode, setAnswerMode] = useState<AnswerDisplayMode>(defaultAnswerMode);
   const isMobile = useIsMobile();
 
-  // Live session cards — starts with initial cards, grows as re-due cards come back
+  // Live session queue — cards are appended at the end when they become re-due (Anki-style)
   const [liveCards, setLiveCards] = useState<SRSCard[]>(cards);
-  const reviewedIdsRef = useRef<Map<string, number>>(new Map()); // cardId -> nextReview timestamp
+  // Track reviewed cards waiting to become re-due: cardId -> nextReview timestamp
+  const pendingReDueRef = useRef<Map<string, number>>(new Map());
   const [nextDueCountdown, setNextDueCountdown] = useState<string | null>(null);
+  // Track which queue indices have been reviewed (by index, since same card can appear multiple times)
+  const reviewedIndicesRef = useRef<Set<number>>(new Set());
 
-  // Reset live cards when session cards change (new session)
+  // Reset when session changes
   useEffect(() => {
     setLiveCards(cards);
-    reviewedIdsRef.current = new Map();
+    pendingReDueRef.current = new Map();
+    reviewedIndicesRef.current = new Set();
     setNextDueCountdown(null);
+    setReviewed(new Set());
+    setRatings(new Map());
+    setCurrentIdx(0);
   }, [cards]);
 
-  // Poll every 5 seconds to check if any reviewed cards have become due again
+  // Poll every 1 second to re-inject due cards into the queue
   useEffect(() => {
-    const interval = setInterval(() => {
+    const tick = () => {
       const now = Date.now();
       const reDueIds: string[] = [];
       let nearestFuture = Infinity;
 
-      reviewedIdsRef.current.forEach((nextReview, cardId) => {
+      pendingReDueRef.current.forEach((nextReview, cardId) => {
         if (nextReview <= now) {
           reDueIds.push(cardId);
         } else {
@@ -79,40 +86,33 @@ export function SRSReviewSession({
         }
       });
 
-      // Update countdown display
+      // Update countdown
       if (nearestFuture < Infinity) {
-        const remainMs = nearestFuture - now;
-        const remainSec = Math.ceil(remainMs / 1000);
-        if (remainSec <= 0) {
-          setNextDueCountdown(null);
-        } else if (remainSec < 60) {
+        const remainSec = Math.max(0, Math.ceil((nearestFuture - now) / 1000));
+        if (remainSec < 60) {
           setNextDueCountdown(`${remainSec} ث`);
         } else {
-          const mins = Math.ceil(remainSec / 60);
-          setNextDueCountdown(`${mins} د`);
+          setNextDueCountdown(`${Math.ceil(remainSec / 60)} د`);
         }
-      } else if (reDueIds.length === 0) {
+      } else {
         setNextDueCountdown(null);
       }
 
       if (reDueIds.length === 0) return;
 
-      // Re-inject due cards at the end of the session
+      // Remove from pending
+      reDueIds.forEach(id => pendingReDueRef.current.delete(id));
+
+      // Append fresh copies at the end of the queue (same card can appear multiple times)
       setLiveCards(prev => {
-        const existingIds = new Set(prev.map(c => c.id));
-        const freshCards = storeCards.filter(c => reDueIds.includes(c.id) && !existingIds.has(c.id));
-        // Also update existing cards in case they were already in the list
-        const updated = prev.map(c => {
-          const fresh = storeCards.find(sc => sc.id === c.id);
-          return fresh || c;
-        });
-        return [...updated, ...freshCards];
+        const newEntries = reDueIds
+          .map(id => storeCards.find(c => c.id === id))
+          .filter(Boolean) as SRSCard[];
+        return [...prev, ...newEntries];
       });
+    };
 
-      // Remove from tracking
-      reDueIds.forEach(id => reviewedIdsRef.current.delete(id));
-    }, 5000);
-
+    const interval = setInterval(tick, 1000);
     return () => clearInterval(interval);
   }, [storeCards]);
 
@@ -152,13 +152,8 @@ export function SRSReviewSession({
   }, [availableAnswerModes, answerMode]);
 
   useEffect(() => {
-    setCurrentIdx(0);
-    setAnswerRevealed(false);
-    setShowManualInterval(false);
-    setReviewed(new Set());
-    setRatings(new Map());
     setAnswerMode(defaultAnswerMode);
-  }, [cards, defaultAnswerMode]);
+  }, [defaultAnswerMode]);
 
   const intervals = useMemo(() => {
     if (!card) return [];
@@ -174,10 +169,10 @@ export function SRSReviewSession({
 
     rateCard(card.id, rating, customInterval);
 
-    // Track this card for re-due detection
+    // Track this card for re-due detection (Anki-style: re-queue after interval)
     const updatedCard = useSRSStore.getState().cards.find(c => c.id === card.id);
     if (updatedCard && updatedCard.nextReview > Date.now()) {
-      reviewedIdsRef.current.set(card.id, updatedCard.nextReview);
+      pendingReDueRef.current.set(card.id, updatedCard.nextReview);
     }
 
     const nextReviewed = new Set(reviewed);
@@ -190,6 +185,7 @@ export function SRSReviewSession({
     setAnswerRevealed(false);
     setShowManualInterval(false);
 
+    // Find next unreviewed card in queue
     let nextUnreviewed = liveCards.findIndex((_, i) => i > currentIdx && !nextReviewed.has(i));
     if (nextUnreviewed < 0) {
       nextUnreviewed = liveCards.findIndex((_, i) => i < currentIdx && !nextReviewed.has(i));
@@ -200,9 +196,9 @@ export function SRSReviewSession({
       return;
     }
 
-    // Check if there are pending re-due cards coming soon
-    if (reviewedIdsRef.current.size > 0) {
-      // Don't finish — wait for re-due cards
+    // All current cards reviewed — check if any are pending re-due
+    if (pendingReDueRef.current.size > 0) {
+      // Don't finish — wait for re-due cards to be injected
       return;
     }
 
@@ -225,7 +221,7 @@ export function SRSReviewSession({
 
   if (!card) {
     // If there are pending re-due cards, show waiting state
-    if (reviewedIdsRef.current.size > 0) {
+    if (pendingReDueRef.current.size > 0) {
       return (
         <div className="text-center py-8 font-arabic text-muted-foreground space-y-3">
           <p className="text-lg">⏳ في انتظار البطاقات المعلقة...</p>
