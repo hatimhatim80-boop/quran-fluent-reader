@@ -84,7 +84,7 @@ function sm2(card: SRSCard, rating: SRSRating): Pick<SRSCard, 'easeFactor' | 'in
 
   if (rating < 3) {
     repetitions = 0;
-    interval = rating === 0 ? 0.007 : 1;
+    interval = rating === 0 ? (1 / 1440) : 1;
   } else {
     if (repetitions === 0) interval = 1;
     else if (repetitions === 1) interval = 3;
