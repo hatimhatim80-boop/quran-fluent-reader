@@ -42,8 +42,8 @@ export function SRSReviewSession({
 }: SRSReviewSessionProps) {
   const rateCard = useSRSStore(s => s.rateCard);
   const toggleFlag = useSRSStore(s => s.toggleFlag);
+  const storeCards = useSRSStore(s => s.cards);
   const [currentIdx, setCurrentIdx] = useState(0);
-  // ⚠️ FIX: answer is ALWAYS hidden initially. Never auto-reveal.
   const [answerRevealed, setAnswerRevealed] = useState(false);
   const [showManualInterval, setShowManualInterval] = useState(false);
   const [reviewed, setReviewed] = useState<Set<number>>(new Set());
@@ -52,14 +52,78 @@ export function SRSReviewSession({
   const [answerMode, setAnswerMode] = useState<AnswerDisplayMode>(defaultAnswerMode);
   const isMobile = useIsMobile();
 
+  // Live session cards — starts with initial cards, grows as re-due cards come back
+  const [liveCards, setLiveCards] = useState<SRSCard[]>(cards);
+  const reviewedIdsRef = useRef<Map<string, number>>(new Map()); // cardId -> nextReview timestamp
+  const [nextDueCountdown, setNextDueCountdown] = useState<string | null>(null);
+
+  // Reset live cards when session cards change (new session)
+  useEffect(() => {
+    setLiveCards(cards);
+    reviewedIdsRef.current = new Map();
+    setNextDueCountdown(null);
+  }, [cards]);
+
+  // Poll every 5 seconds to check if any reviewed cards have become due again
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const now = Date.now();
+      const reDueIds: string[] = [];
+      let nearestFuture = Infinity;
+
+      reviewedIdsRef.current.forEach((nextReview, cardId) => {
+        if (nextReview <= now) {
+          reDueIds.push(cardId);
+        } else {
+          nearestFuture = Math.min(nearestFuture, nextReview);
+        }
+      });
+
+      // Update countdown display
+      if (nearestFuture < Infinity) {
+        const remainMs = nearestFuture - now;
+        const remainSec = Math.ceil(remainMs / 1000);
+        if (remainSec <= 0) {
+          setNextDueCountdown(null);
+        } else if (remainSec < 60) {
+          setNextDueCountdown(`${remainSec} ث`);
+        } else {
+          const mins = Math.ceil(remainSec / 60);
+          setNextDueCountdown(`${mins} د`);
+        }
+      } else if (reDueIds.length === 0) {
+        setNextDueCountdown(null);
+      }
+
+      if (reDueIds.length === 0) return;
+
+      // Re-inject due cards at the end of the session
+      setLiveCards(prev => {
+        const existingIds = new Set(prev.map(c => c.id));
+        const freshCards = storeCards.filter(c => reDueIds.includes(c.id) && !existingIds.has(c.id));
+        // Also update existing cards in case they were already in the list
+        const updated = prev.map(c => {
+          const fresh = storeCards.find(sc => sc.id === c.id);
+          return fresh || c;
+        });
+        return [...updated, ...freshCards];
+      });
+
+      // Remove from tracking
+      reDueIds.forEach(id => reviewedIdsRef.current.delete(id));
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, [storeCards]);
+
   const availableAnswerModes = useMemo(() => {
     if (!answerModeOptions.length) return ['bottom', 'tooltip', 'inline'] as AnswerDisplayMode[];
     const uniq = Array.from(new Set(answerModeOptions));
     return uniq.length > 0 ? uniq : (['bottom', 'tooltip', 'inline'] as AnswerDisplayMode[]);
   }, [answerModeOptions]);
 
-  const card = cards[currentIdx];
-  const total = cards.length;
+  const card = liveCards[currentIdx];
+  const total = liveCards.length;
   const doneCount = reviewed.size;
   const progress = total > 0 ? (doneCount / total) * 100 : 0;
   const cardInfoLabel = useMemo(() => {
@@ -75,7 +139,7 @@ export function SRSReviewSession({
     if (card) onNavigateToPage(card.page);
   }, [card, onNavigateToPage]);
 
-  // ⚠️ CRITICAL: Reset answer state on EVERY card change
+  // Reset answer state on EVERY card change
   useEffect(() => {
     setAnswerRevealed(false);
     setShowManualInterval(false);
