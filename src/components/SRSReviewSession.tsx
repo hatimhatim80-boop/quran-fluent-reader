@@ -152,13 +152,8 @@ export function SRSReviewSession({
   }, [availableAnswerModes, answerMode]);
 
   useEffect(() => {
-    setCurrentIdx(0);
-    setAnswerRevealed(false);
-    setShowManualInterval(false);
-    setReviewed(new Set());
-    setRatings(new Map());
     setAnswerMode(defaultAnswerMode);
-  }, [cards, defaultAnswerMode]);
+  }, [defaultAnswerMode]);
 
   const intervals = useMemo(() => {
     if (!card) return [];
