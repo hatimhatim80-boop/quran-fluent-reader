@@ -174,10 +174,10 @@ export function SRSReviewSession({
 
     rateCard(card.id, rating, customInterval);
 
-    // Track this card for re-due detection
+    // Track this card for re-due detection (Anki-style: re-queue after interval)
     const updatedCard = useSRSStore.getState().cards.find(c => c.id === card.id);
     if (updatedCard && updatedCard.nextReview > Date.now()) {
-      reviewedIdsRef.current.set(card.id, updatedCard.nextReview);
+      pendingReDueRef.current.set(card.id, updatedCard.nextReview);
     }
 
     const nextReviewed = new Set(reviewed);
@@ -190,6 +190,7 @@ export function SRSReviewSession({
     setAnswerRevealed(false);
     setShowManualInterval(false);
 
+    // Find next unreviewed card in queue
     let nextUnreviewed = liveCards.findIndex((_, i) => i > currentIdx && !nextReviewed.has(i));
     if (nextUnreviewed < 0) {
       nextUnreviewed = liveCards.findIndex((_, i) => i < currentIdx && !nextReviewed.has(i));
@@ -200,9 +201,9 @@ export function SRSReviewSession({
       return;
     }
 
-    // Check if there are pending re-due cards coming soon
-    if (reviewedIdsRef.current.size > 0) {
-      // Don't finish — wait for re-due cards
+    // All current cards reviewed — check if any are pending re-due
+    if (pendingReDueRef.current.size > 0) {
+      // Don't finish — wait for re-due cards to be injected
       return;
     }
 
