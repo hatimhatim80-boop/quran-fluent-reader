@@ -224,6 +224,19 @@ export function SRSReviewSession({
   }, [answerMode, availableAnswerModes]);
 
   if (!card) {
+    // If there are pending re-due cards, show waiting state
+    if (reviewedIdsRef.current.size > 0) {
+      return (
+        <div className="text-center py-8 font-arabic text-muted-foreground space-y-3">
+          <p className="text-lg">⏳ في انتظار البطاقات المعلقة...</p>
+          {nextDueCountdown && (
+            <p className="text-2xl font-bold text-primary animate-pulse">{nextDueCountdown}</p>
+          )}
+          <p className="text-sm">ستعود البطاقات تلقائياً عند حلول موعد مراجعتها</p>
+          <Button variant="outline" onClick={onFinish} className="mt-4 font-arabic">إنهاء الجلسة</Button>
+        </div>
+      );
+    }
     return (
       <div className="text-center py-8 font-arabic text-muted-foreground">
         <p>لا توجد بطاقات للمراجعة</p>
