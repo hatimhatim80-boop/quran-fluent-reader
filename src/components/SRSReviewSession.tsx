@@ -226,7 +226,7 @@ export function SRSReviewSession({
 
   if (!card) {
     // If there are pending re-due cards, show waiting state
-    if (reviewedIdsRef.current.size > 0) {
+    if (pendingReDueRef.current.size > 0) {
       return (
         <div className="text-center py-8 font-arabic text-muted-foreground space-y-3">
           <p className="text-lg">⏳ في انتظار البطاقات المعلقة...</p>
