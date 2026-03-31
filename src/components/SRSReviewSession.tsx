@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo, useEffect } from 'react';
+import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { useSRSStore, SRSCard, SRSRating, RATING_OPTIONS, formatInterval, previewIntervals } from '@/stores/srsStore';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
@@ -42,8 +42,8 @@ export function SRSReviewSession({
 }: SRSReviewSessionProps) {
   const rateCard = useSRSStore(s => s.rateCard);
   const toggleFlag = useSRSStore(s => s.toggleFlag);
+  const storeCards = useSRSStore(s => s.cards);
   const [currentIdx, setCurrentIdx] = useState(0);
-  // ⚠️ FIX: answer is ALWAYS hidden initially. Never auto-reveal.
   const [answerRevealed, setAnswerRevealed] = useState(false);
   const [showManualInterval, setShowManualInterval] = useState(false);
   const [reviewed, setReviewed] = useState<Set<number>>(new Set());
@@ -52,14 +52,78 @@ export function SRSReviewSession({
   const [answerMode, setAnswerMode] = useState<AnswerDisplayMode>(defaultAnswerMode);
   const isMobile = useIsMobile();
 
+  // Live session cards — starts with initial cards, grows as re-due cards come back
+  const [liveCards, setLiveCards] = useState<SRSCard[]>(cards);
+  const reviewedIdsRef = useRef<Map<string, number>>(new Map()); // cardId -> nextReview timestamp
+  const [nextDueCountdown, setNextDueCountdown] = useState<string | null>(null);
+
+  // Reset live cards when session cards change (new session)
+  useEffect(() => {
+    setLiveCards(cards);
+    reviewedIdsRef.current = new Map();
+    setNextDueCountdown(null);
+  }, [cards]);
+
+  // Poll every 5 seconds to check if any reviewed cards have become due again
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const now = Date.now();
+      const reDueIds: string[] = [];
+      let nearestFuture = Infinity;
+
+      reviewedIdsRef.current.forEach((nextReview, cardId) => {
+        if (nextReview <= now) {
+          reDueIds.push(cardId);
+        } else {
+          nearestFuture = Math.min(nearestFuture, nextReview);
+        }
+      });
+
+      // Update countdown display
+      if (nearestFuture < Infinity) {
+        const remainMs = nearestFuture - now;
+        const remainSec = Math.ceil(remainMs / 1000);
+        if (remainSec <= 0) {
+          setNextDueCountdown(null);
+        } else if (remainSec < 60) {
+          setNextDueCountdown(`${remainSec} ث`);
+        } else {
+          const mins = Math.ceil(remainSec / 60);
+          setNextDueCountdown(`${mins} د`);
+        }
+      } else if (reDueIds.length === 0) {
+        setNextDueCountdown(null);
+      }
+
+      if (reDueIds.length === 0) return;
+
+      // Re-inject due cards at the end of the session
+      setLiveCards(prev => {
+        const existingIds = new Set(prev.map(c => c.id));
+        const freshCards = storeCards.filter(c => reDueIds.includes(c.id) && !existingIds.has(c.id));
+        // Also update existing cards in case they were already in the list
+        const updated = prev.map(c => {
+          const fresh = storeCards.find(sc => sc.id === c.id);
+          return fresh || c;
+        });
+        return [...updated, ...freshCards];
+      });
+
+      // Remove from tracking
+      reDueIds.forEach(id => reviewedIdsRef.current.delete(id));
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, [storeCards]);
+
   const availableAnswerModes = useMemo(() => {
     if (!answerModeOptions.length) return ['bottom', 'tooltip', 'inline'] as AnswerDisplayMode[];
     const uniq = Array.from(new Set(answerModeOptions));
     return uniq.length > 0 ? uniq : (['bottom', 'tooltip', 'inline'] as AnswerDisplayMode[]);
   }, [answerModeOptions]);
 
-  const card = cards[currentIdx];
-  const total = cards.length;
+  const card = liveCards[currentIdx];
+  const total = liveCards.length;
   const doneCount = reviewed.size;
   const progress = total > 0 ? (doneCount / total) * 100 : 0;
   const cardInfoLabel = useMemo(() => {
@@ -75,7 +139,7 @@ export function SRSReviewSession({
     if (card) onNavigateToPage(card.page);
   }, [card, onNavigateToPage]);
 
-  // ⚠️ CRITICAL: Reset answer state on EVERY card change
+  // Reset answer state on EVERY card change
   useEffect(() => {
     setAnswerRevealed(false);
     setShowManualInterval(false);
@@ -110,6 +174,12 @@ export function SRSReviewSession({
 
     rateCard(card.id, rating, customInterval);
 
+    // Track this card for re-due detection
+    const updatedCard = useSRSStore.getState().cards.find(c => c.id === card.id);
+    if (updatedCard && updatedCard.nextReview > Date.now()) {
+      reviewedIdsRef.current.set(card.id, updatedCard.nextReview);
+    }
+
     const nextReviewed = new Set(reviewed);
     nextReviewed.add(currentIdx);
     const nextRatings = new Map(ratings);
@@ -120,9 +190,9 @@ export function SRSReviewSession({
     setAnswerRevealed(false);
     setShowManualInterval(false);
 
-    let nextUnreviewed = cards.findIndex((_, i) => i > currentIdx && !nextReviewed.has(i));
+    let nextUnreviewed = liveCards.findIndex((_, i) => i > currentIdx && !nextReviewed.has(i));
     if (nextUnreviewed < 0) {
-      nextUnreviewed = cards.findIndex((_, i) => i < currentIdx && !nextReviewed.has(i));
+      nextUnreviewed = liveCards.findIndex((_, i) => i < currentIdx && !nextReviewed.has(i));
     }
 
     if (nextUnreviewed >= 0) {
@@ -130,8 +200,14 @@ export function SRSReviewSession({
       return;
     }
 
+    // Check if there are pending re-due cards coming soon
+    if (reviewedIdsRef.current.size > 0) {
+      // Don't finish — wait for re-due cards
+      return;
+    }
+
     onFinish();
-  }, [card, currentIdx, cards, reviewed, ratings, rateCard, onFinish]);
+  }, [card, currentIdx, liveCards, reviewed, ratings, rateCard, onFinish]);
 
   const goToCard = useCallback((idx: number) => {
     if (idx >= 0 && idx < total) {
@@ -148,6 +224,19 @@ export function SRSReviewSession({
   }, [answerMode, availableAnswerModes]);
 
   if (!card) {
+    // If there are pending re-due cards, show waiting state
+    if (reviewedIdsRef.current.size > 0) {
+      return (
+        <div className="text-center py-8 font-arabic text-muted-foreground space-y-3">
+          <p className="text-lg">⏳ في انتظار البطاقات المعلقة...</p>
+          {nextDueCountdown && (
+            <p className="text-2xl font-bold text-primary animate-pulse">{nextDueCountdown}</p>
+          )}
+          <p className="text-sm">ستعود البطاقات تلقائياً عند حلول موعد مراجعتها</p>
+          <Button variant="outline" onClick={onFinish} className="mt-4 font-arabic">إنهاء الجلسة</Button>
+        </div>
+      );
+    }
     return (
       <div className="text-center py-8 font-arabic text-muted-foreground">
         <p>لا توجد بطاقات للمراجعة</p>
@@ -161,7 +250,7 @@ export function SRSReviewSession({
     <ScrollArea className="h-full">
       <div className="p-3 space-y-1 font-arabic" dir="rtl">
         <p className="text-xs text-muted-foreground mb-2">{doneCount}/{total} تمت مراجعتها</p>
-        {cards.map((c, i) => (
+        {liveCards.map((c, i) => (
           <button
             key={i}
             onClick={() => { goToCard(i); setShowIndex(false); }}
@@ -217,7 +306,7 @@ export function SRSReviewSession({
         <div className="flex items-center justify-between px-3 py-2 border-b border-border bg-card/80 backdrop-blur-sm shrink-0">
           <div className="flex items-center gap-2">
             <span className="font-arabic text-sm font-bold text-primary">{portalName} — مراجعة</span>
-            <span className="text-xs text-muted-foreground font-arabic">{doneCount}/{total}</span>
+            <span className="text-xs text-muted-foreground font-arabic">{doneCount}/{total}{nextDueCountdown ? ` · ⏱${nextDueCountdown}` : ''}</span>
           </div>
           <div className="flex items-center gap-1">
             {headerExtra}
@@ -383,7 +472,7 @@ export function SRSReviewSession({
           {/* Quick index dots */}
           {total <= 50 && (
             <div className="flex flex-wrap justify-center gap-1 pt-1">
-              {cards.map((_, i) => (
+              {liveCards.map((_, i) => (
                 <button
                   key={i}
                   onClick={() => goToCard(i)}
