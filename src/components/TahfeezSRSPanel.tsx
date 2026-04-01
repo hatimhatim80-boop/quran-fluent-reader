@@ -642,32 +642,23 @@ function TahfeezReviewCardContent({
 }) {
   const rootRef = useRef<HTMLDivElement>(null);
 
-  // Auto-scroll to the blanked element when card changes
+  // Auto-scroll to keep the blanked element always visible
   useEffect(() => {
-    const timer = setTimeout(() => {
+    const doScroll = () => {
       if (!rootRef.current) return;
-      // Look for the blanked word element
-      const blankedEl = rootRef.current.querySelector<HTMLElement>('[data-blanked="true"], .tahfeez-blank, .bg-muted');
+      const blankedEl = rootRef.current.querySelector<HTMLElement>(
+        '[data-blanked="true"], .tahfeez-blank, .bg-muted, [style*="visibility: hidden"]'
+      );
       if (!blankedEl) return;
-      let scrollParent: Element | null = rootRef.current.parentElement;
-      while (scrollParent) {
-        const style = getComputedStyle(scrollParent);
-        if (style.overflow === 'auto' || style.overflowY === 'auto' || style.overflow === 'scroll' || style.overflowY === 'scroll') break;
-        scrollParent = scrollParent.parentElement;
-      }
-      if (!scrollParent) {
-        blankedEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        return;
-      }
-      const parentRect = scrollParent.getBoundingClientRect();
-      const elRect = blankedEl.getBoundingClientRect();
-      if (elRect.top < parentRect.top + 40 || elRect.bottom > parentRect.bottom - 40) {
-        const scrollTop = scrollParent.scrollTop + (elRect.top - parentRect.top) - parentRect.height / 2 + elRect.height / 2;
-        scrollParent.scrollTo({ top: Math.max(0, scrollTop), behavior: 'smooth' });
-      }
-    }, 250);
-    return () => clearTimeout(timer);
-  }, [card.contentKey, card.id]);
+      // Always scroll the blank into center view
+      blankedEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    };
+    // Initial scroll after render
+    const t1 = setTimeout(doScroll, 150);
+    // Second pass for layout shifts
+    const t2 = setTimeout(doScroll, 500);
+    return () => { clearTimeout(t1); clearTimeout(t2); };
+  }, [card.contentKey, card.id, answerRevealed]);
 
   return (
     <div ref={rootRef} className="p-2">
