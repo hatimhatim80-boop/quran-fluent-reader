@@ -7,7 +7,6 @@ export interface ReviewQueueEntry {
 }
 
 function compareQueueEntries(a: ReviewQueueEntry, b: ReviewQueueEntry) {
-  if (a.dueAt !== b.dueAt) return a.dueAt - b.dueAt;
   return a.order - b.order;
 }
 
@@ -36,9 +35,6 @@ export function partitionSessionCards(cards: SRSCard[], now = Date.now()) {
     else delayedQueue.push(entry);
   });
 
-  activeQueue.sort(compareQueueEntries);
-  delayedQueue.sort(compareQueueEntries);
-
   return {
     activeQueue,
     delayedQueue,
@@ -55,15 +51,15 @@ export function promoteDueQueue(queue: ReviewQueueEntry[], now = Date.now()) {
     else delayedQueue.push(entry);
   });
 
-  readyQueue.sort(compareQueueEntries);
-  delayedQueue.sort(compareQueueEntries);
-
   return { readyQueue, delayedQueue };
 }
 
 export function getNextDueCountdownLabel(queue: ReviewQueueEntry[], now = Date.now()) {
   if (queue.length === 0) return null;
-  const nearestDueAt = queue[0].dueAt;
+  const nearestDueAt = queue.reduce(
+    (nearest, entry) => Math.min(nearest, entry.dueAt),
+    Number.POSITIVE_INFINITY
+  );
   const remainingSeconds = Math.max(0, Math.ceil((nearestDueAt - now) / 1000));
   const formatter = new Intl.NumberFormat('ar-SA');
 

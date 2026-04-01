@@ -282,10 +282,11 @@
     font-size: var(--vn-font-size, 1.56em);
     color: hsl(var(--verse-number-foreground));
     margin: 0 0.12em;
-    vertical-align: 0.15em;
+    vertical-align: 0.21em;
     min-width: var(--vn-circle-size, 0.66em);
     height: calc(var(--vn-circle-size, 0.66em) * 1.18);
-    padding: 0 0.05em;
+    box-sizing: border-box;
+    padding: 0 0.05em 0.12em;
     align-content: center;
     justify-content: center;
     border: 1.5px solid hsl(var(--verse-number-border));
