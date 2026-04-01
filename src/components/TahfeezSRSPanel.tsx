@@ -674,12 +674,12 @@ function TahfeezReviewCardContent({
             '[data-blanked="true"], .tahfeez-blank, [style*="visibility: hidden"]'
           );
       if (!target) return;
-      scrollWithBottomReserve(target);
+      scrollToCenter(target);
     };
     const t1 = setTimeout(doScroll, 150);
     const t2 = setTimeout(doScroll, 500);
     return () => { clearTimeout(t1); clearTimeout(t2); };
-  }, [card.contentKey, card.id, answerRevealed, scrollWithBottomReserve]);
+  }, [card.contentKey, card.id, answerRevealed, scrollToCenter]);
 
   return (
     <div ref={rootRef} className="p-2 pb-48">
