@@ -282,9 +282,9 @@
     font-size: var(--vn-font-size, 1.56em);
     color: hsl(var(--verse-number-foreground));
     margin: 0 0.12em;
-    vertical-align: -0.06em;
-    min-width: var(--vn-circle-size, 1.27em);
-    height: calc(var(--vn-circle-size, 1.27em) * 1.18);
+    vertical-align: 0.1em;
+    min-width: var(--vn-circle-size, 1.1em);
+    height: calc(var(--vn-circle-size, 1.1em) * 1.18);
     padding: 0 0.08em;
     border: 1.5px solid hsl(var(--verse-number-border));
     border-radius: 50% 50% 50% 50% / 38% 38% 62% 62%;
