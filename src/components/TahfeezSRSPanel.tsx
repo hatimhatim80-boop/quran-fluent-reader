@@ -642,8 +642,8 @@ function TahfeezReviewCardContent({
 }) {
   const rootRef = useRef<HTMLDivElement>(null);
 
-  const scrollWithBottomReserve = useCallback((target: HTMLElement) => {
-    // Find the scrollable ancestor
+  const scrollToCenter = useCallback((target: HTMLElement) => {
+    // The scroll container is the flex-1 overflow-auto parent in SRSReviewSession
     let scrollParent: HTMLElement | null = rootRef.current?.parentElement as HTMLElement | null;
     while (scrollParent) {
       const style = getComputedStyle(scrollParent);
@@ -656,20 +656,9 @@ function TahfeezReviewCardContent({
       return;
     }
 
-    // Measure actual bottom UI (action buttons bar)
-    const actionBar = scrollParent.parentElement?.querySelector<HTMLElement>('[style*="safe-area"]') 
-      || scrollParent.nextElementSibling as HTMLElement | null;
-    let bottomUI = 0;
-    if (actionBar) {
-      bottomUI = actionBar.getBoundingClientRect().height;
-    }
-    // Fallback: at least 160px reserved for buttons area
-    const bottomReserve = Math.max(160, bottomUI + 16);
-
     const parentRect = scrollParent.getBoundingClientRect();
     const targetRect = target.getBoundingClientRect();
-    const usableHeight = parentRect.height - bottomReserve;
-    const idealCenter = usableHeight / 2;
+    const idealCenter = parentRect.height * 0.4;
     const nextTop = scrollParent.scrollTop + (targetRect.top - parentRect.top) - idealCenter + (targetRect.height / 2);
     scrollParent.scrollTo({ top: Math.max(0, nextTop), behavior: 'smooth' });
   }, []);
@@ -685,15 +674,15 @@ function TahfeezReviewCardContent({
             '[data-blanked="true"], .tahfeez-blank, [style*="visibility: hidden"]'
           );
       if (!target) return;
-      scrollWithBottomReserve(target);
+      scrollToCenter(target);
     };
     const t1 = setTimeout(doScroll, 150);
     const t2 = setTimeout(doScroll, 500);
     return () => { clearTimeout(t1); clearTimeout(t2); };
-  }, [card.contentKey, card.id, answerRevealed, scrollWithBottomReserve]);
+  }, [card.contentKey, card.id, answerRevealed, scrollToCenter]);
 
   return (
-    <div ref={rootRef} className="p-2 pb-48">
+    <div ref={rootRef} className="p-2 pb-4">
       {renderPageWithBlanks(card.page, answerRevealed ? [] : [card.contentKey], card)}
     </div>
   );

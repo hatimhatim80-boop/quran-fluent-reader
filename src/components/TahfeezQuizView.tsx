@@ -866,14 +866,13 @@ export function TahfeezQuizView({
   }, [lines, blankedKeys, activeBlankKey, revealedKeys, revealedAyahKeySet, showAll, isLines15, storeMode, storedItems, onStoreWord, page.pageNumber, inlineMCQ, inlineMCQOptions, inlineMCQFeedback, inlineMCQSelected, revealedAyahColor, revealedAyahStyle, revealedColor, revealedWithBg]);
 
 
-  // Auto-scroll active blank into view, accounting for sticky bottom buttons
+  // Auto-scroll active blank into view (centered in scroll container)
   useEffect(() => {
     if (!activeBlankKey) return;
     const doScroll = () => {
       const el = document.querySelector<HTMLElement>('[data-tahfeez-active="true"]');
       if (!el) return;
 
-      // Find the scrollable ancestor
       let scrollParent: HTMLElement | null = el.parentElement;
       while (scrollParent) {
         const style = getComputedStyle(scrollParent);
@@ -886,20 +885,11 @@ export function TahfeezQuizView({
         return;
       }
 
-      // Measure bottom UI (sticky action buttons)
-      const actionBar = scrollParent.parentElement?.querySelector<HTMLElement>('[style*="safe-area"]')
-        || scrollParent.nextElementSibling as HTMLElement | null;
-      const bottomUI = actionBar ? actionBar.getBoundingClientRect().height : 0;
-      const bottomReserve = Math.max(180, bottomUI + 20);
-
       const parentRect = scrollParent.getBoundingClientRect();
       const elRect = el.getBoundingClientRect();
-      const usableHeight = parentRect.height - bottomReserve;
-
-      // Scroll if the element is outside the usable visible area
+      const idealCenter = parentRect.height * 0.4;
       const relativeTop = elRect.top - parentRect.top;
-      if (relativeTop < 0 || relativeTop > usableHeight) {
-        const idealCenter = usableHeight * 0.4;
+      if (relativeTop < 0 || relativeTop > parentRect.height * 0.75) {
         const nextTop = scrollParent.scrollTop + relativeTop - idealCenter + (elRect.height / 2);
         scrollParent.scrollTo({ top: Math.max(0, nextTop), behavior: 'smooth' });
       }
