@@ -172,29 +172,38 @@ export function SRSReviewSession({
     rateCard(card.id, rating, customInterval);
 
     // Get updated card from store to know its nextReview
-    const updatedCard = useSRSStore.getState().cards.find(c => c.id === card.id);
-    const nextReview = updatedCard?.nextReview ?? 0;
+    const freshCard = useSRSStore.getState().cards.find(c => c.id === card.id);
+    const nextReview = freshCard?.nextReview ?? 0;
     const now = Date.now();
 
-    // Remove current card from active queue
+    // Atomically: remove from active, maybe add to delayed, adjust index
     setActiveQueue(prev => {
-      const next = [...prev];
-      next.splice(currentIdx, 1);
-      return next;
-    });
+      const next = prev.filter((_, i) => i !== currentIdx);
 
-    // If card is due in the future, add to delayed queue sorted by dueAt
-    if (nextReview > now) {
-      // Get fresh card data for re-insertion
-      const freshCard = useSRSStore.getState().cards.find(c => c.id === card.id);
-      if (freshCard) {
-        setDelayedQueue(prev => {
+      // If card is due in the future, add to delayed queue sorted by dueAt
+      if (nextReview > now && freshCard) {
+        setDelayedQueue(dq => {
           const newEntry: DelayedEntry = { card: freshCard, dueAt: nextReview };
-          const merged = [...prev, newEntry].sort((a, b) => a.dueAt - b.dueAt);
-          return merged;
+          return [...dq, newEntry].sort((a, b) => a.dueAt - b.dueAt);
         });
       }
-    }
+
+      if (next.length === 0) {
+        // Check if there are delayed cards waiting
+        setDelayedQueue(dq => {
+          if (dq.length === 0) {
+            setTimeout(() => onFinish(), 100);
+          }
+          return dq;
+        });
+      } else {
+        // Ensure currentIdx is within bounds
+        setCurrentIdx(idx => Math.min(idx, next.length - 1));
+      }
+
+      setTotalSeen(s => s); // no-op, totalSeen stays
+      return next;
+    });
 
     setReviewedCount(c => c + 1);
     setReviewedIds(prev => new Set(prev).add(card.id));
@@ -205,25 +214,6 @@ export function SRSReviewSession({
     });
     setAnswerRevealed(false);
     setShowManualInterval(false);
-
-    // After removing current card, adjust index
-    // currentIdx now points to the next card (since we spliced), or needs to wrap
-    setActiveQueue(prev => {
-      if (prev.length === 0) {
-        // Check if there are delayed cards waiting
-        setDelayedQueue(dq => {
-          if (dq.length === 0) {
-            // Truly done
-            setTimeout(() => onFinish(), 100);
-          }
-          return dq;
-        });
-        return prev;
-      }
-      // Ensure currentIdx is within bounds
-      setCurrentIdx(idx => Math.min(idx, prev.length - 1));
-      return prev;
-    });
   }, [card, currentIdx, rateCard, onFinish]);
 
   const goToCard = useCallback((idx: number) => {

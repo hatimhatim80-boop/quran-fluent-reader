@@ -269,25 +269,24 @@
     word-spacing: 0.25em;
   }
 
-  /* Verse number styling - controlled by CSS variables from settings */
+  /* Verse number styling - teardrop/leaf badge */
   .verse-number {
-    display: var(--vn-visible, inline-flex);
-    align-items: center;
-    justify-content: center;
-    font-size: var(--vn-font-size, 0.48em);
-    color: hsl(150 30% 25%);
-    margin: 0 0.15em;
+    display: var(--vn-visible, inline-grid);
+    place-items: center;
+    font-size: var(--vn-font-size, 0.55em);
+    color: hsl(150 35% 22%);
+    margin: 0 0.12em;
     vertical-align: middle;
-    min-width: var(--vn-circle-size, 1.8em);
-    height: calc(var(--vn-circle-size, 1.8em) * 1.15);
-    padding: 0 0.1em;
-    border: none;
-    border-radius: 50% 50% 50% 50% / 40% 40% 60% 60%;
-    background: hsl(145 35% 85%);
+    min-width: var(--vn-circle-size, 2.1em);
+    height: calc(var(--vn-circle-size, 2.1em) * 1.18);
+    padding: 0;
+    border: 1.5px solid hsl(145 30% 65%);
+    border-radius: 50% 50% 50% 50% / 38% 38% 62% 62%;
+    background: hsl(145 40% 88%);
     font-weight: 700;
     line-height: 1;
     flex-shrink: 0;
-    box-shadow: none;
+    box-shadow: 0 1px 3px hsl(145 30% 50% / 0.15);
     text-shadow: none;
     text-align: center;
     letter-spacing: 0;
