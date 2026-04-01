@@ -2,6 +2,7 @@ import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react'
 import { useSRSStore, SRSCard, SRSRating, RATING_OPTIONS, formatInterval, previewIntervals } from '@/stores/srsStore';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
+import { Ban } from 'lucide-react';
 import { ChevronLeft, ChevronRight, X, Eye, Settings2, Flag, List } from 'lucide-react';
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from '@/components/ui/drawer';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -165,6 +166,22 @@ export function SRSReviewSession({
 
   const handleRevealAnswer = useCallback(() => setAnswerRevealed(true), []);
 
+  // Suspend card: flag it and remove from session
+  const handleSuspendCard = useCallback(() => {
+    if (!card) return;
+    if (!card.flagged) toggleFlag(card.id);
+    // Remove from active queue
+    const nextActive = activeQueue.filter((_, i) => i !== currentIdx);
+    setActiveQueue(nextActive);
+    if (currentIdx >= nextActive.length && nextActive.length > 0) {
+      setCurrentIdx(nextActive.length - 1);
+    } else if (nextActive.length === 0 && delayedQueue.length === 0) {
+      setTimeout(() => onFinish(), 100);
+    }
+    setAnswerRevealed(false);
+    setShowManualInterval(false);
+  }, [card, activeQueue, currentIdx, delayedQueue, toggleFlag, onFinish]);
+
   const handleRate = useCallback((rating: SRSRating, customInterval?: number) => {
     if (!card || !currentEntry) return;
 
@@ -289,7 +306,15 @@ export function SRSReviewSession({
                 ? (queuedCard.meta.wordText as string || queuedCard.label)
                 : `${queuedCard.meta.surahName || ''} ص${queuedCard.page}`}
             </span>
-            {queuedCard.flagged && <Flag className="w-3 h-3 text-orange-500 shrink-0" />}
+            {queuedCard.flagged && (
+              <button
+                onClick={(e) => { e.stopPropagation(); toggleFlag(queuedCard.id); }}
+                className="shrink-0 hover:bg-accent rounded p-0.5"
+                title="إلغاء التعليق"
+              >
+                <Flag className="w-3 h-3 text-orange-500" />
+              </button>
+            )}
           </button>
         )})}
         {delayedQueue.length > 0 && (
@@ -358,8 +383,11 @@ export function SRSReviewSession({
               <button onClick={() => setShowIndex(!showIndex)} className={`w-7 h-7 rounded-full flex items-center justify-center transition-colors ${showIndex ? 'bg-primary text-primary-foreground' : 'hover:bg-accent'}`}>
                 <List className="w-3.5 h-3.5" />
               </button>
-              <button onClick={() => toggleFlag(card.id)} className={`w-7 h-7 rounded-full flex items-center justify-center transition-colors ${card.flagged ? 'text-orange-500' : 'hover:bg-accent text-muted-foreground'}`}>
+              <button onClick={() => toggleFlag(card.id)} className={`w-7 h-7 rounded-full flex items-center justify-center transition-colors ${card.flagged ? 'text-orange-500' : 'hover:bg-accent text-muted-foreground'}`} title="تعليق/إلغاء تعليق">
                 <Flag className="w-3.5 h-3.5" />
+              </button>
+              <button onClick={handleSuspendCard} className="w-7 h-7 rounded-full flex items-center justify-center transition-colors hover:bg-destructive/10 text-muted-foreground hover:text-destructive" title="تعليق وتخطي">
+                <Ban className="w-3.5 h-3.5" />
               </button>
               <button onClick={() => goToCard(currentIdx - 1)} disabled={currentIdx <= 0} className="nav-button w-7 h-7 rounded-full disabled:opacity-30">
                 <ChevronRight className="w-4 h-4" />
@@ -418,10 +446,16 @@ export function SRSReviewSession({
 
           {!answerRevealed ? (
             <div className="space-y-2">
-              <Button onClick={handleRevealAnswer} className="w-full font-arabic text-base gap-2" size="lg">
-                <Eye className="w-5 h-5" />
-                إظهار الإجابة
-              </Button>
+              <div className="flex gap-2">
+                <Button onClick={handleRevealAnswer} className="flex-1 font-arabic text-base gap-2" size="lg">
+                  <Eye className="w-5 h-5" />
+                  إظهار الإجابة
+                </Button>
+                <Button onClick={handleSuspendCard} variant="outline" size="lg" className="font-arabic gap-1 text-destructive hover:bg-destructive/10" title="تعليق وتخطي">
+                  <Ban className="w-4 h-4" />
+                  تعليق
+                </Button>
+              </div>
               {!focusMode && availableAnswerModes.length > 1 && (
                 <div className="flex items-center justify-center gap-3 text-[10px] text-muted-foreground font-arabic">
                   <button onClick={switchAnswerMode} className="flex items-center gap-1 hover:text-foreground transition-colors">
@@ -436,8 +470,9 @@ export function SRSReviewSession({
               {/* Smart Timing Buttons */}
               <div className="space-y-2">
                 <p className="text-xs text-muted-foreground font-arabic text-center font-bold">⏱ مدة الإعادة الذكية</p>
-                <div className="grid grid-cols-4 gap-2">
+                <div className="grid grid-cols-5 gap-2">
                   {[
+                    { label: 'فوري', days: 0 },
                     { label: '١ دقيقة', days: 1 / 1440 },
                     { label: '٥ دقائق', days: 5 / 1440 },
                     { label: '١٠ دقائق', days: 10 / 1440 },
