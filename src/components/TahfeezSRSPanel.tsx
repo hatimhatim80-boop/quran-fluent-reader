@@ -642,20 +642,20 @@ function TahfeezReviewCardContent({
 }) {
   const rootRef = useRef<HTMLDivElement>(null);
 
-  // Auto-scroll to keep the blanked element always visible
+  // Auto-scroll to blanked element OR revealed ayah content
   useEffect(() => {
     const doScroll = () => {
       if (!rootRef.current) return;
-      const blankedEl = rootRef.current.querySelector<HTMLElement>(
-        '[data-blanked="true"], .tahfeez-blank, .bg-muted, [style*="visibility: hidden"]'
-      );
-      if (!blankedEl) return;
-      // Always scroll the blank into center view
-      blankedEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      // When answer is revealed, scroll to the revealed ayah/word
+      const target = answerRevealed
+        ? rootRef.current.querySelector<HTMLElement>('[data-revealed-ayah], [data-revealed-word], [data-blanked="true"]')
+        : rootRef.current.querySelector<HTMLElement>(
+            '[data-blanked="true"], .tahfeez-blank, [style*="visibility: hidden"]'
+          );
+      if (!target) return;
+      target.scrollIntoView({ behavior: 'smooth', block: 'center' });
     };
-    // Initial scroll after render
     const t1 = setTimeout(doScroll, 150);
-    // Second pass for layout shifts
     const t2 = setTimeout(doScroll, 500);
     return () => { clearTimeout(t1); clearTimeout(t2); };
   }, [card.contentKey, card.id, answerRevealed]);
