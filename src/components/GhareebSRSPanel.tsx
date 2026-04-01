@@ -217,13 +217,7 @@ export function GhareebSRSPanel({
         portalName="الغريب"
         defaultAnswerMode="tooltip"
         answerModeOptions={['tooltip', 'inline']}
-        headerExtra={
-          <GhareebReviewSettingsPanel
-            className="h-7 px-2 text-[11px]"
-            highlightStyle={highlightStyle}
-            onHighlightStyleChange={setHighlightStyle}
-          />
-        }
+        focusMode
         renderCard={(card, answerRevealed, answerDisplayMode) => (
           <GhareebReviewCardContent
             card={card}

@@ -437,23 +437,7 @@ export function TahfeezSRSPanel({
         onFinish={() => setSessionMode('setup')}
         onNavigateToPage={onNavigateToPage}
         portalName="التحفيظ"
-        headerExtra={
-          <Sheet>
-            <SheetTrigger asChild>
-              <button className="w-7 h-7 rounded-full flex items-center justify-center hover:bg-accent transition-colors" title="إعدادات المراجعة">
-                <Settings className="w-3.5 h-3.5" />
-              </button>
-            </SheetTrigger>
-            <SheetContent side="right" className="overflow-y-auto w-[340px] sm:max-w-[400px]" dir="rtl">
-              <SheetHeader>
-                <SheetTitle className="font-arabic text-right">إعدادات المراجعة</SheetTitle>
-              </SheetHeader>
-              <div className="mt-4">
-                <TahfeezSessionReviewSettings />
-              </div>
-            </SheetContent>
-          </Sheet>
-        }
+        focusMode
         defaultAnswerMode={showHiddenWordsPreview ? 'bottom' : 'inline'}
         answerModeOptions={showHiddenWordsPreview ? ['inline', 'bottom'] : ['inline']}
         renderAnswer={showHiddenWordsPreview ? ((card) => card.type === 'tahfeez-word' ? (
