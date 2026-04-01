@@ -2,6 +2,7 @@ import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react'
 import { useSRSStore, SRSCard, SRSRating, RATING_OPTIONS, formatInterval, previewIntervals } from '@/stores/srsStore';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
+import { Ban } from 'lucide-react';
 import { ChevronLeft, ChevronRight, X, Eye, Settings2, Flag, List } from 'lucide-react';
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from '@/components/ui/drawer';
 import { useIsMobile } from '@/hooks/use-mobile';
