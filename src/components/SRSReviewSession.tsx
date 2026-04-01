@@ -306,7 +306,15 @@ export function SRSReviewSession({
                 ? (queuedCard.meta.wordText as string || queuedCard.label)
                 : `${queuedCard.meta.surahName || ''} ص${queuedCard.page}`}
             </span>
-            {queuedCard.flagged && <Flag className="w-3 h-3 text-orange-500 shrink-0" />}
+            {queuedCard.flagged && (
+              <button
+                onClick={(e) => { e.stopPropagation(); toggleFlag(queuedCard.id); }}
+                className="shrink-0 hover:bg-accent rounded p-0.5"
+                title="إلغاء التعليق"
+              >
+                <Flag className="w-3 h-3 text-orange-500" />
+              </button>
+            )}
           </button>
         )})}
         {delayedQueue.length > 0 && (
