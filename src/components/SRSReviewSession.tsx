@@ -13,14 +13,14 @@ interface SRSReviewSessionProps {
   cards: SRSCard[];
   onFinish: () => void;
   onNavigateToPage: (page: number) => void;
-  /** Render the card content. answerRevealed is ALWAYS false until user presses "show answer" */
   renderCard: (card: SRSCard, answerRevealed: boolean, answerDisplayMode: AnswerDisplayMode) => React.ReactNode;
   portalName: string;
-  /** Optional: render answer in bottom panel (used when answerDisplayMode === 'bottom') */
   renderAnswer?: (card: SRSCard) => React.ReactNode;
   defaultAnswerMode?: AnswerDisplayMode;
   answerModeOptions?: AnswerDisplayMode[];
   headerExtra?: React.ReactNode;
+  /** When true, hide header/settings and show only content + bottom actions */
+  focusMode?: boolean;
 }
 
 const ANSWER_MODE_LABEL: Record<AnswerDisplayMode, string> = {
@@ -28,6 +28,12 @@ const ANSWER_MODE_LABEL: Record<AnswerDisplayMode, string> = {
   tooltip: 'عند الكلمة',
   inline: 'في السطر',
 };
+
+// ── Delayed card entry ──
+interface DelayedEntry {
+  card: SRSCard;
+  dueAt: number; // timestamp when it becomes active
+}
 
 export function SRSReviewSession({
   cards,
@@ -39,82 +45,91 @@ export function SRSReviewSession({
   defaultAnswerMode = 'bottom',
   answerModeOptions = ['bottom', 'tooltip', 'inline'],
   headerExtra,
+  focusMode = false,
 }: SRSReviewSessionProps) {
   const rateCard = useSRSStore(s => s.rateCard);
   const toggleFlag = useSRSStore(s => s.toggleFlag);
   const storeCards = useSRSStore(s => s.cards);
-  const [currentIdx, setCurrentIdx] = useState(0);
   const [answerRevealed, setAnswerRevealed] = useState(false);
   const [showManualInterval, setShowManualInterval] = useState(false);
-  const [reviewed, setReviewed] = useState<Set<number>>(new Set());
-  const [ratings, setRatings] = useState<Map<number, SRSRating>>(new Map());
   const [showIndex, setShowIndex] = useState(false);
   const [answerMode, setAnswerMode] = useState<AnswerDisplayMode>(defaultAnswerMode);
   const isMobile = useIsMobile();
 
-  // Live session queue — cards are appended at the end when they become re-due (Anki-style)
-  const [liveCards, setLiveCards] = useState<SRSCard[]>(cards);
-  // Track reviewed cards waiting to become re-due: cardId -> nextReview timestamp
-  const pendingReDueRef = useRef<Map<string, number>>(new Map());
+  // ── Dual-queue system ──
+  // activeQueue: cards ready to show NOW, sorted by dueAt (oldest first)
+  // delayedQueue: cards waiting for their dueAt to arrive
+  const [activeQueue, setActiveQueue] = useState<SRSCard[]>(() => [...cards]);
+  const [delayedQueue, setDelayedQueue] = useState<DelayedEntry[]>([]);
+  const [currentIdx, setCurrentIdx] = useState(0);
+  const [reviewedCount, setReviewedCount] = useState(0);
+  const [totalSeen, setTotalSeen] = useState(cards.length);
+  const [reviewedIds, setReviewedIds] = useState<Set<string>>(new Set());
+  const [ratingsMap, setRatingsMap] = useState<Map<string, SRSRating>>(new Map());
   const [nextDueCountdown, setNextDueCountdown] = useState<string | null>(null);
-  // Track which queue indices have been reviewed (by index, since same card can appear multiple times)
-  const reviewedIndicesRef = useRef<Set<number>>(new Set());
 
-  // Reset when session changes
+  // Reset on new session
   useEffect(() => {
-    setLiveCards(cards);
-    pendingReDueRef.current = new Map();
-    reviewedIndicesRef.current = new Set();
-    setNextDueCountdown(null);
-    setReviewed(new Set());
-    setRatings(new Map());
+    setActiveQueue([...cards]);
+    setDelayedQueue([]);
     setCurrentIdx(0);
+    setReviewedCount(0);
+    setTotalSeen(cards.length);
+    setReviewedIds(new Set());
+    setRatingsMap(new Map());
+    setNextDueCountdown(null);
+    setAnswerRevealed(false);
+    setShowManualInterval(false);
   }, [cards]);
 
-  // Poll every 1 second to re-inject due cards into the queue
+  // ── Timer: promote delayed → active every 1s ──
   useEffect(() => {
     const tick = () => {
       const now = Date.now();
-      const reDueIds: string[] = [];
-      let nearestFuture = Infinity;
 
-      pendingReDueRef.current.forEach((nextReview, cardId) => {
-        if (nextReview <= now) {
-          reDueIds.push(cardId);
-        } else {
-          nearestFuture = Math.min(nearestFuture, nextReview);
+      setDelayedQueue(prev => {
+        if (prev.length === 0) {
+          setNextDueCountdown(null);
+          return prev;
         }
-      });
 
-      // Update countdown
-      if (nearestFuture < Infinity) {
-        const remainSec = Math.max(0, Math.ceil((nearestFuture - now) / 1000));
-        if (remainSec < 60) {
-          setNextDueCountdown(`${remainSec} ث`);
-        } else {
-          setNextDueCountdown(`${Math.ceil(remainSec / 60)} د`);
+        const ready: DelayedEntry[] = [];
+        const still: DelayedEntry[] = [];
+        for (const entry of prev) {
+          if (entry.dueAt <= now) ready.push(entry);
+          else still.push(entry);
         }
-      } else {
-        setNextDueCountdown(null);
-      }
 
-      if (reDueIds.length === 0) return;
+        // Update countdown from remaining delayed
+        if (still.length > 0) {
+          const nearest = Math.min(...still.map(e => e.dueAt));
+          const remainSec = Math.max(0, Math.ceil((nearest - now) / 1000));
+          setNextDueCountdown(remainSec < 60 ? `${remainSec} ث` : `${Math.ceil(remainSec / 60)} د`);
+        } else {
+          setNextDueCountdown(null);
+        }
 
-      // Remove from pending
-      reDueIds.forEach(id => pendingReDueRef.current.delete(id));
+        if (ready.length > 0) {
+          // Sort ready by dueAt ascending and insert into active queue
+          ready.sort((a, b) => a.dueAt - b.dueAt);
+          setActiveQueue(prevActive => {
+            // Insert at proper sorted position: after current card, sorted by dueAt
+            const newCards = ready.map(e => e.card);
+            const merged = [...prevActive, ...newCards];
+            setTotalSeen(s => s + newCards.length);
+            return merged;
+          });
+        }
 
-      // Append fresh copies at the end of the queue (same card can appear multiple times)
-      setLiveCards(prev => {
-        const newEntries = reDueIds
-          .map(id => storeCards.find(c => c.id === id))
-          .filter(Boolean) as SRSCard[];
-        return [...prev, ...newEntries];
+        return ready.length > 0 ? still : prev;
       });
     };
 
     const interval = setInterval(tick, 1000);
     return () => clearInterval(interval);
-  }, [storeCards]);
+  }, []);
+
+  const card = activeQueue[currentIdx];
 
   const availableAnswerModes = useMemo(() => {
     if (!answerModeOptions.length) return ['bottom', 'tooltip', 'inline'] as AnswerDisplayMode[];
@@ -122,10 +137,6 @@ export function SRSReviewSession({
     return uniq.length > 0 ? uniq : (['bottom', 'tooltip', 'inline'] as AnswerDisplayMode[]);
   }, [answerModeOptions]);
 
-  const card = liveCards[currentIdx];
-  const total = liveCards.length;
-  const doneCount = reviewed.size;
-  const progress = total > 0 ? (doneCount / total) * 100 : 0;
   const cardInfoLabel = useMemo(() => {
     if (!card) return '';
     if (portalName === 'الغريب' && !answerRevealed) {
@@ -134,125 +145,142 @@ export function SRSReviewSession({
     return card.label;
   }, [card, portalName, answerRevealed]);
 
-  // Navigate to card's page when card changes
+  // Navigate to card's page
   useEffect(() => {
     if (card) onNavigateToPage(card.page);
   }, [card, onNavigateToPage]);
 
-  // Reset answer state on EVERY card change
+  // Reset answer state on card change
   useEffect(() => {
     setAnswerRevealed(false);
     setShowManualInterval(false);
-  }, [currentIdx]);
+  }, [currentIdx, card?.id]);
 
   useEffect(() => {
-    if (!availableAnswerModes.includes(answerMode)) {
-      setAnswerMode(availableAnswerModes[0]);
-    }
+    if (!availableAnswerModes.includes(answerMode)) setAnswerMode(availableAnswerModes[0]);
   }, [availableAnswerModes, answerMode]);
 
-  useEffect(() => {
-    setAnswerMode(defaultAnswerMode);
-  }, [defaultAnswerMode]);
+  useEffect(() => { setAnswerMode(defaultAnswerMode); }, [defaultAnswerMode]);
 
-  const intervals = useMemo(() => {
-    if (!card) return [];
-    return previewIntervals(card);
-  }, [card]);
+  const intervals = useMemo(() => card ? previewIntervals(card) : [], [card]);
 
-  const handleRevealAnswer = useCallback(() => {
-    setAnswerRevealed(true);
-  }, []);
+  const handleRevealAnswer = useCallback(() => setAnswerRevealed(true), []);
 
   const handleRate = useCallback((rating: SRSRating, customInterval?: number) => {
     if (!card) return;
 
     rateCard(card.id, rating, customInterval);
 
-    // Track this card for re-due detection (Anki-style: re-queue after interval)
+    // Get updated card from store to know its nextReview
     const updatedCard = useSRSStore.getState().cards.find(c => c.id === card.id);
-    if (updatedCard && updatedCard.nextReview > Date.now()) {
-      pendingReDueRef.current.set(card.id, updatedCard.nextReview);
+    const nextReview = updatedCard?.nextReview ?? 0;
+    const now = Date.now();
+
+    // Remove current card from active queue
+    setActiveQueue(prev => {
+      const next = [...prev];
+      next.splice(currentIdx, 1);
+      return next;
+    });
+
+    // If card is due in the future, add to delayed queue sorted by dueAt
+    if (nextReview > now) {
+      // Get fresh card data for re-insertion
+      const freshCard = useSRSStore.getState().cards.find(c => c.id === card.id);
+      if (freshCard) {
+        setDelayedQueue(prev => {
+          const newEntry: DelayedEntry = { card: freshCard, dueAt: nextReview };
+          const merged = [...prev, newEntry].sort((a, b) => a.dueAt - b.dueAt);
+          return merged;
+        });
+      }
     }
 
-    const nextReviewed = new Set(reviewed);
-    nextReviewed.add(currentIdx);
-    const nextRatings = new Map(ratings);
-    nextRatings.set(currentIdx, rating);
-
-    setReviewed(nextReviewed);
-    setRatings(nextRatings);
+    setReviewedCount(c => c + 1);
+    setReviewedIds(prev => new Set(prev).add(card.id));
+    setRatingsMap(prev => {
+      const m = new Map(prev);
+      m.set(card.id, rating);
+      return m;
+    });
     setAnswerRevealed(false);
     setShowManualInterval(false);
 
-    // Find next unreviewed card in queue
-    let nextUnreviewed = liveCards.findIndex((_, i) => i > currentIdx && !nextReviewed.has(i));
-    if (nextUnreviewed < 0) {
-      nextUnreviewed = liveCards.findIndex((_, i) => i < currentIdx && !nextReviewed.has(i));
-    }
-
-    if (nextUnreviewed >= 0) {
-      setCurrentIdx(nextUnreviewed);
-      return;
-    }
-
-    // All current cards reviewed — check if any are pending re-due
-    if (pendingReDueRef.current.size > 0) {
-      // Don't finish — wait for re-due cards to be injected
-      return;
-    }
-
-    onFinish();
-  }, [card, currentIdx, liveCards, reviewed, ratings, rateCard, onFinish]);
+    // After removing current card, adjust index
+    // currentIdx now points to the next card (since we spliced), or needs to wrap
+    setActiveQueue(prev => {
+      if (prev.length === 0) {
+        // Check if there are delayed cards waiting
+        setDelayedQueue(dq => {
+          if (dq.length === 0) {
+            // Truly done
+            setTimeout(() => onFinish(), 100);
+          }
+          return dq;
+        });
+        return prev;
+      }
+      // Ensure currentIdx is within bounds
+      setCurrentIdx(idx => Math.min(idx, prev.length - 1));
+      return prev;
+    });
+  }, [card, currentIdx, rateCard, onFinish]);
 
   const goToCard = useCallback((idx: number) => {
-    if (idx >= 0 && idx < total) {
-      setAnswerRevealed(false);
-      setShowManualInterval(false);
-      setCurrentIdx(idx);
-    }
-  }, [total]);
+    setActiveQueue(prev => {
+      if (idx >= 0 && idx < prev.length) {
+        setAnswerRevealed(false);
+        setShowManualInterval(false);
+        setCurrentIdx(idx);
+      }
+      return prev;
+    });
+  }, []);
 
   const switchAnswerMode = useCallback(() => {
-    const currentIndex = availableAnswerModes.indexOf(answerMode);
-    const nextIndex = (currentIndex + 1) % availableAnswerModes.length;
-    setAnswerMode(availableAnswerModes[nextIndex]);
+    const ci = availableAnswerModes.indexOf(answerMode);
+    setAnswerMode(availableAnswerModes[(ci + 1) % availableAnswerModes.length]);
   }, [answerMode, availableAnswerModes]);
 
-  if (!card) {
-    // If there are pending re-due cards, show waiting state
-    if (pendingReDueRef.current.size > 0) {
-      return (
-        <div className="text-center py-8 font-arabic text-muted-foreground space-y-3">
-          <p className="text-lg">⏳ في انتظار البطاقات المعلقة...</p>
-          {nextDueCountdown && (
-            <p className="text-2xl font-bold text-primary animate-pulse">{nextDueCountdown}</p>
-          )}
-          <p className="text-sm">ستعود البطاقات تلقائياً عند حلول موعد مراجعتها</p>
-          <Button variant="outline" onClick={onFinish} className="mt-4 font-arabic">إنهاء الجلسة</Button>
-        </div>
-      );
-    }
+  // ── Waiting state: no active cards but delayed cards exist ──
+  if (!card && delayedQueue.length > 0) {
     return (
-      <div className="text-center py-8 font-arabic text-muted-foreground">
+      <div className="text-center py-8 font-arabic text-muted-foreground space-y-3" dir="rtl">
+        <p className="text-lg">⏳ في انتظار البطاقات المعلقة...</p>
+        {nextDueCountdown && (
+          <p className="text-2xl font-bold text-primary animate-pulse">{nextDueCountdown}</p>
+        )}
+        <p className="text-sm">ستعود البطاقات تلقائياً عند حلول موعد مراجعتها</p>
+        <p className="text-xs text-muted-foreground/60">تمت مراجعة {reviewedCount} بطاقة</p>
+        <Button variant="outline" onClick={onFinish} className="mt-4 font-arabic">إنهاء الجلسة</Button>
+      </div>
+    );
+  }
+
+  if (!card) {
+    return (
+      <div className="text-center py-8 font-arabic text-muted-foreground" dir="rtl">
         <p>لا توجد بطاقات للمراجعة</p>
         <Button variant="outline" onClick={onFinish} className="mt-4 font-arabic">إغلاق</Button>
       </div>
     );
   }
 
-  // Index content (shared between drawer/sidebar)
+  const total = activeQueue.length;
+  const progress = totalSeen > 0 ? (reviewedCount / totalSeen) * 100 : 0;
+
+  // Index content
   const indexContent = (
     <ScrollArea className="h-full">
       <div className="p-3 space-y-1 font-arabic" dir="rtl">
-        <p className="text-xs text-muted-foreground mb-2">{doneCount}/{total} تمت مراجعتها</p>
-        {liveCards.map((c, i) => (
+        <p className="text-xs text-muted-foreground mb-2">{reviewedCount} تمت مراجعتها · {delayedQueue.length} معلقة</p>
+        {activeQueue.map((c, i) => (
           <button
-            key={i}
+            key={`${c.id}_${i}`}
             onClick={() => { goToCard(i); setShowIndex(false); }}
             className={`w-full text-right px-3 py-2 rounded-lg text-xs transition-colors flex items-center gap-2 ${
               i === currentIdx ? 'bg-primary/10 text-primary font-bold' :
-              reviewed.has(i) ? (ratings.get(i)! >= 3 ? 'text-green-600 bg-green-50 dark:bg-green-950/20' : 'text-red-500 bg-red-50 dark:bg-red-950/20') :
+              reviewedIds.has(c.id) ? (ratingsMap.get(c.id)! >= 3 ? 'text-green-600 bg-green-50 dark:bg-green-950/20' : 'text-red-500 bg-red-50 dark:bg-red-950/20') :
               'hover:bg-accent text-foreground'
             }`}
           >
@@ -260,13 +288,30 @@ export function SRSReviewSession({
             <span className="truncate flex-1">
               {portalName === 'الغريب'
                 ? (c.meta.wordText as string || c.label)
-                : `${c.meta.surahName || ''} ص${c.page}`
-              }
+                : `${c.meta.surahName || ''} ص${c.page}`}
             </span>
             {c.flagged && <Flag className="w-3 h-3 text-orange-500 shrink-0" />}
-            {reviewed.has(i) && <span className="text-[10px]">{ratings.get(i)! >= 3 ? '✓' : '✗'}</span>}
           </button>
         ))}
+        {delayedQueue.length > 0 && (
+          <>
+            <p className="text-[10px] text-muted-foreground mt-3 mb-1">⏳ معلقة ({delayedQueue.length})</p>
+            {delayedQueue.map((entry, i) => {
+              const remainSec = Math.max(0, Math.ceil((entry.dueAt - Date.now()) / 1000));
+              const label = remainSec < 60 ? `${remainSec} ث` : `${Math.ceil(remainSec / 60)} د`;
+              return (
+                <div key={`delayed_${entry.card.id}_${i}`} className="w-full text-right px-3 py-1.5 text-[10px] text-muted-foreground/60 flex items-center gap-2">
+                  <span className="truncate flex-1">
+                    {portalName === 'الغريب'
+                      ? (entry.card.meta.wordText as string || entry.card.label)
+                      : `ص${entry.card.page}`}
+                  </span>
+                  <span className="text-primary/60">{label}</span>
+                </div>
+              );
+            })}
+          </>
+        )}
       </div>
     </ScrollArea>
   );
@@ -298,65 +343,87 @@ export function SRSReviewSession({
 
       {/* Main content */}
       <div className="flex-1 flex flex-col min-w-0">
-        {/* Header */}
-        <div className="flex items-center justify-between px-3 py-2 border-b border-border bg-card/80 backdrop-blur-sm shrink-0">
-          <div className="flex items-center gap-2">
-            <span className="font-arabic text-sm font-bold text-primary">{portalName} — مراجعة</span>
-            <span className="text-xs text-muted-foreground font-arabic">{doneCount}/{total}{nextDueCountdown ? ` · ⏱${nextDueCountdown}` : ''}</span>
+        {/* Header — hidden in focus mode */}
+        {!focusMode && (
+          <div className="flex items-center justify-between px-3 py-2 border-b border-border bg-card/80 backdrop-blur-sm shrink-0">
+            <div className="flex items-center gap-2">
+              <span className="font-arabic text-sm font-bold text-primary">{portalName} — مراجعة</span>
+              <span className="text-xs text-muted-foreground font-arabic">
+                {reviewedCount}/{totalSeen}
+                {delayedQueue.length > 0 ? ` · ⏳${delayedQueue.length}` : ''}
+                {nextDueCountdown ? ` · ⏱${nextDueCountdown}` : ''}
+              </span>
+            </div>
+            <div className="flex items-center gap-1">
+              {headerExtra}
+              <button onClick={() => setShowIndex(!showIndex)} className={`w-7 h-7 rounded-full flex items-center justify-center transition-colors ${showIndex ? 'bg-primary text-primary-foreground' : 'hover:bg-accent'}`}>
+                <List className="w-3.5 h-3.5" />
+              </button>
+              <button onClick={() => toggleFlag(card.id)} className={`w-7 h-7 rounded-full flex items-center justify-center transition-colors ${card.flagged ? 'text-orange-500' : 'hover:bg-accent text-muted-foreground'}`}>
+                <Flag className="w-3.5 h-3.5" />
+              </button>
+              <button onClick={() => goToCard(currentIdx - 1)} disabled={currentIdx <= 0} className="nav-button w-7 h-7 rounded-full disabled:opacity-30">
+                <ChevronRight className="w-4 h-4" />
+              </button>
+              <span className="text-xs font-arabic text-muted-foreground min-w-[3rem] text-center">{currentIdx + 1} / {total}</span>
+              <button onClick={() => goToCard(currentIdx + 1)} disabled={currentIdx >= total - 1} className="nav-button w-7 h-7 rounded-full disabled:opacity-30">
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+              <button onClick={onFinish} className="nav-button w-7 h-7 rounded-full mr-2"><X className="w-4 h-4" /></button>
+            </div>
           </div>
-          <div className="flex items-center gap-1">
-            {headerExtra}
-            <button onClick={() => setShowIndex(!showIndex)} className={`w-7 h-7 rounded-full flex items-center justify-center transition-colors ${showIndex ? 'bg-primary text-primary-foreground' : 'hover:bg-accent'}`}>
-              <List className="w-3.5 h-3.5" />
-            </button>
-            <button onClick={() => toggleFlag(card.id)} className={`w-7 h-7 rounded-full flex items-center justify-center transition-colors ${card.flagged ? 'text-orange-500' : 'hover:bg-accent text-muted-foreground'}`}>
-              <Flag className="w-3.5 h-3.5" />
-            </button>
-            <button onClick={() => goToCard(currentIdx - 1)} disabled={currentIdx <= 0} className="nav-button w-7 h-7 rounded-full disabled:opacity-30">
-              <ChevronRight className="w-4 h-4" />
-            </button>
-            <span className="text-xs font-arabic text-muted-foreground min-w-[3rem] text-center">{currentIdx + 1} / {total}</span>
-            <button onClick={() => goToCard(currentIdx + 1)} disabled={currentIdx >= total - 1} className="nav-button w-7 h-7 rounded-full disabled:opacity-30">
-              <ChevronLeft className="w-4 h-4" />
-            </button>
-            <button onClick={onFinish} className="nav-button w-7 h-7 rounded-full mr-2"><X className="w-4 h-4" /></button>
-          </div>
-        </div>
+        )}
 
         <Progress value={progress} className="h-1 rounded-none shrink-0" />
 
-        {/* Card content — answer is NEVER rendered until answerRevealed is true */}
+        {/* Card content */}
         <div className="flex-1 overflow-auto">
           {renderCard(card, answerRevealed, answerMode)}
         </div>
 
-        {/* Answer panel (bottom mode) — only when revealed */}
+        {/* Answer panel (bottom mode) */}
         {answerRevealed && answerMode === 'bottom' && renderAnswer && (
           <div className="border-t border-border bg-accent/30 px-3 py-3 animate-fade-in shrink-0">
             {renderAnswer(card)}
           </div>
         )}
 
-        {/* Card info */}
-        <div className="px-3 py-1 text-center shrink-0">
-          <p className="font-arabic text-sm text-muted-foreground">{cardInfoLabel}</p>
-          {card.lastReview > 0 && (
-            <p className="text-[10px] text-muted-foreground/60 font-arabic">
-              آخر مراجعة: {new Date(card.lastReview).toLocaleDateString('ar-SA')} · الفاصل: {formatInterval(card.interval)}
-              {card.successCount != null && ` · ✓${card.successCount} ✗${card.failCount || 0}`}
-            </p>
-          )}
-        </div>
+        {/* Card info — compact in focus mode */}
+        {!focusMode && (
+          <div className="px-3 py-1 text-center shrink-0">
+            <p className="font-arabic text-sm text-muted-foreground">{cardInfoLabel}</p>
+            {card.lastReview > 0 && (
+              <p className="text-[10px] text-muted-foreground/60 font-arabic">
+                آخر مراجعة: {new Date(card.lastReview).toLocaleDateString('ar-SA')} · الفاصل: {formatInterval(card.interval)}
+                {card.successCount != null && ` · ✓${card.successCount} ✗${card.failCount || 0}`}
+              </p>
+            )}
+          </div>
+        )}
 
-        {/* Actions */}
+        {/* Actions — always visible */}
         <div className="border-t border-border bg-card/80 backdrop-blur-sm px-3 py-3 space-y-2 shrink-0" style={{ paddingBottom: 'env(safe-area-inset-bottom, 8px)' }}>
+          {/* Focus mode: minimal top bar with exit + counter */}
+          {focusMode && (
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-xs text-muted-foreground font-arabic">
+                {currentIdx + 1}/{total}
+                {delayedQueue.length > 0 && ` · ⏳${delayedQueue.length}`}
+                {nextDueCountdown && ` · ⏱${nextDueCountdown}`}
+              </span>
+              <button onClick={onFinish} className="text-muted-foreground hover:text-foreground p-1 rounded">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          )}
+
           {!answerRevealed ? (
             <div className="space-y-2">
               <Button onClick={handleRevealAnswer} className="w-full font-arabic text-base gap-2" size="lg">
                 <Eye className="w-5 h-5" />
                 إظهار الإجابة
               </Button>
-              {availableAnswerModes.length > 1 && (
+              {!focusMode && availableAnswerModes.length > 1 && (
                 <div className="flex items-center justify-center gap-3 text-[10px] text-muted-foreground font-arabic">
                   <button onClick={switchAnswerMode} className="flex items-center gap-1 hover:text-foreground transition-colors">
                     <Settings2 className="w-3 h-3" />
@@ -367,7 +434,7 @@ export function SRSReviewSession({
             </div>
           ) : (
             <>
-              {/* Smart Timing Buttons — PRIMARY */}
+              {/* Smart Timing Buttons */}
               <div className="space-y-2">
                 <p className="text-xs text-muted-foreground font-arabic text-center font-bold">⏱ مدة الإعادة الذكية</p>
                 <div className="grid grid-cols-4 gap-2">
@@ -413,68 +480,68 @@ export function SRSReviewSession({
                 )}
               </div>
 
-              {/* Difficulty / General Rating — SECONDARY (collapsed) */}
-              <details className="group">
-                <summary className="text-[10px] text-muted-foreground font-arabic text-center cursor-pointer hover:text-foreground transition-colors list-none flex items-center justify-center gap-1">
-                  <span>تقييم إضافي (اختياري)</span>
-                  <span className="group-open:rotate-180 transition-transform">▼</span>
-                </summary>
-                <div className="mt-2 space-y-2">
-                  <div className="grid grid-cols-4 gap-2">
-                    {RATING_OPTIONS.map(({ rating, label, icon }) => {
-                      const intervalInfo = intervals.find(i => i.rating === rating);
-                      return (
+              {/* Difficulty Rating — collapsed */}
+              {!focusMode && (
+                <details className="group">
+                  <summary className="text-[10px] text-muted-foreground font-arabic text-center cursor-pointer hover:text-foreground transition-colors list-none flex items-center justify-center gap-1">
+                    <span>تقييم إضافي (اختياري)</span>
+                    <span className="group-open:rotate-180 transition-transform">▼</span>
+                  </summary>
+                  <div className="mt-2 space-y-2">
+                    <div className="grid grid-cols-4 gap-2">
+                      {RATING_OPTIONS.map(({ rating, label, icon }) => {
+                        const intervalInfo = intervals.find(i => i.rating === rating);
+                        return (
+                          <button
+                            key={rating}
+                            onClick={() => handleRate(rating)}
+                            className="flex flex-col items-center gap-0.5 py-1.5 px-1 rounded-lg border border-border hover:bg-accent transition-colors"
+                          >
+                            <span className="text-base">{icon}</span>
+                            <span className="font-arabic text-[10px]">{label}</span>
+                            {intervalInfo && (
+                              <span className="text-[8px] text-muted-foreground font-arabic">{formatInterval(intervalInfo.interval)}</span>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    <div className="flex flex-wrap justify-center gap-1.5">
+                      {[
+                        { label: 'مهمة', rating: 3 as SRSRating, action: 'flag', icon: '⭐' },
+                        { label: 'ضعيفة', rating: 1 as SRSRating, days: 10 / 1440, icon: '😓' },
+                        { label: 'كررها', rating: 0 as SRSRating, days: 1 / 1440, icon: '🔄' },
+                        { label: 'تثبيت', rating: 5 as SRSRating, days: 90, icon: '📌' },
+                      ].map(({ label, rating, days, action, icon }) => (
                         <button
-                          key={rating}
-                          onClick={() => handleRate(rating)}
-                          className="flex flex-col items-center gap-0.5 py-1.5 px-1 rounded-lg border border-border hover:bg-accent transition-colors"
+                          key={label}
+                          onClick={() => {
+                            if (action === 'flag' && card) toggleFlag(card.id);
+                            handleRate(rating, days);
+                          }}
+                          className="flex items-center gap-1 px-2 py-1 rounded-md border border-border text-[10px] font-arabic hover:bg-accent transition-colors"
                         >
-                          <span className="text-base">{icon}</span>
-                          <span className="font-arabic text-[10px]">{label}</span>
-                          {intervalInfo && (
-                            <span className="text-[8px] text-muted-foreground font-arabic">{formatInterval(intervalInfo.interval)}</span>
-                          )}
+                          <span>{icon}</span>
+                          <span>{label}</span>
                         </button>
-                      );
-                    })}
+                      ))}
+                    </div>
                   </div>
-                  <div className="flex flex-wrap justify-center gap-1.5">
-                    {[
-                      { label: 'مهمة', rating: 3 as SRSRating, action: 'flag', icon: '⭐' },
-                      { label: 'ضعيفة', rating: 1 as SRSRating, days: 10 / 1440, icon: '😓' },
-                      { label: 'كررها', rating: 0 as SRSRating, days: 1 / 1440, icon: '🔄' },
-                      { label: 'تثبيت', rating: 5 as SRSRating, days: 90, icon: '📌' },
-                    ].map(({ label, rating, days, action, icon }) => (
-                      <button
-                        key={label}
-                        onClick={() => {
-                          if (action === 'flag' && card) {
-                            toggleFlag(card.id);
-                          }
-                          handleRate(rating, days);
-                        }}
-                        className="flex items-center gap-1 px-2 py-1 rounded-md border border-border text-[10px] font-arabic hover:bg-accent transition-colors"
-                      >
-                        <span>{icon}</span>
-                        <span>{label}</span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </details>
+                </details>
+              )}
             </>
           )}
 
-          {/* Quick index dots */}
-          {total <= 50 && (
+          {/* Quick index dots — only outside focus mode */}
+          {!focusMode && total <= 50 && (
             <div className="flex flex-wrap justify-center gap-1 pt-1">
-              {liveCards.map((_, i) => (
+              {activeQueue.map((c, i) => (
                 <button
-                  key={i}
+                  key={`dot_${i}`}
                   onClick={() => goToCard(i)}
                   className={`w-2.5 h-2.5 rounded-full transition-colors ${
                     i === currentIdx ? 'bg-primary scale-125' :
-                    reviewed.has(i) ? (ratings.get(i)! >= 3 ? 'bg-green-400' : 'bg-red-400') :
+                    reviewedIds.has(c.id) ? (ratingsMap.get(c.id)! >= 3 ? 'bg-green-400' : 'bg-red-400') :
                     'bg-muted-foreground/20'
                   }`}
                   title={`بطاقة ${i + 1}`}
