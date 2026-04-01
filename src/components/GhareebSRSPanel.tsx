@@ -217,13 +217,7 @@ export function GhareebSRSPanel({
         portalName="الغريب"
         defaultAnswerMode="tooltip"
         answerModeOptions={['tooltip', 'inline']}
-        headerExtra={
-          <GhareebReviewSettingsPanel
-            className="h-7 px-2 text-[11px]"
-            highlightStyle={highlightStyle}
-            onHighlightStyleChange={setHighlightStyle}
-          />
-        }
+        focusMode
         renderCard={(card, answerRevealed, answerDisplayMode) => (
           <GhareebReviewCardContent
             card={card}
@@ -401,6 +395,36 @@ function GhareebReviewCardContent({
     }, 250);
     return () => clearTimeout(timer);
   }, [card.contentKey, card.id]);
+
+  // Auto-scroll when answer is revealed to keep meaning box visible
+  useEffect(() => {
+    if (!answerRevealed) return;
+    const timer = setTimeout(() => {
+      if (!rootRef.current) return;
+      // Find the tooltip or inline answer element
+      const answerEl = rootRef.current.querySelector<HTMLElement>('[data-ghareeb-tooltip], .ghareeb-inline-answer');
+      const targetEl = answerEl || rootRef.current.querySelector<HTMLElement>(`[data-ghareeb-key="${card.contentKey}"]`);
+      if (!targetEl) return;
+      let scrollParent: Element | null = rootRef.current.parentElement;
+      while (scrollParent) {
+        const style = getComputedStyle(scrollParent);
+        if (style.overflow === 'auto' || style.overflowY === 'auto' || style.overflow === 'scroll' || style.overflowY === 'scroll') break;
+        scrollParent = scrollParent.parentElement;
+      }
+      if (!scrollParent) {
+        targetEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        return;
+      }
+      const parentRect = scrollParent.getBoundingClientRect();
+      const elRect = targetEl.getBoundingClientRect();
+      // If the element is below the visible area, scroll smoothly
+      if (elRect.bottom > parentRect.bottom - 20 || elRect.top < parentRect.top + 20) {
+        const scrollTop = scrollParent.scrollTop + (elRect.top - parentRect.top) - parentRect.height * 0.4;
+        scrollParent.scrollTo({ top: Math.max(0, scrollTop), behavior: 'smooth' });
+      }
+    }, 150);
+    return () => clearTimeout(timer);
+  }, [answerRevealed, card.contentKey]);
 
   return (
     <div ref={rootRef} className="p-2 relative" data-ghareeb-review-root="true">
