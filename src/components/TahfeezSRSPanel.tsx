@@ -432,25 +432,27 @@ export function TahfeezSRSPanel({
 
   if (sessionMode === 'review') {
     return (
-      <SRSReviewSession
-        cards={sessionCards}
-        onFinish={() => setSessionMode('setup')}
-        onNavigateToPage={onNavigateToPage}
-        portalName="التحفيظ"
-        focusMode
-        defaultAnswerMode={showHiddenWordsPreview ? 'bottom' : 'inline'}
-        answerModeOptions={showHiddenWordsPreview ? ['inline', 'bottom'] : ['inline']}
-        renderAnswer={showHiddenWordsPreview ? ((card) => card.type === 'tahfeez-word' ? (
-          <div className="text-center font-arabic text-lg text-foreground">{String(card.meta.wordText || '')}</div>
-        ) : null) : undefined}
-        renderCard={(card, answerRevealed) => (
-          <TahfeezReviewCardContent
-            card={card}
-            answerRevealed={answerRevealed}
-            renderPageWithBlanks={renderPageWithBlanks}
-          />
-        )}
-      />
+      <div className="fixed inset-0 z-40 overflow-hidden bg-background" style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}>
+        <SRSReviewSession
+          cards={sessionCards}
+          onFinish={() => setSessionMode('setup')}
+          onNavigateToPage={onNavigateToPage}
+          portalName="التحفيظ"
+          focusMode
+          defaultAnswerMode={showHiddenWordsPreview ? 'bottom' : 'inline'}
+          answerModeOptions={showHiddenWordsPreview ? ['inline', 'bottom'] : ['inline']}
+          renderAnswer={showHiddenWordsPreview ? ((card) => card.type === 'tahfeez-word' ? (
+            <div className="text-center font-arabic text-lg text-foreground">{String(card.meta.wordText || '')}</div>
+          ) : null) : undefined}
+          renderCard={(card, answerRevealed) => (
+            <TahfeezReviewCardContent
+              card={card}
+              answerRevealed={answerRevealed}
+              renderPageWithBlanks={renderPageWithBlanks}
+            />
+          )}
+        />
+      </div>
     );
   }
 
@@ -641,15 +643,15 @@ function TahfeezReviewCardContent({
   renderPageWithBlanks: (page: number, blankedKeys: string[], card: SRSCard) => React.ReactNode;
 }) {
   const rootRef = useRef<HTMLDivElement>(null);
+  const scrollContainerRef = useRef<HTMLElement | null>(null);
+
+  useEffect(() => {
+    if (!rootRef.current) return;
+    scrollContainerRef.current = rootRef.current.closest<HTMLElement>('[data-review-scroll-container="true"]');
+  }, []);
 
   const scrollToCenter = useCallback((target: HTMLElement) => {
-    // The scroll container is the flex-1 overflow-auto parent in SRSReviewSession
-    let scrollParent: HTMLElement | null = rootRef.current?.parentElement as HTMLElement | null;
-    while (scrollParent) {
-      const style = getComputedStyle(scrollParent);
-      if (style.overflow === 'auto' || style.overflowY === 'auto' || style.overflow === 'scroll' || style.overflowY === 'scroll') break;
-      scrollParent = scrollParent.parentElement as HTMLElement | null;
-    }
+    const scrollParent = scrollContainerRef.current;
 
     if (!scrollParent) {
       target.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -682,7 +684,7 @@ function TahfeezReviewCardContent({
   }, [card.contentKey, card.id, answerRevealed, scrollToCenter]);
 
   return (
-    <div ref={rootRef} className="p-2 pb-4">
+    <div ref={rootRef} className="h-full min-h-full p-2 pb-4">
       {renderPageWithBlanks(card.page, answerRevealed ? [] : [card.contentKey], card)}
     </div>
   );

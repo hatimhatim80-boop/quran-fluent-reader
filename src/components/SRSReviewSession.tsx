@@ -316,7 +316,7 @@ export function SRSReviewSession({
   );
 
   return (
-    <div className="flex h-full" dir="rtl">
+    <div className="flex h-full min-h-0 overflow-hidden" dir="rtl">
       {/* Desktop sidebar index */}
       {showIndex && !isMobile && (
         <div className="w-56 shrink-0 border-l border-border bg-card h-full overflow-hidden">
@@ -341,7 +341,7 @@ export function SRSReviewSession({
       )}
 
       {/* Main content */}
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className="flex-1 flex flex-col min-w-0 min-h-0 overflow-hidden">
         {/* Header — hidden in focus mode */}
         {!focusMode && (
           <div className="flex items-center justify-between px-3 py-2 border-b border-border bg-card/80 backdrop-blur-sm shrink-0">
@@ -376,7 +376,7 @@ export function SRSReviewSession({
         <Progress value={progress} className="h-1 rounded-none shrink-0" />
 
         {/* Card content */}
-        <div className="flex-1 overflow-auto">
+        <div data-review-scroll-container="true" className="flex-1 min-h-0 overflow-y-auto overscroll-contain">
           {renderCard(card, answerRevealed, answerMode)}
         </div>
 
