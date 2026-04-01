@@ -643,6 +643,7 @@ function TahfeezReviewCardContent({
   const rootRef = useRef<HTMLDivElement>(null);
 
   const scrollWithBottomReserve = useCallback((target: HTMLElement) => {
+    // Find the scrollable ancestor
     let scrollParent: HTMLElement | null = rootRef.current?.parentElement as HTMLElement | null;
     while (scrollParent) {
       const style = getComputedStyle(scrollParent);
@@ -655,11 +656,21 @@ function TahfeezReviewCardContent({
       return;
     }
 
+    // Measure actual bottom UI (action buttons bar)
+    const actionBar = scrollParent.parentElement?.querySelector<HTMLElement>('[style*="safe-area"]') 
+      || scrollParent.nextElementSibling as HTMLElement | null;
+    let bottomUI = 0;
+    if (actionBar) {
+      bottomUI = actionBar.getBoundingClientRect().height;
+    }
+    // Fallback: at least 160px reserved for buttons area
+    const bottomReserve = Math.max(160, bottomUI + 16);
+
     const parentRect = scrollParent.getBoundingClientRect();
     const targetRect = target.getBoundingClientRect();
-    const bottomReserve = Math.min(180, Math.max(112, parentRect.height * 0.28));
-    const visibleHeight = Math.max(120, parentRect.height - bottomReserve);
-    const nextTop = scrollParent.scrollTop + (targetRect.top - parentRect.top) - (visibleHeight / 2) + (targetRect.height / 2);
+    const usableHeight = parentRect.height - bottomReserve;
+    const idealCenter = usableHeight / 2;
+    const nextTop = scrollParent.scrollTop + (targetRect.top - parentRect.top) - idealCenter + (targetRect.height / 2);
     scrollParent.scrollTo({ top: Math.max(0, nextTop), behavior: 'smooth' });
   }, []);
 

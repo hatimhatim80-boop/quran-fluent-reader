@@ -382,11 +382,18 @@ function GhareebReviewCardContent({
       return;
     }
 
+    const actionBar = scrollParent.parentElement?.querySelector<HTMLElement>('[style*="safe-area"]')
+      || scrollParent.nextElementSibling as HTMLElement | null;
+    let bottomUI = 0;
+    if (actionBar) {
+      bottomUI = actionBar.getBoundingClientRect().height;
+    }
+    const bottomReserve = Math.max(160, bottomUI + 16);
+
     const parentRect = scrollParent.getBoundingClientRect();
     const targetRect = target.getBoundingClientRect();
-    const bottomReserve = Math.min(180, Math.max(112, parentRect.height * 0.28));
-    const visibleHeight = Math.max(120, parentRect.height - bottomReserve);
-    const nextTop = scrollParent.scrollTop + (targetRect.top - parentRect.top) - (visibleHeight * bias) + (targetRect.height / 2);
+    const usableHeight = parentRect.height - bottomReserve;
+    const nextTop = scrollParent.scrollTop + (targetRect.top - parentRect.top) - (usableHeight * bias) + (targetRect.height / 2);
     scrollParent.scrollTo({ top: Math.max(0, nextTop), behavior: 'smooth' });
   }, []);
 
