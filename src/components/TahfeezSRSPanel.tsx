@@ -641,15 +641,15 @@ function TahfeezReviewCardContent({
   renderPageWithBlanks: (page: number, blankedKeys: string[], card: SRSCard) => React.ReactNode;
 }) {
   const rootRef = useRef<HTMLDivElement>(null);
+  const scrollContainerRef = useRef<HTMLElement | null>(null);
+
+  useEffect(() => {
+    if (!rootRef.current) return;
+    scrollContainerRef.current = rootRef.current.closest<HTMLElement>('[data-review-scroll-container="true"]');
+  }, []);
 
   const scrollToCenter = useCallback((target: HTMLElement) => {
-    // The scroll container is the flex-1 overflow-auto parent in SRSReviewSession
-    let scrollParent: HTMLElement | null = rootRef.current?.parentElement as HTMLElement | null;
-    while (scrollParent) {
-      const style = getComputedStyle(scrollParent);
-      if (style.overflow === 'auto' || style.overflowY === 'auto' || style.overflow === 'scroll' || style.overflowY === 'scroll') break;
-      scrollParent = scrollParent.parentElement as HTMLElement | null;
-    }
+    const scrollParent = scrollContainerRef.current;
 
     if (!scrollParent) {
       target.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -682,7 +682,7 @@ function TahfeezReviewCardContent({
   }, [card.contentKey, card.id, answerRevealed, scrollToCenter]);
 
   return (
-    <div ref={rootRef} className="p-2 pb-4">
+    <div ref={rootRef} className="h-full min-h-full p-2 pb-4">
       {renderPageWithBlanks(card.page, answerRevealed ? [] : [card.contentKey], card)}
     </div>
   );
