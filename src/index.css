@@ -279,12 +279,12 @@
   .verse-number {
     display: var(--vn-visible, inline-grid);
     place-items: center;
-    font-size: var(--vn-font-size, 0.78em);
+    font-size: var(--vn-font-size, 1.56em);
     color: hsl(var(--verse-number-foreground));
     margin: 0 0.12em;
     vertical-align: -0.06em;
-    min-width: var(--vn-circle-size, 1.9em);
-    height: calc(var(--vn-circle-size, 1.9em) * 1.18);
+    min-width: var(--vn-circle-size, 1.27em);
+    height: calc(var(--vn-circle-size, 1.27em) * 1.18);
     padding: 0 0.08em;
     border: 1.5px solid hsl(var(--verse-number-border));
     border-radius: 50% 50% 50% 50% / 38% 38% 62% 62%;
