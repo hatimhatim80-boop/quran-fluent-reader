@@ -464,8 +464,9 @@ export function SRSReviewSession({
               {/* Smart Timing Buttons */}
               <div className="space-y-2">
                 <p className="text-xs text-muted-foreground font-arabic text-center font-bold">⏱ مدة الإعادة الذكية</p>
-                <div className="grid grid-cols-4 gap-2">
+                <div className="grid grid-cols-5 gap-2">
                   {[
+                    { label: 'فوري', days: 0 },
                     { label: '١ دقيقة', days: 1 / 1440 },
                     { label: '٥ دقائق', days: 5 / 1440 },
                     { label: '١٠ دقائق', days: 10 / 1440 },
