@@ -1,4 +1,5 @@
 import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useSRSStore, SRSCard } from '@/stores/srsStore';
 import { SRSReviewSession } from './SRSReviewSession';
 import { SRSScopeSelector, SRSScope, scopeToPages } from './SRSScopeSelector';
@@ -151,6 +152,22 @@ export function TahfeezSRSPanel({
     from: currentPage,
     to: currentPage,
   });
+
+  useEffect(() => {
+    if (sessionMode !== 'review' || typeof document === 'undefined') return;
+
+    const { body, documentElement } = document;
+    const previousBodyOverflow = body.style.overflow;
+    const previousHtmlOverflow = documentElement.style.overflow;
+
+    body.style.overflow = 'hidden';
+    documentElement.style.overflow = 'hidden';
+
+    return () => {
+      body.style.overflow = previousBodyOverflow;
+      documentElement.style.overflow = previousHtmlOverflow;
+    };
+  }, [sessionMode]);
 
   // ── Computed ──
 
@@ -431,7 +448,7 @@ export function TahfeezSRSPanel({
   // ── Review session ──
 
   if (sessionMode === 'review') {
-    return (
+    const reviewOverlay = (
       <div className="fixed inset-0 z-40 overflow-hidden bg-background" style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}>
         <SRSReviewSession
           cards={sessionCards}
@@ -454,6 +471,10 @@ export function TahfeezSRSPanel({
         />
       </div>
     );
+
+    return typeof document !== 'undefined'
+      ? createPortal(reviewOverlay, document.body)
+      : reviewOverlay;
   }
 
   // ── Setup UI ──
