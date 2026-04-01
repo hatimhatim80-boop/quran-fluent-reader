@@ -375,8 +375,11 @@ export function SRSReviewSession({
               <button onClick={() => setShowIndex(!showIndex)} className={`w-7 h-7 rounded-full flex items-center justify-center transition-colors ${showIndex ? 'bg-primary text-primary-foreground' : 'hover:bg-accent'}`}>
                 <List className="w-3.5 h-3.5" />
               </button>
-              <button onClick={() => toggleFlag(card.id)} className={`w-7 h-7 rounded-full flex items-center justify-center transition-colors ${card.flagged ? 'text-orange-500' : 'hover:bg-accent text-muted-foreground'}`}>
+              <button onClick={() => toggleFlag(card.id)} className={`w-7 h-7 rounded-full flex items-center justify-center transition-colors ${card.flagged ? 'text-orange-500' : 'hover:bg-accent text-muted-foreground'}`} title="تعليق/إلغاء تعليق">
                 <Flag className="w-3.5 h-3.5" />
+              </button>
+              <button onClick={handleSuspendCard} className="w-7 h-7 rounded-full flex items-center justify-center transition-colors hover:bg-destructive/10 text-muted-foreground hover:text-destructive" title="تعليق وتخطي">
+                <Ban className="w-3.5 h-3.5" />
               </button>
               <button onClick={() => goToCard(currentIdx - 1)} disabled={currentIdx <= 0} className="nav-button w-7 h-7 rounded-full disabled:opacity-30">
                 <ChevronRight className="w-4 h-4" />
