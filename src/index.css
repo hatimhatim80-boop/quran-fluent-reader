@@ -280,7 +280,7 @@
     vertical-align: middle;
     min-width: var(--vn-circle-size, 2em);
     height: var(--vn-circle-size, 2em);
-    padding: 0 0.25em;
+    padding: 0;
     border: var(--vn-shape-border, 2.5px) solid var(--vn-border-color, hsl(43 60% 55%));
     border-radius: var(--vn-border-radius, 50%);
     background: var(--vn-bg-color, hsl(45 70% 83%));
@@ -292,6 +292,10 @@
       0 1px 3px hsl(40 40% 30% / 0.2),
       inset 0 1px 1px hsl(50 80% 95% / 0.6);
     text-shadow: 0 0.5px 0 hsl(45 60% 70% / 0.5);
+    /* Precise centering of number inside circle */
+    text-align: center;
+    letter-spacing: 0;
+    text-indent: 0;
   }
 }
 
