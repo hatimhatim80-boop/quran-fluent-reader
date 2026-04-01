@@ -693,7 +693,7 @@ function TahfeezReviewCardContent({
   }, [card.contentKey, card.id, answerRevealed, scrollWithBottomReserve]);
 
   return (
-    <div ref={rootRef} className="p-2 pb-32">
+    <div ref={rootRef} className="p-2 pb-48">
       {renderPageWithBlanks(card.page, answerRevealed ? [] : [card.contentKey], card)}
     </div>
   );

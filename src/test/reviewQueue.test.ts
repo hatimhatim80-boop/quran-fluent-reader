@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 import type { SRSCard } from '@/stores/srsStore';
 import {
   getNextDueCountdownLabel,
-  insertQueueEntries,
   partitionSessionCards,
   promoteDueQueue,
   type ReviewQueueEntry,
@@ -26,7 +25,7 @@ function createCard(id: string, nextReview: number): SRSCard {
 }
 
 describe('reviewQueue ordering', () => {
-  it('preserves the original session order when splitting active and delayed cards', () => {
+  it('partitions cards into active (due now) and delayed', () => {
     const cards = [
       createCard('a', 5_000),
       createCard('b', 0),
@@ -40,21 +39,7 @@ describe('reviewQueue ordering', () => {
     expect(delayedQueue.map((entry) => entry.card.id)).toEqual(['a', 'c']);
   });
 
-  it('inserts newly ready cards by fixed session order instead of due time', () => {
-    const existingQueue: ReviewQueueEntry[] = [
-      { card: createCard('d', 0), dueAt: 0, order: 3 },
-    ];
-    const readyEntries: ReviewQueueEntry[] = [
-      { card: createCard('b', 60_000), dueAt: 60_000, order: 1 },
-      { card: createCard('c', 1_000), dueAt: 1_000, order: 2 },
-    ];
-
-    const merged = insertQueueEntries(existingQueue, readyEntries);
-
-    expect(merged.map((entry) => entry.card.id)).toEqual(['b', 'c', 'd']);
-  });
-
-  it('promotes due cards without changing their preserved order', () => {
+  it('promotes due cards from delayed queue', () => {
     const delayedQueue: ReviewQueueEntry[] = [
       { card: createCard('a', 60_000), dueAt: 60_000, order: 0 },
       { card: createCard('b', 1_000), dueAt: 1_000, order: 1 },
@@ -67,12 +52,16 @@ describe('reviewQueue ordering', () => {
     expect(remaining.map((entry) => entry.card.id)).toEqual(['a']);
   });
 
-  it('uses the nearest due time for countdown even when delayed order is fixed', () => {
+  it('uses the nearest due time for countdown', () => {
     const delayedQueue: ReviewQueueEntry[] = [
       { card: createCard('a', 60_000), dueAt: 60_000, order: 0 },
       { card: createCard('b', 30_000), dueAt: 30_000, order: 1 },
     ];
 
     expect(getNextDueCountdownLabel(delayedQueue, 0)).toBe('٣٠ ث');
+  });
+
+  it('returns null for empty queue countdown', () => {
+    expect(getNextDueCountdownLabel([], 0)).toBe(null);
   });
 });
