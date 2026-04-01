@@ -432,25 +432,27 @@ export function TahfeezSRSPanel({
 
   if (sessionMode === 'review') {
     return (
-      <SRSReviewSession
-        cards={sessionCards}
-        onFinish={() => setSessionMode('setup')}
-        onNavigateToPage={onNavigateToPage}
-        portalName="التحفيظ"
-        focusMode
-        defaultAnswerMode={showHiddenWordsPreview ? 'bottom' : 'inline'}
-        answerModeOptions={showHiddenWordsPreview ? ['inline', 'bottom'] : ['inline']}
-        renderAnswer={showHiddenWordsPreview ? ((card) => card.type === 'tahfeez-word' ? (
-          <div className="text-center font-arabic text-lg text-foreground">{String(card.meta.wordText || '')}</div>
-        ) : null) : undefined}
-        renderCard={(card, answerRevealed) => (
-          <TahfeezReviewCardContent
-            card={card}
-            answerRevealed={answerRevealed}
-            renderPageWithBlanks={renderPageWithBlanks}
-          />
-        )}
-      />
+      <div className="fixed inset-0 z-40 overflow-hidden bg-background" style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}>
+        <SRSReviewSession
+          cards={sessionCards}
+          onFinish={() => setSessionMode('setup')}
+          onNavigateToPage={onNavigateToPage}
+          portalName="التحفيظ"
+          focusMode
+          defaultAnswerMode={showHiddenWordsPreview ? 'bottom' : 'inline'}
+          answerModeOptions={showHiddenWordsPreview ? ['inline', 'bottom'] : ['inline']}
+          renderAnswer={showHiddenWordsPreview ? ((card) => card.type === 'tahfeez-word' ? (
+            <div className="text-center font-arabic text-lg text-foreground">{String(card.meta.wordText || '')}</div>
+          ) : null) : undefined}
+          renderCard={(card, answerRevealed) => (
+            <TahfeezReviewCardContent
+              card={card}
+              answerRevealed={answerRevealed}
+              renderPageWithBlanks={renderPageWithBlanks}
+            />
+          )}
+        />
+      </div>
     );
   }
 
