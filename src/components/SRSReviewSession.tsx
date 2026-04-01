@@ -166,6 +166,22 @@ export function SRSReviewSession({
 
   const handleRevealAnswer = useCallback(() => setAnswerRevealed(true), []);
 
+  // Suspend card: flag it and remove from session
+  const handleSuspendCard = useCallback(() => {
+    if (!card) return;
+    if (!card.flagged) toggleFlag(card.id);
+    // Remove from active queue
+    const nextActive = activeQueue.filter((_, i) => i !== currentIdx);
+    setActiveQueue(nextActive);
+    if (currentIdx >= nextActive.length && nextActive.length > 0) {
+      setCurrentIdx(nextActive.length - 1);
+    } else if (nextActive.length === 0 && delayedQueue.length === 0) {
+      setTimeout(() => onFinish(), 100);
+    }
+    setAnswerRevealed(false);
+    setShowManualInterval(false);
+  }, [card, activeQueue, currentIdx, delayedQueue, toggleFlag, onFinish]);
+
   const handleRate = useCallback((rating: SRSRating, customInterval?: number) => {
     if (!card || !currentEntry) return;
 
