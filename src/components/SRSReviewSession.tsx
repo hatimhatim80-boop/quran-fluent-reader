@@ -6,6 +6,7 @@ import { ChevronLeft, ChevronRight, X, Eye, Settings2, Flag, List } from 'lucide
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from '@/components/ui/drawer';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { ReviewQueueEntry, partitionSessionCards, promoteDueQueue, insertQueueEntries, getNextDueCountdownLabel } from '@/utils/reviewQueue';
 
 export type AnswerDisplayMode = 'bottom' | 'tooltip' | 'inline';
 
@@ -29,12 +30,6 @@ const ANSWER_MODE_LABEL: Record<AnswerDisplayMode, string> = {
   inline: 'في السطر',
 };
 
-// ── Delayed card entry ──
-interface DelayedEntry {
-  card: SRSCard;
-  dueAt: number; // timestamp when it becomes active
-}
-
 export function SRSReviewSession({
   cards,
   onFinish,
@@ -49,7 +44,6 @@ export function SRSReviewSession({
 }: SRSReviewSessionProps) {
   const rateCard = useSRSStore(s => s.rateCard);
   const toggleFlag = useSRSStore(s => s.toggleFlag);
-  const storeCards = useSRSStore(s => s.cards);
   const [answerRevealed, setAnswerRevealed] = useState(false);
   const [showManualInterval, setShowManualInterval] = useState(false);
   const [showIndex, setShowIndex] = useState(false);
@@ -59,25 +53,33 @@ export function SRSReviewSession({
   // ── Dual-queue system ──
   // activeQueue: cards ready to show NOW, sorted by dueAt (oldest first)
   // delayedQueue: cards waiting for their dueAt to arrive
-  const [activeQueue, setActiveQueue] = useState<SRSCard[]>(() => [...cards]);
-  const [delayedQueue, setDelayedQueue] = useState<DelayedEntry[]>([]);
+  const [activeQueue, setActiveQueue] = useState<ReviewQueueEntry[]>(() => partitionSessionCards(cards).activeQueue);
+  const [delayedQueue, setDelayedQueue] = useState<ReviewQueueEntry[]>(() => partitionSessionCards(cards).delayedQueue);
   const [currentIdx, setCurrentIdx] = useState(0);
   const [reviewedCount, setReviewedCount] = useState(0);
   const [totalSeen, setTotalSeen] = useState(cards.length);
   const [reviewedIds, setReviewedIds] = useState<Set<string>>(new Set());
   const [ratingsMap, setRatingsMap] = useState<Map<string, SRSRating>>(new Map());
   const [nextDueCountdown, setNextDueCountdown] = useState<string | null>(null);
+  const currentIdxRef = useRef(0);
+  const nextOrderRef = useRef(cards.length);
+
+  useEffect(() => {
+    currentIdxRef.current = currentIdx;
+  }, [currentIdx]);
 
   // Reset on new session
   useEffect(() => {
-    setActiveQueue([...cards]);
-    setDelayedQueue([]);
+    const queues = partitionSessionCards(cards);
+    setActiveQueue(queues.activeQueue);
+    setDelayedQueue(queues.delayedQueue);
+    nextOrderRef.current = queues.nextOrder;
     setCurrentIdx(0);
     setReviewedCount(0);
     setTotalSeen(cards.length);
     setReviewedIds(new Set());
     setRatingsMap(new Map());
-    setNextDueCountdown(null);
+    setNextDueCountdown(getNextDueCountdownLabel(queues.delayedQueue));
     setAnswerRevealed(false);
     setShowManualInterval(false);
   }, [cards]);
@@ -93,35 +95,25 @@ export function SRSReviewSession({
           return prev;
         }
 
-        const ready: DelayedEntry[] = [];
-        const still: DelayedEntry[] = [];
-        for (const entry of prev) {
-          if (entry.dueAt <= now) ready.push(entry);
-          else still.push(entry);
-        }
+        const { readyQueue, delayedQueue: nextDelayedQueue } = promoteDueQueue(prev, now);
+        setNextDueCountdown(getNextDueCountdownLabel(nextDelayedQueue, now));
 
-        // Update countdown from remaining delayed
-        if (still.length > 0) {
-          const nearest = Math.min(...still.map(e => e.dueAt));
-          const remainSec = Math.max(0, Math.ceil((nearest - now) / 1000));
-          setNextDueCountdown(remainSec < 60 ? `${remainSec} ث` : `${Math.ceil(remainSec / 60)} د`);
-        } else {
-          setNextDueCountdown(null);
-        }
-
-        if (ready.length > 0) {
-          // Sort ready by dueAt ascending and insert into active queue
-          ready.sort((a, b) => a.dueAt - b.dueAt);
+        if (readyQueue.length > 0) {
           setActiveQueue(prevActive => {
-            // Insert at proper sorted position: after current card, sorted by dueAt
-            const newCards = ready.map(e => e.card);
-            const merged = [...prevActive, ...newCards];
-            setTotalSeen(s => s + newCards.length);
-            return merged;
+            if (prevActive.length === 0) {
+              setTotalSeen(s => s + readyQueue.length);
+              return insertQueueEntries([], readyQueue);
+            }
+
+            const pinnedIdx = Math.min(currentIdxRef.current, prevActive.length - 1);
+            const head = prevActive.slice(0, pinnedIdx + 1);
+            const tail = prevActive.slice(pinnedIdx + 1);
+            setTotalSeen(s => s + readyQueue.length);
+            return [...head, ...insertQueueEntries(tail, readyQueue)];
           });
         }
 
-        return ready.length > 0 ? still : prev;
+        return readyQueue.length > 0 ? nextDelayedQueue : prev;
       });
     };
 
@@ -129,7 +121,8 @@ export function SRSReviewSession({
     return () => clearInterval(interval);
   }, []);
 
-  const card = activeQueue[currentIdx];
+  const currentEntry = activeQueue[currentIdx];
+  const card = currentEntry?.card;
 
   const availableAnswerModes = useMemo(() => {
     if (!answerModeOptions.length) return ['bottom', 'tooltip', 'inline'] as AnswerDisplayMode[];
@@ -167,43 +160,38 @@ export function SRSReviewSession({
   const handleRevealAnswer = useCallback(() => setAnswerRevealed(true), []);
 
   const handleRate = useCallback((rating: SRSRating, customInterval?: number) => {
-    if (!card) return;
+    if (!card || !currentEntry) return;
 
     rateCard(card.id, rating, customInterval);
 
-    // Get updated card from store to know its nextReview
     const freshCard = useSRSStore.getState().cards.find(c => c.id === card.id);
     const nextReview = freshCard?.nextReview ?? 0;
     const now = Date.now();
 
-    // Atomically: remove from active, maybe add to delayed, adjust index
-    setActiveQueue(prev => {
-      const next = prev.filter((_, i) => i !== currentIdx);
+    const baseActiveQueue = activeQueue.filter((_, i) => i !== currentIdx);
+    const { readyQueue, delayedQueue: nextDelayedBase } = promoteDueQueue(delayedQueue, now);
+    let nextActiveQueue = insertQueueEntries(baseActiveQueue, readyQueue);
+    let nextDelayedQueue = nextDelayedBase;
 
-      // If card is due in the future, add to delayed queue sorted by dueAt
-      if (nextReview > now && freshCard) {
-        setDelayedQueue(dq => {
-          const newEntry: DelayedEntry = { card: freshCard, dueAt: nextReview };
-          return [...dq, newEntry].sort((a, b) => a.dueAt - b.dueAt);
-        });
-      }
+    if (freshCard) {
+      const updatedEntry: ReviewQueueEntry = {
+        card: freshCard,
+        dueAt: nextReview,
+        order: nextOrderRef.current++,
+      };
 
-      if (next.length === 0) {
-        // Check if there are delayed cards waiting
-        setDelayedQueue(dq => {
-          if (dq.length === 0) {
-            setTimeout(() => onFinish(), 100);
-          }
-          return dq;
-        });
-      } else {
-        // Ensure currentIdx is within bounds
-        setCurrentIdx(idx => Math.min(idx, next.length - 1));
-      }
+      if (nextReview > now) nextDelayedQueue = insertQueueEntries(nextDelayedQueue, [updatedEntry]);
+      else nextActiveQueue = insertQueueEntries(nextActiveQueue, [updatedEntry]);
+    }
 
-      setTotalSeen(s => s); // no-op, totalSeen stays
-      return next;
-    });
+    setActiveQueue(nextActiveQueue);
+    setDelayedQueue(nextDelayedQueue);
+    setNextDueCountdown(getNextDueCountdownLabel(nextDelayedQueue, now));
+    setCurrentIdx(0);
+
+    if (nextActiveQueue.length === 0 && nextDelayedQueue.length === 0) {
+      setTimeout(() => onFinish(), 100);
+    }
 
     setReviewedCount(c => c + 1);
     setReviewedIds(prev => new Set(prev).add(card.id));
@@ -214,7 +202,7 @@ export function SRSReviewSession({
     });
     setAnswerRevealed(false);
     setShowManualInterval(false);
-  }, [card, currentIdx, rateCard, onFinish]);
+  }, [card, currentEntry, activeQueue, currentIdx, delayedQueue, rateCard, onFinish]);
 
   const goToCard = useCallback((idx: number) => {
     setActiveQueue(prev => {
@@ -264,25 +252,27 @@ export function SRSReviewSession({
     <ScrollArea className="h-full">
       <div className="p-3 space-y-1 font-arabic" dir="rtl">
         <p className="text-xs text-muted-foreground mb-2">{reviewedCount} تمت مراجعتها · {delayedQueue.length} معلقة</p>
-        {activeQueue.map((c, i) => (
+        {activeQueue.map((entry, i) => {
+          const queuedCard = entry.card;
+          return (
           <button
-            key={`${c.id}_${i}`}
+            key={`${queuedCard.id}_${i}`}
             onClick={() => { goToCard(i); setShowIndex(false); }}
             className={`w-full text-right px-3 py-2 rounded-lg text-xs transition-colors flex items-center gap-2 ${
               i === currentIdx ? 'bg-primary/10 text-primary font-bold' :
-              reviewedIds.has(c.id) ? (ratingsMap.get(c.id)! >= 3 ? 'text-green-600 bg-green-50 dark:bg-green-950/20' : 'text-red-500 bg-red-50 dark:bg-red-950/20') :
+              reviewedIds.has(queuedCard.id) ? (ratingsMap.get(queuedCard.id)! >= 3 ? 'text-green-600 bg-green-50 dark:bg-green-950/20' : 'text-red-500 bg-red-50 dark:bg-red-950/20') :
               'hover:bg-accent text-foreground'
             }`}
           >
             <span className="w-5 text-center text-[10px] text-muted-foreground">{i + 1}</span>
             <span className="truncate flex-1">
               {portalName === 'الغريب'
-                ? (c.meta.wordText as string || c.label)
-                : `${c.meta.surahName || ''} ص${c.page}`}
+                ? (queuedCard.meta.wordText as string || queuedCard.label)
+                : `${queuedCard.meta.surahName || ''} ص${queuedCard.page}`}
             </span>
-            {c.flagged && <Flag className="w-3 h-3 text-orange-500 shrink-0" />}
+            {queuedCard.flagged && <Flag className="w-3 h-3 text-orange-500 shrink-0" />}
           </button>
-        ))}
+        )})}
         {delayedQueue.length > 0 && (
           <>
             <p className="text-[10px] text-muted-foreground mt-3 mb-1">⏳ معلقة ({delayedQueue.length})</p>
@@ -525,13 +515,13 @@ export function SRSReviewSession({
           {/* Quick index dots — only outside focus mode */}
           {!focusMode && total <= 50 && (
             <div className="flex flex-wrap justify-center gap-1 pt-1">
-              {activeQueue.map((c, i) => (
+              {activeQueue.map((entry, i) => (
                 <button
                   key={`dot_${i}`}
                   onClick={() => goToCard(i)}
                   className={`w-2.5 h-2.5 rounded-full transition-colors ${
                     i === currentIdx ? 'bg-primary scale-125' :
-                    reviewedIds.has(c.id) ? (ratingsMap.get(c.id)! >= 3 ? 'bg-green-400' : 'bg-red-400') :
+                    reviewedIds.has(entry.card.id) ? (ratingsMap.get(entry.card.id)! >= 3 ? 'bg-green-400' : 'bg-red-400') :
                     'bg-muted-foreground/20'
                   }`}
                   title={`بطاقة ${i + 1}`}

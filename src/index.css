@@ -116,6 +116,9 @@
     --ornament: 36 45% 50%;
     --meaning-bg: 38 50% 96%;
     --verse-number: 36 40% 55%;
+    --verse-number-bg: 145 40% 88%;
+    --verse-number-border: 145 30% 65%;
+    --verse-number-foreground: 150 35% 22%;
   }
 
   .dark {
@@ -153,6 +156,9 @@
     --ornament: 40 50% 50%;
     --meaning-bg: 25 18% 12%;
     --verse-number: 40 45% 50%;
+    --verse-number-bg: 145 24% 26%;
+    --verse-number-border: 145 28% 42%;
+    --verse-number-foreground: 48 45% 88%;
   }
 }
 
@@ -271,27 +277,29 @@
 
   /* Verse number styling - teardrop/leaf badge */
   .verse-number {
-    display: var(--vn-visible, inline-grid);
-    place-items: center;
-    font-size: var(--vn-font-size, 0.55em);
-    color: hsl(150 35% 22%);
-    margin: 0 0.12em;
-    vertical-align: middle;
-    min-width: var(--vn-circle-size, 2.1em);
-    height: calc(var(--vn-circle-size, 2.1em) * 1.18);
-    padding: 0;
-    border: 1.5px solid hsl(145 30% 65%);
+    display: var(--vn-visible, inline-flex);
+    align-items: center;
+    justify-content: center;
+    font-size: var(--vn-font-size, 0.68em);
+    color: hsl(var(--verse-number-foreground));
+    margin: 0 0.14em;
+    vertical-align: -0.08em;
+    min-width: var(--vn-circle-size, 2.45em);
+    height: calc(var(--vn-circle-size, 2.45em) * 1.2);
+    padding: 0 0.12em;
+    border: 1.5px solid hsl(var(--verse-number-border));
     border-radius: 50% 50% 50% 50% / 38% 38% 62% 62%;
-    background: hsl(145 40% 88%);
-    font-weight: 700;
-    line-height: 1;
+    background: hsl(var(--verse-number-bg));
+    font-weight: 800;
+    line-height: 0.95;
     flex-shrink: 0;
-    box-shadow: 0 1px 3px hsl(145 30% 50% / 0.15);
+    box-shadow: 0 1px 3px hsl(var(--verse-number-border) / 0.15);
     text-shadow: none;
     text-align: center;
     letter-spacing: 0;
     text-indent: 0;
     font-family: inherit;
+    font-variant-numeric: lining-nums;
   }
 }
 

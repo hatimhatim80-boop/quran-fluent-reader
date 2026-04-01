@@ -369,6 +369,27 @@ function GhareebReviewCardContent({
 }) {
   const rootRef = useRef<HTMLDivElement>(null);
 
+  const scrollWithBottomReserve = useCallback((target: HTMLElement, bias = 0.5) => {
+    let scrollParent: HTMLElement | null = rootRef.current?.parentElement as HTMLElement | null;
+    while (scrollParent) {
+      const style = getComputedStyle(scrollParent);
+      if (style.overflow === 'auto' || style.overflowY === 'auto' || style.overflow === 'scroll' || style.overflowY === 'scroll') break;
+      scrollParent = scrollParent.parentElement as HTMLElement | null;
+    }
+
+    if (!scrollParent) {
+      target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      return;
+    }
+
+    const parentRect = scrollParent.getBoundingClientRect();
+    const targetRect = target.getBoundingClientRect();
+    const bottomReserve = Math.min(180, Math.max(112, parentRect.height * 0.28));
+    const visibleHeight = Math.max(120, parentRect.height - bottomReserve);
+    const nextTop = scrollParent.scrollTop + (targetRect.top - parentRect.top) - (visibleHeight * bias) + (targetRect.height / 2);
+    scrollParent.scrollTo({ top: Math.max(0, nextTop), behavior: 'smooth' });
+  }, []);
+
   // Auto-scroll to the highlighted word when card changes
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -389,12 +410,11 @@ function GhareebReviewCardContent({
       const parentRect = scrollParent.getBoundingClientRect();
       const wordRect = wordEl.getBoundingClientRect();
       if (wordRect.top < parentRect.top + 40 || wordRect.bottom > parentRect.bottom - 40) {
-        const scrollTop = scrollParent.scrollTop + (wordRect.top - parentRect.top) - parentRect.height / 2 + wordRect.height / 2;
-        scrollParent.scrollTo({ top: Math.max(0, scrollTop), behavior: 'smooth' });
+        scrollWithBottomReserve(wordEl);
       }
     }, 250);
     return () => clearTimeout(timer);
-  }, [card.contentKey, card.id]);
+  }, [card.contentKey, card.id, scrollWithBottomReserve]);
 
   // Auto-scroll when answer is revealed to keep meaning box visible
   useEffect(() => {
@@ -417,17 +437,15 @@ function GhareebReviewCardContent({
       }
       const parentRect = scrollParent.getBoundingClientRect();
       const elRect = targetEl.getBoundingClientRect();
-      // If the element is below the visible area, scroll smoothly
       if (elRect.bottom > parentRect.bottom - 20 || elRect.top < parentRect.top + 20) {
-        const scrollTop = scrollParent.scrollTop + (elRect.top - parentRect.top) - parentRect.height * 0.4;
-        scrollParent.scrollTo({ top: Math.max(0, scrollTop), behavior: 'smooth' });
+        scrollWithBottomReserve(targetEl, 0.4);
       }
     }, 150);
     return () => clearTimeout(timer);
-  }, [answerRevealed, card.contentKey]);
+  }, [answerRevealed, card.contentKey, scrollWithBottomReserve]);
 
   return (
-    <div ref={rootRef} className="p-2 relative" data-ghareeb-review-root="true">
+    <div ref={rootRef} className="p-2 pb-32 relative" data-ghareeb-review-root="true">
       {renderPageWithHighlight(card.page, card.contentKey, highlightStyle)}
       {/* Tooltip answer anchored near the word */}
       {answerRevealed && answerDisplayMode === 'tooltip' && (
