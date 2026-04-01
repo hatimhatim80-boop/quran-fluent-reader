@@ -866,20 +866,47 @@ export function TahfeezQuizView({
   }, [lines, blankedKeys, activeBlankKey, revealedKeys, revealedAyahKeySet, showAll, isLines15, storeMode, storedItems, onStoreWord, page.pageNumber, inlineMCQ, inlineMCQOptions, inlineMCQFeedback, inlineMCQSelected, revealedAyahColor, revealedAyahStyle, revealedColor, revealedWithBg]);
 
 
-  // Auto-scroll active blank word into view when it's near the bottom
+  // Auto-scroll active blank into view, accounting for sticky bottom buttons
   useEffect(() => {
     if (!activeBlankKey) return;
-    const el = document.querySelector<HTMLElement>('[data-tahfeez-active="true"]');
-    if (!el) return;
-    const container = el.closest('.quran-page, .quran-lines-container');
-    if (container) {
-      const containerRect = container.getBoundingClientRect();
-      const elRect = el.getBoundingClientRect();
-      const bottomThreshold = containerRect.bottom - (containerRect.height * 0.2);
-      if (elRect.top > bottomThreshold) {
-        el.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
+    const doScroll = () => {
+      const el = document.querySelector<HTMLElement>('[data-tahfeez-active="true"]');
+      if (!el) return;
+
+      // Find the scrollable ancestor
+      let scrollParent: HTMLElement | null = el.parentElement;
+      while (scrollParent) {
+        const style = getComputedStyle(scrollParent);
+        if (style.overflow === 'auto' || style.overflowY === 'auto' || style.overflow === 'scroll' || style.overflowY === 'scroll') break;
+        scrollParent = scrollParent.parentElement;
       }
-    }
+
+      if (!scrollParent) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
+        return;
+      }
+
+      // Measure bottom UI (sticky action buttons)
+      const actionBar = scrollParent.parentElement?.querySelector<HTMLElement>('[style*="safe-area"]')
+        || scrollParent.nextElementSibling as HTMLElement | null;
+      const bottomUI = actionBar ? actionBar.getBoundingClientRect().height : 0;
+      const bottomReserve = Math.max(180, bottomUI + 20);
+
+      const parentRect = scrollParent.getBoundingClientRect();
+      const elRect = el.getBoundingClientRect();
+      const usableHeight = parentRect.height - bottomReserve;
+
+      // Scroll if the element is outside the usable visible area
+      const relativeTop = elRect.top - parentRect.top;
+      if (relativeTop < 0 || relativeTop > usableHeight) {
+        const idealCenter = usableHeight * 0.4;
+        const nextTop = scrollParent.scrollTop + relativeTop - idealCenter + (elRect.height / 2);
+        scrollParent.scrollTo({ top: Math.max(0, nextTop), behavior: 'smooth' });
+      }
+    };
+    const t1 = setTimeout(doScroll, 150);
+    const t2 = setTimeout(doScroll, 500);
+    return () => { clearTimeout(t1); clearTimeout(t2); };
   }, [activeBlankKey]);
 
   // Debug info: compute actual blanked ayah and word counts
