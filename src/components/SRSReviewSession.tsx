@@ -446,10 +446,16 @@ export function SRSReviewSession({
 
           {!answerRevealed ? (
             <div className="space-y-2">
-              <Button onClick={handleRevealAnswer} className="w-full font-arabic text-base gap-2" size="lg">
-                <Eye className="w-5 h-5" />
-                إظهار الإجابة
-              </Button>
+              <div className="flex gap-2">
+                <Button onClick={handleRevealAnswer} className="flex-1 font-arabic text-base gap-2" size="lg">
+                  <Eye className="w-5 h-5" />
+                  إظهار الإجابة
+                </Button>
+                <Button onClick={handleSuspendCard} variant="outline" size="lg" className="font-arabic gap-1 text-destructive hover:bg-destructive/10" title="تعليق وتخطي">
+                  <Ban className="w-4 h-4" />
+                  تعليق
+                </Button>
+              </div>
               {!focusMode && availableAnswerModes.length > 1 && (
                 <div className="flex items-center justify-center gap-3 text-[10px] text-muted-foreground font-arabic">
                   <button onClick={switchAnswerMode} className="flex items-center gap-1 hover:text-foreground transition-colors">
