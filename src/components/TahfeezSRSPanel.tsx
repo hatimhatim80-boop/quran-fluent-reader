@@ -642,6 +642,27 @@ function TahfeezReviewCardContent({
 }) {
   const rootRef = useRef<HTMLDivElement>(null);
 
+  const scrollWithBottomReserve = useCallback((target: HTMLElement) => {
+    let scrollParent: HTMLElement | null = rootRef.current?.parentElement as HTMLElement | null;
+    while (scrollParent) {
+      const style = getComputedStyle(scrollParent);
+      if (style.overflow === 'auto' || style.overflowY === 'auto' || style.overflow === 'scroll' || style.overflowY === 'scroll') break;
+      scrollParent = scrollParent.parentElement as HTMLElement | null;
+    }
+
+    if (!scrollParent) {
+      target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      return;
+    }
+
+    const parentRect = scrollParent.getBoundingClientRect();
+    const targetRect = target.getBoundingClientRect();
+    const bottomReserve = Math.min(180, Math.max(112, parentRect.height * 0.28));
+    const visibleHeight = Math.max(120, parentRect.height - bottomReserve);
+    const nextTop = scrollParent.scrollTop + (targetRect.top - parentRect.top) - (visibleHeight / 2) + (targetRect.height / 2);
+    scrollParent.scrollTo({ top: Math.max(0, nextTop), behavior: 'smooth' });
+  }, []);
+
   // Auto-scroll to blanked element OR revealed ayah content
   useEffect(() => {
     const doScroll = () => {
@@ -653,15 +674,15 @@ function TahfeezReviewCardContent({
             '[data-blanked="true"], .tahfeez-blank, [style*="visibility: hidden"]'
           );
       if (!target) return;
-      target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      scrollWithBottomReserve(target);
     };
     const t1 = setTimeout(doScroll, 150);
     const t2 = setTimeout(doScroll, 500);
     return () => { clearTimeout(t1); clearTimeout(t2); };
-  }, [card.contentKey, card.id, answerRevealed]);
+  }, [card.contentKey, card.id, answerRevealed, scrollWithBottomReserve]);
 
   return (
-    <div ref={rootRef} className="p-2">
+    <div ref={rootRef} className="p-2 pb-32">
       {renderPageWithBlanks(card.page, answerRevealed ? [] : [card.contentKey], card)}
     </div>
   );

@@ -17,7 +17,7 @@ function BlankSpan({ word, dotScale, className, onClick, style }: {
   onClick?: () => void; style?: React.CSSProperties;
 }) {
   return (
-    <span className={className} onClick={onClick}
+    <span className={className} onClick={onClick} data-blanked="true"
       style={{ ...style, cursor: 'pointer', display: 'inline-block', position: 'relative' }}>
       {/* Invisible original word to preserve width */}
       <span style={{ visibility: 'hidden', display: 'inline-block' }} aria-hidden="true">{word}</span>
@@ -812,6 +812,7 @@ export function TahfeezQuizView({
           lineElements.push(
             <span
               key={`${lineIdx}-${tokenIdx}`}
+              data-revealed-ayah="true"
               className={`${storeMode ? 'tahfeez-store-target' : ''}${isStored ? ' tahfeez-stored' : ''}`}
               onClick={storeClickHandler}
               style={ayahInline}
@@ -837,6 +838,7 @@ export function TahfeezQuizView({
           }
           lineElements.push(
             <span key={`${lineIdx}-${tokenIdx}`}
+              data-revealed-word="true"
               className={`${storeMode ? 'tahfeez-store-target' : ''}${isStored ? ' tahfeez-stored' : ''}`}
               onClick={storeClickHandler} style={wordInline}>{t}</span>
           );
