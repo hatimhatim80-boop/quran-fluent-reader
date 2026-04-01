@@ -174,10 +174,17 @@ export function SRSReviewSession({
     const nextReview = freshCard?.nextReview ?? 0;
     const now = Date.now();
 
+    // Remove rated card from active queue
     const baseActiveQueue = activeQueue.filter((_, i) => i !== currentIdx);
+
+    // Promote any cards that became due while we were reviewing
     const { readyQueue, delayedQueue: nextDelayedBase } = promoteDueQueue(delayedQueue, now);
-    let nextActiveQueue = insertQueueEntries(baseActiveQueue, readyQueue);
     let nextDelayedQueue = nextDelayedBase;
+
+    // Due cards (promoted from delayed) go to the FRONT, sorted by dueAt (oldest first)
+    // This ensures re-due cards are shown before continuing the mushaf sequence
+    const readySorted = [...readyQueue].sort((a, b) => a.dueAt - b.dueAt);
+    let nextActiveQueue = [...readySorted, ...baseActiveQueue];
 
     if (freshCard) {
       const updatedEntry: ReviewQueueEntry = {
@@ -186,13 +193,19 @@ export function SRSReviewSession({
         order: nextOrderRef.current++,
       };
 
-      if (nextReview > now) nextDelayedQueue = insertQueueEntries(nextDelayedQueue, [updatedEntry]);
-      else nextActiveQueue = insertQueueEntries(nextActiveQueue, [updatedEntry]);
+      if (nextReview > now) {
+        // Card goes to delayed queue — will come back when due
+        nextDelayedQueue = [...nextDelayedQueue, updatedEntry];
+      } else {
+        // Immediately due — put at the front
+        nextActiveQueue = [updatedEntry, ...nextActiveQueue];
+      }
     }
 
     setActiveQueue(nextActiveQueue);
     setDelayedQueue(nextDelayedQueue);
     setNextDueCountdown(getNextDueCountdownLabel(nextDelayedQueue, now));
+    // Always show the first card (which is the most urgent due card)
     setCurrentIdx(0);
 
     if (nextActiveQueue.length === 0 && nextDelayedQueue.length === 0) {
