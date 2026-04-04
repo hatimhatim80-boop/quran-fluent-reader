@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useCallback, useLayoutEffect, useEffect, useRef } from 'react';
+import { ensureGhareebMeaningVisibleAboveBottomBar } from '@/utils/ghareebAutoScroll';
 import { useSRSStore, SRSCard } from '@/stores/srsStore';
 import { SRSReviewSession } from './SRSReviewSession';
 import { ReviewSessionSetup } from './ReviewSessionSetup';
