@@ -412,11 +412,9 @@ export function PageView({
           }
           
           // Normal highlight rendering (non-tahfeez mode)
-          if (info.isPartOfPhrase && info.phraseStart) {
-            const lastPhraseTokenIdx = info.phraseTokens[info.phraseTokens.length - 1];
-            
+          if (info.isPartOfPhrase && (info.phraseStart || sameLineTokens[0]?.tokenIdx === i)) {
             const phraseText: string[] = [];
-            for (let k = i; k <= lastPhraseTokenIdx; k++) {
+            for (let k = i; k <= lastSameLineTokenIdx; k++) {
               phraseText.push(tokenData[k].token);
             }
             
@@ -456,7 +454,7 @@ export function PageView({
               );
             }
             
-            i = lastPhraseTokenIdx + 1;
+            i = lastSameLineTokenIdx + 1;
             continue;
           } else if (!info.isPartOfPhrase) {
             if (disablePopover) {
