@@ -861,28 +861,28 @@
 
   /* Custom single color via CSS variable - overrides rotating colors */
   .ghareeb-word:not(.ghareeb-word--text-only) {
-    background-color: var(--ghareeb-bg-color);
-    border-color: var(--ghareeb-border-color);
+    background-color: var(--ghareeb-bg-color, hsl(48 80% 75% / 0.55));
+    border-color: var(--ghareeb-border-color, hsl(48 80% 55% / 0.5));
   }
 
-  /* Rotating colors - only when no custom color is set (var falls back to initial/transparent) */
-  :root:not([style*="--ghareeb-bg-color"]) .ghareeb-word:not(.ghareeb-word--text-only):nth-child(5n+1) {
+  /* Rotating colors via data-color-idx attribute (reliable, not nth-child) */
+  :root:not([style*="--ghareeb-bg-color"]) .ghareeb-word:not(.ghareeb-word--text-only)[data-color-idx="0"] {
     background-color: hsl(48 80% 75% / 0.55);
     border-color: hsl(48 80% 55% / 0.5);
   }
-  :root:not([style*="--ghareeb-bg-color"]) .ghareeb-word:not(.ghareeb-word--text-only):nth-child(5n+2) {
+  :root:not([style*="--ghareeb-bg-color"]) .ghareeb-word:not(.ghareeb-word--text-only)[data-color-idx="1"] {
     background-color: hsl(200 70% 80% / 0.5);
     border-color: hsl(200 70% 60% / 0.45);
   }
-  :root:not([style*="--ghareeb-bg-color"]) .ghareeb-word:not(.ghareeb-word--text-only):nth-child(5n+3) {
+  :root:not([style*="--ghareeb-bg-color"]) .ghareeb-word:not(.ghareeb-word--text-only)[data-color-idx="2"] {
     background-color: hsl(340 60% 85% / 0.5);
     border-color: hsl(340 60% 65% / 0.45);
   }
-  :root:not([style*="--ghareeb-bg-color"]) .ghareeb-word:not(.ghareeb-word--text-only):nth-child(5n+4) {
+  :root:not([style*="--ghareeb-bg-color"]) .ghareeb-word:not(.ghareeb-word--text-only)[data-color-idx="3"] {
     background-color: hsl(140 55% 78% / 0.5);
     border-color: hsl(140 55% 55% / 0.45);
   }
-  :root:not([style*="--ghareeb-bg-color"]) .ghareeb-word:not(.ghareeb-word--text-only):nth-child(5n+5) {
+  :root:not([style*="--ghareeb-bg-color"]) .ghareeb-word:not(.ghareeb-word--text-only)[data-color-idx="4"] {
     background-color: hsl(270 50% 82% / 0.5);
     border-color: hsl(270 50% 62% / 0.45);
   }
