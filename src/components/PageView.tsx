@@ -337,7 +337,12 @@ export function PageView({
           const isHighlighted =
             highlightedWordIndex === sequentialIndex ||
             (!!highlightedWordKey && info.word.uniqueKey === highlightedWordKey);
-          
+
+          // For cross-line phrases: collect tokens on THIS line
+          const sameLineTokens = info.phraseTokens.filter(ft => ft.lineIdx === lineIdx);
+          const lastSameLineTokenIdx = sameLineTokens.length > 0
+            ? sameLineTokens[sameLineTokens.length - 1].tokenIdx
+            : i;
           // In tahfeez mode: render as plain spans (no ghareeb color) with selection border only
           if (tahfeezMode) {
             const isTSelected = isTahfeezSelected(info.word.surahNumber, info.word.verseNumber, info.word.wordIndex, page.pageNumber);
