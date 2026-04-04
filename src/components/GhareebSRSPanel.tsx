@@ -193,112 +193,40 @@ function GhareebReviewCardContent({
 }) {
   const rootRef = useRef<HTMLDivElement>(null);
 
-  const getScrollParent = useCallback((): HTMLElement | null => {
-    if (!rootRef.current) return null;
-    // Use data attribute first
-    const container = rootRef.current.closest<HTMLElement>('[data-review-scroll-container="true"]');
-    if (container) return container;
-    // Fallback: walk up
-    let el: HTMLElement | null = rootRef.current.parentElement;
-    while (el) {
-      const s = getComputedStyle(el);
-      if (s.overflow === 'auto' || s.overflowY === 'auto' || s.overflow === 'scroll' || s.overflowY === 'scroll') return el;
-      el = el.parentElement;
-    }
-    return null;
-  }, []);
+  // Unified auto-scroll: only when word/meaning hidden behind bottom bar
+  const doScrollCheck = useCallback(() => {
+    if (!rootRef.current) return;
+    const wordEl = rootRef.current.querySelector<HTMLElement>(`[data-ghareeb-key="${card.contentKey}"]`);
+    const meaningEl = rootRef.current.querySelector<HTMLElement>(
+      '[data-ghareeb-tooltip="true"], .ghareeb-inline-answer, .ghareeb-popover'
+    );
+    ensureGhareebMeaningVisibleAboveBottomBar(wordEl, meaningEl, card.contentKey);
+  }, [card.contentKey]);
 
-  const getBottomBarHeight = useCallback((): number => {
-    const scrollParent = getScrollParent();
-    if (!scrollParent) return 0;
-    // Find the fixed bottom action bar
-    const parent = scrollParent.parentElement;
-    if (!parent) return 0;
-    const actionBar = parent.querySelector<HTMLElement>('.border-t.border-border.bg-card\\/80');
-    if (actionBar) return actionBar.getBoundingClientRect().height;
-    // Fallback: find last child that's shrink-0
-    const children = parent.children;
-    let bottomH = 0;
-    for (let i = children.length - 1; i >= 0; i--) {
-      const child = children[i] as HTMLElement;
-      if (child === scrollParent) break;
-      bottomH += child.getBoundingClientRect().height;
-    }
-    return Math.max(bottomH, 120);
-  }, [getScrollParent]);
-
-  const scrollWithBottomReserve = useCallback((target: HTMLElement, bias = 0.45) => {
-    const scrollParent = getScrollParent();
-    if (!scrollParent) {
-      target.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      return;
-    }
-
-    const bottomReserve = getBottomBarHeight() + 20;
-    const parentRect = scrollParent.getBoundingClientRect();
-    const targetRect = target.getBoundingClientRect();
-    const usableHeight = parentRect.height - bottomReserve;
-    const nextTop = scrollParent.scrollTop + (targetRect.top - parentRect.top) - (usableHeight * bias) + (targetRect.height / 2);
-    scrollParent.scrollTo({ top: Math.max(0, nextTop), behavior: 'smooth' });
-  }, [getScrollParent, getBottomBarHeight]);
-
-  // Check if element is behind bottom bar
-  const isHiddenBehindBar = useCallback((el: HTMLElement): boolean => {
-    const scrollParent = getScrollParent();
-    if (!scrollParent) return false;
-    const bottomBarH = getBottomBarHeight();
-    const parentRect = scrollParent.getBoundingClientRect();
-    const elRect = el.getBoundingClientRect();
-    const visibleBottom = parentRect.bottom - bottomBarH;
-    return elRect.bottom > visibleBottom || elRect.top < parentRect.top + 10;
-  }, [getScrollParent, getBottomBarHeight]);
-
-  // Auto-scroll to highlighted word
+  // Auto-scroll to highlighted word on card change
   useEffect(() => {
-    const timer = setTimeout(() => {
-      if (!rootRef.current) return;
-      const wordEl = rootRef.current.querySelector<HTMLElement>(`[data-ghareeb-key="${card.contentKey}"]`);
-      if (!wordEl) return;
-      if (isHiddenBehindBar(wordEl)) {
-        scrollWithBottomReserve(wordEl);
-      }
-    }, 250);
+    const timer = setTimeout(() => requestAnimationFrame(doScrollCheck), 250);
     return () => clearTimeout(timer);
-  }, [card.contentKey, card.id, scrollWithBottomReserve, isHiddenBehindBar]);
+  }, [card.contentKey, card.id, doScrollCheck]);
 
   // Auto-scroll when answer is revealed
   useEffect(() => {
     if (!answerRevealed) return;
-    const doScroll = () => {
-      if (!rootRef.current) return;
-      const answerEl = rootRef.current.querySelector<HTMLElement>('[data-ghareeb-tooltip], .ghareeb-inline-answer, .ghareeb-popover');
-      const targetEl = answerEl || rootRef.current.querySelector<HTMLElement>(`[data-ghareeb-key="${card.contentKey}"]`);
-      if (!targetEl) return;
-      if (isHiddenBehindBar(targetEl)) {
-        scrollWithBottomReserve(targetEl, 0.35);
-      }
-    };
-    const t1 = setTimeout(doScroll, 150);
-    const t2 = setTimeout(doScroll, 500);
+    const t1 = setTimeout(() => requestAnimationFrame(doScrollCheck), 200);
+    const t2 = setTimeout(() => requestAnimationFrame(doScrollCheck), 600);
     return () => { clearTimeout(t1); clearTimeout(t2); };
-  }, [answerRevealed, card.contentKey, scrollWithBottomReserve, isHiddenBehindBar]);
+  }, [answerRevealed, doScrollCheck]);
 
   // Re-check on resize/orientation change
   useEffect(() => {
-    const handleResize = () => {
-      if (!rootRef.current) return;
-      const wordEl = rootRef.current.querySelector<HTMLElement>(`[data-ghareeb-key="${card.contentKey}"]`);
-      if (wordEl && isHiddenBehindBar(wordEl)) {
-        scrollWithBottomReserve(wordEl);
-      }
-    };
-    window.addEventListener('resize', handleResize, { passive: true });
-    window.addEventListener('orientationchange', handleResize);
+    const handler = () => requestAnimationFrame(doScrollCheck);
+    window.addEventListener('resize', handler, { passive: true });
+    window.addEventListener('orientationchange', handler);
     return () => {
-      window.removeEventListener('resize', handleResize);
-      window.removeEventListener('orientationchange', handleResize);
+      window.removeEventListener('resize', handler);
+      window.removeEventListener('orientationchange', handler);
     };
-  }, [card.contentKey, scrollWithBottomReserve, isHiddenBehindBar]);
+  }, [doScrollCheck]);
 
   return (
     <div ref={rootRef} className="p-2 pb-32 relative" data-ghareeb-review-root="true">
