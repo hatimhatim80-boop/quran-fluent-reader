@@ -54,69 +54,8 @@ function isBismillah(line: string): boolean {
   return normalized.includes('بسم الله الرحمن الرحيم') || normalized.includes('بسم الله');
 }
 
-// Strict word matching: require exact match or close substring (max 2 chars difference)
-function isStrictMatch(tokenNorm: string, phraseWord: string): boolean {
-  if (tokenNorm === phraseWord) return true;
-  const lenDiff = Math.abs(tokenNorm.length - phraseWord.length);
-  if (lenDiff > 2) return false;
-  // Must also share at least 80% of the shorter length
-  const shorter = Math.min(tokenNorm.length, phraseWord.length);
-  if (shorter < 3) return false; // Don't allow substring match for very short words
-  return tokenNorm.includes(phraseWord) || phraseWord.includes(tokenNorm);
-}
-
+// ── Kept for verse-number rendering only ──
 const PAGE_TOKEN_CLEAN_RE = /[﴿﴾()[\]{}۝۞٭؟،۔ۣۖۗۘۙۚۛۜ۟۠ۡۢۤۥۦۧۨ۩۪ۭ۫۬]/g;
-
-function parseVerseNumber(value: string): number | null {
-  const latinized = value
-    .replace(/[٠-٩]/g, (digit) => String('٠١٢٣٤٥٦٧٨٩'.indexOf(digit)))
-    .replace(/[۰-۹]/g, (digit) => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(digit)));
-  const parsed = Number.parseInt(latinized, 10);
-  return Number.isFinite(parsed) ? parsed : null;
-}
-
-function buildLineTokenData(line: string) {
-  const tokens = line.split(/(\s+)/);
-  return tokens.map((token, idx) => {
-    const isSpace = /^\s+$/.test(token);
-    const cleanToken = token.replace(PAGE_TOKEN_CLEAN_RE, '').trim();
-    const isVerseNumber = !isSpace && /^[٠-٩0-9۰-۹]+$/.test(cleanToken);
-
-    return {
-      token,
-      idx,
-      isSpace,
-      isVerseNumber,
-      cleanToken,
-      normalized: isSpace || isVerseNumber ? '' : normalizeArabic(token),
-    };
-  });
-}
-
-function resolveClosingVerseNumber(lines: string[], startLineIdx: number, startTokenIdx: number): number | null {
-  for (let lineIdx = startLineIdx; lineIdx < lines.length; lineIdx++) {
-    const line = lines[lineIdx];
-    if (isSurahHeader(line)) continue;
-    const tokenData = buildLineTokenData(line);
-    const fromToken = lineIdx === startLineIdx ? startTokenIdx : 0;
-    for (let tokenIdx = fromToken; tokenIdx < tokenData.length; tokenIdx++) {
-      const token = tokenData[tokenIdx];
-      if (!token.isVerseNumber) continue;
-      return parseVerseNumber(token.cleanToken);
-    }
-  }
-  return null;
-}
-
-interface MatchedWord {
-  word: GhareebWord;
-  originalIndex: number;
-  lineIdx: number;
-  tokenIdx: number;
-  isPartOfPhrase: boolean;
-  phraseStart: boolean;
-  phraseTokens: number[];
-}
 
 export function PageView({
   page,
