@@ -4,6 +4,7 @@ import { useAutoFlowFit } from '@/hooks/useAutoFlowFit';
 import { useAutoFit15Lines } from '@/hooks/useAutoFit15Lines';
 import { QuranPage, GhareebWord } from '@/types/quran';
 import { normalizeArabic } from '@/utils/quranParser';
+import { canonicalize, buildFlatTokens, matchGhareebToTokens, buildTokenMatchMap, type TokenMatchInfo } from '@/utils/canonicalMatch';
 import { GhareebWordPopover } from './GhareebWordPopover';
 import { useHighlightOverrideStore } from '@/stores/highlightOverrideStore';
 import { useSettingsStore } from '@/stores/settingsStore';
@@ -53,69 +54,8 @@ function isBismillah(line: string): boolean {
   return normalized.includes('بسم الله الرحمن الرحيم') || normalized.includes('بسم الله');
 }
 
-// Strict word matching: require exact match or close substring (max 2 chars difference)
-function isStrictMatch(tokenNorm: string, phraseWord: string): boolean {
-  if (tokenNorm === phraseWord) return true;
-  const lenDiff = Math.abs(tokenNorm.length - phraseWord.length);
-  if (lenDiff > 2) return false;
-  // Must also share at least 80% of the shorter length
-  const shorter = Math.min(tokenNorm.length, phraseWord.length);
-  if (shorter < 3) return false; // Don't allow substring match for very short words
-  return tokenNorm.includes(phraseWord) || phraseWord.includes(tokenNorm);
-}
-
+// ── Kept for verse-number rendering only ──
 const PAGE_TOKEN_CLEAN_RE = /[﴿﴾()[\]{}۝۞٭؟،۔ۣۖۗۘۙۚۛۜ۟۠ۡۢۤۥۦۧۨ۩۪ۭ۫۬]/g;
-
-function parseVerseNumber(value: string): number | null {
-  const latinized = value
-    .replace(/[٠-٩]/g, (digit) => String('٠١٢٣٤٥٦٧٨٩'.indexOf(digit)))
-    .replace(/[۰-۹]/g, (digit) => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(digit)));
-  const parsed = Number.parseInt(latinized, 10);
-  return Number.isFinite(parsed) ? parsed : null;
-}
-
-function buildLineTokenData(line: string) {
-  const tokens = line.split(/(\s+)/);
-  return tokens.map((token, idx) => {
-    const isSpace = /^\s+$/.test(token);
-    const cleanToken = token.replace(PAGE_TOKEN_CLEAN_RE, '').trim();
-    const isVerseNumber = !isSpace && /^[٠-٩0-9۰-۹]+$/.test(cleanToken);
-
-    return {
-      token,
-      idx,
-      isSpace,
-      isVerseNumber,
-      cleanToken,
-      normalized: isSpace || isVerseNumber ? '' : normalizeArabic(token),
-    };
-  });
-}
-
-function resolveClosingVerseNumber(lines: string[], startLineIdx: number, startTokenIdx: number): number | null {
-  for (let lineIdx = startLineIdx; lineIdx < lines.length; lineIdx++) {
-    const line = lines[lineIdx];
-    if (isSurahHeader(line)) continue;
-    const tokenData = buildLineTokenData(line);
-    const fromToken = lineIdx === startLineIdx ? startTokenIdx : 0;
-    for (let tokenIdx = fromToken; tokenIdx < tokenData.length; tokenIdx++) {
-      const token = tokenData[tokenIdx];
-      if (!token.isVerseNumber) continue;
-      return parseVerseNumber(token.cleanToken);
-    }
-  }
-  return null;
-}
-
-interface MatchedWord {
-  word: GhareebWord;
-  originalIndex: number;
-  lineIdx: number;
-  tokenIdx: number;
-  isPartOfPhrase: boolean;
-  phraseStart: boolean;
-  phraseTokens: number[];
-}
 
 export function PageView({
   page,
@@ -218,145 +158,20 @@ export function PageView({
     return contextMap;
   }, [effectivePageText, page.surahName]);
 
-  // First pass: determine which words are matched and in what order
-  const matchedWordsInOrder = useMemo((): MatchedWord[] => {
-    if (!effectivePageText || ghareebWords.length === 0) return [];
-
+  // ── New canonical matching engine (cross-line phrase support) ──
+  const flatTokens = useMemo(() => {
+    if (!effectivePageText) return [];
     const lines = effectivePageText.split('\n');
-    const matched: MatchedWord[] = [];
+    return buildFlatTokens(lines, isSurahHeader, isBismillah);
+  }, [effectivePageText]);
 
-    // Prepare ghareeb entries
-    const ghareebEntries = ghareebWords.map((gw, idx) => {
-      const normalizedFull = normalizeArabic(gw.wordText);
-      const words = normalizedFull.split(/\s+/).filter(w => w.length >= 2);
-      return {
-        original: gw,
-        originalIndex: idx,
-        normalizedFull,
-        words,
-        wordCount: words.length,
-        normalizedSurah: normalizeSurahName(gw.surahName),
-      };
-    });
+  const matchResults = useMemo(() => {
+    return matchGhareebToTokens(flatTokens, ghareebWords, surahContextByLine);
+  }, [flatTokens, ghareebWords, surahContextByLine]);
 
-    // Sort by word count descending for greedy matching
-    const sortedEntries = [...ghareebEntries].sort((a, b) => b.wordCount - a.wordCount);
-
-    // We must run matching passes across the WHOLE page (all lines)
-    // so an earlier loose match can't steal an entry that has a later exact match.
-    // Example: "وَسَعَىٰ" (2:114) contains "وسع" as a substring, but "وَٰسِعٌ" (2:115)
-    // is the true exact match we want to prefer.
-    const usedOriginalIndices = new Set<number>();
-    const matchedTokenKeys = new Set<string>(); // `${lineIdx}_${tokenIdx}`
-
-    const runMatchPass = (matchPass: 'exact' | 'loose') => {
-      for (let lineIdx = 0; lineIdx < lines.length; lineIdx++) {
-        const line = lines[lineIdx];
-        if (isSurahHeader(line) || isBismillah(line)) continue;
-
-        const localSurah = surahContextByLine[lineIdx] || '';
-        const normalizedLocalSurah = normalizeSurahName(localSurah);
-
-        // Split line into tokens
-        const tokenData = buildLineTokenData(line);
-
-        for (const entry of sortedEntries) {
-          if (usedOriginalIndices.has(entry.originalIndex)) continue;
-          if (entry.words.length === 0) continue;
-
-          const surahMatch =
-            normalizedLocalSurah === '' ||
-            entry.normalizedSurah === normalizedLocalSurah ||
-            entry.normalizedSurah.includes(normalizedLocalSurah) ||
-            normalizedLocalSurah.includes(entry.normalizedSurah);
-          if (!surahMatch) continue;
-
-          for (let i = 0; i < tokenData.length; i++) {
-            const startKey = `${lineIdx}_${i}`;
-            if (
-              tokenData[i].isSpace ||
-              tokenData[i].isVerseNumber ||
-              matchedTokenKeys.has(startKey)
-            ) {
-              continue;
-            }
-
-            let phraseWordIdx = 0;
-            const matchedTokens: number[] = [];
-            let j = i;
-
-            while (j < tokenData.length && phraseWordIdx < entry.words.length) {
-              const key = `${lineIdx}_${j}`;
-
-              if (tokenData[j].isSpace) {
-                j++;
-                continue;
-              }
-              if (tokenData[j].isVerseNumber) {
-                j++;
-                continue;
-              }
-              if (matchedTokenKeys.has(key)) break;
-
-              const tokenNorm = tokenData[j].normalized;
-              const phraseWord = entry.words[phraseWordIdx];
-
-              const isExact = tokenNorm === phraseWord;
-              const isLoose = !isExact && isStrictMatch(tokenNorm, phraseWord);
-
-              const ok = matchPass === 'exact' ? isExact : isExact || isLoose;
-              if (ok) {
-                matchedTokens.push(j);
-                phraseWordIdx++;
-                j++;
-              } else {
-                break;
-              }
-            }
-
-            if (phraseWordIdx === entry.words.length && matchedTokens.length > 0) {
-              const resolvedVerseNumber = resolveClosingVerseNumber(lines, lineIdx, matchedTokens[matchedTokens.length - 1]);
-              if (resolvedVerseNumber !== null && resolvedVerseNumber !== entry.original.verseNumber) {
-                continue;
-              }
-
-              // Reserve tokens globally so later passes/lines can't reuse them
-              matchedTokens.forEach((tokIdx) => matchedTokenKeys.add(`${lineIdx}_${tokIdx}`));
-              usedOriginalIndices.add(entry.originalIndex);
-
-              matched.push({
-                word: entry.original,
-                originalIndex: entry.originalIndex,
-                lineIdx,
-                tokenIdx: matchedTokens[0],
-                isPartOfPhrase: matchedTokens.length > 1,
-                phraseStart: true,
-                phraseTokens: matchedTokens,
-              });
-              break;
-            }
-          }
-        }
-      }
-    };
-
-    // Pass 1: exact matches across whole page
-    runMatchPass('exact');
-    // Pass 2: loose matches for remaining entries
-    runMatchPass('loose');
-
-    // Sort by reading order: line index first, then token index within line
-    matched.sort((a, b) => a.lineIdx !== b.lineIdx ? a.lineIdx - b.lineIdx : a.tokenIdx - b.tokenIdx);
-    return matched;
-  }, [effectivePageText, ghareebWords, surahContextByLine]);
-
-  // Create the actual rendered words list with sequential indices
   const renderedWords = useMemo((): GhareebWord[] => {
-    return matchedWordsInOrder.map((m, idx) => ({
-      ...m.word,
-      order: idx, // Sequential order 0..N-1
-    }));
-  }, [matchedWordsInOrder]);
+    return matchResults.map((m, idx) => ({ ...m.word, order: idx }));
+  }, [matchResults]);
 
   // Notify parent when rendered words change
   useEffect(() => {
@@ -368,40 +183,9 @@ export function PageView({
     }
   }, [renderedWords, onRenderedWordsChange]);
 
-  // Create a map from originalIndex to sequentialIndex for rendering
-  const originalToSequentialIndex = useMemo(() => {
-    const map = new Map<number, number>();
-    matchedWordsInOrder.forEach((m, sequentialIdx) => {
-      map.set(m.originalIndex, sequentialIdx);
-    });
-    return map;
-  }, [matchedWordsInOrder]);
-
-  // Build a token-level lookup map from the first pass results
-  // Key: "lineIdx_tokenIdx" → match info
   const tokenMatchMap = useMemo(() => {
-    const map = new Map<string, {
-      originalIndex: number;
-      word: GhareebWord;
-      sequentialIndex: number;
-      isPartOfPhrase: boolean;
-      phraseStart: boolean;
-      phraseTokens: number[];
-    }>();
-    matchedWordsInOrder.forEach((m, seqIdx) => {
-      m.phraseTokens.forEach((tokIdx, idx) => {
-        map.set(`${m.lineIdx}_${tokIdx}`, {
-          originalIndex: m.originalIndex,
-          word: m.word,
-          sequentialIndex: seqIdx,
-          isPartOfPhrase: m.phraseTokens.length > 1,
-          phraseStart: idx === 0,
-          phraseTokens: m.phraseTokens,
-        });
-      });
-    });
-    return map;
-  }, [matchedWordsInOrder]);
+    return buildTokenMatchMap(matchResults);
+  }, [matchResults]);
 
   const renderedContent = useMemo(() => {
     if (!effectivePageText) return null;
@@ -553,7 +337,12 @@ export function PageView({
           const isHighlighted =
             highlightedWordIndex === sequentialIndex ||
             (!!highlightedWordKey && info.word.uniqueKey === highlightedWordKey);
-          
+
+          // For cross-line phrases: collect tokens on THIS line
+          const sameLineTokens = info.phraseTokens.filter(ft => ft.lineIdx === lineIdx);
+          const lastSameLineTokenIdx = sameLineTokens.length > 0
+            ? sameLineTokens[sameLineTokens.length - 1].tokenIdx
+            : i;
           // In tahfeez mode: render as plain spans (no ghareeb color) with selection border only
           if (tahfeezMode) {
             const isTSelected = isTahfeezSelected(info.word.surahNumber, info.word.verseNumber, info.word.wordIndex, page.pageNumber);
@@ -591,10 +380,9 @@ export function PageView({
               }
             };
 
-            if (info.isPartOfPhrase && info.phraseStart) {
-              const lastPhraseTokenIdx = info.phraseTokens[info.phraseTokens.length - 1];
+            if (info.isPartOfPhrase && (info.phraseStart || sameLineTokens[0]?.tokenIdx === i)) {
               const phraseText: string[] = [];
-              for (let k = i; k <= lastPhraseTokenIdx; k++) {
+              for (let k = i; k <= lastSameLineTokenIdx; k++) {
                 phraseText.push(tokenData[k].token);
               }
               lineElements.push(
@@ -606,7 +394,7 @@ export function PageView({
                   {phraseText.join('')}
                 </span>
               );
-              i = lastPhraseTokenIdx + 1;
+              i = lastSameLineTokenIdx + 1;
               continue;
             } else if (!info.isPartOfPhrase) {
               lineElements.push(
@@ -624,11 +412,9 @@ export function PageView({
           }
           
           // Normal highlight rendering (non-tahfeez mode)
-          if (info.isPartOfPhrase && info.phraseStart) {
-            const lastPhraseTokenIdx = info.phraseTokens[info.phraseTokens.length - 1];
-            
+          if (info.isPartOfPhrase && (info.phraseStart || sameLineTokens[0]?.tokenIdx === i)) {
             const phraseText: string[] = [];
-            for (let k = i; k <= lastPhraseTokenIdx; k++) {
+            for (let k = i; k <= lastSameLineTokenIdx; k++) {
               phraseText.push(tokenData[k].token);
             }
             
@@ -668,7 +454,7 @@ export function PageView({
               );
             }
             
-            i = lastPhraseTokenIdx + 1;
+            i = lastSameLineTokenIdx + 1;
             continue;
           } else if (!info.isPartOfPhrase) {
             if (disablePopover) {

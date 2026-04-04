@@ -281,7 +281,7 @@ export function ReviewSessionSetup({
       {/* Session type */}
       <div className="bg-card border border-border rounded-lg p-3 space-y-2">
         <h3 className="font-bold text-sm">نوع الجلسة</h3>
-        <div className="grid grid-cols-3 gap-1.5">
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
           {SESSION_TYPE_OPTIONS.map(opt => (
             <button
               key={opt.value}
@@ -309,10 +309,10 @@ export function ReviewSessionSetup({
       {/* Archive filter */}
       {sessionType !== 'archived-only' && sessionType !== 'flagged' && (
         <div className="bg-card border border-border rounded-lg p-3">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
             <span className="text-sm">فلتر الأرشفة</span>
             <Select value={archiveFilter} onValueChange={(v) => setArchiveFilter(v as ArchiveFilter)}>
-              <SelectTrigger className="w-40 h-8 text-xs font-arabic"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="w-full sm:w-40 h-8 text-xs font-arabic"><SelectValue /></SelectTrigger>
               <SelectContent>
                 {ARCHIVE_FILTER_OPTIONS.map(o => (
                   <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
@@ -325,10 +325,10 @@ export function ReviewSessionSetup({
 
       {/* Order */}
       <div className="bg-card border border-border rounded-lg p-3">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
           <span className="text-sm">ترتيب الجلسة</span>
           <Select value={order} onValueChange={(v) => setOrder(v as SessionOrder)}>
-            <SelectTrigger className="w-44 h-8 text-xs font-arabic"><SelectValue /></SelectTrigger>
+            <SelectTrigger className="w-full sm:w-44 h-8 text-xs font-arabic"><SelectValue /></SelectTrigger>
             <SelectContent>
               {ORDER_OPTIONS.map(o => (
                 <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
