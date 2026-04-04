@@ -65,6 +65,7 @@ export interface SRSCard {
 
   // Extended fields
   flagged?: boolean;
+  archived?: boolean;
   tags?: string[];
   successCount?: number;
   failCount?: number;
@@ -135,6 +136,9 @@ interface SRSState {
   removeCard: (id: string) => void;
   hasCard: (id: string) => boolean;
   toggleFlag: (id: string) => void;
+  archiveCard: (id: string) => void;
+  unarchiveCard: (id: string) => void;
+  getArchivedCards: (type?: SRSCard['type']) => SRSCard[];
   addTag: (id: string, tag: string) => void;
   removeTag: (id: string, tag: string) => void;
 
@@ -183,6 +187,20 @@ export const useSRSStore = create<SRSState>()(
 
       toggleFlag: (id) => {
         set({ cards: get().cards.map(c => c.id === id ? { ...c, flagged: !c.flagged } : c) });
+      },
+
+      archiveCard: (id) => {
+        set({ cards: get().cards.map(c => c.id === id ? { ...c, archived: true } : c) });
+      },
+
+      unarchiveCard: (id) => {
+        set({ cards: get().cards.map(c => c.id === id ? { ...c, archived: false } : c) });
+      },
+
+      getArchivedCards: (type) => {
+        let cards = get().cards.filter(c => c.archived);
+        if (type) cards = cards.filter(c => c.type === type);
+        return cards;
       },
 
       addTag: (id, tag) => {
@@ -244,7 +262,7 @@ export const useSRSStore = create<SRSState>()(
 
       getDueCards: (type, maxCount, pageFilter) => {
         const now = Date.now();
-        let due = get().cards.filter(c => c.nextReview <= now && !c.flagged);
+        let due = get().cards.filter(c => c.nextReview <= now && !c.flagged && !c.archived);
         if (type) due = due.filter(c => c.type === type);
         if (pageFilter && pageFilter.length > 0) {
           const pageSet = new Set(pageFilter);
