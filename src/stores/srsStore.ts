@@ -65,6 +65,7 @@ export interface SRSCard {
 
   // Extended fields
   flagged?: boolean;
+  archived?: boolean;
   tags?: string[];
   successCount?: number;
   failCount?: number;
