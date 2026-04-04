@@ -56,11 +56,11 @@ export function SRSReviewSession({
   const [answerMode, setAnswerMode] = useState<AnswerDisplayMode>(defaultAnswerMode);
 
   // Dual-queue system
-  const [activeQueue, setActiveQueue] = useState<ReviewQueueEntry[]>(() => partitionSessionCards(cards).activeQueue);
-  const [delayedQueue, setDelayedQueue] = useState<ReviewQueueEntry[]>(() => partitionSessionCards(cards).delayedQueue);
+  const [activeQueue, setActiveQueue] = useState<ReviewQueueEntry[]>([]);
+  const [delayedQueue, setDelayedQueue] = useState<ReviewQueueEntry[]>([]);
   const [currentIdx, setCurrentIdx] = useState(0);
   const [reviewedCount, setReviewedCount] = useState(0);
-  const [totalSeen, setTotalSeen] = useState(cards.length);
+  const [totalSeen, setTotalSeen] = useState(1);
   const [reviewedIds, setReviewedIds] = useState<Set<string>>(new Set());
   const [ratingsMap, setRatingsMap] = useState<Map<string, SRSRating>>(new Map());
   const [archivedIds, setArchivedIds] = useState<Set<string>>(new Set());

@@ -292,6 +292,7 @@ export function GhareebWordPopover({
         style={activeWordStyle}
         data-ghareeb-index={index}
         data-ghareeb-key={word.uniqueKey}
+        data-color-idx={index % 5}
         data-surah-number={word.surahNumber}
         data-verse={word.verseNumber}
         data-word-index={word.wordIndex}

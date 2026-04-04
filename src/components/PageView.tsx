@@ -641,6 +641,7 @@ export function PageView({
                   className={`ghareeb-word quran-word ${isHighlighted ? 'ghareeb-word--active' : ''}`}
                   data-ghareeb-index={sequentialIndex}
                   data-ghareeb-key={info.word.uniqueKey}
+                  data-color-idx={sequentialIndex % 5}
                 >
                   {phrase}
                 </span>
@@ -677,6 +678,7 @@ export function PageView({
                   className={`ghareeb-word quran-word ${isHighlighted ? 'ghareeb-word--active' : ''}`}
                   data-ghareeb-index={sequentialIndex}
                   data-ghareeb-key={info.word.uniqueKey}
+                  data-color-idx={sequentialIndex % 5}
                 >
                   {td.token}
                 </span>

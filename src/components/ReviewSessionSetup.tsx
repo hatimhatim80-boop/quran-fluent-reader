@@ -94,7 +94,7 @@ export function ReviewSessionSetup({
           scopePages
             ? getDueCards(undefined, undefined, scopePages)
             : getDueCards()
-        ).filter(c => typeFilters ? typeFilters.includes(c.type) : true);
+        );
         break;
       case 'new':
         pool = filterByType(cards).filter(c =>
@@ -108,7 +108,7 @@ export function ReviewSessionSetup({
       case 'mixed': {
         const due = filterByType(
           scopePages ? getDueCards(undefined, undefined, scopePages) : getDueCards()
-        ).filter(c => typeFilters ? typeFilters.includes(c.type) : true);
+        );
         const newCards = filterByType(cards).filter(c =>
           c.repetitions === 0 && !c.archived && !c.flagged
         );
