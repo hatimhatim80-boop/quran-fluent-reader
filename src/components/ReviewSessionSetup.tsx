@@ -281,7 +281,7 @@ export function ReviewSessionSetup({
       {/* Session type */}
       <div className="bg-card border border-border rounded-lg p-3 space-y-2">
         <h3 className="font-bold text-sm">نوع الجلسة</h3>
-        <div className="grid grid-cols-3 gap-1.5">
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
           {SESSION_TYPE_OPTIONS.map(opt => (
             <button
               key={opt.value}
