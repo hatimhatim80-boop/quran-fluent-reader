@@ -2,37 +2,62 @@
  * Ghareeb-portal-only auto-scroll helper.
  * Scrolls content ONLY when the active word or meaning frame
  * would be hidden behind the bottom action bar.
+ *
+ * Rules:
+ * - No scroll if element is fully within [safeTop, safeBottom]
+ * - safeBottom = top of bottom bar − margin (measured live via getBoundingClientRect)
+ * - Minimum delta threshold to avoid micro-scrolls
+ * - Debounce to prevent loops/jitter
  */
 
-const DEBUG = false; // flip to true during dev, remove in production
+/** Minimum scroll delta to bother scrolling (px) */
+const MIN_SCROLL_DELTA = 16;
 
-interface ScrollCheckResult {
-  needed: boolean;
-  scrollDelta: number;
-  target: 'word' | 'meaning' | 'none';
-  targetBottom: number;
-  safeVisibleBottom: number;
-}
+/** Anti-bounce guard: don't re-scroll within this window */
+const SCROLL_COOLDOWN = 350;
+let lastScrollTime = 0;
+let lastScrolledKey: string | null = null;
 
-/** Get the bottom bar height from a scroll container's parent */
-function getBottomBarHeight(scrollContainer: HTMLElement): number {
+/**
+ * Find the real bottom bar / action panel that overlaps the scroll area.
+ * Searches the DOM for known Ghareeb bottom-bar elements.
+ */
+function findBottomBarTop(scrollContainer: HTMLElement): number | null {
+  // 1) Explicit data attribute
+  const tagged = document.querySelector<HTMLElement>('[data-ghareeb-bottom-bar]');
+  if (tagged) return tagged.getBoundingClientRect().top;
+
+  // 2) Walk up from scroll container and find fixed/sticky siblings below it
   const parent = scrollContainer.parentElement;
-  if (!parent) return 0;
+  if (!parent) return null;
 
-  // Try known action bar selector
-  const actionBar = parent.querySelector<HTMLElement>(
-    '.border-t.border-border, [data-ghareeb-bottom-bar]'
-  );
-  if (actionBar) return actionBar.getBoundingClientRect().height;
-
-  // Fallback: sum heights of siblings after the scroll container
-  const children = Array.from(parent.children);
+  const children = Array.from(parent.children) as HTMLElement[];
   const scIdx = children.indexOf(scrollContainer);
-  let h = 0;
+  let topmost: number | null = null;
+
   for (let i = scIdx + 1; i < children.length; i++) {
-    h += (children[i] as HTMLElement).getBoundingClientRect().height;
+    const rect = children[i].getBoundingClientRect();
+    if (rect.height < 2) continue; // skip invisible
+    const t = rect.top;
+    if (topmost === null || t < topmost) topmost = t;
   }
-  return h || 0;
+
+  // 3) Also check for common fixed bottom bars outside the parent
+  if (topmost === null) {
+    const fixedBars = document.querySelectorAll<HTMLElement>(
+      '.border-t.border-border, [class*="fixed"][class*="bottom"], [class*="sticky"][class*="bottom"]'
+    );
+    for (const bar of fixedBars) {
+      // Make sure it's actually at the bottom area
+      const r = bar.getBoundingClientRect();
+      if (r.height < 10) continue;
+      if (r.top > window.innerHeight * 0.5) {
+        if (topmost === null || r.top < topmost) topmost = r.top;
+      }
+    }
+  }
+
+  return topmost;
 }
 
 /** Get the safe-area inset at the bottom (for notched phones) */
@@ -43,10 +68,8 @@ function getSafeAreaBottom(): number {
 
 /** Find the scroll container for a given element */
 export function findGhareebScrollParent(el: HTMLElement): HTMLElement | null {
-  // data attribute first
   const tagged = el.closest<HTMLElement>('[data-review-scroll-container="true"]');
   if (tagged) return tagged;
-  // walk up
   let node: HTMLElement | null = el.parentElement;
   while (node) {
     const s = getComputedStyle(node);
@@ -57,56 +80,9 @@ export function findGhareebScrollParent(el: HTMLElement): HTMLElement | null {
 }
 
 /**
- * Check if an element is hidden behind the bottom bar and compute
- * the minimum scroll delta needed to reveal it.
- */
-function checkVisibility(
-  target: HTMLElement,
-  scrollContainer: HTMLElement,
-  extraMargin = 12
-): ScrollCheckResult {
-  const scRect = scrollContainer.getBoundingClientRect();
-  const bottomBarH = getBottomBarHeight(scrollContainer);
-  const safeInset = getSafeAreaBottom();
-  const bottomSafeZone = bottomBarH + safeInset + extraMargin;
-  const safeVisibleBottom = scRect.bottom - bottomSafeZone;
-
-  const tRect = target.getBoundingClientRect();
-
-  // Also check if above viewport (scrolled past)
-  const isAbove = tRect.bottom < scRect.top + 10;
-  const isBelow = tRect.bottom > safeVisibleBottom;
-
-  const needed = isAbove || isBelow;
-  let scrollDelta = 0;
-  if (isBelow) {
-    // Scroll down just enough to bring target.bottom to safeVisibleBottom
-    scrollDelta = tRect.bottom - safeVisibleBottom;
-  } else if (isAbove) {
-    // Scroll up to bring target into view near top
-    scrollDelta = tRect.top - scRect.top - 20;
-  }
-
-  return {
-    needed,
-    scrollDelta,
-    target: 'word',
-    targetBottom: tRect.bottom,
-    safeVisibleBottom,
-  };
-}
-
-/** Anti-bounce guard: don't re-scroll within 300ms */
-let lastScrollTime = 0;
-const SCROLL_COOLDOWN = 300;
-
-/**
  * Main entry: ensure the ghareeb word + its meaning frame are visible
  * above the bottom bar. Scrolls only the minimum amount needed.
- *
- * @param wordEl - the highlighted word/phrase element
- * @param meaningEl - the meaning popover/tooltip/frame (optional)
- * @param wordKey - for debug logging
+ * Does NOT scroll if elements are already fully visible.
  */
 export function ensureGhareebMeaningVisibleAboveBottomBar(
   wordEl: HTMLElement | null,
@@ -118,59 +94,71 @@ export function ensureGhareebMeaningVisibleAboveBottomBar(
   const scrollContainer = findGhareebScrollParent(wordEl);
   if (!scrollContainer) return;
 
+  // Cooldown: don't re-scroll for same key within window
   const now = Date.now();
-  if (now - lastScrollTime < SCROLL_COOLDOWN) return;
+  if (now - lastScrollTime < SCROLL_COOLDOWN && lastScrolledKey === (wordKey || '')) return;
 
-  // Check meaning frame first (it's usually below the word)
-  const primaryTarget = meaningEl || wordEl;
-  const wordCheck = checkVisibility(wordEl, scrollContainer);
-  const meaningCheck = meaningEl ? checkVisibility(meaningEl, scrollContainer) : null;
+  const scRect = scrollContainer.getBoundingClientRect();
+  const safeTop = scRect.top;
+  const extraMargin = 14;
+  const safeAreaBottom = getSafeAreaBottom();
 
-  // Determine if scroll is needed
-  const needScroll = wordCheck.needed || (meaningCheck?.needed ?? false);
+  // Compute safeBottom from real bottom bar position
+  const bottomBarTop = findBottomBarTop(scrollContainer);
+  const safeBottom = bottomBarTop !== null
+    ? bottomBarTop - extraMargin - safeAreaBottom
+    : scRect.bottom - extraMargin; // fallback: bottom of scroll container
 
-  if (DEBUG) {
-    console.log('[GhareebAutoScroll]', {
-      wordKey,
-      target: meaningCheck?.needed ? 'meaning' : wordCheck.needed ? 'word' : 'none',
-      wordBottom: wordCheck.targetBottom,
-      meaningBottom: meaningCheck?.targetBottom,
-      safeVisibleBottom: wordCheck.safeVisibleBottom,
-      wordDelta: wordCheck.scrollDelta,
-      meaningDelta: meaningCheck?.scrollDelta,
-      scrollExecuted: needScroll,
-    });
-  }
+  // Determine the primary target to keep visible
+  // Check both word and meaning, use the one that extends furthest down
+  const wordRect = wordEl.getBoundingClientRect();
+  const meaningRect = meaningEl?.getBoundingClientRect() ?? null;
 
-  if (!needScroll) return;
+  // Find the element whose bottom is furthest down (most likely to be hidden)
+  let targetBottom = wordRect.bottom;
+  let targetTop = wordRect.top;
+  let targetLabel: 'word' | 'meaning' = 'word';
 
-  lastScrollTime = now;
+  if (meaningRect && meaningRect.height > 0) {
+    // For very tall meaning frames, cap at top + 220px
+    const effectiveMeaningBottom = meaningRect.height > 250
+      ? meaningRect.top + 220
+      : meaningRect.bottom;
 
-  // Pick the largest delta needed (meaning is usually lower)
-  let delta = wordCheck.scrollDelta;
-  if (meaningCheck && meaningCheck.needed) {
-    delta = Math.max(delta, meaningCheck.scrollDelta);
-  }
-
-  // If meaning frame is very tall, don't try to show all of it—
-  // show its top + ~200px max
-  if (meaningEl) {
-    const mRect = meaningEl.getBoundingClientRect();
-    if (mRect.height > 250) {
-      const scRect = scrollContainer.getBoundingClientRect();
-      const bottomBarH = getBottomBarHeight(scrollContainer) + getSafeAreaBottom() + 12;
-      const safeBottom = scRect.bottom - bottomBarH;
-      // Just make sure top ~200px of meaning is visible
-      const desiredBottom = mRect.top + 200;
-      if (desiredBottom > safeBottom) {
-        delta = desiredBottom - safeBottom;
-      } else if (!wordCheck.needed) {
-        return; // top part visible, word visible, done
-      }
+    if (effectiveMeaningBottom > targetBottom) {
+      targetBottom = effectiveMeaningBottom;
+      targetLabel = 'meaning';
+    }
+    // Also ensure meaning top is visible
+    if (meaningRect.top < targetTop) {
+      targetTop = meaningRect.top;
     }
   }
 
-  // Scroll by minimum delta
+  // Check: is the target fully within the safe zone?
+  const hiddenBelow = targetBottom > safeBottom;
+  const hiddenAbove = targetTop < safeTop;
+
+  if (!hiddenBelow && !hiddenAbove) {
+    // Everything visible — no scroll needed
+    return;
+  }
+
+  // Compute minimum delta
+  let delta = 0;
+  if (hiddenBelow) {
+    delta = targetBottom - safeBottom;
+  } else if (hiddenAbove) {
+    delta = targetTop - safeTop - 20; // negative = scroll up
+  }
+
+  // Skip micro-scrolls
+  if (Math.abs(delta) < MIN_SCROLL_DELTA) return;
+
+  // Execute scroll
+  lastScrollTime = now;
+  lastScrolledKey = wordKey || '';
+
   scrollContainer.scrollTo({
     top: scrollContainer.scrollTop + delta,
     behavior: 'smooth',
