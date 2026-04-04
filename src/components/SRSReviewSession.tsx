@@ -70,26 +70,41 @@ export function SRSReviewSession({
   const nextOrderRef = useRef(cards.length);
   const sessionCreatedAt = useRef(Date.now());
 
+  const getSavedSessionState = useCallback(() => {
+    if (!sessionId) return undefined;
+    return useReviewSessionStore.getState().getSession(sessionId);
+  }, [sessionId]);
+
   useEffect(() => { currentIdxRef.current = currentIdx; }, [currentIdx]);
 
   // Reset on new session
   useEffect(() => {
-    const queues = partitionSessionCards(cards);
+    const savedSession = getSavedSessionState();
+    const savedArchivedIds = new Set(savedSession?.archivedInSession ?? []);
+    const savedSuspendedIds = new Set(savedSession?.suspendedIds ?? []);
+    const savedReviewedIds = new Set(savedSession?.reviewedIds ?? []);
+    const savedRatingsMap = new Map(
+      Object.entries(savedSession?.ratingsMap ?? {}).map(([id, rating]) => [id, rating as SRSRating])
+    );
+    const availableCards = cards.filter(
+      (sessionCard) => !savedArchivedIds.has(sessionCard.id) && !savedSuspendedIds.has(sessionCard.id)
+    );
+    const queues = partitionSessionCards(availableCards);
     setActiveQueue(queues.activeQueue);
     setDelayedQueue(queues.delayedQueue);
     nextOrderRef.current = queues.nextOrder;
-    setCurrentIdx(0);
-    setReviewedCount(0);
-    setTotalSeen(cards.length);
-    setReviewedIds(new Set());
-    setRatingsMap(new Map());
-    setArchivedIds(new Set());
-    setSuspendedIds(new Set());
+    setCurrentIdx(Math.min(savedSession?.currentIdx ?? 0, Math.max(queues.activeQueue.length - 1, 0)));
+    setReviewedCount(savedReviewedIds.size);
+    setTotalSeen(Math.max(availableCards.length, 1));
+    setReviewedIds(savedReviewedIds);
+    setRatingsMap(savedRatingsMap);
+    setArchivedIds(savedArchivedIds);
+    setSuspendedIds(savedSuspendedIds);
     setNextDueCountdown(getNextDueCountdownLabel(queues.delayedQueue));
     setAnswerRevealed(false);
     setShowManualInterval(false);
-    sessionCreatedAt.current = Date.now();
-  }, [cards]);
+    sessionCreatedAt.current = savedSession?.createdAt ?? Date.now();
+  }, [cards, getSavedSessionState]);
 
   // Timer: promote delayed → active
   useEffect(() => {
@@ -102,7 +117,6 @@ export function SRSReviewSession({
         if (readyQueue.length > 0) {
           const readySorted = [...readyQueue].sort((a, b) => a.dueAt - b.dueAt);
           setActiveQueue(prevActive => {
-            setTotalSeen(s => s + readySorted.length);
             if (prevActive.length === 0) return readySorted;
             const pinnedIdx = Math.min(currentIdxRef.current, prevActive.length - 1);
             return [...prevActive.slice(0, pinnedIdx + 1), ...readySorted, ...prevActive.slice(pinnedIdx + 1)];
@@ -283,7 +297,7 @@ export function SRSReviewSession({
   }
 
   const total = activeQueue.length;
-  const progress = totalSeen > 0 ? (reviewedCount / totalSeen) * 100 : 0;
+  const progress = totalSeen > 0 ? (reviewedIds.size / totalSeen) * 100 : 0;
 
   return (
     <div className="flex h-full min-h-0 overflow-hidden" dir="rtl">
