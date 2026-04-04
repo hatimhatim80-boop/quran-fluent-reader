@@ -189,6 +189,20 @@ export const useSRSStore = create<SRSState>()(
         set({ cards: get().cards.map(c => c.id === id ? { ...c, flagged: !c.flagged } : c) });
       },
 
+      archiveCard: (id) => {
+        set({ cards: get().cards.map(c => c.id === id ? { ...c, archived: true } : c) });
+      },
+
+      unarchiveCard: (id) => {
+        set({ cards: get().cards.map(c => c.id === id ? { ...c, archived: false } : c) });
+      },
+
+      getArchivedCards: (type) => {
+        let cards = get().cards.filter(c => c.archived);
+        if (type) cards = cards.filter(c => c.type === type);
+        return cards;
+      },
+
       addTag: (id, tag) => {
         set({
           cards: get().cards.map(c =>
