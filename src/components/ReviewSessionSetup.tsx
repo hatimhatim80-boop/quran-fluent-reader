@@ -71,6 +71,11 @@ export function ReviewSessionSetup({
     return Array.isArray(cardTypeFilter) ? cardTypeFilter : [cardTypeFilter];
   }, [cardTypeFilter]);
 
+  const getRequestedCount = useCallback((available: number) => {
+    if (sessionSize === 'all') return available;
+    return Math.min(parseInt(sessionSize, 10) || 1, available);
+  }, [sessionSize]);
+
   const scopePages = useMemo(
     () => scopeToPages({ ...scope, from: scope.type === 'current-page' ? currentPage : scope.from }),
     [scope, currentPage],
@@ -174,8 +179,15 @@ export function ReviewSessionSetup({
   }, [cardPool, order]);
 
   const availableCount = orderedPool.length;
-  const maxCount = sessionSize === 'all' ? availableCount : Math.min(parseInt(sessionSize, 10) || 1, availableCount);
+  const maxCount = getRequestedCount(availableCount);
   const quickSizes = Array.from(new Set([10, 20, 50, 100, 200, availableCount].filter(n => n > 0))).sort((a, b) => a - b);
+  const canAutoGenerateFromScope = Boolean(
+    onAutoGenerateCards &&
+    scopePages &&
+    scopePages.length > 0 &&
+    ['due', 'new', 'mixed', 'scope'].includes(sessionType)
+  );
+  const canStart = availableCount > 0 || canAutoGenerateFromScope;
 
   const handleStart = useCallback(() => {
     let pool = orderedPool;
@@ -195,7 +207,10 @@ export function ReviewSessionSetup({
 
     if (pool.length === 0) return;
 
-    const selected = pool.slice(0, maxCount);
+    const effectiveMaxCount = getRequestedCount(pool.length);
+    if (effectiveMaxCount === 0) return;
+
+    const selected = pool.slice(0, effectiveMaxCount);
     const name = sessionName.trim() || `${portal === 'ghareeb' ? 'غريب' : 'تحفيظ'} — ${new Date().toLocaleDateString('ar-SA')}`;
 
     const sessionId = createSession({
@@ -208,7 +223,7 @@ export function ReviewSessionSetup({
     });
 
     onStartSession(selected, sessionId, name);
-  }, [orderedPool, maxCount, sessionName, portal, sessionType, scope, order, archiveFilter, createSession, onStartSession, onAutoGenerateCards, scopePages, typeFilters]);
+  }, [orderedPool, sessionName, portal, sessionType, scope, order, archiveFilter, createSession, onStartSession, onAutoGenerateCards, scopePages, typeFilters, getRequestedCount]);
 
   const handleResume = useCallback((session: ReviewSessionMeta) => {
     const state = useSRSStore.getState();
@@ -388,12 +403,14 @@ export function ReviewSessionSetup({
 
         <Button
           onClick={handleStart}
-          disabled={availableCount === 0}
+          disabled={!canStart}
           className="w-full gap-2 font-arabic"
           size="lg"
         >
           <RotateCcw className="w-4 h-4" />
-          بدء المراجعة ({formatArabicNumber(maxCount)})
+          {availableCount === 0 && canAutoGenerateFromScope
+            ? 'إنشاء الجلسة وبدء المراجعة'
+            : `بدء المراجعة (${formatArabicNumber(maxCount)})`}
         </Button>
       </div>
 

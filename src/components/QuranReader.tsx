@@ -394,7 +394,7 @@ export function QuranReader() {
                 const pgWords = allGhareebWords.filter(w => w.pageNumber === pg);
                 const hlColor = useSettingsStore.getState().settings.colors.highlightColor || '48 80% 90%';
                 const hlVars: Record<string, string> = {
-                  '--ghareeb-active-color': 'inherit',
+                  '--ghareeb-active-color': 'hsl(var(--primary))',
                   '--ghareeb-active-bg': 'transparent',
                   '--ghareeb-active-border': 'transparent',
                   '--ghareeb-active-shadow': 'none',
