@@ -1,5 +1,6 @@
 import { GhareebWord } from '@/types/quran';
 import { normalizeArabic } from './quranParser';
+import { canonicalize } from './canonicalMatch';
 import { loadTanzilPageIndex, getPageForAyah } from './tanzilPageIndex';
 import { getData } from '@/services/dataSource';
 
@@ -125,7 +126,8 @@ export function findWordsInPageText(
   pageNumber: number,
   pageMap: Map<number, GhareebWord[]>
 ): GhareebWord[] {
-  const normalizedPageText = normalizeArabic(pageText);
+  // Use canonical normalization (strong) for reliable matching
+  const canonicalPageText = canonicalize(pageText);
   const foundWords: { word: GhareebWord; firstIndex: number }[] = [];
   const usedKeys = new Set<string>();
 
@@ -141,10 +143,20 @@ export function findWordsInPageText(
   }
 
   for (const word of candidateWords) {
-    const normalizedWord = normalizeArabic(word.wordText);
-    if (normalizedWord.length < 2) continue;
+    const canonicalWord = canonicalize(word.wordText);
+    if (canonicalWord.length < 2) continue;
 
-    const index = normalizedPageText.indexOf(normalizedWord);
+    // Try canonical match first (strongest)
+    let index = canonicalPageText.indexOf(canonicalWord);
+    
+    // Fallback: try individual words of the phrase (for multi-word entries)
+    if (index === -1 && canonicalWord.includes(' ')) {
+      const firstWord = canonicalWord.split(' ')[0];
+      if (firstWord.length >= 2) {
+        index = canonicalPageText.indexOf(firstWord);
+      }
+    }
+
     if (index !== -1) {
       const key = word.uniqueKey;
       if (!usedKeys.has(key)) {
