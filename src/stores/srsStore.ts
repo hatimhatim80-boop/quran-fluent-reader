@@ -136,6 +136,9 @@ interface SRSState {
   removeCard: (id: string) => void;
   hasCard: (id: string) => boolean;
   toggleFlag: (id: string) => void;
+  archiveCard: (id: string) => void;
+  unarchiveCard: (id: string) => void;
+  getArchivedCards: (type?: SRSCard['type']) => SRSCard[];
   addTag: (id: string, tag: string) => void;
   removeTag: (id: string, tag: string) => void;
 
