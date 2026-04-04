@@ -64,6 +64,49 @@ function isStrictMatch(tokenNorm: string, phraseWord: string): boolean {
   return tokenNorm.includes(phraseWord) || phraseWord.includes(tokenNorm);
 }
 
+const PAGE_TOKEN_CLEAN_RE = /[﴿﴾()[\]{}۝۞٭؟،۔ۣۖۗۘۙۚۛۜ۟۠ۡۢۤۥۦۧۨ۩۪ۭ۫۬]/g;
+
+function parseVerseNumber(value: string): number | null {
+  const latinized = value
+    .replace(/[٠-٩]/g, (digit) => String('٠١٢٣٤٥٦٧٨٩'.indexOf(digit)))
+    .replace(/[۰-۹]/g, (digit) => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(digit)));
+  const parsed = Number.parseInt(latinized, 10);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function buildLineTokenData(line: string) {
+  const tokens = line.split(/(\s+)/);
+  return tokens.map((token, idx) => {
+    const isSpace = /^\s+$/.test(token);
+    const cleanToken = token.replace(PAGE_TOKEN_CLEAN_RE, '').trim();
+    const isVerseNumber = !isSpace && /^[٠-٩0-9۰-۹]+$/.test(cleanToken);
+
+    return {
+      token,
+      idx,
+      isSpace,
+      isVerseNumber,
+      cleanToken,
+      normalized: isSpace || isVerseNumber ? '' : normalizeArabic(token),
+    };
+  });
+}
+
+function resolveClosingVerseNumber(lines: string[], startLineIdx: number, startTokenIdx: number): number | null {
+  for (let lineIdx = startLineIdx; lineIdx < lines.length; lineIdx++) {
+    const line = lines[lineIdx];
+    if (isSurahHeader(line)) continue;
+    const tokenData = buildLineTokenData(line);
+    const fromToken = lineIdx === startLineIdx ? startTokenIdx : 0;
+    for (let tokenIdx = fromToken; tokenIdx < tokenData.length; tokenIdx++) {
+      const token = tokenData[tokenIdx];
+      if (!token.isVerseNumber) continue;
+      return parseVerseNumber(token.cleanToken);
+    }
+  }
+  return null;
+}
+
 interface MatchedWord {
   word: GhareebWord;
   originalIndex: number;
@@ -215,22 +258,7 @@ export function PageView({
         const normalizedLocalSurah = normalizeSurahName(localSurah);
 
         // Split line into tokens
-        const tokens = line.split(/(\s+)/);
-        const tokenData = tokens.map((token, idx) => {
-          const isSpace = /^\s+$/.test(token);
-          const cleanToken = token
-            .replace(/[﴿﴾()[\]{}۝۞٭؟،۔ۣۖۗۘۙۚۛۜ۟۠ۡۢۤۥۦۧۨ۩۪ۭ۫۬]/g, '')
-            .trim();
-          const isVerseNumber = !isSpace && /^[٠-٩0-9۰-۹]+$/.test(cleanToken);
-
-          return {
-            token,
-            idx,
-            isSpace,
-            isVerseNumber,
-            normalized: isSpace || isVerseNumber ? '' : normalizeArabic(token),
-          };
-        });
+        const tokenData = buildLineTokenData(line);
 
         for (const entry of sortedEntries) {
           if (usedOriginalIndices.has(entry.originalIndex)) continue;
@@ -287,6 +315,11 @@ export function PageView({
             }
 
             if (phraseWordIdx === entry.words.length && matchedTokens.length > 0) {
+              const resolvedVerseNumber = resolveClosingVerseNumber(lines, lineIdx, matchedTokens[matchedTokens.length - 1]);
+              if (resolvedVerseNumber !== null && resolvedVerseNumber !== entry.original.verseNumber) {
+                continue;
+              }
+
               // Reserve tokens globally so later passes/lines can't reuse them
               matchedTokens.forEach((tokIdx) => matchedTokenKeys.add(`${lineIdx}_${tokIdx}`));
               usedOriginalIndices.add(entry.originalIndex);
