@@ -4,6 +4,7 @@ import { useAutoFlowFit } from '@/hooks/useAutoFlowFit';
 import { useAutoFit15Lines } from '@/hooks/useAutoFit15Lines';
 import { QuranPage, GhareebWord } from '@/types/quran';
 import { normalizeArabic } from '@/utils/quranParser';
+import { canonicalize, buildFlatTokens, matchGhareebToTokens, buildTokenMatchMap, type TokenMatchInfo } from '@/utils/canonicalMatch';
 import { GhareebWordPopover } from './GhareebWordPopover';
 import { useHighlightOverrideStore } from '@/stores/highlightOverrideStore';
 import { useSettingsStore } from '@/stores/settingsStore';
