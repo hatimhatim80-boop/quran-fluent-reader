@@ -612,11 +612,13 @@
   }
 
   /* Active word */
-  .hybridTextLayer .ghareeb-word--active {
+  .hybridTextLayer .ghareeb-word.ghareeb-word--active,
+  .hybridTextLayer .ghareeb-word--active.ghareeb-word--text-only {
     background-color: var(--ghareeb-active-bg, transparent) !important;
     border-color: var(--ghareeb-active-border, transparent) !important;
     box-shadow: var(--ghareeb-active-shadow, none) !important;
-    color: var(--ghareeb-active-color, inherit) !important;
+    color: var(--ghareeb-active-color, hsl(var(--primary))) !important;
+    text-shadow: 0 0 0.02em currentColor;
   }
 
   .hybridTextLayer .ghareeb-word--seen:not(.ghareeb-word--text-only) {

@@ -269,7 +269,7 @@ export function GhareebWordPopover({
     if (!isHighlighted) return {};
     const hlColor = settings.colors.highlightColor || '0 85% 45%';
     const base: Record<string, string> = {
-      '--ghareeb-active-color': 'inherit',
+      '--ghareeb-active-color': 'hsl(var(--primary))',
       '--ghareeb-active-bg': 'transparent',
       '--ghareeb-active-border': 'transparent',
       '--ghareeb-active-shadow': 'none',
