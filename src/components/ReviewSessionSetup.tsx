@@ -309,10 +309,10 @@ export function ReviewSessionSetup({
       {/* Archive filter */}
       {sessionType !== 'archived-only' && sessionType !== 'flagged' && (
         <div className="bg-card border border-border rounded-lg p-3">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
             <span className="text-sm">فلتر الأرشفة</span>
             <Select value={archiveFilter} onValueChange={(v) => setArchiveFilter(v as ArchiveFilter)}>
-              <SelectTrigger className="w-40 h-8 text-xs font-arabic"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="w-full sm:w-40 h-8 text-xs font-arabic"><SelectValue /></SelectTrigger>
               <SelectContent>
                 {ARCHIVE_FILTER_OPTIONS.map(o => (
                   <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
