@@ -94,7 +94,7 @@ export function ReviewSessionSetup({
           scopePages
             ? getDueCards(undefined, undefined, scopePages)
             : getDueCards()
-        ).filter(c => typeFilters ? typeFilters.includes(c.type) : true);
+        );
         break;
       case 'new':
         pool = filterByType(cards).filter(c =>
