@@ -167,6 +167,150 @@ function findNextVerseNumber(flatTokens: FlatToken[], startIdx: number): number 
   return null;
 }
 
+interface SegmentTokenRange {
+  position: number;
+  start: number;
+  end: number;
+}
+
+interface VerseSegment {
+  verseNumber: number | null;
+  normalizedSurah: string;
+  canonicalText: string;
+  compactText: string;
+  tokenRanges: SegmentTokenRange[];
+  compactRanges: SegmentTokenRange[];
+}
+
+function matchesSurahContext(entry: GhareebEntry, normalizedLocalSurah: string): boolean {
+  return (
+    normalizedLocalSurah === '' ||
+    entry.normalizedSurah === normalizedLocalSurah ||
+    entry.normalizedSurah.includes(normalizedLocalSurah) ||
+    normalizedLocalSurah.includes(entry.normalizedSurah)
+  );
+}
+
+function buildVerseSegments(flatTokens: FlatToken[], surahContextByLine: string[]): VerseSegment[] {
+  const segments: VerseSegment[] = [];
+  let currentPositions: number[] = [];
+  let currentSurah = '';
+
+  const flush = (verseNumber: number | null) => {
+    if (currentPositions.length === 0) return;
+
+    let canonicalText = '';
+    let compactText = '';
+    let canonicalCursor = 0;
+    let compactCursor = 0;
+    const tokenRanges: SegmentTokenRange[] = [];
+    const compactRanges: SegmentTokenRange[] = [];
+
+    for (const position of currentPositions) {
+      const token = flatTokens[position];
+      if (!token.canonical) continue;
+
+      if (tokenRanges.length > 0) {
+        canonicalText += ' ';
+        canonicalCursor += 1;
+      }
+
+      const start = canonicalCursor;
+      canonicalText += token.canonical;
+      canonicalCursor += token.canonical.length;
+      tokenRanges.push({ position, start, end: canonicalCursor });
+
+      const compactStart = compactCursor;
+      compactText += token.canonical;
+      compactCursor += token.canonical.length;
+      compactRanges.push({ position, start: compactStart, end: compactCursor });
+    }
+
+    segments.push({
+      verseNumber,
+      normalizedSurah: currentSurah,
+      canonicalText,
+      compactText,
+      tokenRanges,
+      compactRanges,
+    });
+
+    currentPositions = [];
+    currentSurah = '';
+  };
+
+  for (let i = 0; i < flatTokens.length; i++) {
+    const token = flatTokens[i];
+
+    if (token.isSpace) continue;
+
+    if (token.isVerseNumber) {
+      const clean = token.token.replace(PAGE_TOKEN_CLEAN_RE, '').trim();
+      flush(parseVerseNumber(clean));
+      continue;
+    }
+
+    if (!token.canonical) continue;
+
+    currentPositions.push(i);
+    if (!currentSurah) {
+      currentSurah = normalizeSurahName(surahContextByLine[token.lineIdx] || '');
+    }
+  }
+
+  flush(null);
+  return segments;
+}
+
+function collectMatchedPositions(ranges: SegmentTokenRange[], start: number, end: number): number[] {
+  return ranges
+    .filter((range) => range.start < end && range.end > start)
+    .map((range) => range.position);
+}
+
+function matchEntryInSegment(
+  entry: GhareebEntry,
+  segment: VerseSegment,
+  pass: 'exact' | 'loose',
+): { matchedPositions: number[]; start: number; end: number; matchedAyahText: string } | null {
+  if (segment.verseNumber !== null && segment.verseNumber !== entry.original.verseNumber) {
+    return null;
+  }
+
+  const exactStart = segment.canonicalText.indexOf(entry.canonicalFull);
+  if (exactStart !== -1) {
+    const exactEnd = exactStart + entry.canonicalFull.length;
+    const matchedPositions = collectMatchedPositions(segment.tokenRanges, exactStart, exactEnd);
+    if (matchedPositions.length > 0) {
+      return {
+        matchedPositions,
+        start: exactStart,
+        end: exactEnd,
+        matchedAyahText: segment.canonicalText,
+      };
+    }
+  }
+
+  if (pass === 'exact') return null;
+
+  const compactPhrase = entry.canonicalWords.join('');
+  if (!compactPhrase) return null;
+
+  const looseStart = segment.compactText.indexOf(compactPhrase);
+  if (looseStart === -1) return null;
+
+  const looseEnd = looseStart + compactPhrase.length;
+  const matchedPositions = collectMatchedPositions(segment.compactRanges, looseStart, looseEnd);
+  if (matchedPositions.length === 0) return null;
+
+  return {
+    matchedPositions,
+    start: looseStart,
+    end: looseEnd,
+    matchedAyahText: segment.canonicalText,
+  };
+}
+
 /**
  * Main matching function. Returns matches in reading order.
  * Supports cross-line phrase matching.
@@ -194,6 +338,7 @@ export function matchGhareebToTokens(
 
   // Sort by word count descending (greedy: match longer phrases first)
   const sortedEntries = [...entries].sort((a, b) => b.wordCount - a.wordCount);
+  const verseSegments = buildVerseSegments(flatTokens, surahContextByLine);
 
   const usedEntryIndices = new Set<number>();
   const usedTokenPositions = new Set<number>(); // indices into flatTokens
@@ -213,11 +358,7 @@ export function matchGhareebToTokens(
         // Check surah context
         const localSurah = surahContextByLine[startToken.lineIdx] || '';
         const normalizedLocalSurah = normalizeSurahName(localSurah);
-        const surahOk =
-          normalizedLocalSurah === '' ||
-          entry.normalizedSurah === normalizedLocalSurah ||
-          entry.normalizedSurah.includes(normalizedLocalSurah) ||
-          normalizedLocalSurah.includes(entry.normalizedSurah);
+        const surahOk = matchesSurahContext(entry, normalizedLocalSurah);
         if (!surahOk) continue;
 
         // Try matching phrase words starting from startPos
@@ -274,13 +415,55 @@ export function matchGhareebToTokens(
         }
       }
 
+      if (!usedEntryIndices.has(entry.originalIndex)) {
+        for (const segment of verseSegments) {
+          if (!matchesSurahContext(entry, segment.normalizedSurah)) continue;
+
+          const rangeMatch = matchEntryInSegment(entry, segment, pass);
+          if (!rangeMatch) continue;
+          if (rangeMatch.matchedPositions.some((position) => usedTokenPositions.has(position))) continue;
+
+          usedEntryIndices.add(entry.originalIndex);
+          rangeMatch.matchedPositions.forEach((position) => usedTokenPositions.add(position));
+
+          results.push({
+            ghareebIndex: entry.originalIndex,
+            word: entry.original,
+            matchedTokens: rangeMatch.matchedPositions.map((position) => flatTokens[position]),
+            method: pass,
+          });
+
+          if (process.env.NODE_ENV !== 'production') {
+            console.debug('[CanonicalMatch] ✅ range match', {
+              method: pass,
+              originalPhrase: entry.original.wordText,
+              normalizedPhrase: entry.canonicalFull,
+              matchedAyahText: rangeMatch.matchedAyahText,
+              start: rangeMatch.start,
+              end: rangeMatch.end,
+            });
+          }
+
+          break;
+        }
+      }
+
       // Log unmatched in dev
       if (!usedEntryIndices.has(entry.originalIndex) && pass === 'loose') {
         if (process.env.NODE_ENV !== 'production') {
-          console.debug(
-            `[CanonicalMatch] ❌ unmatched: "${entry.original.wordText}" (${entry.original.surahName}:${entry.original.verseNumber})`,
-            `canonical: "${entry.canonicalFull}"`,
+          const sameVerseSegment = verseSegments.find(
+            (segment) =>
+              segment.verseNumber === entry.original.verseNumber &&
+              matchesSurahContext(entry, segment.normalizedSurah),
           );
+          console.debug('[CanonicalMatch] ❌ unmatched', {
+            originalPhrase: entry.original.wordText,
+            normalizedPhrase: entry.canonicalFull,
+            matchedAyahText: sameVerseSegment?.canonicalText ?? '',
+            start: null,
+            end: null,
+            reason: sameVerseSegment ? 'range-search-failed' : 'ayah-segment-not-found',
+          });
         }
       }
     }
