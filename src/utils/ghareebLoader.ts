@@ -1,5 +1,6 @@
 import { GhareebWord } from '@/types/quran';
 import { normalizeArabic } from './quranParser';
+import { canonicalize } from './canonicalMatch';
 import { loadTanzilPageIndex, getPageForAyah } from './tanzilPageIndex';
 import { getData } from '@/services/dataSource';
 
