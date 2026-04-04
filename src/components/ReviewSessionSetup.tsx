@@ -325,10 +325,10 @@ export function ReviewSessionSetup({
 
       {/* Order */}
       <div className="bg-card border border-border rounded-lg p-3">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
           <span className="text-sm">ترتيب الجلسة</span>
           <Select value={order} onValueChange={(v) => setOrder(v as SessionOrder)}>
-            <SelectTrigger className="w-44 h-8 text-xs font-arabic"><SelectValue /></SelectTrigger>
+            <SelectTrigger className="w-full sm:w-44 h-8 text-xs font-arabic"><SelectValue /></SelectTrigger>
             <SelectContent>
               {ORDER_OPTIONS.map(o => (
                 <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
