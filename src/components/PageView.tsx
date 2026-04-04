@@ -186,6 +186,8 @@ export function PageView({
   const tokenMatchMap = useMemo(() => {
     return buildTokenMatchMap(matchResults);
   }, [matchResults]);
+
+  const renderedContent = useMemo(() => {
     if (!effectivePageText) return null;
 
     const isLines15 = displayMode !== 'continuous';
