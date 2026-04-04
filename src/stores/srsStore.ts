@@ -262,7 +262,7 @@ export const useSRSStore = create<SRSState>()(
 
       getDueCards: (type, maxCount, pageFilter) => {
         const now = Date.now();
-        let due = get().cards.filter(c => c.nextReview <= now && !c.flagged);
+        let due = get().cards.filter(c => c.nextReview <= now && !c.flagged && !c.archived);
         if (type) due = due.filter(c => c.type === type);
         if (pageFilter && pageFilter.length > 0) {
           const pageSet = new Set(pageFilter);
