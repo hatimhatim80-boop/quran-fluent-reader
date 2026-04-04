@@ -109,29 +109,23 @@ export function PageView({
 
   // Per-line auto-shrink removed — page-level font fit handles everything
 
-  // Auto-scroll: always scroll highlighted word into view when it's in the last 3 lines
+  // Auto-scroll: only scroll when word/meaning is hidden behind the bottom bar
   useEffect(() => {
     if (highlightedWordIndex < 0) return;
-    const el = document.querySelector<HTMLElement>(
-      `[data-ghareeb-index="${highlightedWordIndex}"]`,
-    );
-    if (!el) return;
-    
-    // Check if the word is in the last 3 lines of the visible page
-    const container = el.closest('.quran-page, .quran-lines-container');
-    if (container) {
-      const containerRect = container.getBoundingClientRect();
-      const elRect = el.getBoundingClientRect();
-      const bottomThreshold = containerRect.bottom - (containerRect.height * 0.2); // last ~20% ≈ 3 lines
-      if (elRect.top > bottomThreshold) {
-        el.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
-        return;
-      }
-    }
-    
-    // Don't scroll if inside a fixed mushaf page (unless in bottom zone above)
-    if (el?.closest('.mushafPage')) return;
-    el?.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
+    const raf = requestAnimationFrame(() => {
+      const el = document.querySelector<HTMLElement>(
+        `[data-ghareeb-index="${highlightedWordIndex}"]`,
+      );
+      if (!el) return;
+      // Don't scroll inside fixed mushaf pages
+      if (el.closest('.mushafPage')) return;
+      // Find meaning frame near the word
+      const meaningEl = document.querySelector<HTMLElement>(
+        '[data-ghareeb-tooltip="true"], .ghareeb-popover, .ghareeb-inline-answer'
+      );
+      ensureGhareebMeaningVisibleAboveBottomBar(el, meaningEl, `idx:${highlightedWordIndex}`);
+    });
+    return () => cancelAnimationFrame(raf);
   }, [highlightedWordIndex]);
 
   // Build surah context map
