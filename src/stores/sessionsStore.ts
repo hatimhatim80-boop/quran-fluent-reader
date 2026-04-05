@@ -117,11 +117,13 @@ export const useSessionsStore = create<SessionsState>()(
           type,
           createdAt: Date.now(),
           updatedAt: Date.now(),
+          lastOpenedAt: Date.now(),
           archived: false,
           currentPage: startPage,
           startPage,
           endPage,
           groupId,
+          status: 'active',
         };
         set({ sessions: [...get().sessions, session], activeSessionId: id });
         return id;
