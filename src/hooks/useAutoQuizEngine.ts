@@ -1,20 +1,25 @@
 /**
  * useAutoQuizEngine — Unified auto-quiz session engine.
  *
- * Architecture:
- *   The session timer is derived from ACTUAL per-item durations,
- *   not from count × perItemMs estimates.
+ * Architecture (v3 — Stopwatch-based Time Engine):
  *
- *   Each page has a schedule: an array of durations (one per item).
- *   sessionRemainingMs = currentItemRemainingMs
- *                      + sum(unconsumed durations on current page)
- *                      + sum(all durations on future pages)
- *                      + estimate for unregistered pages (itemCount × defaultMs)
+ *   The session timer is a real stopwatch driven by performance.now().
  *
- *   When a page's DOM loads and firstKeys are known, exact durations
- *   replace any estimate via registerPageDurations().
+ *   remaining = plannedTotalMs − realElapsedMs
  *
- *   A RAF loop ticks the UI display from this derived value.
+ *   realElapsedMs = elapsedBeforePause + (performance.now() − runAnchor)
+ *
+ *   Pause captures elapsed. Resume sets a new anchor.
+ *   Speed change recalculates plannedTotalMs:
+ *     newPlannedTotal = realElapsed + (unconsumedItems × newDuration)
+ *
+ *   Item-level scheduling uses setTimeout with a single itemExpectedEnd
+ *   timestamp for millisecond-accurate reveal timing.
+ *
+ *   currentItemRemainingMs = itemExpectedEnd − performance.now()
+ *   sessionRemainingMs = plannedTotalMs − realElapsedMs
+ *
+ *   A RAF loop ticks the UI display from these derived values.
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -64,6 +69,10 @@ export interface EngineSnapshot {
   unregisteredPages: Record<number, number>;
   /** Default per-item ms for unregistered pages */
   defaultItemMs: number;
+  /** Stopwatch: planned total ms */
+  plannedTotalMs: number;
+  /** Stopwatch: real elapsed ms at snapshot time */
+  realElapsedMs: number;
 }
 
 export type SpeedChangeActiveItemPolicy = 'preserve-remaining' | 'scale-remaining';
@@ -84,6 +93,14 @@ export function useAutoQuizEngine() {
 
   // ── Refs ──
   const phaseRef = useRef<EnginePhase>('idle');
+
+  // ── Stopwatch refs ──
+  /** performance.now() anchor for current running segment */
+  const runAnchorRef = useRef<number>(0);
+  /** Accumulated elapsed ms from previous run segments (before pause) */
+  const elapsedBeforePauseRef = useRef<number>(0);
+  /** Total planned session duration in ms */
+  const plannedTotalMsRef = useRef<number>(0);
 
   // Item-level timer
   const itemExpectedEndRef = useRef<number | null>(null);
@@ -110,7 +127,6 @@ export function useAutoQuizEngine() {
 
   // RAF
   const rafRef = useRef<number | null>(null);
-  const pausedSnapshotRef = useRef<number>(0);
 
   const setCurrentItemRemainingValue = useCallback((ms: number) => {
     const normalized = Math.max(0, ms);
@@ -118,41 +134,63 @@ export function useAutoQuizEngine() {
     setCurrentItemRemainingMs(normalized);
   }, []);
 
-  const getPageStoredRemaining = useCallback((page: number): number => {
-    return Math.max(0, pageStatesRef.current[page]?.currentItemRemainingMs || 0);
+  // ── Real elapsed computation ──
+  const getRealElapsedMs = useCallback((): number => {
+    if (phaseRef.current === 'running') {
+      return elapsedBeforePauseRef.current + (performance.now() - runAnchorRef.current);
+    }
+    return elapsedBeforePauseRef.current;
   }, []);
 
-  const getPageActiveRemaining = useCallback((page: number): number => {
-    if (page === currentPageRef.current) {
-      if (itemExpectedEndRef.current !== null) {
-        return Math.max(0, itemExpectedEndRef.current - Date.now());
-      }
-      return Math.max(0, currentItemRemainingRef.current);
+  // ── Session remaining = plannedTotal - realElapsed ──
+  const getSessionRemainingMs = useCallback((): number => {
+    return Math.max(0, plannedTotalMsRef.current - getRealElapsedMs());
+  }, [getRealElapsedMs]);
+
+  // ── Current item remaining from its expected end ──
+  const getCurrentItemRemainingMs = useCallback((): number => {
+    if (itemExpectedEndRef.current !== null) {
+      return Math.max(0, itemExpectedEndRef.current - performance.now());
     }
-    return getPageStoredRemaining(page);
-  }, [getPageStoredRemaining]);
+    return Math.max(0, currentItemRemainingRef.current);
+  }, []);
 
-  // ── Compute exact remaining from schedules ──
-  const computeRemaining = useCallback((): number => {
+  // ── Compute planned total from schedules (used at init / speed change) ──
+  const computePlannedTotal = useCallback((): number => {
     let total = 0;
-
     const pages = sessionPagesRef.current.length > 0
       ? sessionPagesRef.current
       : Object.keys(pageSchedulesRef.current).map(Number);
 
-    // Sum exact remaining across all scheduled pages, including partial active items
+    for (const page of pages) {
+      const sched = pageSchedulesRef.current[page];
+      if (sched) {
+        for (let i = 0; i < sched.durations.length; i++) {
+          total += sched.durations[i];
+        }
+      }
+    }
+
+    // Add estimates for unregistered pages
+    for (const pageStr of Object.keys(unregisteredPagesRef.current)) {
+      total += unregisteredPagesRef.current[Number(pageStr)] * defaultItemMsRef.current;
+    }
+
+    return total;
+  }, []);
+
+  // ── Compute remaining for unconsumed items (used for speed change recalc) ──
+  const computeUnconsumedMs = useCallback((): number => {
+    let total = 0;
+    const pages = sessionPagesRef.current.length > 0
+      ? sessionPagesRef.current
+      : Object.keys(pageSchedulesRef.current).map(Number);
+
     for (const page of pages) {
       const sched = pageSchedulesRef.current[page];
       if (!sched) continue;
-
-      const partialActiveRemaining = getPageActiveRemaining(page);
-      const hasPartialActiveItem = partialActiveRemaining > 0 && sched.consumed < sched.durations.length;
-
-      if (hasPartialActiveItem) {
-        total += partialActiveRemaining;
-      }
-
-      const startIdx = sched.consumed + (hasPartialActiveItem ? 1 : 0);
+      // Only unconsumed items (not including the currently active one)
+      const startIdx = sched.consumed;
       for (let i = startIdx; i < sched.durations.length; i++) {
         total += sched.durations[i];
       }
@@ -164,20 +202,21 @@ export function useAutoQuizEngine() {
     }
 
     return total;
-  }, [getPageActiveRemaining]);
+  }, []);
 
   // ── RAF tick loop ──
   const tick = useCallback(() => {
     if (phaseRef.current !== 'running') return;
-    const ms = computeRemaining();
-    setSessionRemainingMs(ms);
-    setCurrentItemRemainingValue(getPageActiveRemaining(currentPageRef.current));
-    if (ms > 0) {
+    const remaining = getSessionRemainingMs();
+    setSessionRemainingMs(remaining);
+    setCurrentItemRemainingValue(getCurrentItemRemainingMs());
+    if (remaining > 0) {
       rafRef.current = requestAnimationFrame(tick);
     } else {
       setSessionRemainingMs(0);
+      setCurrentItemRemainingValue(0);
     }
-  }, [computeRemaining, getPageActiveRemaining, setCurrentItemRemainingValue]);
+  }, [getSessionRemainingMs, getCurrentItemRemainingMs, setCurrentItemRemainingValue]);
 
   const startRaf = useCallback(() => {
     if (rafRef.current) cancelAnimationFrame(rafRef.current);
@@ -201,9 +240,7 @@ export function useAutoQuizEngine() {
 
   // ── Item timer management ──
   const pauseItemTimer = useCallback((): number => {
-    const remaining = itemExpectedEndRef.current !== null
-      ? Math.max(0, itemExpectedEndRef.current - Date.now())
-      : Math.max(0, currentItemRemainingRef.current);
+    const remaining = getCurrentItemRemainingMs();
     itemExpectedEndRef.current = null;
     if (revealTimeoutRef.current) {
       clearTimeout(revealTimeoutRef.current);
@@ -211,16 +248,12 @@ export function useAutoQuizEngine() {
     }
     setCurrentItemRemainingValue(remaining);
     return remaining;
-  }, [setCurrentItemRemainingValue]);
+  }, [getCurrentItemRemainingMs, setCurrentItemRemainingValue]);
 
   // ── Public API ──
 
   /**
    * Initialize a new session.
-   * @param sessionPages - ordered list of page numbers in the session
-   * @param perPageItemCounts - item count per page (from computeSessionTotalItems)
-   * @param defaultItemMs - default duration per item (timerSeconds * 1000)
-   * @param startPage - first page to show
    */
   const initSession = useCallback((
     sessionPages: number[],
@@ -228,7 +261,7 @@ export function useAutoQuizEngine() {
     defaultItemMs: number,
     startPage: number,
   ) => {
-    // All pages start as unregistered (exact durations come from DOM)
+    // All pages start as unregistered
     const unreg: Record<number, number> = {};
     for (const p of sessionPages) {
       unreg[p] = perPageItemCounts[p] || 0;
@@ -243,36 +276,37 @@ export function useAutoQuizEngine() {
     itemExpectedEndRef.current = null;
     currentItemRemainingRef.current = 0;
 
-    // Initial remaining = sum of all items × defaultItemMs
+    // Compute planned total
     let totalMs = 0;
     for (const p of sessionPages) {
       totalMs += (perPageItemCounts[p] || 0) * defaultItemMs;
     }
+    plannedTotalMsRef.current = totalMs;
+
+    // Reset stopwatch
+    elapsedBeforePauseRef.current = 0;
+    runAnchorRef.current = performance.now();
 
     setSessionRemainingMs(totalMs);
     setCurrentItemRemainingValue(0);
     setPhase('running');
     phaseRef.current = 'running';
-    pausedSnapshotRef.current = 0;
     startRaf();
   }, [setCurrentItemRemainingValue, startRaf]);
 
   /**
    * Register exact per-item durations for a page.
    * Replaces any estimate for this page with exact data.
-   * Call this when the page's DOM loads and firstKeys are known.
-   *
-   * @param page - page number
-   * @param durations - duration in ms for each item (in reveal order)
-   * @param alreadyConsumed - items already revealed on this page (for restored pages)
    */
   const registerPageDurations = useCallback((
     page: number,
     durations: number[],
     alreadyConsumed: number = 0,
   ) => {
-    const oldSchedule = pageSchedulesRef.current[page];
     const hadEstimate = page in unregisteredPagesRef.current;
+    const oldEstimate = hadEstimate
+      ? (unregisteredPagesRef.current[page] || 0) * defaultItemMsRef.current
+      : 0;
 
     // Store exact schedule
     pageSchedulesRef.current[page] = {
@@ -285,14 +319,18 @@ export function useAutoQuizEngine() {
       delete unregisteredPagesRef.current[page];
     }
 
-    // Recalc remaining (the RAF will pick it up, but immediate update too)
-    const ms = computeRemaining();
-    setSessionRemainingMs(ms);
-  }, [computeRemaining]);
+    // Adjust plannedTotal: remove old estimate, add exact total
+    const exactTotal = durations.reduce((a, b) => a + b, 0);
+    if (hadEstimate) {
+      plannedTotalMsRef.current = plannedTotalMsRef.current - oldEstimate + exactTotal;
+    }
+
+    // Immediate UI update
+    setSessionRemainingMs(getSessionRemainingMs());
+  }, [getSessionRemainingMs]);
 
   /**
    * Record that items were consumed (revealed) on the current page.
-   * Advances the consumed pointer in the current page's schedule.
    */
   const recordProcessed = useCallback((count: number = 1) => {
     const page = currentPageRef.current;
@@ -306,30 +344,22 @@ export function useAutoQuizEngine() {
       pageStatesRef.current[page].currentItemRemainingMs = 0;
       pageStatesRef.current[page].pageConsumed = sched ? sched.consumed : 0;
     }
-    // Immediate recalc
-    setSessionRemainingMs(computeRemaining());
-  }, [computeRemaining, setCurrentItemRemainingValue]);
+    setSessionRemainingMs(getSessionRemainingMs());
+  }, [getSessionRemainingMs, setCurrentItemRemainingValue]);
 
   /**
    * Schedule a timer for the current item and call onExpire when it finishes.
    */
   const scheduleItem = useCallback((durationMs: number, onExpire: () => void) => {
     if (revealTimeoutRef.current) clearTimeout(revealTimeoutRef.current);
-    itemExpectedEndRef.current = Date.now() + durationMs;
+    itemExpectedEndRef.current = performance.now() + durationMs;
     setCurrentItemRemainingValue(durationMs);
     revealTimeoutRef.current = setTimeout(onExpire, durationMs);
   }, [setCurrentItemRemainingValue]);
 
   /**
-   * Change speed: update default item duration and rebuild all pending durations.
-   *
-   * @param newDefaultMs - new default per-item ms
-   * @param getDuration - function to compute duration for a specific item
-   *                      (page, itemIdx, isFirstKey) => ms
-   *                      If not provided, all pending items get newDefaultMs.
-   * @param rescheduleCurrentItem - if true, reschedule the active item with its new duration
-   * @param currentItemNewDurationMs - if provided, use this for the current item reschedule
-   * @param onCurrentItemExpire - callback for rescheduled current item
+   * Change speed: recalculate plannedTotalMs = realElapsed + unconsumedItems × newDuration
+   * + currentItemRemaining (scaled or preserved).
    */
   const setSpeed = useCallback((
     newDefaultMs: number,
@@ -342,11 +372,11 @@ export function useAutoQuizEngine() {
     } = options;
     const oldDefaultMs = defaultItemMsRef.current;
     const activePage = currentPageRef.current;
-    const activeScheduleBefore = pageSchedulesRef.current[activePage];
-    const activeIndexBefore = activeScheduleBefore?.consumed ?? 0;
-    const oldCurrentRemaining = getPageActiveRemaining(activePage);
-    const oldCurrentDuration = activeScheduleBefore && activeIndexBefore < activeScheduleBefore.durations.length
-      ? activeScheduleBefore.durations[activeIndexBefore]
+    const activeSchedule = pageSchedulesRef.current[activePage];
+    const activeIndex = activeSchedule?.consumed ?? 0;
+    const oldCurrentRemaining = getCurrentItemRemainingMs();
+    const oldCurrentDuration = activeSchedule && activeIndex < activeSchedule.durations.length
+      ? activeSchedule.durations[activeIndex]
       : oldDefaultMs;
 
     defaultItemMsRef.current = newDefaultMs;
@@ -356,11 +386,9 @@ export function useAutoQuizEngine() {
       for (const pageStr of Object.keys(pageSchedulesRef.current)) {
         const page = Number(pageStr);
         const sched = pageSchedulesRef.current[page];
-        const newDurations = sched.durations.map((_, i) => getDuration(page, i));
-        sched.durations = newDurations;
+        sched.durations = sched.durations.map((_, i) => getDuration(page, i));
       }
     } else {
-      // Scale all pending durations proportionally
       const ratio = oldDefaultMs > 0 ? newDefaultMs / oldDefaultMs : 1;
       for (const pageStr of Object.keys(pageSchedulesRef.current)) {
         const sched = pageSchedulesRef.current[Number(pageStr)];
@@ -368,63 +396,98 @@ export function useAutoQuizEngine() {
       }
     }
 
-    const activeScheduleAfter = pageSchedulesRef.current[activePage];
+    // Handle active item reschedule
     const hasCurrentPartial = oldCurrentRemaining > 0
-      && !!activeScheduleAfter
-      && activeIndexBefore < activeScheduleAfter.durations.length;
+      && !!activeSchedule
+      && activeIndex < activeSchedule.durations.length;
 
-    if (hasCurrentPartial && activeScheduleAfter) {
-      const newCurrentDuration = activeScheduleAfter.durations[activeIndexBefore] ?? newDefaultMs;
-      const nextRemaining = activeItemPolicy === 'preserve-remaining' || oldCurrentDuration <= 0
+    let activeItemNewRemaining = 0;
+
+    if (hasCurrentPartial && activeSchedule) {
+      const newCurrentDuration = activeSchedule.durations[activeIndex] ?? newDefaultMs;
+      activeItemNewRemaining = activeItemPolicy === 'preserve-remaining' || oldCurrentDuration <= 0
         ? oldCurrentRemaining
         : Math.round(newCurrentDuration * Math.max(0, Math.min(1, oldCurrentRemaining / oldCurrentDuration)));
 
       if (phaseRef.current === 'running') {
-        itemExpectedEndRef.current = Date.now() + nextRemaining;
+        itemExpectedEndRef.current = performance.now() + activeItemNewRemaining;
       } else {
         itemExpectedEndRef.current = null;
       }
 
-      if (revealTimeoutRef.current) {
-        clearTimeout(revealTimeoutRef.current);
-      }
+      if (revealTimeoutRef.current) clearTimeout(revealTimeoutRef.current);
       revealTimeoutRef.current = phaseRef.current === 'running'
-        ? setTimeout(onCurrentItemExpire ?? (() => {}), nextRemaining)
+        ? setTimeout(onCurrentItemExpire ?? (() => {}), activeItemNewRemaining)
         : null;
 
-      setCurrentItemRemainingValue(nextRemaining);
+      setCurrentItemRemainingValue(activeItemNewRemaining);
       if (pageStatesRef.current[activePage]) {
-        pageStatesRef.current[activePage].currentItemRemainingMs = nextRemaining;
+        pageStatesRef.current[activePage].currentItemRemainingMs = activeItemNewRemaining;
       }
     }
 
+    // Recalculate plannedTotal = realElapsed + activeItemRemaining + unconsumedFutureItems
+    const elapsed = getRealElapsedMs();
+
+    // Sum all unconsumed items AFTER the active one
+    let futureMs = 0;
+    const pages = sessionPagesRef.current.length > 0
+      ? sessionPagesRef.current
+      : Object.keys(pageSchedulesRef.current).map(Number);
+
+    for (const page of pages) {
+      const sched = pageSchedulesRef.current[page];
+      if (!sched) continue;
+      const startIdx = page === activePage
+        ? sched.consumed + (hasCurrentPartial ? 1 : 0)
+        : sched.consumed;
+      for (let i = startIdx; i < sched.durations.length; i++) {
+        futureMs += sched.durations[i];
+      }
+    }
+
+    // Add unregistered page estimates
+    for (const pageStr of Object.keys(unregisteredPagesRef.current)) {
+      futureMs += unregisteredPagesRef.current[Number(pageStr)] * newDefaultMs;
+    }
+
+    plannedTotalMsRef.current = elapsed + activeItemNewRemaining + futureMs;
+
     // Immediate UI update
-    setSessionRemainingMs(computeRemaining());
-  }, [computeRemaining, getPageActiveRemaining, setCurrentItemRemainingValue]);
+    setSessionRemainingMs(getSessionRemainingMs());
+  }, [getCurrentItemRemainingMs, getRealElapsedMs, getSessionRemainingMs, setCurrentItemRemainingValue]);
 
   /** Pause the engine */
   const pause = useCallback(() => {
     if (phaseRef.current !== 'running') return;
+    // Capture real elapsed
+    elapsedBeforePauseRef.current = getRealElapsedMs();
+
     const itemRemaining = pauseItemTimer();
     stopRaf();
+
     if (pageStatesRef.current[currentPageRef.current]) {
       pageStatesRef.current[currentPageRef.current].currentItemRemainingMs = itemRemaining;
     }
-    pausedSnapshotRef.current = computeRemaining();
-    setSessionRemainingMs(pausedSnapshotRef.current);
+
+    setSessionRemainingMs(getSessionRemainingMs());
     setPhase('paused');
     phaseRef.current = 'paused';
-  }, [pauseItemTimer, stopRaf, computeRemaining]);
+  }, [getRealElapsedMs, getSessionRemainingMs, pauseItemTimer, stopRaf]);
 
   /** Resume from pause */
   const resume = useCallback((): number => {
-    if (phaseRef.current !== 'paused') return;
+    if (phaseRef.current !== 'paused') return 0;
+
+    // Set new anchor, keep accumulated elapsed
+    runAnchorRef.current = performance.now();
+
     setPhase('running');
     phaseRef.current = 'running';
 
     const remaining = Math.max(0, currentItemRemainingRef.current);
     if (remaining > 0) {
-      itemExpectedEndRef.current = Date.now() + remaining;
+      itemExpectedEndRef.current = performance.now() + remaining;
       setCurrentItemRemainingValue(remaining);
     }
     startRaf();
@@ -433,6 +496,8 @@ export function useAutoQuizEngine() {
 
   /** Mark session as completed */
   const complete = useCallback(() => {
+    // Freeze elapsed
+    elapsedBeforePauseRef.current = getRealElapsedMs();
     stopRaf();
     if (revealTimeoutRef.current) clearTimeout(revealTimeoutRef.current);
     itemExpectedEndRef.current = null;
@@ -440,12 +505,12 @@ export function useAutoQuizEngine() {
     setCurrentItemRemainingValue(0);
     setPhase('completed');
     phaseRef.current = 'completed';
-  }, [setCurrentItemRemainingValue, stopRaf]);
+  }, [getRealElapsedMs, setCurrentItemRemainingValue, stopRaf]);
 
   /** Save current page's visual state */
   const saveCurrentPageState = useCallback((page: number, state: Omit<EnginePageState, 'savedAt' | 'currentItemRemainingMs' | 'pageConsumed'>) => {
     const sched = pageSchedulesRef.current[page];
-    const itemRemaining = getPageActiveRemaining(page);
+    const itemRemaining = getCurrentItemRemainingMs();
     pageStatesRef.current[page] = {
       ...state,
       savedAt: Date.now(),
@@ -453,7 +518,7 @@ export function useAutoQuizEngine() {
       pageConsumed: sched ? sched.consumed : 0,
     };
     currentPageRef.current = page;
-  }, [getPageActiveRemaining]);
+  }, [getCurrentItemRemainingMs]);
 
   /** Get saved state for a page */
   const getPageState = useCallback((page: number): EnginePageState | null => {
@@ -466,7 +531,7 @@ export function useAutoQuizEngine() {
     newPage: number,
     oldPageState: Omit<EnginePageState, 'savedAt' | 'currentItemRemainingMs' | 'pageConsumed'>,
   ): EnginePageState | null => {
-    const itemRemaining = getPageActiveRemaining(oldPage);
+    const itemRemaining = getCurrentItemRemainingMs();
 
     // Stop current item timer
     if (revealTimeoutRef.current) clearTimeout(revealTimeoutRef.current);
@@ -482,34 +547,32 @@ export function useAutoQuizEngine() {
       pageConsumed: oldSched ? oldSched.consumed : 0,
     };
     currentPageRef.current = newPage;
-    setCurrentItemRemainingValue(getPageStoredRemaining(newPage));
 
-    // Immediate recalc
-    setSessionRemainingMs(computeRemaining());
+    const newPageState = pageStatesRef.current[newPage];
+    const storedRemaining = Math.max(0, newPageState?.currentItemRemainingMs || 0);
+    setCurrentItemRemainingValue(storedRemaining);
 
-    return pageStatesRef.current[newPage] || null;
-  }, [computeRemaining, getPageActiveRemaining, getPageStoredRemaining, setCurrentItemRemainingValue]);
+    setSessionRemainingMs(getSessionRemainingMs());
 
-  /** Reset current page — clears this page's consumed count and visual state */
+    return newPageState || null;
+  }, [getCurrentItemRemainingMs, getSessionRemainingMs, setCurrentItemRemainingValue]);
+
+  /** Reset current page */
   const resetPage = useCallback((page: number) => {
-    // Reset schedule consumed count
     const sched = pageSchedulesRef.current[page];
     if (sched) {
       sched.consumed = 0;
     }
 
-    // Clear page visual state
     delete pageStatesRef.current[page];
 
-    // Stop current item timer
     if (revealTimeoutRef.current) clearTimeout(revealTimeoutRef.current);
     revealTimeoutRef.current = null;
     itemExpectedEndRef.current = null;
     setCurrentItemRemainingValue(0);
 
-    // Recalc
-    setSessionRemainingMs(computeRemaining());
-  }, [computeRemaining, setCurrentItemRemainingValue]);
+    setSessionRemainingMs(getSessionRemainingMs());
+  }, [getSessionRemainingMs, setCurrentItemRemainingValue]);
 
   /** Reset entire session */
   const resetSession = useCallback((
@@ -541,11 +604,14 @@ export function useAutoQuizEngine() {
       totalMs += (perPageItemCounts[p] || 0) * defaultItemMs;
     }
 
+    plannedTotalMsRef.current = totalMs;
+    elapsedBeforePauseRef.current = 0;
+    runAnchorRef.current = performance.now();
+
     setSessionRemainingMs(totalMs);
     setCurrentItemRemainingValue(0);
     setPhase('running');
     phaseRef.current = 'running';
-    pausedSnapshotRef.current = 0;
     startRaf();
   }, [setCurrentItemRemainingValue, stopRaf, startRaf]);
 
@@ -554,7 +620,8 @@ export function useAutoQuizEngine() {
     page: number,
     currentVisualState: Omit<EnginePageState, 'savedAt' | 'currentItemRemainingMs' | 'pageConsumed'>,
   ): EngineSnapshot => {
-    const itemRemaining = getPageActiveRemaining(page);
+    const itemRemaining = getCurrentItemRemainingMs();
+    const realElapsed = getRealElapsedMs();
 
     const sched = pageSchedulesRef.current[page];
     pageStatesRef.current[page] = {
@@ -564,9 +631,7 @@ export function useAutoQuizEngine() {
       pageConsumed: sched ? sched.consumed : 0,
     };
 
-    const remaining = phaseRef.current === 'paused'
-      ? pausedSnapshotRef.current || computeRemaining()
-      : computeRemaining();
+    const remaining = getSessionRemainingMs();
 
     return {
       phase: phaseRef.current,
@@ -583,8 +648,10 @@ export function useAutoQuizEngine() {
       sessionPages: [...sessionPagesRef.current],
       unregisteredPages: { ...unregisteredPagesRef.current },
       defaultItemMs: defaultItemMsRef.current,
+      plannedTotalMs: plannedTotalMsRef.current,
+      realElapsedMs: realElapsed,
     };
-  }, [computeRemaining, getPageActiveRemaining]);
+  }, [getCurrentItemRemainingMs, getRealElapsedMs, getSessionRemainingMs]);
 
   /** Restore from snapshot */
   const restore = useCallback((snap: EngineSnapshot) => {
@@ -598,17 +665,18 @@ export function useAutoQuizEngine() {
       ? JSON.parse(JSON.stringify(snap.pageSchedules))
       : {};
 
-    // Restore unregistered pages
     unregisteredPagesRef.current = snap.unregisteredPages
       ? { ...snap.unregisteredPages }
       : {};
 
-    // Restore page states
     pageStatesRef.current = snap.pageStates
       ? JSON.parse(JSON.stringify(snap.pageStates))
       : {};
 
-    // Set remaining from snapshot (exact saved value)
+    // Restore stopwatch state
+    plannedTotalMsRef.current = snap.plannedTotalMs ?? snap.sessionRemainingMs + (snap.realElapsedMs ?? 0);
+    elapsedBeforePauseRef.current = snap.realElapsedMs ?? (plannedTotalMsRef.current - snap.sessionRemainingMs);
+
     const remaining = snap.sessionRemainingMs > 0 ? snap.sessionRemainingMs : 0;
     setSessionRemainingMs(remaining);
     setCurrentItemRemainingValue(
@@ -617,14 +685,10 @@ export function useAutoQuizEngine() {
       || 0,
     );
 
-    // Always restore as paused (user must explicitly resume)
+    // Always restore as paused
     const p: EnginePhase = snap.phase === 'completed' ? 'completed' : 'paused';
     setPhase(p);
     phaseRef.current = p;
-
-    if (p === 'paused') {
-      pausedSnapshotRef.current = remaining;
-    }
   }, [setCurrentItemRemainingValue]);
 
   /** Stop timers (for unmount) without resetting state */
@@ -636,7 +700,7 @@ export function useAutoQuizEngine() {
     setCurrentItemRemainingValue(0);
   }, [setCurrentItemRemainingValue, stopRaf]);
 
-  /** Get total items across all pages (registered + unregistered) */
+  /** Get total items across all pages */
   const getTotalItems = useCallback((): number => {
     let total = 0;
     for (const s of Object.values(pageSchedulesRef.current)) {
@@ -656,6 +720,9 @@ export function useAutoQuizEngine() {
     }
     return total;
   }, []);
+
+  // Legacy compat: computeRemaining as alias
+  const computeRemaining = getSessionRemainingMs;
 
   return {
     // State
