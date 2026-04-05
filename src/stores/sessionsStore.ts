@@ -73,6 +73,9 @@ export interface PageState {
   blankedKeysList: string[];
   showAll: boolean;
   currentRevealIdx: number;
+  activeBlankKey: string | null;
+  scrollTop: number;
+  savedAt: number;
 }
 
 export interface TahfeezAutoResumeState extends BaseResumeState {
