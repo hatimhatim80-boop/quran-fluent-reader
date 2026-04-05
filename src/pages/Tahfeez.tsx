@@ -1099,6 +1099,7 @@ export default function TahfeezPage() {
       sessionTotalItemsRef.current = total;
       sessionProcessedItemsRef.current = 0;
       sessionTimerPausedRef.current = false;
+      pageStatesRef.current = {}; // Clear per-page states for fresh session
       setSessionRemainingMs(total * timerSeconds * 1000);
     } catch (err) {
       console.error('[tahfeez] Error in handleStart:', err);
