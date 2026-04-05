@@ -166,45 +166,52 @@ export default function TahfeezPage() {
   useEffect(() => { startItemTimerRef.current = startItemTimer; }, [startItemTimer]);
   useEffect(() => { return () => { if (timerRafRef.current) cancelAnimationFrame(timerRafRef.current); }; }, []);
 
-  // ── Session-wide timer (countup/countdown — displayed to user) ──
-  const [sessionElapsedMs, setSessionElapsedMs] = useState(0);
-  const [sessionTimerMode, setSessionTimerMode] = useState<'countup' | 'countdown'>('countup');
-  const [sessionTotalMs, setSessionTotalMs] = useState(0);
-  const sessionTimerStartRef = useRef<number | null>(null);
-  const sessionTimerBaseRef = useRef(0);
-  const sessionTimerRafRef = useRef<number | null>(null);
-  const isSessionTimerRunningRef = useRef(false);
+  // ── Session-level remaining time (monotonic, only decreases) ──
+  // Tracks remaining items across the whole session, not per-page.
+  const [sessionRemainingMs, setSessionRemainingMs] = useState(0);
+  const sessionRemainingItemsRef = useRef(0); // total remaining items in session
+  const sessionTotalItemsRef = useRef(0); // total items in session (set once at start)
+  const sessionProcessedItemsRef = useRef(0); // items processed so far across all pages
+  const sessionPageItemCountsRef = useRef<Record<number, number>>({}); // items per page (learned as pages load)
+  const sessionTimerPausedRef = useRef(false);
   const suppressScrollRef = useRef(false);
 
-  const tickSessionTimer = useCallback(() => {
-    if (!isSessionTimerRunningRef.current || !sessionTimerStartRef.current) return;
-    const elapsed = sessionTimerBaseRef.current + (Date.now() - sessionTimerStartRef.current);
-    setSessionElapsedMs(elapsed);
-    sessionTimerRafRef.current = requestAnimationFrame(tickSessionTimer);
+  // Called when an item is revealed — decrements remaining
+  const onSessionItemProcessed = useCallback(() => {
+    sessionProcessedItemsRef.current += 1;
+    const remaining = Math.max(0, sessionTotalItemsRef.current - sessionProcessedItemsRef.current);
+    sessionRemainingItemsRef.current = remaining;
+    const perItemMs = timerSecondsRef.current * 1000;
+    setSessionRemainingMs(remaining * perItemMs);
   }, []);
-  const startSessionTimer = useCallback((baseMs = 0) => {
-    sessionTimerBaseRef.current = baseMs;
-    sessionTimerStartRef.current = Date.now();
-    isSessionTimerRunningRef.current = true;
-    if (sessionTimerRafRef.current) cancelAnimationFrame(sessionTimerRafRef.current);
-    sessionTimerRafRef.current = requestAnimationFrame(tickSessionTimer);
-  }, [tickSessionTimer]);
-  const pauseSessionTimer = useCallback(() => {
-    if (isSessionTimerRunningRef.current && sessionTimerStartRef.current) {
-      sessionTimerBaseRef.current += Date.now() - sessionTimerStartRef.current;
+
+  // Recalculate remaining when speed changes (only for unprocessed items)
+  const recalcSessionRemaining = useCallback(() => {
+    const remaining = sessionRemainingItemsRef.current;
+    const perItemMs = timerSecondsRef.current * 1000;
+    setSessionRemainingMs(remaining * perItemMs);
+  }, []);
+
+  // Update remaining page items when a new page's blanked keys are loaded
+  const updateSessionPlan = useCallback((page: number, itemCount: number) => {
+    const prev = sessionPageItemCountsRef.current[page];
+    if (prev === undefined) {
+      // First time seeing this page — update total estimate
+      sessionPageItemCountsRef.current[page] = itemCount;
+      // Recalculate total: use actual counts for seen pages, estimate for unseen
+      const pagesRange = quizPagesRangeRef.current;
+      const seenCounts = Object.values(sessionPageItemCountsRef.current);
+      const avgPerPage = seenCounts.length > 0 ? seenCounts.reduce((a, b) => a + b, 0) / seenCounts.length : 10;
+      const unseenPages = pagesRange.filter(p => sessionPageItemCountsRef.current[p] === undefined).length;
+      const totalEstimate = seenCounts.reduce((a, b) => a + b, 0) + Math.round(unseenPages * avgPerPage);
+      // Only increase total if new estimate is higher (monotonic safety)
+      if (totalEstimate > sessionTotalItemsRef.current) {
+        sessionTotalItemsRef.current = totalEstimate;
+      }
+      sessionRemainingItemsRef.current = Math.max(0, sessionTotalItemsRef.current - sessionProcessedItemsRef.current);
+      recalcSessionRemaining();
     }
-    isSessionTimerRunningRef.current = false;
-    sessionTimerStartRef.current = null;
-    if (sessionTimerRafRef.current) cancelAnimationFrame(sessionTimerRafRef.current);
-    setSessionElapsedMs(sessionTimerBaseRef.current);
-  }, []);
-  const resumeSessionTimer = useCallback(() => {
-    sessionTimerStartRef.current = Date.now();
-    isSessionTimerRunningRef.current = true;
-    if (sessionTimerRafRef.current) cancelAnimationFrame(sessionTimerRafRef.current);
-    sessionTimerRafRef.current = requestAnimationFrame(tickSessionTimer);
-  }, [tickSessionTimer]);
-  useEffect(() => { return () => { if (sessionTimerRafRef.current) cancelAnimationFrame(sessionTimerRafRef.current); }; }, []);
+  }, [recalcSessionRemaining]);
 
   // Session hydration on mount
   useEffect(() => {
