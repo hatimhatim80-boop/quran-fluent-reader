@@ -571,9 +571,8 @@ export default function TahfeezPage() {
     const saveOnExit = () => {
       const sessionId = sessionIdParam || activeSessionId;
       if (!sessionId || !quizStarted) return;
-      // Pause both item and session timers to capture remaining ms
-      pauseItemTimer();
-      pauseSessionTimer();
+      // Pause engine to capture remaining ms
+      engine.pause();
       const rs = buildResumeState();
       if (rs) {
         // Force session phase to 'paused' on exit (not completed)
@@ -596,7 +595,7 @@ export default function TahfeezPage() {
       document.removeEventListener('visibilitychange', handleVisChange);
       saveOnExit();
     };
-  }, [quizStarted, buildResumeState, saveResumeState, activeSessionId, sessionIdParam, pauseItemTimer, pauseSessionTimer, markSessionPaused]);
+  }, [quizStarted, buildResumeState, saveResumeState, activeSessionId, sessionIdParam, engine, markSessionPaused]);
 
   useEffect(() => {
     const el = contentRef.current;
