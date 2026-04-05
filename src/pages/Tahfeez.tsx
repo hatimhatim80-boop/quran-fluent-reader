@@ -144,6 +144,24 @@ export default function TahfeezPage() {
 
   // ── Unified Auto-Quiz Engine ──
   const engine = useAutoQuizEngine();
+  const scheduleItem = engine.scheduleItem;
+  const recordProcessed = engine.recordProcessed;
+  const setEngineSpeed = engine.setSpeed;
+  const defaultItemMsRef = engine.defaultItemMsRef;
+  const restoreEngine = engine.restore;
+  const startRaf = engine.startRaf;
+  const getTotalItems = engine.getTotalItems;
+  const getProcessedItems = engine.getProcessedItems;
+  const snapshotEngine = engine.snapshot;
+  const pauseEngine = engine.pause;
+  const completeEngine = engine.complete;
+  const navigateToQuizPage = engine.navigateToPage;
+  const registerPageDurations = engine.registerPageDurations;
+  const initSession = engine.initSession;
+  const resumeEngine = engine.resume;
+  const resetQuizPage = engine.resetPage;
+  const resetQuizSession = engine.resetSession;
+  const enginePageSchedulesRef = engine.pageSchedulesRef;
 
   // Aliases
   const sessionRemainingMs = engine.sessionRemainingMs;
@@ -153,22 +171,22 @@ export default function TahfeezPage() {
   // Ref to latest scheduleItem for use in advance() closure
   // The callback passed to scheduleItem IS the reveal trigger — no separate setTimeout needed
   const startItemTimerRef = useRef((durationMs: number, onExpire: () => void) => {
-    engine.scheduleItem(durationMs, onExpire);
+    scheduleItem(durationMs, onExpire);
   });
   useEffect(() => {
     startItemTimerRef.current = (durationMs: number, onExpire: () => void) => {
-      engine.scheduleItem(durationMs, onExpire);
+      scheduleItem(durationMs, onExpire);
     };
-  }, [engine]);
+  }, [scheduleItem]);
 
   // Backward-compat wrappers
   const onSessionItemProcessed = useCallback((count = 1) => {
-    engine.recordProcessed(count);
-  }, [engine]);
+    recordProcessed(count);
+  }, [recordProcessed]);
 
   const recalcSessionRemaining = useCallback(() => {
-    engine.setSpeed(engine.defaultItemMsRef.current, {});
-  }, [engine]);
+    setEngineSpeed(defaultItemMsRef.current, {});
+  }, [defaultItemMsRef, setEngineSpeed]);
 
   const suppressScrollRef = useRef(false);
 
@@ -213,7 +231,7 @@ export default function TahfeezPage() {
       const autoRs = rs as TahfeezAutoResumeState | TahfeezTestResumeState;
       
       // Restore engine state from resumeState
-      engine.restore({
+      restoreEngine({
         phase: rs.sessionPhase === 'running' ? 'running' : rs.sessionPhase === 'completed' ? 'completed' : 'paused',
         currentPage: rs.currentPage,
         sessionRemainingMs: autoRs.sessionRemainingMs || 0,
@@ -283,7 +301,7 @@ export default function TahfeezPage() {
               }
             }
             // Start the engine's RAF timer for running sessions
-            engine.startRaf();
+            startRaf();
           }
           
           // Scroll to saved position
@@ -505,13 +523,13 @@ export default function TahfeezPage() {
     const kind = isTahfeezAuto ? 'tahfeez-auto' as const : 'tahfeez-test' as const;
     
     // Determine session phase: only 'completed' if ALL items processed
-    const totalItems = engine.getTotalItems();
-    const processedItems = engine.getProcessedItems();
+    const totalItems = getTotalItems();
+    const processedItems = getProcessedItems();
     const isSessionComplete = totalItems > 0 && processedItems >= totalItems;
     const sessionPhase = isPaused ? 'paused' : isSessionComplete ? 'completed' : quizStarted ? 'running' : 'paused';
     
     // Use engine snapshot for remaining time
-    const engineSnap = engine.snapshot(currentPage, {
+    const engineSnap = snapshotEngine(currentPage, {
       revealedKeys: Array.from(revealedKeys),
       blankedKeysList: blankedKeysListRef.current,
       showAll,
@@ -536,7 +554,7 @@ export default function TahfeezPage() {
       activeBlanks: [],
       quizPageIdx,
       showAll,
-      remainingMs: engine.currentItemRemainingMs,
+      remainingMs,
       expectedEndAt: null,
       timerSeconds,
       firstWordTimerSeconds,
@@ -560,7 +578,7 @@ export default function TahfeezPage() {
       sessionPages: engineSnap.sessionPages,
       unregisteredPages: engineSnap.unregisteredPages,
     } as any;
-  }, [currentPage, isPaused, showAll, quizStarted, hideBars, revealedKeys, activeBlankKey, quizPageIdx, timerSeconds, firstWordTimerSeconds, quizInteraction, quizScope, quizScopeFrom, quizScopeTo, quizSource, activeSessionId, sessionIdParam, getSession, engine]);
+  }, [currentPage, isPaused, showAll, quizStarted, hideBars, revealedKeys, activeBlankKey, quizPageIdx, timerSeconds, firstWordTimerSeconds, quizInteraction, quizScope, quizScopeFrom, quizScopeTo, quizSource, activeSessionId, sessionIdParam, getSession, getProcessedItems, getTotalItems, remainingMs, snapshotEngine]);
 
   // Throttled auto-save
   useEffect(() => {
@@ -594,7 +612,7 @@ export default function TahfeezPage() {
       const sessionId = sessionIdParam || activeSessionId;
       if (!sessionId || !quizStarted) return;
       // Pause engine to capture remaining ms
-      engine.pause();
+      pauseEngine();
       const rs = buildResumeState();
       if (rs) {
         // Force session phase to 'paused' on exit (not completed)
@@ -617,7 +635,7 @@ export default function TahfeezPage() {
       document.removeEventListener('visibilitychange', handleVisChange);
       saveOnExit();
     };
-  }, [quizStarted, buildResumeState, saveResumeState, activeSessionId, sessionIdParam, engine, markSessionPaused]);
+  }, [quizStarted, buildResumeState, saveResumeState, activeSessionId, sessionIdParam, pauseEngine, markSessionPaused]);
 
   useEffect(() => {
     const el = contentRef.current;
@@ -680,11 +698,11 @@ export default function TahfeezPage() {
   }, [currentPage, quizStarted]);
 
   const completeQuizSession = useCallback(() => {
-    engine.complete();
+    completeEngine();
     setShowAll(true);
     setActiveBlankKey(null);
     speechRef.current.stop();
-  }, [engine]);
+  }, [completeEngine]);
 
   const advanceToNextQuizPage = useCallback(() => {
     const range = resolveQuizPagesRange();
@@ -715,7 +733,7 @@ export default function TahfeezPage() {
       if (revealTimerRef.current) clearTimeout(revealTimerRef.current);
       
       // Save old page state through engine (preserves partial active-item timing)
-      const savedPageState = engine.navigateToPage(oldPage, currentPage, {
+      const savedPageState = navigateToQuizPage(oldPage, currentPage, {
         revealedKeys: Array.from(revealedKeys),
         blankedKeysList: blankedKeysListRef.current,
         showAll,
@@ -817,9 +835,9 @@ export default function TahfeezPage() {
               fSet.has(k) ? fwMs + defaultMs : defaultMs
             );
             // Check if this page already has consumed items (restored page)
-            const existingSched = engine.pageSchedulesRef.current[currentPageRef.current];
+            const existingSched = enginePageSchedulesRef.current[currentPageRef.current];
             const consumed = existingSched ? existingSched.consumed : 0;
-            engine.registerPageDurations(currentPageRef.current, durations, consumed);
+            registerPageDurations(currentPageRef.current, durations, consumed);
           }
 
           if (wordTextsSig !== lastWordTextsSig) {
@@ -951,7 +969,7 @@ export default function TahfeezPage() {
       if (fallbackTimer) clearTimeout(fallbackTimer);
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [quizStarted, pageData, currentPage, autoBlankMode, quizInteraction, advanceToNextQuizPage, completeQuizSession]);
+  }, [quizStarted, currentPage, autoBlankMode, quizInteraction, advanceToNextQuizPage, completeQuizSession, enginePageSchedulesRef, registerPageDurations]);
 
   // Ref to track reveal index internally (avoids re-triggering the advance effect)
   const currentRevealIdxRef = useRef(-1);
@@ -1191,7 +1209,7 @@ export default function TahfeezPage() {
         toast.error('لا توجد كلمات متاحة في هذا النطاق');
         return;
       }
-      engine.initSession(pagesRange, perPage, timerSeconds * 1000, pagesRange[0] || currentPageRef.current);
+      initSession(pagesRange, perPage, timerSeconds * 1000, pagesRange[0] || currentPageRef.current);
     } catch (err) {
       console.error('[tahfeez] Error in handleStart:', err);
       toast.error('حدث خطأ أثناء بدء الاختبار');
@@ -1229,7 +1247,7 @@ export default function TahfeezPage() {
   const handlePauseResume = () => {
     if (isPaused) {
       setIsPaused(false);
-      engine.resume(); // advance() chain handles actual item scheduling
+      resumeEngine(); // advance() chain handles actual item scheduling
       // Resume from next unrevealed
       const nextIdx = blankedKeysList.findIndex(k => !revealedKeys.has(k));
       if (nextIdx >= 0) {
@@ -1237,7 +1255,7 @@ export default function TahfeezPage() {
       }
     } else {
       setIsPaused(true);
-      engine.pause();
+      pauseEngine();
       if (revealTimerRef.current) clearTimeout(revealTimerRef.current);
       speech.stop();
     }
@@ -1250,7 +1268,7 @@ export default function TahfeezPage() {
     speech.stop();
 
     // Reset engine page state
-    engine.resetPage(currentPage);
+    resetQuizPage(currentPage);
 
     // Reset visual state
     setRevealedKeys(new Set());
@@ -1269,7 +1287,7 @@ export default function TahfeezPage() {
       setTimeout(() => {
         setCurrentRevealIdx(0);
         currentRevealIdxRef.current = 0;
-        engine.startRaf();
+        startRaf();
       }, 100);
     }
   };
@@ -1284,7 +1302,7 @@ export default function TahfeezPage() {
     const { total, perPage } = computeSessionTotalItems(pages, pagesRange);
 
     // Reset engine
-    engine.resetSession(pagesRange, perPage, timerSeconds * 1000, pagesRange[0] || 1);
+    resetQuizSession(pagesRange, perPage, timerSeconds * 1000, pagesRange[0] || 1);
 
     // Reset visual state
     setRevealedKeys(new Set());
@@ -1383,11 +1401,11 @@ export default function TahfeezPage() {
       const newDefaultMs = timerSeconds * 1000;
       const newFwMs = firstWordTimerSeconds * 1000;
       // Rebuild all page durations with new speed
-      engine.setSpeed(newDefaultMs, {
+      setEngineSpeed(newDefaultMs, {
         activeItemPolicy: 'scale-remaining',
         getDuration: (page, itemIdx) => {
           // Check if this item is a first key on its page
-          const ps = engine.pageStatesRef.current[page];
+          const ps = pageStatesRef.current[page];
           if (ps && ps.blankedKeysList && ps.blankedKeysList[itemIdx]) {
             const key = ps.blankedKeysList[itemIdx];
             if (firstKeysSetRef.current.has(key)) {
@@ -1398,7 +1416,7 @@ export default function TahfeezPage() {
         },
       });
     }
-  }, [timerSeconds, firstWordTimerSeconds, quizStarted, showAll, engine]);
+  }, [timerSeconds, firstWordTimerSeconds, quizStarted, showAll, pageStatesRef, setEngineSpeed]);
 
   const filteredSurahs = useMemo(() => {
     if (!indexSearch.trim()) return SURAHS;
