@@ -637,21 +637,51 @@ export default function TahfeezPage() {
   useEffect(() => {
     if (!quizStarted) return;
     if (prevPageRef.current !== currentPage) {
+      const oldPage = prevPageRef.current;
       prevPageRef.current = currentPage;
       // Clear all timers first
       if (revealTimerRef.current) clearTimeout(revealTimerRef.current);
-      // Full state reset for the new page
-      setShowAll(false);
-      setRevealedKeys(new Set());
-      setActiveBlankKey(null);
-      setCurrentRevealIdx(-1);
-      setBlankedKeysList([]);
-      setFirstKeysSet(new Set());
-      setIsPaused(false);
-      // Flag to auto-start when blanked keys are loaded from DOM
-      autoResumeQuizRef.current = true;
+      
+      // Save current page state before switching
+      pageStatesRef.current[oldPage] = {
+        revealedKeys: Array.from(revealedKeys),
+        blankedKeysList: blankedKeysListRef.current,
+        showAll,
+        currentRevealIdx: currentRevealIdxRef.current,
+      };
+      
+      // Check if we have saved state for the new page
+      const savedPageState = pageStatesRef.current[currentPage];
+      if (savedPageState && savedPageState.revealedKeys.length > 0) {
+        // Restore previously visited page
+        setRevealedKeys(new Set(savedPageState.revealedKeys));
+        setBlankedKeysList(savedPageState.blankedKeysList);
+        blankedKeysListRef.current = savedPageState.blankedKeysList;
+        setShowAll(savedPageState.showAll);
+        setCurrentRevealIdx(savedPageState.currentRevealIdx);
+        setActiveBlankKey(null);
+        setFirstKeysSet(new Set());
+        setIsPaused(false);
+        // If page was completed, auto-advance; otherwise resume from saved idx
+        if (savedPageState.showAll) {
+          autoResumeQuizRef.current = false;
+        } else {
+          autoResumeQuizRef.current = true;
+        }
+      } else {
+        // Fresh page — reset for new content
+        setShowAll(false);
+        setRevealedKeys(new Set());
+        setActiveBlankKey(null);
+        setCurrentRevealIdx(-1);
+        setBlankedKeysList([]);
+        setFirstKeysSet(new Set());
+        setIsPaused(false);
+        // Flag to auto-start when blanked keys are loaded from DOM
+        autoResumeQuizRef.current = true;
+      }
     }
-  }, [currentPage, quizStarted]);
+  }, [currentPage, quizStarted, revealedKeys, showAll]);
 
   // Read blanked keys from the quiz view after it renders.
   // Uses MutationObserver for instant detection instead of slow polling.
