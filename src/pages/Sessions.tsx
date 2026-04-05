@@ -253,13 +253,15 @@ export default function Sessions() {
 
   const handleContinue = (session: Session) => {
     store.setActiveSession(session.id);
-    store.updateSession(session.id, { lastOpenedAt: Date.now() } as any);
+    store.markSessionResumed(session.id);
     const portal = SESSION_TYPE_META[session.type]?.portal || '/mushaf';
+    // Also set localStorage as fallback
     localStorage.setItem(
       portal === '/mushaf' ? 'quran-app-ghareeb-start-page' : 'quran-app-tahfeez-start-page',
       String(session.currentPage)
     );
-    navigate(portal);
+    // Navigate with sessionId and resume flag in search params
+    navigate(`${portal}?sessionId=${session.id}&resume=1`);
   };
 
   const handleRename = () => {

@@ -53,6 +53,67 @@ export interface SessionSection {
   currentPage: number;
 }
 
+/* ─── Typed Resume States ─── */
+
+export interface BaseResumeState {
+  currentPage: number;
+  sessionPhase: 'running' | 'paused' | 'completed';
+  hideChrome?: boolean;
+}
+
+export interface TahfeezAutoResumeState extends BaseResumeState {
+  kind: 'tahfeez-auto';
+  currentRevealIdx: number;
+  blankedKeysList: string[];
+  revealedKeys: string[];
+  activeBlankKey: string | null;
+  quizPageIdx: number;
+  showAll: boolean;
+  remainingMs: number;
+  expectedEndAt: number | null;
+  timerSeconds: number;
+  firstWordTimerSeconds: number;
+  quizInteraction: string;
+  quizScope: string;
+  quizScopeFrom: number;
+  quizScopeTo: number;
+  quizSource: string;
+  distributionSeed: number;
+}
+
+export interface TahfeezTestResumeState extends BaseResumeState {
+  kind: 'tahfeez-test';
+  currentRevealIdx: number;
+  blankedKeysList: string[];
+  revealedKeys: string[];
+  activeBlankKey: string | null;
+  quizPageIdx: number;
+  showAll: boolean;
+  timerSeconds: number;
+  firstWordTimerSeconds: number;
+  quizInteraction: string;
+  quizScope: string;
+  quizScopeFrom: number;
+  quizScopeTo: number;
+  quizSource: string;
+  distributionSeed: number;
+}
+
+export interface TahfeezReviewResumeState extends BaseResumeState {
+  kind: 'tahfeez-review';
+  // SRS-specific state saved separately
+}
+
+export interface GhareebResumeState extends BaseResumeState {
+  kind: 'ghareeb';
+}
+
+export type SessionResumeState =
+  | TahfeezAutoResumeState
+  | TahfeezTestResumeState
+  | TahfeezReviewResumeState
+  | GhareebResumeState;
+
 export interface Session {
   id: string;
   name: string;
@@ -70,7 +131,7 @@ export interface Session {
   quizSettings?: Record<string, unknown>;
   status: 'active' | 'paused' | 'completed' | 'archived';
   progress?: number;
-  resumeState?: Record<string, unknown>;
+  resumeState?: SessionResumeState | null;
 }
 
 export interface SessionGroup {
@@ -100,6 +161,13 @@ interface SessionsState {
   renameGroup: (id: string, name: string) => void;
   deleteGroup: (id: string) => void;
   moveSessionToGroup: (sessionId: string, groupId: string | undefined) => void;
+
+  // Helper methods
+  saveResumeState: (sessionId: string, resumeState: SessionResumeState) => void;
+  markSessionPaused: (sessionId: string) => void;
+  markSessionCompleted: (sessionId: string) => void;
+  markSessionResumed: (sessionId: string) => void;
+  getActiveSession: () => Session | undefined;
 }
 
 export const useSessionsStore = create<SessionsState>()(
@@ -124,6 +192,7 @@ export const useSessionsStore = create<SessionsState>()(
           endPage,
           groupId,
           status: 'active',
+          resumeState: null,
         };
         set({ sessions: [...get().sessions, session], activeSessionId: id });
         return id;
@@ -140,7 +209,7 @@ export const useSessionsStore = create<SessionsState>()(
       archiveSession: (id) => {
         set({
           sessions: get().sessions.map(s =>
-            s.id === id ? { ...s, archived: true, updatedAt: Date.now() } : s
+            s.id === id ? { ...s, archived: true, status: 'archived' as const, updatedAt: Date.now() } : s
           ),
           activeSessionId: get().activeSessionId === id ? null : get().activeSessionId,
         });
@@ -149,7 +218,7 @@ export const useSessionsStore = create<SessionsState>()(
       unarchiveSession: (id) => {
         set({
           sessions: get().sessions.map(s =>
-            s.id === id ? { ...s, archived: false, updatedAt: Date.now() } : s
+            s.id === id ? { ...s, archived: false, status: 'active' as const, updatedAt: Date.now() } : s
           ),
         });
       },
@@ -164,6 +233,45 @@ export const useSessionsStore = create<SessionsState>()(
       setActiveSession: (id) => set({ activeSessionId: id }),
 
       getSession: (id) => get().sessions.find(s => s.id === id),
+
+      getActiveSession: () => {
+        const id = get().activeSessionId;
+        return id ? get().sessions.find(s => s.id === id) : undefined;
+      },
+
+      saveResumeState: (sessionId, resumeState) => {
+        set({
+          sessions: get().sessions.map(s =>
+            s.id === sessionId
+              ? { ...s, resumeState, currentPage: resumeState.currentPage, updatedAt: Date.now() }
+              : s
+          ),
+        });
+      },
+
+      markSessionPaused: (sessionId) => {
+        set({
+          sessions: get().sessions.map(s =>
+            s.id === sessionId ? { ...s, status: 'paused' as const, updatedAt: Date.now() } : s
+          ),
+        });
+      },
+
+      markSessionCompleted: (sessionId) => {
+        set({
+          sessions: get().sessions.map(s =>
+            s.id === sessionId ? { ...s, status: 'completed' as const, updatedAt: Date.now() } : s
+          ),
+        });
+      },
+
+      markSessionResumed: (sessionId) => {
+        set({
+          sessions: get().sessions.map(s =>
+            s.id === sessionId ? { ...s, status: 'active' as const, lastOpenedAt: Date.now(), updatedAt: Date.now() } : s
+          ),
+        });
+      },
 
       addSection: (sessionId, title, startPage, endPage) => {
         const sectionId = `sec_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
