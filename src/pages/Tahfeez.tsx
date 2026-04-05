@@ -1827,45 +1827,31 @@ export default function TahfeezPage() {
               </div>
             )}
 
-            {/* Progress + Voice indicator */}
-            <div className="page-frame p-3 space-y-2">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-arabic text-muted-foreground">
-                    {revealedKeys.size} / {blankedKeysList.length} كلمة
-                  </span>
-                </div>
-                <span className={`text-lg font-bold font-arabic ${showAll ? 'text-green-600' : 'text-foreground'}`}>
-                  {showAll ? '✓ تم الكشف' : `${progress}%`}
-                </span>
-              </div>
-              {/* Inline word count controls */}
-              {autoBlankMode === 'ayah-count' && hiddenWordsMode === 'fixed-count' && (
+            {/* Inline word count controls (no progress bar / percentage / word count) */}
+            {autoBlankMode === 'ayah-count' && hiddenWordsMode === 'fixed-count' && (
+              <div className="page-frame p-2">
                 <div className="flex items-center gap-2" dir="rtl">
                   <span className="text-xs font-arabic text-muted-foreground whitespace-nowrap">كلمات: <span className="text-primary font-bold">{hiddenWordsCount}</span></span>
                   <Slider className="flex-1" value={[hiddenWordsCount]} onValueChange={([v]) => setHiddenWordsCount(v)} min={1} max={20} step={1} />
                 </div>
-              )}
-              {autoBlankMode === 'ayah-count' && hiddenWordsMode === 'percentage' && (
+              </div>
+            )}
+            {autoBlankMode === 'ayah-count' && hiddenWordsMode === 'percentage' && (
+              <div className="page-frame p-2">
                 <div className="flex items-center gap-2" dir="rtl">
                   <span className="text-xs font-arabic text-muted-foreground whitespace-nowrap">نسبة: <span className="text-primary font-bold">{hiddenWordsPercentage}%</span></span>
                   <Slider className="flex-1" value={[hiddenWordsPercentage]} onValueChange={([v]) => setHiddenWordsPercentage(v)} min={5} max={90} step={5} />
                 </div>
-              )}
-              {(['beginning', 'middle', 'end', 'beginning-middle', 'middle-end', 'beginning-end', 'beginning-middle-end'] as string[]).includes(autoBlankMode) && (
+              </div>
+            )}
+            {(['beginning', 'middle', 'end', 'beginning-middle', 'middle-end', 'beginning-end', 'beginning-middle-end'] as string[]).includes(autoBlankMode) && (
+              <div className="page-frame p-2">
                 <div className="flex items-center gap-2" dir="rtl">
                   <span className="text-xs font-arabic text-muted-foreground whitespace-nowrap">كلمات: <span className="text-primary font-bold">{blankCount}</span></span>
                   <Slider className="flex-1" value={[blankCount]} onValueChange={([v]) => setBlankCount(v)} min={1} max={10} step={1} />
                 </div>
-              )}
-            </div>
-
-            <div className="w-full h-1.5 bg-secondary rounded-full overflow-hidden">
-              <div
-                className="h-full bg-primary transition-all duration-500 ease-linear"
-                style={{ width: `${progress}%` }}
-              />
-            </div>
+              </div>
+            )}
 
             {/* Session review settings hidden during active quiz — accessible via ⚙️ button */}
 
