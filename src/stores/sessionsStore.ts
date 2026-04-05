@@ -87,7 +87,7 @@ interface SessionsState {
   activeSessionId: string | null;
 
   createSession: (name: string, type: SessionType, startPage?: number, endPage?: number, groupId?: string) => string;
-  updateSession: (id: string, patch: Partial<Pick<Session, 'name' | 'currentPage' | 'startPage' | 'endPage' | 'tahfeezItems' | 'quizSettings' | 'sections' | 'groupId'>>) => void;
+  updateSession: (id: string, patch: Partial<Pick<Session, 'name' | 'currentPage' | 'startPage' | 'endPage' | 'tahfeezItems' | 'quizSettings' | 'sections' | 'groupId' | 'lastOpenedAt' | 'status' | 'progress' | 'resumeState'>>) => void;
   archiveSession: (id: string) => void;
   unarchiveSession: (id: string) => void;
   deleteSession: (id: string) => void;
