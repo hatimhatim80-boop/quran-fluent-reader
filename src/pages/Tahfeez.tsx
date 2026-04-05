@@ -257,10 +257,8 @@ export default function TahfeezPage() {
       // Restore session remaining timer
       if (autoRs.sessionRemainingMs !== undefined && autoRs.sessionRemainingMs > 0) {
         setSessionRemainingMs(autoRs.sessionRemainingMs);
-        // Estimate remaining items from saved data
         const perItemMs = (autoRs.timerSeconds || 1) * 1000;
         const remainingItems = Math.ceil(autoRs.sessionRemainingMs / perItemMs);
-        sessionRemainingItemsRef.current = remainingItems;
         sessionProcessedItemsRef.current = Math.max(0, (sessionTotalItemsRef.current || 0) - remainingItems);
       }
       
