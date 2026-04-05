@@ -227,6 +227,8 @@ export default function TahfeezPage() {
         sessionPages: (autoRs as any).sessionPages || [],
         unregisteredPages: (autoRs as any).unregisteredPages || {},
         defaultItemMs: ((autoRs.timerSeconds || 1) * 1000),
+        plannedTotalMs: (autoRs as any).plannedTotalMs ?? 0,
+        realElapsedMs: (autoRs as any).realElapsedMs ?? 0,
       });
       
       // Restore settings
