@@ -1231,8 +1231,10 @@ export default function TahfeezPage() {
 
   // ── Recalc session remaining when speed changes ──
   useEffect(() => {
-    if (quizStarted && !showAll) recalcSessionRemaining();
-  }, [timerSeconds, quizStarted, showAll, recalcSessionRemaining]);
+    if (quizStarted && !showAll) {
+      engine.setSpeed(timerSeconds * 1000, firstWordTimerSeconds * 1000);
+    }
+  }, [timerSeconds, firstWordTimerSeconds, quizStarted, showAll, engine]);
 
   const filteredSurahs = useMemo(() => {
     if (!indexSearch.trim()) return SURAHS;
