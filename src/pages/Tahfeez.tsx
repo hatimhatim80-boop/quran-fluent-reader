@@ -2063,9 +2063,9 @@ export default function TahfeezPage() {
               </div>
             )}
 
-            {/* Session estimated remaining time */}
-            {quizStarted && (
-              <div className="flex items-center justify-center gap-2">
+            {/* Session estimated remaining time — only when top bars visible (hidden-bars has its own overlay) */}
+            {!shouldHideTopBars && (
+              <div className="flex items-center justify-center gap-2 pointer-events-none">
                 <div className="flex items-center gap-1.5 bg-muted/40 px-3 py-1 rounded-full">
                   <Clock className="w-3 h-3 text-muted-foreground/70" />
                   <span className="text-[11px] font-mono text-muted-foreground tabular-nums" dir="rtl">
