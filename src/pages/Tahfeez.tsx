@@ -499,8 +499,8 @@ export default function TahfeezPage() {
     const isSessionComplete = sessionTotalItemsRef.current > 0 && sessionProcessedItemsRef.current >= sessionTotalItemsRef.current;
     const sessionPhase = isPaused ? 'paused' : isSessionComplete ? 'completed' : quizStarted ? 'running' : 'paused';
     
-    // Use getTrueRemainingSessionMs as the source of truth
-    const trueRemaining = getTrueRemainingSessionMs();
+    // Use engine as the source of truth for remaining time
+    const trueRemaining = engine.computeRemaining();
     
     return {
       kind,
@@ -518,8 +518,8 @@ export default function TahfeezPage() {
       activeBlanks: [],
       quizPageIdx,
       showAll,
-      remainingMs: expectedEndAtRef.current ? Math.max(0, expectedEndAtRef.current - Date.now()) : 0,
-      expectedEndAt: expectedEndAtRef.current,
+      remainingMs: engine.currentItemRemainingMs,
+      expectedEndAt: null,
       timerSeconds,
       firstWordTimerSeconds,
       quizInteraction,
@@ -538,7 +538,7 @@ export default function TahfeezPage() {
       sessionProcessedItems: sessionProcessedItemsRef.current,
       pageStates: allPageStates,
     } as TahfeezAutoResumeState | TahfeezTestResumeState;
-  }, [currentPage, isPaused, showAll, quizStarted, hideBars, revealedKeys, activeBlankKey, quizPageIdx, timerSeconds, firstWordTimerSeconds, quizInteraction, quizScope, quizScopeFrom, quizScopeTo, quizSource, activeSessionId, sessionIdParam, getSession, getTrueRemainingSessionMs]);
+  }, [currentPage, isPaused, showAll, quizStarted, hideBars, revealedKeys, activeBlankKey, quizPageIdx, timerSeconds, firstWordTimerSeconds, quizInteraction, quizScope, quizScopeFrom, quizScopeTo, quizSource, activeSessionId, sessionIdParam, getSession, engine]);
 
   // Throttled auto-save
   useEffect(() => {
