@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import { useAutoQuizEngine, EnginePageState } from '@/hooks/useAutoQuizEngine';
 import { useTahfeezStore, TahfeezItem } from '@/stores/tahfeezStore';
 import { MCQStats, TahfeezMCQPanel } from '@/components/TahfeezMCQPanel';
 import { TahfeezSegmentMCQView, SegmentMCQStats } from '@/components/TahfeezSegmentMCQView';
@@ -135,122 +136,36 @@ export default function TahfeezPage() {
   const hasHydratedRef = useRef(false);
   const isHydratingSessionRef = useRef(false);
 
-  // ── Per-item timer (internal, drives auto-reveal timing) ──
-  const [remainingMs, setRemainingMs] = useState<number>(0);
-  const expectedEndAtRef = useRef<number | null>(null);
-  const timerRafRef = useRef<number | null>(null);
-  const tickTimer = useCallback(() => {
-    if (expectedEndAtRef.current !== null) {
-      const r = Math.max(0, expectedEndAtRef.current - Date.now());
-      setRemainingMs(r);
-      if (r > 0) timerRafRef.current = requestAnimationFrame(tickTimer);
-    }
-  }, []);
-  const startItemTimer = useCallback((durationMs: number) => {
-    expectedEndAtRef.current = Date.now() + durationMs;
-    setRemainingMs(durationMs);
-    if (timerRafRef.current) cancelAnimationFrame(timerRafRef.current);
-    timerRafRef.current = requestAnimationFrame(tickTimer);
-  }, [tickTimer]);
-  const pauseItemTimer = useCallback(() => {
-    if (timerRafRef.current) cancelAnimationFrame(timerRafRef.current);
-    timerRafRef.current = null;
-    if (expectedEndAtRef.current !== null) setRemainingMs(Math.max(0, expectedEndAtRef.current - Date.now()));
-    expectedEndAtRef.current = null;
-  }, []);
-  const resumeItemTimer = useCallback((ms: number) => {
-    expectedEndAtRef.current = Date.now() + ms;
-    setRemainingMs(ms);
-    if (timerRafRef.current) cancelAnimationFrame(timerRafRef.current);
-    timerRafRef.current = requestAnimationFrame(tickTimer);
-  }, [tickTimer]);
-  const startItemTimerRef = useRef(startItemTimer);
-  useEffect(() => { startItemTimerRef.current = startItemTimer; }, [startItemTimer]);
-  useEffect(() => { return () => { if (timerRafRef.current) cancelAnimationFrame(timerRafRef.current); }; }, []);
+  // ── Unified Auto-Quiz Engine ──
+  const engine = useAutoQuizEngine();
 
-  // ── Session-level remaining time (true, RAF-driven) ──
-  const [sessionRemainingMs, setSessionRemainingMs] = useState(0);
-  const sessionTotalItemsRef = useRef(0);
-  const sessionProcessedItemsRef = useRef(0);
-  const sessionTimerPausedRef = useRef(false);
-  const sessionTimerRafRef = useRef<number | null>(null);
-  const sessionPausedSnapshotRef = useRef<number | null>(null); // snapshot when paused
-  // Per-page state map — tracks revealed keys for each visited page
-  const pageStatesRef = useRef<Record<number, PageState>>({});
+  // Aliases for backward compat
+  const sessionRemainingMs = engine.sessionRemainingMs;
+  const sessionTotalItemsRef = engine.totalItemsRef;
+  const sessionProcessedItemsRef = engine.processedItemsRef;
+  const pageStatesRef = engine.pageStatesRef as React.MutableRefObject<Record<number, PageState>>;
 
-  /**
-   * getTrueRemainingSessionMs — single source of truth for session remaining time.
-   * = current item's live remaining + future unprocessed items × timerSeconds
-   * We intentionally exclude autoAdvanceDelay and firstWordTimerSeconds from the
-   * estimate to keep it simple and monotonically decreasing. These are sub-second
-   * delays that don't meaningfully affect the total estimate.
-   */
-  const getTrueRemainingSessionMs = useCallback((): number => {
-    const futureItems = Math.max(0, sessionTotalItemsRef.current - sessionProcessedItemsRef.current);
-    if (futureItems <= 0) return 0;
+  // Per-item remaining (for item-level UI if needed)
+  const remainingMs = engine.currentItemRemainingMs;
 
-    // Current item's live remaining from the item timer
-    const currentItemRemaining = expectedEndAtRef.current !== null
-      ? Math.max(0, expectedEndAtRef.current - Date.now())
-      : 0;
-
-    // Items after the current one (futureItems includes the current active item)
-    const itemsAfterCurrent = Math.max(0, futureItems - 1);
-    const perItemMs = timerSecondsRef.current * 1000;
-
-    return currentItemRemaining + (itemsAfterCurrent * perItemMs);
-  }, []);
-
-  // RAF loop that live-ticks sessionRemainingMs from the true source
-  const tickSessionTimer = useCallback(() => {
-    if (sessionTimerPausedRef.current) return;
-    const trueMs = getTrueRemainingSessionMs();
-    setSessionRemainingMs(trueMs);
-    if (trueMs > 0) {
-      sessionTimerRafRef.current = requestAnimationFrame(tickSessionTimer);
-    }
-  }, [getTrueRemainingSessionMs]);
-
-  const startSessionTimer = useCallback(() => {
-    sessionTimerPausedRef.current = false;
-    sessionPausedSnapshotRef.current = null;
-    if (sessionTimerRafRef.current) cancelAnimationFrame(sessionTimerRafRef.current);
-    sessionTimerRafRef.current = requestAnimationFrame(tickSessionTimer);
-  }, [tickSessionTimer]);
-
-  const pauseSessionTimer = useCallback(() => {
-    sessionTimerPausedRef.current = true;
-    if (sessionTimerRafRef.current) {
-      cancelAnimationFrame(sessionTimerRafRef.current);
-      sessionTimerRafRef.current = null;
-    }
-    // Snapshot the true remaining so we can persist and restore it
-    sessionPausedSnapshotRef.current = getTrueRemainingSessionMs();
-    setSessionRemainingMs(sessionPausedSnapshotRef.current);
-  }, [getTrueRemainingSessionMs]);
-
-  const resumeSessionTimer = useCallback(() => {
-    sessionPausedSnapshotRef.current = null;
-    startSessionTimer();
-  }, [startSessionTimer]);
-
-  // Called when an item is revealed — just increment processed count; RAF handles the rest
-  const onSessionItemProcessed = useCallback(() => {
-    sessionProcessedItemsRef.current += 1;
-  }, []);
-
-  // Recalculate remaining when speed changes — RAF handles continuous update,
-  // but we do an immediate refresh so the UI updates instantly
-  const recalcSessionRemaining = useCallback(() => {
-    setSessionRemainingMs(getTrueRemainingSessionMs());
-  }, [getTrueRemainingSessionMs]);
-
-  // Cleanup session timer RAF on unmount
+  // Ref to latest scheduleItem for use in advance() closure
+  const startItemTimerRef = useRef((durationMs: number) => {
+    engine.scheduleItem(durationMs, () => {});
+  });
   useEffect(() => {
-    return () => {
-      if (sessionTimerRafRef.current) cancelAnimationFrame(sessionTimerRafRef.current);
+    startItemTimerRef.current = (durationMs: number) => {
+      engine.scheduleItem(durationMs, () => {});
     };
-  }, []);
+  }, [engine]);
+
+  // Backward-compat wrappers
+  const onSessionItemProcessed = useCallback((count = 1) => {
+    engine.recordProcessed(count);
+  }, [engine]);
+
+  const recalcSessionRemaining = useCallback(() => {
+    engine.setSpeed(engine.perItemMsRef.current);
+  }, [engine]);
 
   const suppressScrollRef = useRef(false);
 
@@ -294,22 +209,21 @@ export default function TahfeezPage() {
     if (rs.kind === 'tahfeez-auto' || rs.kind === 'tahfeez-test') {
       const autoRs = rs as TahfeezAutoResumeState | TahfeezTestResumeState;
       
-      // a) Restore refs first (before any navigation or state)
-      if (autoRs.sessionTotalItems > 0) {
-        sessionTotalItemsRef.current = autoRs.sessionTotalItems;
-        sessionProcessedItemsRef.current = autoRs.sessionProcessedItems || 0;
-      }
-      if (autoRs.pageStates) {
-        pageStatesRef.current = { ...autoRs.pageStates };
-      }
-      
-      // Restore session remaining from saved value
-      if (autoRs.sessionRemainingMs !== undefined && autoRs.sessionRemainingMs > 0) {
-        setSessionRemainingMs(autoRs.sessionRemainingMs);
-      } else if (autoRs.sessionTotalItems > 0) {
-        const remaining = Math.max(0, autoRs.sessionTotalItems - (autoRs.sessionProcessedItems || 0));
-        setSessionRemainingMs(remaining * (autoRs.timerSeconds || 1) * 1000);
-      }
+      // Restore engine state from resumeState
+      engine.restore({
+        phase: rs.sessionPhase === 'running' ? 'running' : rs.sessionPhase === 'completed' ? 'completed' : 'paused',
+        currentPage: rs.currentPage,
+        sessionRemainingMs: autoRs.sessionRemainingMs || 0,
+        currentItemRemainingMs: ('remainingMs' in autoRs ? autoRs.remainingMs : 0) || 0,
+        sessionTotalItems: autoRs.sessionTotalItems || 0,
+        sessionProcessedItems: autoRs.sessionProcessedItems || 0,
+        currentRevealIdx: autoRs.currentRevealIdx || 0,
+        activeBlankKey: autoRs.activeBlankKey,
+        revealedKeys: autoRs.revealedKeys || [],
+        blankedKeysList: autoRs.blankedKeysList || [],
+        showAll: autoRs.showAll || false,
+        pageStates: (autoRs.pageStates || {}) as Record<number, EnginePageState>,
+      }, (autoRs.timerSeconds || 1) * 1000, (autoRs.firstWordTimerSeconds || 0) * 1000);
       
       // Restore settings
       if (autoRs.quizInteraction) setQuizInteraction(autoRs.quizInteraction as any);
@@ -349,10 +263,7 @@ export default function TahfeezPage() {
           
           if (rs.sessionPhase === 'paused' || rs.sessionPhase === 'completed') {
             setIsPaused(true);
-            pauseSessionTimer();
-            if ('remainingMs' in autoRs && autoRs.remainingMs > 0) {
-              setRemainingMs(autoRs.remainingMs);
-            }
+            // Engine already restored as paused
           } else {
             setIsPaused(false);
             // Resume auto-advance from saved position
@@ -361,12 +272,11 @@ export default function TahfeezPage() {
               if (nextIdx >= 0) {
                 setCurrentRevealIdx(nextIdx);
                 currentRevealIdxRef.current = nextIdx;
-                if ('remainingMs' in autoRs && autoRs.remainingMs > 0) {
-                  resumeItemTimer(autoRs.remainingMs);
-                }
+                // Engine handles the item timer via the advance() chain
               }
             }
-            startSessionTimer();
+            // Start the engine's RAF timer for running sessions
+            engine.startRaf();
           }
           
           // Scroll to saved position
@@ -589,8 +499,8 @@ export default function TahfeezPage() {
     const isSessionComplete = sessionTotalItemsRef.current > 0 && sessionProcessedItemsRef.current >= sessionTotalItemsRef.current;
     const sessionPhase = isPaused ? 'paused' : isSessionComplete ? 'completed' : quizStarted ? 'running' : 'paused';
     
-    // Use getTrueRemainingSessionMs as the source of truth
-    const trueRemaining = getTrueRemainingSessionMs();
+    // Use engine as the source of truth for remaining time
+    const trueRemaining = engine.computeRemaining();
     
     return {
       kind,
@@ -608,8 +518,8 @@ export default function TahfeezPage() {
       activeBlanks: [],
       quizPageIdx,
       showAll,
-      remainingMs: expectedEndAtRef.current ? Math.max(0, expectedEndAtRef.current - Date.now()) : 0,
-      expectedEndAt: expectedEndAtRef.current,
+      remainingMs: engine.currentItemRemainingMs,
+      expectedEndAt: null,
       timerSeconds,
       firstWordTimerSeconds,
       quizInteraction,
@@ -628,7 +538,7 @@ export default function TahfeezPage() {
       sessionProcessedItems: sessionProcessedItemsRef.current,
       pageStates: allPageStates,
     } as TahfeezAutoResumeState | TahfeezTestResumeState;
-  }, [currentPage, isPaused, showAll, quizStarted, hideBars, revealedKeys, activeBlankKey, quizPageIdx, timerSeconds, firstWordTimerSeconds, quizInteraction, quizScope, quizScopeFrom, quizScopeTo, quizSource, activeSessionId, sessionIdParam, getSession, getTrueRemainingSessionMs]);
+  }, [currentPage, isPaused, showAll, quizStarted, hideBars, revealedKeys, activeBlankKey, quizPageIdx, timerSeconds, firstWordTimerSeconds, quizInteraction, quizScope, quizScopeFrom, quizScopeTo, quizSource, activeSessionId, sessionIdParam, getSession, engine]);
 
   // Throttled auto-save
   useEffect(() => {
@@ -661,9 +571,8 @@ export default function TahfeezPage() {
     const saveOnExit = () => {
       const sessionId = sessionIdParam || activeSessionId;
       if (!sessionId || !quizStarted) return;
-      // Pause both item and session timers to capture remaining ms
-      pauseItemTimer();
-      pauseSessionTimer();
+      // Pause engine to capture remaining ms
+      engine.pause();
       const rs = buildResumeState();
       if (rs) {
         // Force session phase to 'paused' on exit (not completed)
@@ -686,7 +595,7 @@ export default function TahfeezPage() {
       document.removeEventListener('visibilitychange', handleVisChange);
       saveOnExit();
     };
-  }, [quizStarted, buildResumeState, saveResumeState, activeSessionId, sessionIdParam, pauseItemTimer, pauseSessionTimer, markSessionPaused]);
+  }, [quizStarted, buildResumeState, saveResumeState, activeSessionId, sessionIdParam, engine, markSessionPaused]);
 
   useEffect(() => {
     const el = contentRef.current;
@@ -1206,17 +1115,10 @@ export default function TahfeezPage() {
       setMcqStats({ correct: 0, wrong: 0, total: 0, startTime: Date.now(), answers: [] });
       setMcqShowResults(false);
       setMcqCurrentIdx(0);
-      // Reset session remaining timer
-      // Compute session plan: total items across all pages in range
+      // Initialize engine for new session
       const pagesRange = quizPagesRangeRef.current;
       const { total } = computeSessionTotalItems(pages, pagesRange);
-      sessionTotalItemsRef.current = total;
-      sessionProcessedItemsRef.current = 0;
-      sessionTimerPausedRef.current = false;
-      pageStatesRef.current = {}; // Clear per-page states for fresh session
-      setSessionRemainingMs(total * timerSeconds * 1000);
-      // Start the continuous RAF-driven session timer
-      startSessionTimer();
+      engine.initSession(total, timerSeconds * 1000, firstWordTimerSeconds * 1000, pagesRange[0] || currentPage);
     } catch (err) {
       console.error('[tahfeez] Error in handleStart:', err);
       toast.error('حدث خطأ أثناء بدء الاختبار');
@@ -1238,20 +1140,83 @@ export default function TahfeezPage() {
   const handlePauseResume = () => {
     if (isPaused) {
       setIsPaused(false);
-      resumeSessionTimer();
+      engine.resume(() => {}); // advance() chain handles actual item scheduling
       // Resume from next unrevealed
       const nextIdx = blankedKeysList.findIndex(k => !revealedKeys.has(k));
       if (nextIdx >= 0) {
         setCurrentRevealIdx(nextIdx);
-        if (remainingMs > 0) resumeItemTimer(remainingMs);
       }
     } else {
       setIsPaused(true);
-      pauseSessionTimer();
+      engine.pause();
       if (revealTimerRef.current) clearTimeout(revealTimerRef.current);
-      pauseItemTimer();
       speech.stop();
     }
+  };
+
+  /** Reset current page only — clears this page's state and restarts it */
+  const handleResetPage = () => {
+    if (revealTimerRef.current) clearTimeout(revealTimerRef.current);
+    if (autoAdvanceTimerRef.current) clearTimeout(autoAdvanceTimerRef.current);
+    speech.stop();
+
+    // Reset engine page state
+    const pageItemCount = blankedKeysListRef.current.length;
+    engine.resetPage(currentPage, pageItemCount);
+
+    // Reset visual state
+    setRevealedKeys(new Set());
+    setShowAll(false);
+    setActiveBlankKey(null);
+    setCurrentRevealIdx(-1);
+    currentRevealIdxRef.current = -1;
+
+    // Restart from fresh on this page
+    isFirstStartRef.current = true;
+    autoResumeQuizRef.current = false;
+
+    // If session was paused, keep paused; otherwise re-trigger advance
+    if (!isPaused) {
+      // Use a tiny delay so the MutationObserver picks up the fresh keys
+      setTimeout(() => {
+        setCurrentRevealIdx(0);
+        currentRevealIdxRef.current = 0;
+        engine.startRaf();
+      }, 100);
+    }
+  };
+
+  /** Reset entire session — clears all progress, goes back to first page */
+  const handleResetSession = () => {
+    if (revealTimerRef.current) clearTimeout(revealTimerRef.current);
+    if (autoAdvanceTimerRef.current) clearTimeout(autoAdvanceTimerRef.current);
+    speech.stop();
+
+    const pagesRange = quizPagesRangeRef.current;
+    const { total } = computeSessionTotalItems(pages, pagesRange);
+
+    // Reset engine
+    engine.resetSession(total, timerSeconds * 1000, firstWordTimerSeconds * 1000, pagesRange[0] || 1);
+
+    // Reset visual state
+    setRevealedKeys(new Set());
+    setShowAll(false);
+    setActiveBlankKey(null);
+    setCurrentRevealIdx(-1);
+    currentRevealIdxRef.current = -1;
+    setQuizPageIdx(0);
+    setIsPaused(false);
+
+    // Navigate to first page and restart
+    if (pagesRange.length > 0) goToPage(pagesRange[0]);
+    isFirstStartRef.current = true;
+    autoResumeQuizRef.current = false;
+
+    // Trigger advance chain
+    setTimeout(() => {
+      setCurrentRevealIdx(0);
+      currentRevealIdxRef.current = 0;
+    }, 200);
   };
 
   const handleRevealAll = () => {
@@ -1331,8 +1296,10 @@ export default function TahfeezPage() {
 
   // ── Recalc session remaining when speed changes ──
   useEffect(() => {
-    if (quizStarted && !showAll) recalcSessionRemaining();
-  }, [timerSeconds, quizStarted, showAll, recalcSessionRemaining]);
+    if (quizStarted && !showAll) {
+      engine.setSpeed(timerSeconds * 1000, firstWordTimerSeconds * 1000);
+    }
+  }, [timerSeconds, firstWordTimerSeconds, quizStarted, showAll, engine]);
 
   const filteredSurahs = useMemo(() => {
     if (!indexSearch.trim()) return SURAHS;
@@ -2294,8 +2261,16 @@ export default function TahfeezPage() {
                 </SheetContent>
               </Sheet>
 
-              <Button variant="outline" size="sm" onClick={() => { setQuizStarted(false); if (revealTimerRef.current) clearTimeout(revealTimerRef.current); speech.stop(); }} className="font-arabic">
-                إعادة
+              <Button variant="outline" size="sm" onClick={handleResetPage} className="font-arabic" title="إعادة الصفحة الحالية فقط">
+                <RotateCcw className="w-4 h-4 ml-1" />
+                إعادة الصفحة
+              </Button>
+              <Button variant="outline" size="sm" onClick={handleResetSession} className="font-arabic text-destructive hover:text-destructive" title="إعادة الجلسة كاملة من البداية">
+                <Undo2 className="w-4 h-4 ml-1" />
+                إعادة الجلسة
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => { setQuizStarted(false); engine.stop(); if (revealTimerRef.current) clearTimeout(revealTimerRef.current); speech.stop(); }} className="font-arabic">
+                إنهاء
               </Button>
             </div>
           </div>
