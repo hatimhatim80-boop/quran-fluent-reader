@@ -1371,7 +1371,7 @@ export default function TahfeezPage() {
               <div className="flex items-center gap-1.5">
                 <Clock className="w-3 h-3 text-muted-foreground/70" />
                 <span className="text-[11px] font-mono text-muted-foreground tabular-nums" dir="rtl">
-                  {sessionRemainingMs > 0 ? `المتبقي: ${formatSessionTime(sessionRemainingMs)}` : 'انتهت'}
+                  {sessionRemainingMs > 0 ? `المتبقي: ${formatSessionTime(sessionRemainingMs)}` : (sessionTotalItemsRef.current > 0 && sessionProcessedItemsRef.current >= sessionTotalItemsRef.current ? 'انتهت' : `المتبقي: ${formatSessionTime(sessionRemainingMs)}`)}
                 </span>
               </div>
             </div>
