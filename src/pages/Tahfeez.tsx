@@ -834,6 +834,9 @@ export default function TahfeezPage() {
 
   // Ref to track reveal index internally (avoids re-triggering the advance effect)
   const currentRevealIdxRef = useRef(-1);
+  // Ref for session item processed callback (used inside advance() to avoid stale closure)
+  const onSessionItemProcessedRef = useRef(onSessionItemProcessed);
+  useEffect(() => { onSessionItemProcessedRef.current = onSessionItemProcessed; }, [onSessionItemProcessed]);
 
   // Auto-reveal sequencing
   // IMPORTANT: Does NOT depend on currentRevealIdx state to avoid re-triggering.
