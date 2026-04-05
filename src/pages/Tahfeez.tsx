@@ -660,6 +660,7 @@ export default function TahfeezPage() {
   const autoResumeQuizRef = useRef(false);
   useEffect(() => {
     if (!quizStarted) return;
+    if (isHydratingSessionRef.current) return;
     if (prevPageRef.current !== currentPage) {
       const oldPage = prevPageRef.current;
       prevPageRef.current = currentPage;
@@ -672,21 +673,24 @@ export default function TahfeezPage() {
         blankedKeysList: blankedKeysListRef.current,
         showAll,
         currentRevealIdx: currentRevealIdxRef.current,
+        activeBlankKey,
+        scrollTop: window.scrollY,
+        savedAt: Date.now(),
       };
       
       // Check if we have saved state for the new page
       const savedPageState = pageStatesRef.current[currentPage];
-      if (savedPageState && savedPageState.revealedKeys.length > 0) {
-        // Restore previously visited page
+      if (savedPageState) {
+        // Restore previously visited page (even if revealedKeys is empty)
         setRevealedKeys(new Set(savedPageState.revealedKeys));
         setBlankedKeysList(savedPageState.blankedKeysList);
         blankedKeysListRef.current = savedPageState.blankedKeysList;
         setShowAll(savedPageState.showAll);
         setCurrentRevealIdx(savedPageState.currentRevealIdx);
-        setActiveBlankKey(null);
+        setActiveBlankKey(savedPageState.activeBlankKey);
         setFirstKeysSet(new Set());
         setIsPaused(false);
-        // If page was completed, auto-advance; otherwise resume from saved idx
+        // If page was completed, don't auto-advance; otherwise resume from saved idx
         if (savedPageState.showAll) {
           autoResumeQuizRef.current = false;
         } else {
@@ -705,7 +709,7 @@ export default function TahfeezPage() {
         autoResumeQuizRef.current = true;
       }
     }
-  }, [currentPage, quizStarted, revealedKeys, showAll]);
+  }, [currentPage, quizStarted]);
 
   // Read blanked keys from the quiz view after it renders.
   // Uses MutationObserver for instant detection instead of slow polling.
