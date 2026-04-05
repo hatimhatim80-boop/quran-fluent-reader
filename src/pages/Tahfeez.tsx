@@ -349,13 +349,12 @@ export default function TahfeezPage() {
           
           if (rs.sessionPhase === 'paused' || rs.sessionPhase === 'completed') {
             setIsPaused(true);
-            sessionTimerPausedRef.current = true;
+            pauseSessionTimer();
             if ('remainingMs' in autoRs && autoRs.remainingMs > 0) {
               setRemainingMs(autoRs.remainingMs);
             }
           } else {
             setIsPaused(false);
-            sessionTimerPausedRef.current = false;
             // Resume auto-advance from saved position
             if (!autoRs.showAll && autoRs.blankedKeysList.length > 0) {
               const nextIdx = autoRs.blankedKeysList.findIndex(k => !new Set(autoRs.revealedKeys).has(k));
@@ -367,6 +366,7 @@ export default function TahfeezPage() {
                 }
               }
             }
+            startSessionTimer();
           }
           
           // Scroll to saved position
