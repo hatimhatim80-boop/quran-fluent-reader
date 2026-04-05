@@ -1166,7 +1166,7 @@ export default function TahfeezPage() {
   const handlePauseResume = () => {
     if (isPaused) {
       setIsPaused(false);
-      engine.resume(() => {}); // advance() chain handles actual item scheduling
+      engine.resume(); // advance() chain handles actual item scheduling
       // Resume from next unrevealed
       const nextIdx = blankedKeysList.findIndex(k => !revealedKeys.has(k));
       if (nextIdx >= 0) {
@@ -1325,16 +1325,19 @@ export default function TahfeezPage() {
       const newDefaultMs = timerSeconds * 1000;
       const newFwMs = firstWordTimerSeconds * 1000;
       // Rebuild all page durations with new speed
-      engine.setSpeed(newDefaultMs, (page, itemIdx) => {
-        // Check if this item is a first key on its page
-        const ps = engine.pageStatesRef.current[page];
-        if (ps && ps.blankedKeysList && ps.blankedKeysList[itemIdx]) {
-          const key = ps.blankedKeysList[itemIdx];
-          if (firstKeysSetRef.current.has(key)) {
-            return newFwMs + newDefaultMs;
+      engine.setSpeed(newDefaultMs, {
+        activeItemPolicy: 'scale-remaining',
+        getDuration: (page, itemIdx) => {
+          // Check if this item is a first key on its page
+          const ps = engine.pageStatesRef.current[page];
+          if (ps && ps.blankedKeysList && ps.blankedKeysList[itemIdx]) {
+            const key = ps.blankedKeysList[itemIdx];
+            if (firstKeysSetRef.current.has(key)) {
+              return newFwMs + newDefaultMs;
+            }
           }
-        }
-        return newDefaultMs;
+          return newDefaultMs;
+        },
       });
     }
   }, [timerSeconds, firstWordTimerSeconds, quizStarted, showAll, engine]);
