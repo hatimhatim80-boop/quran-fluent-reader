@@ -1260,15 +1260,21 @@ export default function TahfeezPage() {
       setMcqStats({ correct: 0, wrong: 0, total: 0, startTime: Date.now(), answers: [] });
       setMcqShowResults(false);
       setMcqCurrentIdx(0);
-      // Reset session remaining timer
       // Compute session plan: total items across all pages in range
       const pagesRange = quizPagesRangeRef.current;
-      const { total } = computeSessionTotalItems(pages, pagesRange);
+      const { total, perPage } = computeSessionTotalItems(pages, pagesRange);
       sessionTotalItemsRef.current = total;
       sessionProcessedItemsRef.current = 0;
       sessionTimerPausedRef.current = false;
-      pageStatesRef.current = {}; // Clear per-page states for fresh session
-      setSessionRemainingMs(total * timerSeconds * 1000);
+      pageStatesRef.current = {};
+      perPageCountsRef.current = perPage;
+      // Initial estimate: items × timerSeconds + firstWordDelay per page + autoAdvanceDelay between pages
+      const autoAdvanceDelayMs = (useSettingsStore.getState().settings.autoplay.autoAdvanceDelay || 1.5) * 1000;
+      const pagesWithItems = pagesRange.filter(p => (perPage[p] || 0) > 0).length;
+      const initialMs = (total * timerSeconds * 1000)
+        + (pagesWithItems * firstWordTimerSeconds * 1000)
+        + (Math.max(0, pagesWithItems - 1) * autoAdvanceDelayMs);
+      setSessionRemainingMs(initialMs);
       // Start the continuous RAF-driven session timer
       startSessionTimer();
     } catch (err) {
