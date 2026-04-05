@@ -133,6 +133,7 @@ export default function TahfeezPage() {
   const markSessionPaused = useSessionsStore((s) => s.markSessionPaused);
   const markSessionResumed = useSessionsStore((s) => s.markSessionResumed);
   const hasHydratedRef = useRef(false);
+  const isHydratingSessionRef = useRef(false);
 
   // ── Per-item timer (internal, drives auto-reveal timing) ──
   const [remainingMs, setRemainingMs] = useState<number>(0);
@@ -224,23 +225,30 @@ export default function TahfeezPage() {
     // Full hydration from resumeState
     const rs = session.resumeState;
     hasHydratedRef.current = true;
+    isHydratingSessionRef.current = true;
     
     // Clean URL params
     setSearchParams({}, { replace: true });
     
-    // Navigate to saved page
-    goToPage(rs.currentPage);
-    
     if (rs.kind === 'tahfeez-auto' || rs.kind === 'tahfeez-test') {
       const autoRs = rs as TahfeezAutoResumeState | TahfeezTestResumeState;
       
-      // Restore quiz state
-      setBlankedKeysList(autoRs.blankedKeysList);
-      blankedKeysListRef.current = autoRs.blankedKeysList;
-      setRevealedKeys(new Set(autoRs.revealedKeys));
-      setActiveBlankKey(autoRs.activeBlankKey);
-      setQuizPageIdx(autoRs.quizPageIdx);
-      setShowAll(autoRs.showAll);
+      // a) Restore refs first (before any navigation or state)
+      if (autoRs.sessionTotalItems > 0) {
+        sessionTotalItemsRef.current = autoRs.sessionTotalItems;
+        sessionProcessedItemsRef.current = autoRs.sessionProcessedItems || 0;
+      }
+      if (autoRs.pageStates) {
+        pageStatesRef.current = { ...autoRs.pageStates };
+      }
+      
+      // Restore session remaining from saved value
+      if (autoRs.sessionRemainingMs !== undefined && autoRs.sessionRemainingMs > 0) {
+        setSessionRemainingMs(autoRs.sessionRemainingMs);
+      } else if (autoRs.sessionTotalItems > 0) {
+        const remaining = Math.max(0, autoRs.sessionTotalItems - (autoRs.sessionProcessedItems || 0));
+        setSessionRemainingMs(remaining * (autoRs.timerSeconds || 1) * 1000);
+      }
       
       // Restore settings
       if (autoRs.quizInteraction) setQuizInteraction(autoRs.quizInteraction as any);
@@ -253,73 +261,78 @@ export default function TahfeezPage() {
       
       // Suppress scrollToTop when page changes during hydration
       suppressScrollRef.current = true;
-      setTimeout(() => { suppressScrollRef.current = false; }, 1500);
       
-      // Restore session timer from saved values
-      if (autoRs.sessionTotalItems > 0) {
-        sessionTotalItemsRef.current = autoRs.sessionTotalItems;
-        sessionProcessedItemsRef.current = autoRs.sessionProcessedItems || 0;
-      }
-      if (autoRs.sessionRemainingMs !== undefined && autoRs.sessionRemainingMs > 0) {
-        setSessionRemainingMs(autoRs.sessionRemainingMs);
-      } else if (autoRs.sessionTotalItems > 0) {
-        // Fallback: compute from items
-        const remaining = Math.max(0, autoRs.sessionTotalItems - (autoRs.sessionProcessedItems || 0));
-        setSessionRemainingMs(remaining * (autoRs.timerSeconds || 1) * 1000);
-      }
-      // Restore per-page states
-      if (autoRs.pageStates) {
-        pageStatesRef.current = autoRs.pageStates;
-      }
+      // b) Navigate to saved page
+      goToPage(rs.currentPage);
+      prevPageRef.current = rs.currentPage;
+      setQuizPageIdx(autoRs.quizPageIdx);
       
-      // Start quiz in resumed state
-      if (rs.sessionPhase === 'running' || rs.sessionPhase === 'paused') {
-        setQuizStarted(true);
-        setHideBars(!!rs.hideChrome);
-        
-        if (rs.sessionPhase === 'paused') {
-          setIsPaused(true);
-          sessionTimerPausedRef.current = true;
-          if ('remainingMs' in autoRs && autoRs.remainingMs > 0) {
-            setRemainingMs(autoRs.remainingMs);
+      // c) After render: restore page state, then start quiz
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          // Restore current page's visual state
+          setBlankedKeysList(autoRs.blankedKeysList);
+          blankedKeysListRef.current = autoRs.blankedKeysList;
+          setRevealedKeys(new Set(autoRs.revealedKeys));
+          setActiveBlankKey(autoRs.activeBlankKey);
+          setShowAll(autoRs.showAll);
+          
+          if (autoRs.currentRevealIdx !== undefined) {
+            setCurrentRevealIdx(autoRs.currentRevealIdx);
+            currentRevealIdxRef.current = autoRs.currentRevealIdx;
           }
-        } else {
-          setIsPaused(false);
-          sessionTimerPausedRef.current = false;
-          // Resume auto-advance from saved position
-          if (!autoRs.showAll && autoRs.blankedKeysList.length > 0) {
-            const nextIdx = autoRs.blankedKeysList.findIndex(k => !new Set(autoRs.revealedKeys).has(k));
-            if (nextIdx >= 0) {
-              setCurrentRevealIdx(nextIdx);
-              if ('remainingMs' in autoRs && autoRs.remainingMs > 0) {
-                resumeItemTimer(autoRs.remainingMs);
+          
+          // d) Start quiz
+          setQuizStarted(true);
+          setHideBars(!!rs.hideChrome);
+          
+          if (rs.sessionPhase === 'paused' || rs.sessionPhase === 'completed') {
+            setIsPaused(true);
+            sessionTimerPausedRef.current = true;
+            if ('remainingMs' in autoRs && autoRs.remainingMs > 0) {
+              setRemainingMs(autoRs.remainingMs);
+            }
+          } else {
+            setIsPaused(false);
+            sessionTimerPausedRef.current = false;
+            // Resume auto-advance from saved position
+            if (!autoRs.showAll && autoRs.blankedKeysList.length > 0) {
+              const nextIdx = autoRs.blankedKeysList.findIndex(k => !new Set(autoRs.revealedKeys).has(k));
+              if (nextIdx >= 0) {
+                setCurrentRevealIdx(nextIdx);
+                currentRevealIdxRef.current = nextIdx;
+                if ('remainingMs' in autoRs && autoRs.remainingMs > 0) {
+                  resumeItemTimer(autoRs.remainingMs);
+                }
               }
             }
           }
-        }
-      }
-      
-      // Scroll to saved position after render
-      if (rs.currentScrollTop !== undefined && rs.currentScrollTop > 0) {
-        requestAnimationFrame(() => {
-          window.scrollTo({ top: rs.currentScrollTop!, behavior: 'auto' });
+          
+          // Scroll to saved position
+          if (rs.currentScrollTop !== undefined && rs.currentScrollTop > 0) {
+            window.scrollTo({ top: rs.currentScrollTop!, behavior: 'auto' });
+          } else if (rs.currentAnchorKey) {
+            const el = document.querySelector<HTMLElement>(`[data-key="${rs.currentAnchorKey}"]`);
+            if (el) el.scrollIntoView({ behavior: 'auto', block: 'center' });
+          }
+          
+          // e) Hydration complete
+          isHydratingSessionRef.current = false;
+          suppressScrollRef.current = false;
         });
-      } else if (rs.currentAnchorKey) {
-        requestAnimationFrame(() => {
-          const el = document.querySelector<HTMLElement>(`[data-key="${rs.currentAnchorKey}"]`);
-          if (el) el.scrollIntoView({ behavior: 'auto', block: 'center' });
-        });
-      }
+      });
       
       markSessionResumed(resolvedSessionId);
       toast.success('تم استئناف الجلسة');
+    } else {
+      isHydratingSessionRef.current = false;
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Scroll to top on page change (suppressed during resume hydration)
   useEffect(() => {
-    if (suppressScrollRef.current) return;
+    if (suppressScrollRef.current || isHydratingSessionRef.current) return;
     window.scrollTo({ top: 0, behavior: 'auto' });
     if (contentRef.current) {
       contentRef.current.scrollTo({ top: 0, behavior: 'auto' });
@@ -505,6 +518,9 @@ export default function TahfeezPage() {
       blankedKeysList: blankedKeysListRef.current,
       showAll,
       currentRevealIdx: currentRevealIdxRef.current,
+      activeBlankKey,
+      scrollTop: window.scrollY,
+      savedAt: Date.now(),
     };
     const allPageStates = { ...pageStatesRef.current, [currentPage]: currentPageState };
     
@@ -512,7 +528,9 @@ export default function TahfeezPage() {
     const isSessionComplete = sessionTotalItemsRef.current > 0 && sessionProcessedItemsRef.current >= sessionTotalItemsRef.current;
     const sessionPhase = isPaused ? 'paused' : isSessionComplete ? 'completed' : quizStarted ? 'running' : 'paused';
     
-    const computedRemainingMs = Math.max(0, sessionTotalItemsRef.current - sessionProcessedItemsRef.current) * timerSeconds * 1000;
+    // Use live sessionRemainingMs as source of truth, fallback to computed
+    const liveRemaining = sessionRemainingMs;
+    const computedRemainingMs = liveRemaining > 0 ? liveRemaining : Math.max(0, sessionTotalItemsRef.current - sessionProcessedItemsRef.current) * timerSeconds * 1000;
     
     return {
       kind,
@@ -550,7 +568,7 @@ export default function TahfeezPage() {
       sessionProcessedItems: sessionProcessedItemsRef.current,
       pageStates: allPageStates,
     } as TahfeezAutoResumeState | TahfeezTestResumeState;
-  }, [currentPage, isPaused, showAll, quizStarted, hideBars, revealedKeys, activeBlankKey, quizPageIdx, timerSeconds, firstWordTimerSeconds, quizInteraction, quizScope, quizScopeFrom, quizScopeTo, quizSource, activeSessionId, sessionIdParam, getSession]);
+  }, [currentPage, isPaused, showAll, quizStarted, hideBars, revealedKeys, activeBlankKey, quizPageIdx, timerSeconds, firstWordTimerSeconds, quizInteraction, quizScope, quizScopeFrom, quizScopeTo, quizSource, activeSessionId, sessionIdParam, getSession, sessionRemainingMs]);
 
   // Throttled auto-save
   useEffect(() => {
@@ -578,13 +596,24 @@ export default function TahfeezPage() {
     };
   }, [quizStarted, currentPage, revealedKeys, activeBlankKey, isPaused, showAll, quizPageIdx, buildResumeState, saveResumeState, updateSession, activeSessionId, sessionIdParam]);
 
-  // Save on unmount / visibility change
+  // Save on unmount / visibility change — pause running sessions
   useEffect(() => {
     const saveOnExit = () => {
       const sessionId = sessionIdParam || activeSessionId;
       if (!sessionId || !quizStarted) return;
+      // Pause item timer to capture remaining ms
+      pauseItemTimer();
       const rs = buildResumeState();
-      if (rs) saveResumeState(sessionId, rs);
+      if (rs) {
+        // Force session phase to 'paused' on exit (not completed)
+        if (rs.sessionPhase === 'running') {
+          rs.sessionPhase = 'paused';
+          rs.isPaused = true;
+          rs.pausedAt = Date.now();
+        }
+        saveResumeState(sessionId, rs);
+        markSessionPaused(sessionId);
+      }
     };
 
     const handleVisChange = () => {
@@ -596,7 +625,7 @@ export default function TahfeezPage() {
       document.removeEventListener('visibilitychange', handleVisChange);
       saveOnExit();
     };
-  }, [quizStarted, buildResumeState, saveResumeState, activeSessionId, sessionIdParam]);
+  }, [quizStarted, buildResumeState, saveResumeState, activeSessionId, sessionIdParam, pauseItemTimer, markSessionPaused]);
 
   useEffect(() => {
     const el = contentRef.current;
@@ -654,6 +683,7 @@ export default function TahfeezPage() {
   const autoResumeQuizRef = useRef(false);
   useEffect(() => {
     if (!quizStarted) return;
+    if (isHydratingSessionRef.current) return;
     if (prevPageRef.current !== currentPage) {
       const oldPage = prevPageRef.current;
       prevPageRef.current = currentPage;
@@ -666,21 +696,24 @@ export default function TahfeezPage() {
         blankedKeysList: blankedKeysListRef.current,
         showAll,
         currentRevealIdx: currentRevealIdxRef.current,
+        activeBlankKey,
+        scrollTop: window.scrollY,
+        savedAt: Date.now(),
       };
       
       // Check if we have saved state for the new page
       const savedPageState = pageStatesRef.current[currentPage];
-      if (savedPageState && savedPageState.revealedKeys.length > 0) {
-        // Restore previously visited page
+      if (savedPageState) {
+        // Restore previously visited page (even if revealedKeys is empty)
         setRevealedKeys(new Set(savedPageState.revealedKeys));
         setBlankedKeysList(savedPageState.blankedKeysList);
         blankedKeysListRef.current = savedPageState.blankedKeysList;
         setShowAll(savedPageState.showAll);
         setCurrentRevealIdx(savedPageState.currentRevealIdx);
-        setActiveBlankKey(null);
+        setActiveBlankKey(savedPageState.activeBlankKey);
         setFirstKeysSet(new Set());
         setIsPaused(false);
-        // If page was completed, auto-advance; otherwise resume from saved idx
+        // If page was completed, don't auto-advance; otherwise resume from saved idx
         if (savedPageState.showAll) {
           autoResumeQuizRef.current = false;
         } else {
@@ -699,7 +732,7 @@ export default function TahfeezPage() {
         autoResumeQuizRef.current = true;
       }
     }
-  }, [currentPage, quizStarted, revealedKeys, showAll]);
+  }, [currentPage, quizStarted]);
 
   // Read blanked keys from the quiz view after it renders.
   // Uses MutationObserver for instant detection instead of slow polling.
@@ -790,22 +823,42 @@ export default function TahfeezPage() {
           // Auto-resume after page transition OR first start
           if (autoResumeQuizRef.current || isFirstStartRef.current) {
             autoResumeQuizRef.current = false;
+            const isFirst = isFirstStartRef.current;
             isFirstStartRef.current = false;
-            console.log('[tahfeez] Starting quiz, keys count:', keys.length);
-            // Set state directly — no requestAnimationFrame delay
-            setRevealedKeys(new Set());
-            setShowAll(false);
-            setActiveBlankKey(null);
-            if (quizInteraction === 'mcq') {
-              // MCQ mode: set active blank to first key, update total
-              setMcqCurrentIdx(0);
-              setActiveBlankKey(keys[0]);
-              setMcqStats(prev => ({ ...prev, total: keys.length }));
-            } else if (quizInteraction === 'tap-only') {
-              // Tap-only: set first blank as active, no timer
-              setActiveBlankKey(keys[0]);
+            
+            // Check if we have saved state for this page (don't reset if so)
+            const savedPS = pageStatesRef.current[currentPageRef.current];
+            if (savedPS && !isFirst) {
+              // Restore from saved page state — don't reset revealed keys
+              console.log('[tahfeez] Restoring saved page state for page', currentPageRef.current);
+              setRevealedKeys(new Set(savedPS.revealedKeys));
+              setBlankedKeysList(savedPS.blankedKeysList);
+              blankedKeysListRef.current = savedPS.blankedKeysList;
+              setShowAll(savedPS.showAll);
+              setActiveBlankKey(savedPS.activeBlankKey);
+              if (!savedPS.showAll) {
+                // Resume from where we left off
+                const nextUnrevealed = keys.findIndex((k: string) => !new Set(savedPS.revealedKeys).has(k));
+                if (nextUnrevealed >= 0) {
+                  setCurrentRevealIdx(nextUnrevealed);
+                  currentRevealIdxRef.current = nextUnrevealed;
+                }
+              }
             } else {
-              setCurrentRevealIdx(0);
+              // Fresh page — reset
+              console.log('[tahfeez] Starting fresh page, keys count:', keys.length);
+              setRevealedKeys(new Set());
+              setShowAll(false);
+              setActiveBlankKey(null);
+              if (quizInteraction === 'mcq') {
+                setMcqCurrentIdx(0);
+                setActiveBlankKey(keys[0]);
+                setMcqStats(prev => ({ ...prev, total: keys.length }));
+              } else if (quizInteraction === 'tap-only') {
+                setActiveBlankKey(keys[0]);
+              } else {
+                setCurrentRevealIdx(0);
+              }
             }
           }
           return true;
@@ -1371,7 +1424,7 @@ export default function TahfeezPage() {
               <div className="flex items-center gap-1.5">
                 <Clock className="w-3 h-3 text-muted-foreground/70" />
                 <span className="text-[11px] font-mono text-muted-foreground tabular-nums" dir="rtl">
-                  {sessionRemainingMs > 0 ? `المتبقي: ${formatSessionTime(sessionRemainingMs)}` : (sessionTotalItemsRef.current > 0 && sessionProcessedItemsRef.current >= sessionTotalItemsRef.current ? 'انتهت' : `المتبقي: ${formatSessionTime(sessionRemainingMs)}`)}
+                  {(sessionTotalItemsRef.current > 0 && sessionProcessedItemsRef.current >= sessionTotalItemsRef.current) ? 'انتهت' : sessionRemainingMs > 0 ? `المتبقي: ${formatSessionTime(sessionRemainingMs)}` : isPaused ? 'متوقفة' : `المتبقي: ${formatSessionTime(0)}`}
                 </span>
               </div>
             </div>
@@ -2104,7 +2157,7 @@ export default function TahfeezPage() {
                 <div className="flex items-center gap-1.5 bg-muted/40 px-3 py-1 rounded-full">
                   <Clock className="w-3 h-3 text-muted-foreground/70" />
                   <span className="text-[11px] font-mono text-muted-foreground tabular-nums" dir="rtl">
-                    {sessionRemainingMs > 0 ? `المتبقي: ${formatSessionTime(sessionRemainingMs)}` : (sessionTotalItemsRef.current > 0 && sessionProcessedItemsRef.current >= sessionTotalItemsRef.current ? 'انتهت' : `المتبقي: ${formatSessionTime(sessionRemainingMs)}`)}
+                    {(sessionTotalItemsRef.current > 0 && sessionProcessedItemsRef.current >= sessionTotalItemsRef.current) ? 'انتهت' : sessionRemainingMs > 0 ? `المتبقي: ${formatSessionTime(sessionRemainingMs)}` : isPaused ? 'متوقفة' : `المتبقي: ${formatSessionTime(0)}`}
                   </span>
                 </div>
               </div>
