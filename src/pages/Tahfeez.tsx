@@ -922,6 +922,7 @@ export default function TahfeezPage() {
             startVoiceOrTimer();
           } else {
             setActiveBlankKey(null);
+            startItemTimerRef.current(fwDelay);
             revealTimerRef.current = setTimeout(() => {
               startVoiceOrTimer();
             }, fwDelay);
