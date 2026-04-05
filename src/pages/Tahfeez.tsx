@@ -992,10 +992,14 @@ export default function TahfeezPage() {
       setIsPaused(false);
       // Resume from next unrevealed
       const nextIdx = blankedKeysList.findIndex(k => !revealedKeys.has(k));
-      if (nextIdx >= 0) setCurrentRevealIdx(nextIdx);
+      if (nextIdx >= 0) {
+        setCurrentRevealIdx(nextIdx);
+        if (remainingMs > 0) resumeItemTimer(remainingMs);
+      }
     } else {
       setIsPaused(true);
       if (revealTimerRef.current) clearTimeout(revealTimerRef.current);
+      pauseItemTimer();
       speech.stop();
     }
   };
