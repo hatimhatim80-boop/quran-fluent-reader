@@ -686,7 +686,7 @@ export default function TahfeezPage() {
       document.removeEventListener('visibilitychange', handleVisChange);
       saveOnExit();
     };
-  }, [quizStarted, buildResumeState, saveResumeState, activeSessionId, sessionIdParam, pauseItemTimer, markSessionPaused]);
+  }, [quizStarted, buildResumeState, saveResumeState, activeSessionId, sessionIdParam, pauseItemTimer, pauseSessionTimer, markSessionPaused]);
 
   useEffect(() => {
     const el = contentRef.current;
