@@ -1162,6 +1162,21 @@ export default function TahfeezPage() {
     ? Math.round(((revealedKeys.size) / blankedKeysList.length) * 100)
     : 0;
 
+  // ── Estimated remaining time for the session ──
+  // Counts remaining items on current page + estimates for remaining pages
+  const estimatedRemainingMs = useMemo(() => {
+    if (!quizStarted || showAll) return 0;
+    const currentPageRemaining = Math.max(0, blankedKeysList.length - revealedKeys.size);
+    const perItemMs = timerSeconds * 1000;
+    // For multi-page: estimate remaining pages have similar blanked count
+    const pagesRange = quizPagesRange;
+    const currentPageIdx = pagesRange.indexOf(currentPage);
+    const remainingPages = currentPageIdx >= 0 ? Math.max(0, pagesRange.length - 1 - currentPageIdx) : 0;
+    const avgBlanksPerPage = blankedKeysList.length > 0 ? blankedKeysList.length : 10;
+    const futureItemsEstimate = remainingPages * avgBlanksPerPage;
+    return (currentPageRemaining + futureItemsEstimate) * perItemMs;
+  }, [quizStarted, showAll, blankedKeysList.length, revealedKeys.size, timerSeconds, quizPagesRange, currentPage]);
+
   const filteredSurahs = useMemo(() => {
     if (!indexSearch.trim()) return SURAHS;
     const q = indexSearch.trim();
@@ -1314,8 +1329,8 @@ export default function TahfeezPage() {
             <div className="fixed top-3 left-1/2 -translate-x-1/2 z-50 bg-background/70 backdrop-blur-sm px-3 py-1 rounded-full border border-border/20 shadow-sm pointer-events-none">
               <div className="flex items-center gap-1.5">
                 <Clock className="w-3 h-3 text-muted-foreground/70" />
-                <span className="text-[11px] font-mono text-muted-foreground tabular-nums">
-                  {formatSessionTime(sessionElapsedMs)}
+                <span className="text-[11px] font-mono text-muted-foreground tabular-nums" dir="rtl">
+                  {estimatedRemainingMs > 0 ? `المتبقي: ${formatSessionTime(estimatedRemainingMs)}` : 'انتهت'}
                 </span>
               </div>
             </div>
@@ -1827,45 +1842,31 @@ export default function TahfeezPage() {
               </div>
             )}
 
-            {/* Progress + Voice indicator */}
-            <div className="page-frame p-3 space-y-2">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-arabic text-muted-foreground">
-                    {revealedKeys.size} / {blankedKeysList.length} كلمة
-                  </span>
-                </div>
-                <span className={`text-lg font-bold font-arabic ${showAll ? 'text-green-600' : 'text-foreground'}`}>
-                  {showAll ? '✓ تم الكشف' : `${progress}%`}
-                </span>
-              </div>
-              {/* Inline word count controls */}
-              {autoBlankMode === 'ayah-count' && hiddenWordsMode === 'fixed-count' && (
+            {/* Inline word count controls (no progress bar / percentage / word count) */}
+            {autoBlankMode === 'ayah-count' && hiddenWordsMode === 'fixed-count' && (
+              <div className="page-frame p-2">
                 <div className="flex items-center gap-2" dir="rtl">
                   <span className="text-xs font-arabic text-muted-foreground whitespace-nowrap">كلمات: <span className="text-primary font-bold">{hiddenWordsCount}</span></span>
                   <Slider className="flex-1" value={[hiddenWordsCount]} onValueChange={([v]) => setHiddenWordsCount(v)} min={1} max={20} step={1} />
                 </div>
-              )}
-              {autoBlankMode === 'ayah-count' && hiddenWordsMode === 'percentage' && (
+              </div>
+            )}
+            {autoBlankMode === 'ayah-count' && hiddenWordsMode === 'percentage' && (
+              <div className="page-frame p-2">
                 <div className="flex items-center gap-2" dir="rtl">
                   <span className="text-xs font-arabic text-muted-foreground whitespace-nowrap">نسبة: <span className="text-primary font-bold">{hiddenWordsPercentage}%</span></span>
                   <Slider className="flex-1" value={[hiddenWordsPercentage]} onValueChange={([v]) => setHiddenWordsPercentage(v)} min={5} max={90} step={5} />
                 </div>
-              )}
-              {(['beginning', 'middle', 'end', 'beginning-middle', 'middle-end', 'beginning-end', 'beginning-middle-end'] as string[]).includes(autoBlankMode) && (
+              </div>
+            )}
+            {(['beginning', 'middle', 'end', 'beginning-middle', 'middle-end', 'beginning-end', 'beginning-middle-end'] as string[]).includes(autoBlankMode) && (
+              <div className="page-frame p-2">
                 <div className="flex items-center gap-2" dir="rtl">
                   <span className="text-xs font-arabic text-muted-foreground whitespace-nowrap">كلمات: <span className="text-primary font-bold">{blankCount}</span></span>
                   <Slider className="flex-1" value={[blankCount]} onValueChange={([v]) => setBlankCount(v)} min={1} max={10} step={1} />
                 </div>
-              )}
-            </div>
-
-            <div className="w-full h-1.5 bg-secondary rounded-full overflow-hidden">
-              <div
-                className="h-full bg-primary transition-all duration-500 ease-linear"
-                style={{ width: `${progress}%` }}
-              />
-            </div>
+              </div>
+            )}
 
             {/* Session review settings hidden during active quiz — accessible via ⚙️ button */}
 
@@ -2056,13 +2057,13 @@ export default function TahfeezPage() {
               </div>
             )}
 
-            {/* Session timer */}
+            {/* Session estimated remaining time */}
             {quizStarted && (
               <div className="flex items-center justify-center gap-2">
                 <div className="flex items-center gap-1.5 bg-muted/40 px-3 py-1 rounded-full">
                   <Clock className="w-3 h-3 text-muted-foreground/70" />
-                  <span className="text-[11px] font-mono text-muted-foreground tabular-nums">
-                    {formatSessionTime(sessionElapsedMs)}
+                  <span className="text-[11px] font-mono text-muted-foreground tabular-nums" dir="rtl">
+                    {estimatedRemainingMs > 0 ? `المتبقي: ${formatSessionTime(estimatedRemainingMs)}` : 'انتهت'}
                   </span>
                 </div>
               </div>
