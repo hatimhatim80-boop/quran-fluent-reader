@@ -815,9 +815,12 @@ export default function TahfeezPage() {
         savedAt: Date.now(),
       };
       
-      // Pause the quiz when navigating away from an incomplete page
-      // (auto-advance from a completed page should NOT pause)
-      if (!showAll) {
+      // If this navigation was triggered by auto-advance (page completed),
+      // don't pause — let the quiz continue on the new page.
+      // If the user manually navigated (page NOT completed), pause everything.
+      const isAutoAdvance = autoResumeQuizRef.current;
+      
+      if (!isAutoAdvance) {
         setIsPaused(true);
         pauseSessionTimer();
       }
@@ -832,10 +835,8 @@ export default function TahfeezPage() {
         setCurrentRevealIdx(savedPageState.currentRevealIdx);
         setActiveBlankKey(savedPageState.activeBlankKey);
         setFirstKeysSet(new Set());
-        if (savedPageState.showAll) {
+        if (savedPageState.showAll || !isAutoAdvance) {
           autoResumeQuizRef.current = false;
-        } else {
-          autoResumeQuizRef.current = !isPaused && showAll; // only auto-resume if came from completed page
         }
       } else {
         setShowAll(false);
@@ -844,7 +845,7 @@ export default function TahfeezPage() {
         setCurrentRevealIdx(-1);
         setBlankedKeysList([]);
         setFirstKeysSet(new Set());
-        autoResumeQuizRef.current = showAll; // only auto-start if auto-advanced from completed page
+        // autoResumeQuizRef stays true if auto-advance, false if manual
       }
     }
   }, [currentPage, quizStarted]);
