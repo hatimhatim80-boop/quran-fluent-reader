@@ -124,15 +124,47 @@ export default function TahfeezPage() {
   const markSessionResumed = useSessionsStore((s) => s.markSessionResumed);
   const hasHydratedRef = useRef(false);
 
-  // ── Session-wide timer (countup/countdown) ──
+  // ── Per-item timer (internal, drives auto-reveal timing) ──
+  const [remainingMs, setRemainingMs] = useState<number>(0);
+  const expectedEndAtRef = useRef<number | null>(null);
+  const timerRafRef = useRef<number | null>(null);
+  const tickTimer = useCallback(() => {
+    if (expectedEndAtRef.current !== null) {
+      const r = Math.max(0, expectedEndAtRef.current - Date.now());
+      setRemainingMs(r);
+      if (r > 0) timerRafRef.current = requestAnimationFrame(tickTimer);
+    }
+  }, []);
+  const startItemTimer = useCallback((durationMs: number) => {
+    expectedEndAtRef.current = Date.now() + durationMs;
+    setRemainingMs(durationMs);
+    if (timerRafRef.current) cancelAnimationFrame(timerRafRef.current);
+    timerRafRef.current = requestAnimationFrame(tickTimer);
+  }, [tickTimer]);
+  const pauseItemTimer = useCallback(() => {
+    if (timerRafRef.current) cancelAnimationFrame(timerRafRef.current);
+    timerRafRef.current = null;
+    if (expectedEndAtRef.current !== null) setRemainingMs(Math.max(0, expectedEndAtRef.current - Date.now()));
+    expectedEndAtRef.current = null;
+  }, []);
+  const resumeItemTimer = useCallback((ms: number) => {
+    expectedEndAtRef.current = Date.now() + ms;
+    setRemainingMs(ms);
+    if (timerRafRef.current) cancelAnimationFrame(timerRafRef.current);
+    timerRafRef.current = requestAnimationFrame(tickTimer);
+  }, [tickTimer]);
+  const startItemTimerRef = useRef(startItemTimer);
+  useEffect(() => { startItemTimerRef.current = startItemTimer; }, [startItemTimer]);
+  useEffect(() => { return () => { if (timerRafRef.current) cancelAnimationFrame(timerRafRef.current); }; }, []);
+
+  // ── Session-wide timer (countup/countdown — displayed to user) ──
   const [sessionElapsedMs, setSessionElapsedMs] = useState(0);
   const [sessionTimerMode, setSessionTimerMode] = useState<'countup' | 'countdown'>('countup');
-  const [sessionTotalMs, setSessionTotalMs] = useState(0); // for countdown mode
-  const sessionTimerStartRef = useRef<number | null>(null); // wall-clock start for current run segment
-  const sessionTimerBaseRef = useRef(0); // accumulated elapsed before current run segment
+  const [sessionTotalMs, setSessionTotalMs] = useState(0);
+  const sessionTimerStartRef = useRef<number | null>(null);
+  const sessionTimerBaseRef = useRef(0);
   const sessionTimerRafRef = useRef<number | null>(null);
   const isSessionTimerRunningRef = useRef(false);
-  // Flag to suppress scrollToTop during resume hydration
   const suppressScrollRef = useRef(false);
 
   const tickSessionTimer = useCallback(() => {
@@ -141,7 +173,6 @@ export default function TahfeezPage() {
     setSessionElapsedMs(elapsed);
     sessionTimerRafRef.current = requestAnimationFrame(tickSessionTimer);
   }, []);
-
   const startSessionTimer = useCallback((baseMs = 0) => {
     sessionTimerBaseRef.current = baseMs;
     sessionTimerStartRef.current = Date.now();
@@ -149,7 +180,6 @@ export default function TahfeezPage() {
     if (sessionTimerRafRef.current) cancelAnimationFrame(sessionTimerRafRef.current);
     sessionTimerRafRef.current = requestAnimationFrame(tickSessionTimer);
   }, [tickSessionTimer]);
-
   const pauseSessionTimer = useCallback(() => {
     if (isSessionTimerRunningRef.current && sessionTimerStartRef.current) {
       sessionTimerBaseRef.current += Date.now() - sessionTimerStartRef.current;
@@ -159,20 +189,13 @@ export default function TahfeezPage() {
     if (sessionTimerRafRef.current) cancelAnimationFrame(sessionTimerRafRef.current);
     setSessionElapsedMs(sessionTimerBaseRef.current);
   }, []);
-
   const resumeSessionTimer = useCallback(() => {
     sessionTimerStartRef.current = Date.now();
     isSessionTimerRunningRef.current = true;
     if (sessionTimerRafRef.current) cancelAnimationFrame(sessionTimerRafRef.current);
     sessionTimerRafRef.current = requestAnimationFrame(tickSessionTimer);
   }, [tickSessionTimer]);
-
-  // Cleanup session timer on unmount
-  useEffect(() => {
-    return () => {
-      if (sessionTimerRafRef.current) cancelAnimationFrame(sessionTimerRafRef.current);
-    };
-  }, []);
+  useEffect(() => { return () => { if (sessionTimerRafRef.current) cancelAnimationFrame(sessionTimerRafRef.current); }; }, []);
 
   // Session hydration on mount
   useEffect(() => {
