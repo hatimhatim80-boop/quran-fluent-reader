@@ -205,7 +205,7 @@ export const useSessionsStore = create<SessionsState>()(
       },
 
       renameGroup: (id, name) => {
-        set({ groups: get().groups.map(g => g.id === id ? { ...g, name } : g) });
+        set({ groups: get().groups.map(g => g.id === id ? { ...g, name, updatedAt: Date.now() } : g) });
       },
 
       deleteGroup: (id) => {
