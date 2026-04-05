@@ -531,7 +531,7 @@ export default function TahfeezPage() {
       isPaused,
       sessionTotalItems: totalItems,
       sessionProcessedItems: processedItems,
-      pageStates: allPageStates,
+      pageStates: engineSnap.pageStates as any,
       // Store engine schedule data for exact restore
       pageSchedules: engineSnap.pageSchedules,
       sessionPages: engineSnap.sessionPages,
@@ -659,19 +659,15 @@ export default function TahfeezPage() {
       // Clear all timers first
       if (revealTimerRef.current) clearTimeout(revealTimerRef.current);
       
-      // Save current page state before switching
-      pageStatesRef.current[oldPage] = {
+      // Save old page state through engine (preserves partial active-item timing)
+      const savedPageState = engine.navigateToPage(oldPage, currentPage, {
         revealedKeys: Array.from(revealedKeys),
         blankedKeysList: blankedKeysListRef.current,
         showAll,
         currentRevealIdx: currentRevealIdxRef.current,
         activeBlankKey,
         scrollTop: window.scrollY,
-        savedAt: Date.now(),
-      };
-      
-      // Check if we have saved state for the new page
-      const savedPageState = pageStatesRef.current[currentPage];
+      });
       if (savedPageState) {
         // Restore previously visited page (even if revealedKeys is empty)
         setRevealedKeys(new Set(savedPageState.revealedKeys));
