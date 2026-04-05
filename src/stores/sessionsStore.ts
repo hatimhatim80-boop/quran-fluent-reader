@@ -43,6 +43,8 @@ const idbStorage: StateStorage = {
   },
 };
 
+export type SessionType = 'ghareeb' | 'tahfeez' | 'ghareeb-review' | 'ghareeb-read' | 'tahfeez-test' | 'tahfeez-auto' | 'tahfeez-review';
+
 export interface SessionSection {
   id: string;
   title: string;
@@ -54,25 +56,28 @@ export interface SessionSection {
 export interface Session {
   id: string;
   name: string;
-  type: 'ghareeb' | 'tahfeez';
+  type: SessionType;
   createdAt: number;
   updatedAt: number;
+  lastOpenedAt: number;
   archived: boolean;
   currentPage: number;
   startPage?: number;
   endPage?: number;
   sections?: SessionSection[];
-  /** Group/category this session belongs to */
   groupId?: string;
-  /** For tahfeez: snapshot of stored items */
   tahfeezItems?: unknown[];
-  /** For tahfeez: quiz settings snapshot */
   quizSettings?: Record<string, unknown>;
+  status: 'active' | 'paused' | 'completed' | 'archived';
+  progress?: number;
+  resumeState?: Record<string, unknown>;
 }
 
 export interface SessionGroup {
   id: string;
   name: string;
+  createdAt: number;
+  updatedAt: number;
   order: number;
 }
 
@@ -81,8 +86,8 @@ interface SessionsState {
   groups: SessionGroup[];
   activeSessionId: string | null;
 
-  createSession: (name: string, type: 'ghareeb' | 'tahfeez', startPage?: number, endPage?: number, groupId?: string) => string;
-  updateSession: (id: string, patch: Partial<Pick<Session, 'name' | 'currentPage' | 'startPage' | 'endPage' | 'tahfeezItems' | 'quizSettings' | 'sections' | 'groupId'>>) => void;
+  createSession: (name: string, type: SessionType, startPage?: number, endPage?: number, groupId?: string) => string;
+  updateSession: (id: string, patch: Partial<Pick<Session, 'name' | 'currentPage' | 'startPage' | 'endPage' | 'tahfeezItems' | 'quizSettings' | 'sections' | 'groupId' | 'lastOpenedAt' | 'status' | 'progress' | 'resumeState'>>) => void;
   archiveSession: (id: string) => void;
   unarchiveSession: (id: string) => void;
   deleteSession: (id: string) => void;
@@ -112,11 +117,13 @@ export const useSessionsStore = create<SessionsState>()(
           type,
           createdAt: Date.now(),
           updatedAt: Date.now(),
+          lastOpenedAt: Date.now(),
           archived: false,
           currentPage: startPage,
           startPage,
           endPage,
           groupId,
+          status: 'active',
         };
         set({ sessions: [...get().sessions, session], activeSessionId: id });
         return id;
@@ -192,12 +199,13 @@ export const useSessionsStore = create<SessionsState>()(
       addGroup: (name) => {
         const id = `g_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
         const order = get().groups.length;
-        set({ groups: [...get().groups, { id, name, order }] });
+        const now = Date.now();
+        set({ groups: [...get().groups, { id, name, order, createdAt: now, updatedAt: now }] });
         return id;
       },
 
       renameGroup: (id, name) => {
-        set({ groups: get().groups.map(g => g.id === id ? { ...g, name } : g) });
+        set({ groups: get().groups.map(g => g.id === id ? { ...g, name, updatedAt: Date.now() } : g) });
       },
 
       deleteGroup: (id) => {

@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { BookOpen, GraduationCap, LogOut } from 'lucide-react';
+import { BookOpen, GraduationCap, LogOut, LayoutList } from 'lucide-react';
 import { SessionManager } from '@/components/SessionManager';
 import { useState } from 'react';
 import { GhareebEntryDialog, useGhareebEntry } from '@/components/GhareebEntryDialog';
@@ -51,7 +51,21 @@ export default function Home() {
             </div>
           </Link>
 
-          {/* Audio Diagnostics — disabled */}
+          {/* Sessions Portal */}
+          <Link
+            to="/sessions"
+            className="page-frame p-6 flex items-center gap-4 hover:border-primary/50 hover:shadow-lg transition-all group"
+          >
+            <div className="w-14 h-14 rounded-2xl bg-muted/60 flex items-center justify-center shrink-0 group-hover:bg-muted transition-colors">
+              <LayoutList className="w-7 h-7 text-primary" />
+            </div>
+            <div className="space-y-1">
+              <h2 className="text-lg font-bold font-arabic text-foreground">بوابة الجلسات</h2>
+              <p className="text-xs font-arabic text-muted-foreground leading-relaxed">
+                إنشاء وإدارة واستئناف جميع جلساتك
+              </p>
+            </div>
+          </Link>
         </div>
 
         {/* Sessions section */}
