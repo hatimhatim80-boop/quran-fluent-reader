@@ -59,14 +59,25 @@ export interface BaseResumeState {
   currentPage: number;
   sessionPhase: 'running' | 'paused' | 'completed';
   hideChrome?: boolean;
+  currentItemIndex?: number;
+  currentWordIndex?: number;
+  currentAyahId?: string | null;
+  currentSegmentId?: string | null;
+  currentLineIndex?: number;
+  currentAnchorKey?: string | null;
+  currentScrollTop?: number;
 }
 
 export interface TahfeezAutoResumeState extends BaseResumeState {
   kind: 'tahfeez-auto';
+  currentItemIndex: number;
   currentRevealIdx: number;
   blankedKeysList: string[];
   revealedKeys: string[];
   activeBlankKey: string | null;
+  revealOrder: string[];
+  hiddenWords: string[];
+  activeBlanks: string[];
   quizPageIdx: number;
   showAll: boolean;
   remainingMs: number;
@@ -79,14 +90,24 @@ export interface TahfeezAutoResumeState extends BaseResumeState {
   quizScopeTo: number;
   quizSource: string;
   distributionSeed: number;
+  sessionTimerMode: 'countup' | 'countdown';
+  sessionElapsedMs: number;
+  sessionRemainingMs: number;
+  sessionStartedAt: number | null;
+  pausedAt: number | null;
+  isPaused: boolean;
 }
 
 export interface TahfeezTestResumeState extends BaseResumeState {
   kind: 'tahfeez-test';
+  currentItemIndex: number;
   currentRevealIdx: number;
   blankedKeysList: string[];
   revealedKeys: string[];
   activeBlankKey: string | null;
+  revealOrder: string[];
+  hiddenWords: string[];
+  activeBlanks: string[];
   quizPageIdx: number;
   showAll: boolean;
   timerSeconds: number;
@@ -97,6 +118,12 @@ export interface TahfeezTestResumeState extends BaseResumeState {
   quizScopeTo: number;
   quizSource: string;
   distributionSeed: number;
+  sessionTimerMode: 'countup' | 'countdown';
+  sessionElapsedMs: number;
+  sessionRemainingMs: number;
+  sessionStartedAt: number | null;
+  pausedAt: number | null;
+  isPaused: boolean;
 }
 
 export interface TahfeezReviewResumeState extends BaseResumeState {
