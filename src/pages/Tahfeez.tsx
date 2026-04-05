@@ -189,6 +189,8 @@ export default function TahfeezPage() {
     setSessionRemainingMs(remaining * perItemMs);
   }, []);
 
+  const suppressScrollRef = useRef(false);
+
   // Session hydration on mount
   useEffect(() => {
     if (hasHydratedRef.current) return;
