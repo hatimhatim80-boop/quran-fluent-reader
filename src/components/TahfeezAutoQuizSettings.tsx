@@ -389,6 +389,7 @@ export function TahfeezAutoQuizSettings({ currentPage, quizPagesRange, onStart, 
                   onChange={(v) => setFirstWordTimerSeconds(+v.toFixed(2))}
                   min={0.1} max={30} step={0.1}
                   format={formatSeconds}
+                  presets={[0.3, 0.5, 1, 2, 5, 10, 15]}
                 />
                 <SliderSetting
                   label="مدة ظهور كل كلمة"
@@ -396,6 +397,7 @@ export function TahfeezAutoQuizSettings({ currentPage, quizPagesRange, onStart, 
                   onChange={(v) => setTimerSeconds(+v.toFixed(2))}
                   min={0.1} max={30} step={0.1}
                   format={formatSeconds}
+                  presets={[0.1, 0.2, 0.3, 0.4, 0.5, 0.7, 0.8, 0.9, 1, 2, 3, 4, 6, 8]}
                 />
                 <SliderSetting
                   label="الانتقال التلقائي للصفحة التالية"
