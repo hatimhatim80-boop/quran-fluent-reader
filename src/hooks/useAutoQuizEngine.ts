@@ -106,6 +106,7 @@ export function useAutoQuizEngine() {
   const itemExpectedEndRef = useRef<number | null>(null);
   const revealTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const currentItemRemainingRef = useRef(0);
+  const currentItemExpireCallbackRef = useRef<(() => void) | null>(null);
 
   // Per-page schedules: exact durations for each item
   const pageSchedulesRef = useRef<Record<number, PageSchedule>>({});
@@ -230,6 +231,31 @@ export function useAutoQuizEngine() {
     }
   }, []);
 
+  const armItemTimer = useCallback((durationMs: number, onExpire?: () => void) => {
+    if (revealTimeoutRef.current) {
+      clearTimeout(revealTimeoutRef.current);
+      revealTimeoutRef.current = null;
+    }
+
+    if (onExpire) {
+      currentItemExpireCallbackRef.current = onExpire;
+    }
+
+    itemExpectedEndRef.current = performance.now() + durationMs;
+    setCurrentItemRemainingValue(durationMs);
+
+    const callback = currentItemExpireCallbackRef.current;
+    revealTimeoutRef.current = callback
+      ? setTimeout(() => {
+          revealTimeoutRef.current = null;
+          itemExpectedEndRef.current = null;
+          const expire = currentItemExpireCallbackRef.current;
+          currentItemExpireCallbackRef.current = null;
+          expire?.();
+        }, durationMs)
+      : null;
+  }, [setCurrentItemRemainingValue]);
+
   // Cleanup on unmount
   useEffect(() => {
     return () => {
@@ -351,11 +377,8 @@ export function useAutoQuizEngine() {
    * Schedule a timer for the current item and call onExpire when it finishes.
    */
   const scheduleItem = useCallback((durationMs: number, onExpire: () => void) => {
-    if (revealTimeoutRef.current) clearTimeout(revealTimeoutRef.current);
-    itemExpectedEndRef.current = performance.now() + durationMs;
-    setCurrentItemRemainingValue(durationMs);
-    revealTimeoutRef.current = setTimeout(onExpire, durationMs);
-  }, [setCurrentItemRemainingValue]);
+    armItemTimer(durationMs, onExpire);
+  }, [armItemTimer]);
 
   /**
    * Change speed: recalculate plannedTotalMs = realElapsed + unconsumedItems × newDuration
@@ -409,18 +432,21 @@ export function useAutoQuizEngine() {
         ? oldCurrentRemaining
         : Math.round(newCurrentDuration * Math.max(0, Math.min(1, oldCurrentRemaining / oldCurrentDuration)));
 
-      if (phaseRef.current === 'running') {
-        itemExpectedEndRef.current = performance.now() + activeItemNewRemaining;
-      } else {
-        itemExpectedEndRef.current = null;
+      if (onCurrentItemExpire) {
+        currentItemExpireCallbackRef.current = onCurrentItemExpire;
       }
 
-      if (revealTimeoutRef.current) clearTimeout(revealTimeoutRef.current);
-      revealTimeoutRef.current = phaseRef.current === 'running'
-        ? setTimeout(onCurrentItemExpire ?? (() => {}), activeItemNewRemaining)
-        : null;
+      if (phaseRef.current === 'running') {
+        armItemTimer(activeItemNewRemaining, currentItemExpireCallbackRef.current ?? undefined);
+      } else {
+        itemExpectedEndRef.current = null;
+        if (revealTimeoutRef.current) {
+          clearTimeout(revealTimeoutRef.current);
+          revealTimeoutRef.current = null;
+        }
+        setCurrentItemRemainingValue(activeItemNewRemaining);
+      }
 
-      setCurrentItemRemainingValue(activeItemNewRemaining);
       if (pageStatesRef.current[activePage]) {
         pageStatesRef.current[activePage].currentItemRemainingMs = activeItemNewRemaining;
       }
@@ -487,12 +513,16 @@ export function useAutoQuizEngine() {
 
     const remaining = Math.max(0, currentItemRemainingRef.current);
     if (remaining > 0) {
-      itemExpectedEndRef.current = performance.now() + remaining;
-      setCurrentItemRemainingValue(remaining);
+      if (currentItemExpireCallbackRef.current) {
+        armItemTimer(remaining);
+      } else {
+        itemExpectedEndRef.current = performance.now() + remaining;
+        setCurrentItemRemainingValue(remaining);
+      }
     }
     startRaf();
     return remaining;
-  }, [setCurrentItemRemainingValue, startRaf]);
+  }, [armItemTimer, setCurrentItemRemainingValue, startRaf]);
 
   /** Mark session as completed */
   const complete = useCallback(() => {
@@ -501,6 +531,7 @@ export function useAutoQuizEngine() {
     stopRaf();
     if (revealTimeoutRef.current) clearTimeout(revealTimeoutRef.current);
     itemExpectedEndRef.current = null;
+    currentItemExpireCallbackRef.current = null;
     setSessionRemainingMs(0);
     setCurrentItemRemainingValue(0);
     setPhase('completed');
@@ -537,6 +568,7 @@ export function useAutoQuizEngine() {
     if (revealTimeoutRef.current) clearTimeout(revealTimeoutRef.current);
     revealTimeoutRef.current = null;
     itemExpectedEndRef.current = null;
+    currentItemExpireCallbackRef.current = null;
 
     // Save old page state
     const oldSched = pageSchedulesRef.current[oldPage];
@@ -569,6 +601,7 @@ export function useAutoQuizEngine() {
     if (revealTimeoutRef.current) clearTimeout(revealTimeoutRef.current);
     revealTimeoutRef.current = null;
     itemExpectedEndRef.current = null;
+    currentItemExpireCallbackRef.current = null;
     setCurrentItemRemainingValue(0);
 
     setSessionRemainingMs(getSessionRemainingMs());
@@ -585,6 +618,7 @@ export function useAutoQuizEngine() {
     if (revealTimeoutRef.current) clearTimeout(revealTimeoutRef.current);
     revealTimeoutRef.current = null;
     itemExpectedEndRef.current = null;
+    currentItemExpireCallbackRef.current = null;
 
     const unreg: Record<number, number> = {};
     for (const p of sessionPages) {
@@ -659,6 +693,7 @@ export function useAutoQuizEngine() {
     defaultItemMsRef.current = snap.defaultItemMs || 2000;
     currentPageRef.current = snap.currentPage;
     itemExpectedEndRef.current = null;
+    currentItemExpireCallbackRef.current = null;
 
     // Restore schedules
     pageSchedulesRef.current = snap.pageSchedules
@@ -697,6 +732,7 @@ export function useAutoQuizEngine() {
     if (revealTimeoutRef.current) clearTimeout(revealTimeoutRef.current);
     revealTimeoutRef.current = null;
     itemExpectedEndRef.current = null;
+    currentItemExpireCallbackRef.current = null;
     setCurrentItemRemainingValue(0);
   }, [setCurrentItemRemainingValue, stopRaf]);
 
