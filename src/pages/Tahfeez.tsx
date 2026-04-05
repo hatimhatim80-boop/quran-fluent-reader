@@ -1062,6 +1062,7 @@ export default function TahfeezPage() {
   const handlePauseResume = () => {
     if (isPaused) {
       setIsPaused(false);
+      resumeSessionTimer();
       // Resume from next unrevealed
       const nextIdx = blankedKeysList.findIndex(k => !revealedKeys.has(k));
       if (nextIdx >= 0) {
@@ -1070,6 +1071,7 @@ export default function TahfeezPage() {
       }
     } else {
       setIsPaused(true);
+      pauseSessionTimer();
       if (revealTimerRef.current) clearTimeout(revealTimerRef.current);
       pauseItemTimer();
       speech.stop();
