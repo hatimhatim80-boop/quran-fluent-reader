@@ -1162,6 +1162,21 @@ export default function TahfeezPage() {
     ? Math.round(((revealedKeys.size) / blankedKeysList.length) * 100)
     : 0;
 
+  // ── Estimated remaining time for the session ──
+  // Counts remaining items on current page + estimates for remaining pages
+  const estimatedRemainingMs = useMemo(() => {
+    if (!quizStarted || showAll) return 0;
+    const currentPageRemaining = Math.max(0, blankedKeysList.length - revealedKeys.size);
+    const perItemMs = timerSeconds * 1000;
+    // For multi-page: estimate remaining pages have similar blanked count
+    const pagesRange = quizPagesRange;
+    const currentPageIdx = pagesRange.indexOf(currentPage);
+    const remainingPages = currentPageIdx >= 0 ? Math.max(0, pagesRange.length - 1 - currentPageIdx) : 0;
+    const avgBlanksPerPage = blankedKeysList.length > 0 ? blankedKeysList.length : 10;
+    const futureItemsEstimate = remainingPages * avgBlanksPerPage;
+    return (currentPageRemaining + futureItemsEstimate) * perItemMs;
+  }, [quizStarted, showAll, blankedKeysList.length, revealedKeys.size, timerSeconds, quizPagesRange, currentPage]);
+
   const filteredSurahs = useMemo(() => {
     if (!indexSearch.trim()) return SURAHS;
     const q = indexSearch.trim();
