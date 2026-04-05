@@ -168,11 +168,12 @@ export default function TahfeezPage() {
   useEffect(() => { return () => { if (timerRafRef.current) cancelAnimationFrame(timerRafRef.current); }; }, []);
 
   // ── Session-level remaining time (monotonic, only decreases) ──
-  // totalItemsInSession is computed ONCE at session start from all pages in range.
   const [sessionRemainingMs, setSessionRemainingMs] = useState(0);
   const sessionTotalItemsRef = useRef(0);
   const sessionProcessedItemsRef = useRef(0);
   const sessionTimerPausedRef = useRef(false);
+  // Per-page state map — tracks revealed keys for each visited page
+  const pageStatesRef = useRef<Record<number, PageState>>({});
 
   // Called when an item is revealed — decrements remaining
   const onSessionItemProcessed = useCallback(() => {
