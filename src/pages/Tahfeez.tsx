@@ -513,10 +513,6 @@ export default function TahfeezPage() {
     const isTahfeezAuto = session.type === 'tahfeez-auto';
     const kind = isTahfeezAuto ? 'tahfeez-auto' as const : 'tahfeez-test' as const;
     
-    const currentElapsed = isSessionTimerRunningRef.current && sessionTimerStartRef.current
-      ? sessionTimerBaseRef.current + (Date.now() - sessionTimerStartRef.current)
-      : sessionTimerBaseRef.current;
-    
     return {
       kind,
       currentPage,
@@ -543,14 +539,14 @@ export default function TahfeezPage() {
       quizScopeTo,
       quizSource,
       distributionSeed: useTahfeezStore.getState().distributionSeed,
-      sessionTimerMode,
-      sessionElapsedMs: currentElapsed,
-      sessionRemainingMs: sessionTotalMs > 0 ? Math.max(0, sessionTotalMs - currentElapsed) : 0,
-      sessionStartedAt: sessionTimerStartRef.current,
+      sessionTimerMode: 'countup',
+      sessionElapsedMs: 0,
+      sessionRemainingMs: sessionRemainingItemsRef.current * timerSeconds * 1000,
+      sessionStartedAt: null,
       pausedAt: isPaused ? Date.now() : null,
       isPaused,
     } as TahfeezAutoResumeState | TahfeezTestResumeState;
-  }, [currentPage, isPaused, showAll, quizStarted, hideBars, revealedKeys, activeBlankKey, quizPageIdx, timerSeconds, firstWordTimerSeconds, quizInteraction, quizScope, quizScopeFrom, quizScopeTo, quizSource, activeSessionId, sessionIdParam, getSession, sessionTimerMode, sessionTotalMs]);
+  }, [currentPage, isPaused, showAll, quizStarted, hideBars, revealedKeys, activeBlankKey, quizPageIdx, timerSeconds, firstWordTimerSeconds, quizInteraction, quizScope, quizScopeFrom, quizScopeTo, quizSource, activeSessionId, sessionIdParam, getSession]);
 
   // Throttled auto-save
   useEffect(() => {
