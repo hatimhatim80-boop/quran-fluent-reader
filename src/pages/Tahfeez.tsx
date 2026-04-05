@@ -168,51 +168,26 @@ export default function TahfeezPage() {
   useEffect(() => { return () => { if (timerRafRef.current) cancelAnimationFrame(timerRafRef.current); }; }, []);
 
   // ── Session-level remaining time (monotonic, only decreases) ──
-  // Tracks remaining items across the whole session, not per-page.
+  // totalItemsInSession is computed ONCE at session start from all pages in range.
   const [sessionRemainingMs, setSessionRemainingMs] = useState(0);
-  const sessionRemainingItemsRef = useRef(0); // total remaining items in session
-  const sessionTotalItemsRef = useRef(0); // total items in session (set once at start)
-  const sessionProcessedItemsRef = useRef(0); // items processed so far across all pages
-  const sessionPageItemCountsRef = useRef<Record<number, number>>({}); // items per page (learned as pages load)
+  const sessionTotalItemsRef = useRef(0);
+  const sessionProcessedItemsRef = useRef(0);
   const sessionTimerPausedRef = useRef(false);
-  const suppressScrollRef = useRef(false);
 
   // Called when an item is revealed — decrements remaining
   const onSessionItemProcessed = useCallback(() => {
     sessionProcessedItemsRef.current += 1;
     const remaining = Math.max(0, sessionTotalItemsRef.current - sessionProcessedItemsRef.current);
-    sessionRemainingItemsRef.current = remaining;
     const perItemMs = timerSecondsRef.current * 1000;
     setSessionRemainingMs(remaining * perItemMs);
   }, []);
 
   // Recalculate remaining when speed changes (only for unprocessed items)
   const recalcSessionRemaining = useCallback(() => {
-    const remaining = sessionRemainingItemsRef.current;
+    const remaining = Math.max(0, sessionTotalItemsRef.current - sessionProcessedItemsRef.current);
     const perItemMs = timerSecondsRef.current * 1000;
     setSessionRemainingMs(remaining * perItemMs);
   }, []);
-
-  // Update remaining page items when a new page's blanked keys are loaded
-  const updateSessionPlan = useCallback((page: number, itemCount: number) => {
-    const prev = sessionPageItemCountsRef.current[page];
-    if (prev === undefined) {
-      // First time seeing this page — update total estimate
-      sessionPageItemCountsRef.current[page] = itemCount;
-      // Recalculate total: use actual counts for seen pages, estimate for unseen
-      const pagesRange = quizPagesRangeRef.current;
-      const seenCounts = Object.values(sessionPageItemCountsRef.current);
-      const avgPerPage = seenCounts.length > 0 ? seenCounts.reduce((a, b) => a + b, 0) / seenCounts.length : 10;
-      const unseenPages = pagesRange.filter(p => sessionPageItemCountsRef.current[p] === undefined).length;
-      const totalEstimate = seenCounts.reduce((a, b) => a + b, 0) + Math.round(unseenPages * avgPerPage);
-      // Only increase total if new estimate is higher (monotonic safety)
-      if (totalEstimate > sessionTotalItemsRef.current) {
-        sessionTotalItemsRef.current = totalEstimate;
-      }
-      sessionRemainingItemsRef.current = Math.max(0, sessionTotalItemsRef.current - sessionProcessedItemsRef.current);
-      recalcSessionRemaining();
-    }
-  }, [recalcSessionRemaining]);
 
   // Session hydration on mount
   useEffect(() => {
