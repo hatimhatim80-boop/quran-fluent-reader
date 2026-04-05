@@ -686,7 +686,7 @@ export default function TahfeezPage() {
             blankedKeysListRef.current = keys;
             setBlankedKeysList(keys);
             // Update session plan with this page's item count
-            updateSessionPlan(currentPageRef.current, keys.length);
+            // Session plan is computed at start; no per-page update needed
           }
 
           if (firstKeysSig !== lastFirstKeysSig) {
