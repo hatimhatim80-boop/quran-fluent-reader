@@ -1,6 +1,7 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
-import { Timer, ChevronUp, ChevronDown, X, Minus, Plus } from 'lucide-react';
+import { Timer, X, Minus, Plus } from 'lucide-react';
 import { Slider } from '@/components/ui/slider';
+import { Input } from '@/components/ui/input';
 
 interface SpeedControlWidgetProps {
   /** Current speed in seconds */
@@ -15,8 +16,8 @@ interface SpeedControlWidgetProps {
   max?: number;
 }
 
-const SUB_SECOND_PRESETS = [0.2, 0.3, 0.5, 0.7, 1];
-const FULL_PRESETS = [0.3, 0.5, 1, 2, 4, 8];
+const SUB_SECOND_PRESETS = [0.2, 0.3, 0.4, 0.5, 0.7, 0.8, 0.9, 1];
+const FULL_PRESETS = [1, 2, 3, 4, 6, 8];
 
 export function SpeedControlWidget({
   value,
@@ -27,6 +28,8 @@ export function SpeedControlWidget({
 }: SpeedControlWidgetProps) {
   const [visible, setVisible] = useState(false);
   const [expanded, setExpanded] = useState(false);
+  const [showInput, setShowInput] = useState(false);
+  const [inputValue, setInputValue] = useState('');
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const formatValue = (v: number) => {
@@ -40,7 +43,6 @@ export function SpeedControlWidget({
   };
 
   const clamp = (v: number) => Math.max(min, Math.min(max, +v.toFixed(2)));
-
   const step = value < 1 ? 0.1 : value < 5 ? 0.5 : 1;
 
   const showButton = useCallback(() => {
@@ -63,6 +65,15 @@ export function SpeedControlWidget({
   useEffect(() => {
     return () => { if (timerRef.current) clearTimeout(timerRef.current); };
   }, []);
+
+  const handleInputSubmit = () => {
+    const parsed = parseFloat(inputValue);
+    if (!isNaN(parsed) && parsed > 0) {
+      onChange(clamp(parsed));
+    }
+    setShowInput(false);
+    setInputValue('');
+  };
 
   // Tap zone
   if (!visible) {
@@ -90,10 +101,8 @@ export function SpeedControlWidget({
     );
   }
 
-  const presets = value <= 1 ? SUB_SECOND_PRESETS : FULL_PRESETS;
-
   return (
-    <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 bg-card border border-border rounded-2xl shadow-2xl p-4 w-64 space-y-3 animate-fade-in" dir="rtl">
+    <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 bg-card border border-border rounded-2xl shadow-2xl p-4 w-72 space-y-3 animate-fade-in" dir="rtl">
       <div className="flex items-center justify-between">
         <span className="text-xs font-arabic font-bold text-foreground">{label}</span>
         <button onClick={() => { setExpanded(false); setVisible(false); }} className="w-6 h-6 rounded-full flex items-center justify-center hover:bg-muted transition-colors">
@@ -106,7 +115,7 @@ export function SpeedControlWidget({
         {formatValueArabic(value)}
       </div>
       
-      {/* +/- controls with large value */}
+      {/* +/- controls with large value or numeric input */}
       <div className="flex items-center justify-center gap-3">
         <button
           onClick={() => onChange(clamp(value - step))}
@@ -115,9 +124,33 @@ export function SpeedControlWidget({
         >
           <Minus className="w-4 h-4" />
         </button>
-        <span className="text-xl font-bold font-arabic text-primary min-w-[5rem] text-center tabular-nums">
-          {formatValue(value)}
-        </span>
+
+        {showInput ? (
+          <form onSubmit={e => { e.preventDefault(); handleInputSubmit(); }} className="flex items-center gap-1">
+            <Input
+              type="number"
+              step="0.1"
+              min={String(min)}
+              max={String(max)}
+              autoFocus
+              value={inputValue}
+              onChange={e => setInputValue(e.target.value)}
+              onBlur={handleInputSubmit}
+              className="w-20 h-9 text-center text-sm font-arabic"
+              placeholder={String(value)}
+            />
+            <span className="text-[10px] text-muted-foreground font-arabic">ث</span>
+          </form>
+        ) : (
+          <button
+            onClick={() => { setShowInput(true); setInputValue(String(value)); }}
+            className="text-xl font-bold font-arabic text-primary min-w-[5rem] text-center tabular-nums cursor-pointer hover:bg-primary/10 rounded-lg px-2 py-1 transition-colors"
+            title="اضغط لإدخال قيمة مخصصة"
+          >
+            {formatValue(value)}
+          </button>
+        )}
+
         <button
           onClick={() => onChange(clamp(value + step))}
           disabled={value >= max}
@@ -159,21 +192,39 @@ export function SpeedControlWidget({
         </div>
       )}
       
-      {/* Preset chips */}
-      <div className="flex flex-wrap gap-1 justify-center">
-        {presets.filter(v => v >= min && v <= max).map(preset => (
-          <button
-            key={preset}
-            onClick={() => onChange(preset)}
-            className={`px-2.5 py-1 rounded-md text-[10px] font-arabic transition-all ${
-              Math.abs(value - preset) < 0.05
-                ? 'bg-primary text-primary-foreground'
-                : 'bg-muted text-muted-foreground hover:text-foreground'
-            }`}
-          >
-            {formatValue(preset)}
-          </button>
-        ))}
+      {/* Sub-second preset chips */}
+      <div className="space-y-1">
+        <div className="flex flex-wrap gap-1 justify-center">
+          {SUB_SECOND_PRESETS.filter(v => v >= min && v <= max).map(preset => (
+            <button
+              key={preset}
+              onClick={() => onChange(preset)}
+              className={`px-2.5 py-1 rounded-md text-[10px] font-arabic transition-all ${
+                Math.abs(value - preset) < 0.05
+                  ? 'bg-primary text-primary-foreground'
+                  : 'bg-muted text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              {formatValue(preset)}
+            </button>
+          ))}
+        </div>
+        {/* Full-second presets */}
+        <div className="flex flex-wrap gap-1 justify-center">
+          {FULL_PRESETS.filter(v => v > 1 && v >= min && v <= max).map(preset => (
+            <button
+              key={preset}
+              onClick={() => onChange(preset)}
+              className={`px-2.5 py-1 rounded-md text-[10px] font-arabic transition-all ${
+                Math.abs(value - preset) < 0.05
+                  ? 'bg-primary text-primary-foreground'
+                  : 'bg-muted text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              {formatValue(preset)}
+            </button>
+          ))}
+        </div>
       </div>
     </div>
   );
