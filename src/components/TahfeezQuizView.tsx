@@ -866,13 +866,26 @@ export function TahfeezQuizView({
   }, [lines, blankedKeys, activeBlankKey, revealedKeys, revealedAyahKeySet, showAll, isLines15, storeMode, storedItems, onStoreWord, page.pageNumber, inlineMCQ, inlineMCQOptions, inlineMCQFeedback, inlineMCQSelected, revealedAyahColor, revealedAyahStyle, revealedColor, revealedWithBg]);
 
 
-  // Auto-scroll active blank into view (centered in scroll container)
+  // Auto-scroll active blank into view — minimal scroll, only when needed
+  const lastScrolledKeyRef = useRef<string | null>(null);
   useEffect(() => {
     if (!activeBlankKey) return;
+    // Don't re-scroll for the same key
+    if (lastScrolledKeyRef.current === activeBlankKey) return;
+    lastScrolledKeyRef.current = activeBlankKey;
+
     const doScroll = () => {
       const el = document.querySelector<HTMLElement>('[data-tahfeez-active="true"]');
       if (!el) return;
 
+      // Check if element is in the safe visible zone (20%-80% of viewport)
+      const rect = el.getBoundingClientRect();
+      const vh = window.innerHeight;
+      const safeTop = vh * 0.15;
+      const safeBottom = vh * 0.80;
+      if (rect.top >= safeTop && rect.bottom <= safeBottom) return; // already visible
+
+      // Minimal scroll: bring into safe zone with minimum movement
       let scrollParent: HTMLElement | null = el.parentElement;
       while (scrollParent) {
         const style = getComputedStyle(scrollParent);
@@ -881,22 +894,24 @@ export function TahfeezQuizView({
       }
 
       if (!scrollParent) {
-        el.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
+        // Use window scroll — minimal adjustment
+        const targetY = window.scrollY + rect.top - vh * 0.4;
+        window.scrollTo({ top: Math.max(0, targetY), behavior: 'smooth' });
         return;
       }
 
       const parentRect = scrollParent.getBoundingClientRect();
-      const elRect = el.getBoundingClientRect();
-      const idealCenter = parentRect.height * 0.4;
-      const relativeTop = elRect.top - parentRect.top;
-      if (relativeTop < 0 || relativeTop > parentRect.height * 0.75) {
-        const nextTop = scrollParent.scrollTop + relativeTop - idealCenter + (elRect.height / 2);
+      const relativeTop = rect.top - parentRect.top;
+      const parentSafeBottom = parentRect.height * 0.75;
+      if (relativeTop < 0 || relativeTop > parentSafeBottom) {
+        const idealCenter = parentRect.height * 0.4;
+        const nextTop = scrollParent.scrollTop + relativeTop - idealCenter + (rect.height / 2);
         scrollParent.scrollTo({ top: Math.max(0, nextTop), behavior: 'smooth' });
       }
     };
-    const t1 = setTimeout(doScroll, 150);
-    const t2 = setTimeout(doScroll, 500);
-    return () => { clearTimeout(t1); clearTimeout(t2); };
+    // Single delayed scroll instead of two
+    const t = requestAnimationFrame(() => setTimeout(doScroll, 100));
+    return () => { cancelAnimationFrame(t); };
   }, [activeBlankKey]);
 
   // Debug info: compute actual blanked ayah and word counts
