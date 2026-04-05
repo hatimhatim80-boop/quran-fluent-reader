@@ -151,12 +151,13 @@ export default function TahfeezPage() {
   const remainingMs = engine.currentItemRemainingMs;
 
   // Ref to latest scheduleItem for use in advance() closure
-  const startItemTimerRef = useRef((durationMs: number) => {
-    engine.scheduleItem(durationMs, () => {});
+  // The callback passed to scheduleItem IS the reveal trigger — no separate setTimeout needed
+  const startItemTimerRef = useRef((durationMs: number, onExpire: () => void) => {
+    engine.scheduleItem(durationMs, onExpire);
   });
   useEffect(() => {
-    startItemTimerRef.current = (durationMs: number) => {
-      engine.scheduleItem(durationMs, () => {});
+    startItemTimerRef.current = (durationMs: number, onExpire: () => void) => {
+      engine.scheduleItem(durationMs, onExpire);
     };
   }, [engine]);
 
