@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import { useTahfeezStore, TahfeezItem } from '@/stores/tahfeezStore';
 import { MCQStats, TahfeezMCQPanel } from '@/components/TahfeezMCQPanel';
 import { TahfeezSegmentMCQView, SegmentMCQStats } from '@/components/TahfeezSegmentMCQView';
-import { useSessionsStore, TahfeezAutoResumeState, TahfeezTestResumeState } from '@/stores/sessionsStore';
+import { useSessionsStore, TahfeezAutoResumeState, TahfeezTestResumeState, PageState } from '@/stores/sessionsStore';
 import { useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import { useQuranData } from '@/hooks/useQuranData';
