@@ -151,12 +151,13 @@ export default function TahfeezPage() {
   const remainingMs = engine.currentItemRemainingMs;
 
   // Ref to latest scheduleItem for use in advance() closure
-  const startItemTimerRef = useRef((durationMs: number) => {
-    engine.scheduleItem(durationMs, () => {});
+  // The callback passed to scheduleItem IS the reveal trigger — no separate setTimeout needed
+  const startItemTimerRef = useRef((durationMs: number, onExpire: () => void) => {
+    engine.scheduleItem(durationMs, onExpire);
   });
   useEffect(() => {
-    startItemTimerRef.current = (durationMs: number) => {
-      engine.scheduleItem(durationMs, () => {});
+    startItemTimerRef.current = (durationMs: number, onExpire: () => void) => {
+      engine.scheduleItem(durationMs, onExpire);
     };
   }, [engine]);
 
@@ -1015,7 +1016,8 @@ export default function TahfeezPage() {
             const lastGroupKey = groupKeys[groupKeys.length - 1];
             const lastIdx = list.indexOf(lastGroupKey);
             const nextIdx = lastIdx >= 0 ? lastIdx + 1 : idx + 1;
-            revealTimerRef.current = setTimeout(() => advance(nextIdx), 150);
+            // Use rAF instead of 150ms gap — engine stopwatch is the sole timekeeper
+            requestAnimationFrame(() => advance(nextIdx));
           } else {
             if (singleWordMode) {
               setRevealedKeys(new Set([key]));
@@ -1025,7 +1027,8 @@ export default function TahfeezPage() {
             setActiveBlankKey(null);
             // Decrement session remaining
             onSessionItemProcessedRef.current();
-            revealTimerRef.current = setTimeout(() => advance(idx + 1), 150);
+            // Use rAF instead of 150ms gap — engine stopwatch is the sole timekeeper
+            requestAnimationFrame(() => advance(idx + 1));
           }
         };
 
@@ -1036,8 +1039,9 @@ export default function TahfeezPage() {
             const sp = speechRef.current;
             sp.start('ar-SA').then(ok => {
               if (!ok) {
-                // Fallback to timer if speech fails
-                revealTimerRef.current = setTimeout(() => revealAndAdvance(), timerSecondsRef.current * 1000);
+                // Fallback to timer if speech fails — use engine timer as sole source
+                const durationMs = timerSecondsRef.current * 1000;
+                startItemTimerRef.current(durationMs, () => revealAndAdvance());
                 return;
               }
               // Poll transcript for a match (every 300ms, NO timeout — wait for voice only)
@@ -1064,12 +1068,9 @@ export default function TahfeezPage() {
               revealTimerRef.current = pollInterval as any;
             });
           } else {
-            // Timer mode (no voice) — start countdown timer for UI display
+            // Timer mode (no voice) — engine scheduleItem is the SOLE timer
             const durationMs = timerSecondsRef.current * 1000;
-            startItemTimerRef.current(durationMs);
-            revealTimerRef.current = setTimeout(() => {
-              revealAndAdvance();
-            }, durationMs);
+            startItemTimerRef.current(durationMs, () => revealAndAdvance());
           }
         };
 
@@ -1079,10 +1080,7 @@ export default function TahfeezPage() {
             startVoiceOrTimer();
           } else {
             setActiveBlankKey(null);
-            startItemTimerRef.current(fwDelay);
-            revealTimerRef.current = setTimeout(() => {
-              startVoiceOrTimer();
-            }, fwDelay);
+            startItemTimerRef.current(fwDelay, () => startVoiceOrTimer());
           }
         } else {
           startVoiceOrTimer();
