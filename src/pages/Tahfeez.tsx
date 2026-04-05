@@ -1115,17 +1115,10 @@ export default function TahfeezPage() {
       setMcqStats({ correct: 0, wrong: 0, total: 0, startTime: Date.now(), answers: [] });
       setMcqShowResults(false);
       setMcqCurrentIdx(0);
-      // Reset session remaining timer
-      // Compute session plan: total items across all pages in range
+      // Initialize engine for new session
       const pagesRange = quizPagesRangeRef.current;
       const { total } = computeSessionTotalItems(pages, pagesRange);
-      sessionTotalItemsRef.current = total;
-      sessionProcessedItemsRef.current = 0;
-      sessionTimerPausedRef.current = false;
-      pageStatesRef.current = {}; // Clear per-page states for fresh session
-      setSessionRemainingMs(total * timerSeconds * 1000);
-      // Start the continuous RAF-driven session timer
-      startSessionTimer();
+      engine.initSession(total, timerSeconds * 1000, firstWordTimerSeconds * 1000, pagesRange[0] || currentPage);
     } catch (err) {
       console.error('[tahfeez] Error in handleStart:', err);
       toast.error('حدث خطأ أثناء بدء الاختبار');
@@ -1147,18 +1140,16 @@ export default function TahfeezPage() {
   const handlePauseResume = () => {
     if (isPaused) {
       setIsPaused(false);
-      resumeSessionTimer();
+      engine.resume(() => {}); // advance() chain handles actual item scheduling
       // Resume from next unrevealed
       const nextIdx = blankedKeysList.findIndex(k => !revealedKeys.has(k));
       if (nextIdx >= 0) {
         setCurrentRevealIdx(nextIdx);
-        if (remainingMs > 0) resumeItemTimer(remainingMs);
       }
     } else {
       setIsPaused(true);
-      pauseSessionTimer();
+      engine.pause();
       if (revealTimerRef.current) clearTimeout(revealTimerRef.current);
-      pauseItemTimer();
       speech.stop();
     }
   };
