@@ -139,13 +139,9 @@ export default function TahfeezPage() {
   // ── Unified Auto-Quiz Engine ──
   const engine = useAutoQuizEngine();
 
-  // Aliases for backward compat
+  // Aliases
   const sessionRemainingMs = engine.sessionRemainingMs;
-  const sessionTotalItemsRef = engine.totalItemsRef;
-  const sessionProcessedItemsRef = engine.processedItemsRef;
   const pageStatesRef = engine.pageStatesRef as React.MutableRefObject<Record<number, PageState>>;
-
-  // Per-item remaining (for item-level UI if needed)
   const remainingMs = engine.currentItemRemainingMs;
 
   // Ref to latest scheduleItem for use in advance() closure
@@ -164,7 +160,7 @@ export default function TahfeezPage() {
   }, [engine]);
 
   const recalcSessionRemaining = useCallback(() => {
-    engine.setSpeed(engine.perItemMsRef.current);
+    engine.setSpeed(engine.defaultItemMsRef.current);
   }, [engine]);
 
   const suppressScrollRef = useRef(false);
