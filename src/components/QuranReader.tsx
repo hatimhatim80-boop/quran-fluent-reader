@@ -676,7 +676,7 @@ export function QuranReader() {
           label="سرعة ظهور الكلمة"
           min={0.1}
           max={30}
-          step={0.1}
+          
         />
 
         {/* Show bars button - floating when bars are hidden, appears on double-tap for 3s */}

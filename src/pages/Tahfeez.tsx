@@ -2309,7 +2309,6 @@ export default function TahfeezPage() {
             label="مدة ظهور الكلمة"
             min={0.1}
             max={30}
-            step={0.1}
           />
         )}
       </div>
