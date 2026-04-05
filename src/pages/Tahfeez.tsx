@@ -256,6 +256,18 @@ export default function TahfeezPage() {
       if (autoRs.timerSeconds) setTimerSeconds(autoRs.timerSeconds);
       if (autoRs.firstWordTimerSeconds) setFirstWordTimerSeconds(autoRs.firstWordTimerSeconds);
       
+      // Suppress scrollToTop when page changes during hydration
+      suppressScrollRef.current = true;
+      setTimeout(() => { suppressScrollRef.current = false; }, 1500);
+      
+      // Restore session-wide timer
+      if (autoRs.sessionElapsedMs !== undefined) {
+        setSessionElapsedMs(autoRs.sessionElapsedMs);
+        sessionTimerBaseRef.current = autoRs.sessionElapsedMs;
+      }
+      if (autoRs.sessionTimerMode) setSessionTimerMode(autoRs.sessionTimerMode);
+      if (autoRs.sessionRemainingMs !== undefined) setSessionTotalMs(autoRs.sessionRemainingMs + (autoRs.sessionElapsedMs || 0));
+      
       // Start quiz in resumed state
       if (rs.sessionPhase === 'running' || rs.sessionPhase === 'paused') {
         setQuizStarted(true);
@@ -268,6 +280,8 @@ export default function TahfeezPage() {
           }
         } else {
           setIsPaused(false);
+          // Resume session timer
+          startSessionTimer(autoRs.sessionElapsedMs || 0);
           // Resume auto-advance from saved position
           if (!autoRs.showAll && autoRs.blankedKeysList.length > 0) {
             const nextIdx = autoRs.blankedKeysList.findIndex(k => !new Set(autoRs.revealedKeys).has(k));
@@ -279,6 +293,18 @@ export default function TahfeezPage() {
             }
           }
         }
+      }
+      
+      // Scroll to saved position after render
+      if (rs.currentScrollTop !== undefined && rs.currentScrollTop > 0) {
+        requestAnimationFrame(() => {
+          window.scrollTo({ top: rs.currentScrollTop!, behavior: 'auto' });
+        });
+      } else if (rs.currentAnchorKey) {
+        requestAnimationFrame(() => {
+          const el = document.querySelector<HTMLElement>(`[data-key="${rs.currentAnchorKey}"]`);
+          if (el) el.scrollIntoView({ behavior: 'auto', block: 'center' });
+        });
       }
       
       markSessionResumed(resolvedSessionId);
