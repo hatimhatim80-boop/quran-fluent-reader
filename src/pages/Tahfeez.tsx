@@ -209,22 +209,21 @@ export default function TahfeezPage() {
     if (rs.kind === 'tahfeez-auto' || rs.kind === 'tahfeez-test') {
       const autoRs = rs as TahfeezAutoResumeState | TahfeezTestResumeState;
       
-      // a) Restore refs first (before any navigation or state)
-      if (autoRs.sessionTotalItems > 0) {
-        sessionTotalItemsRef.current = autoRs.sessionTotalItems;
-        sessionProcessedItemsRef.current = autoRs.sessionProcessedItems || 0;
-      }
-      if (autoRs.pageStates) {
-        pageStatesRef.current = { ...autoRs.pageStates };
-      }
-      
-      // Restore session remaining from saved value
-      if (autoRs.sessionRemainingMs !== undefined && autoRs.sessionRemainingMs > 0) {
-        setSessionRemainingMs(autoRs.sessionRemainingMs);
-      } else if (autoRs.sessionTotalItems > 0) {
-        const remaining = Math.max(0, autoRs.sessionTotalItems - (autoRs.sessionProcessedItems || 0));
-        setSessionRemainingMs(remaining * (autoRs.timerSeconds || 1) * 1000);
-      }
+      // Restore engine state from resumeState
+      engine.restore({
+        phase: rs.sessionPhase === 'running' ? 'running' : rs.sessionPhase === 'completed' ? 'completed' : 'paused',
+        currentPage: rs.currentPage,
+        sessionRemainingMs: autoRs.sessionRemainingMs || 0,
+        currentItemRemainingMs: ('remainingMs' in autoRs ? autoRs.remainingMs : 0) || 0,
+        sessionTotalItems: autoRs.sessionTotalItems || 0,
+        sessionProcessedItems: autoRs.sessionProcessedItems || 0,
+        currentRevealIdx: autoRs.currentRevealIdx || 0,
+        activeBlankKey: autoRs.activeBlankKey,
+        revealedKeys: autoRs.revealedKeys || [],
+        blankedKeysList: autoRs.blankedKeysList || [],
+        showAll: autoRs.showAll || false,
+        pageStates: (autoRs.pageStates || {}) as Record<number, EnginePageState>,
+      }, (autoRs.timerSeconds || 1) * 1000, (autoRs.firstWordTimerSeconds || 0) * 1000);
       
       // Restore settings
       if (autoRs.quizInteraction) setQuizInteraction(autoRs.quizInteraction as any);
