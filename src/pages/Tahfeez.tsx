@@ -922,7 +922,6 @@ export default function TahfeezPage() {
           const groups = granularity === 'ayah' ? ayahKeyGroupsRef.current : granularity === 'waqf-segment' ? waqfKeyGroupsRef.current : null;
           
           if (groups && groups.length > 0) {
-            // Find the group containing the current key
             const groupIdx = groups.findIndex(g => g.includes(key));
             const groupKeys = groupIdx >= 0 ? groups[groupIdx] : [key];
             
@@ -936,19 +935,21 @@ export default function TahfeezPage() {
               });
             }
             setActiveBlankKey(null);
-            // Find the next key AFTER this entire group
+            // Decrement session remaining for each revealed item in the group
+            groupKeys.forEach(() => onSessionItemProcessedRef.current());
             const lastGroupKey = groupKeys[groupKeys.length - 1];
             const lastIdx = list.indexOf(lastGroupKey);
             const nextIdx = lastIdx >= 0 ? lastIdx + 1 : idx + 1;
             revealTimerRef.current = setTimeout(() => advance(nextIdx), 150);
           } else {
-            // Word-by-word (default)
             if (singleWordMode) {
               setRevealedKeys(new Set([key]));
             } else {
               setRevealedKeys(prev => new Set([...prev, key]));
             }
             setActiveBlankKey(null);
+            // Decrement session remaining
+            onSessionItemProcessedRef.current();
             revealTimerRef.current = setTimeout(() => advance(idx + 1), 150);
           }
         };
