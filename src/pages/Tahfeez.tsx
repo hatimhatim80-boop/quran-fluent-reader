@@ -2261,8 +2261,16 @@ export default function TahfeezPage() {
                 </SheetContent>
               </Sheet>
 
-              <Button variant="outline" size="sm" onClick={() => { setQuizStarted(false); if (revealTimerRef.current) clearTimeout(revealTimerRef.current); speech.stop(); }} className="font-arabic">
-                إعادة
+              <Button variant="outline" size="sm" onClick={handleResetPage} className="font-arabic" title="إعادة الصفحة الحالية فقط">
+                <RotateCcw className="w-4 h-4 ml-1" />
+                إعادة الصفحة
+              </Button>
+              <Button variant="outline" size="sm" onClick={handleResetSession} className="font-arabic text-destructive hover:text-destructive" title="إعادة الجلسة كاملة من البداية">
+                <Undo2 className="w-4 h-4 ml-1" />
+                إعادة الجلسة
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => { setQuizStarted(false); engine.stop(); if (revealTimerRef.current) clearTimeout(revealTimerRef.current); speech.stop(); }} className="font-arabic">
+                إنهاء
               </Button>
             </div>
           </div>
