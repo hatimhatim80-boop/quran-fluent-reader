@@ -480,6 +480,17 @@ export default function TahfeezPage() {
   // Keep quizPagesRange in a ref so setTimeout callbacks always read the latest array
   useEffect(() => { quizPagesRangeRef.current = quizPagesRange; }, [quizPagesRange]);
 
+  const resolveQuizPagesRange = useCallback(() => {
+    const liveRange = quizPagesRange.length > 0
+      ? quizPagesRange
+      : quizPagesRangeRef.current.length > 0
+        ? quizPagesRangeRef.current
+        : [currentPageRef.current];
+
+    quizPagesRangeRef.current = liveRange;
+    return liveRange;
+  }, [quizPagesRange]);
+
   // ── Auto-save session state (throttled) ──
   const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastSavedStateRef = useRef<string>('');
@@ -662,6 +673,12 @@ export default function TahfeezPage() {
   // Reset quiz state when page changes during an active quiz AND auto-restart
   const prevPageRef = useRef(currentPage);
   const autoResumeQuizRef = useRef(false);
+  useEffect(() => {
+    if (!quizStarted) {
+      prevPageRef.current = currentPage;
+    }
+  }, [currentPage, quizStarted]);
+
   const completeQuizSession = useCallback(() => {
     engine.complete();
     setShowAll(true);
@@ -670,7 +687,7 @@ export default function TahfeezPage() {
   }, [engine]);
 
   const advanceToNextQuizPage = useCallback(() => {
-    const range = quizPagesRangeRef.current;
+    const range = resolveQuizPagesRange();
     if (range.length === 0) return false;
 
     const exactIdx = range.indexOf(currentPageRef.current);
@@ -686,7 +703,7 @@ export default function TahfeezPage() {
     autoResumeQuizRef.current = true;
     goToPage(range[nextIdx]);
     return true;
-  }, [goToPage]);
+  }, [goToPage, resolveQuizPagesRange]);
 
   useEffect(() => {
     if (!quizStarted) return;
@@ -1135,6 +1152,11 @@ export default function TahfeezPage() {
   const handleStart = () => {
     try {
       pendingStartPageRef.current = null;
+      const pagesRange = resolveQuizPagesRange();
+      if (pages.length === 0 || pagesRange.length === 0) {
+        toast.error('لم تكتمل بيانات الاختبار بعد');
+        return;
+      }
       // Clear any lingering timers from previous runs
       if (revealTimerRef.current) clearTimeout(revealTimerRef.current);
       if (autoAdvanceTimerRef.current) clearTimeout(autoAdvanceTimerRef.current);
@@ -1153,16 +1175,23 @@ export default function TahfeezPage() {
       setCurrentRevealIdx(-1);
       currentRevealIdxRef.current = -1;
       setBlankedKeysList([]);
+      blankedKeysListRef.current = [];
       setQuizPageIdx(0);
       quizPageIdxRef.current = 0;
+      prevPageRef.current = pagesRange[0] || currentPageRef.current;
       // Reset MCQ state
       setMcqStats({ correct: 0, wrong: 0, total: 0, startTime: Date.now(), answers: [] });
       setMcqShowResults(false);
       setMcqCurrentIdx(0);
       // Initialize engine for new session
-      const pagesRange = quizPagesRangeRef.current;
-      const { total, perPage } = computeSessionTotalItems(pages, pagesRange);
-      engine.initSession(pagesRange, perPage, timerSeconds * 1000, pagesRange[0] || currentPage);
+      const { perPage } = computeSessionTotalItems(pages, pagesRange);
+      const hasAnyItems = pagesRange.some((pageNo) => (perPage[pageNo] || 0) > 0);
+      if (!hasAnyItems) {
+        setQuizStarted(false);
+        toast.error('لا توجد كلمات متاحة في هذا النطاق');
+        return;
+      }
+      engine.initSession(pagesRange, perPage, timerSeconds * 1000, pagesRange[0] || currentPageRef.current);
     } catch (err) {
       console.error('[tahfeez] Error in handleStart:', err);
       toast.error('حدث خطأ أثناء بدء الاختبار');
@@ -1171,7 +1200,8 @@ export default function TahfeezPage() {
 
   const handleStartMultiPage = () => {
     try {
-      const startPage = quizPagesRangeRef.current[0] || currentPageRef.current;
+      const pagesRange = resolveQuizPagesRange();
+      const startPage = pagesRange[0] || currentPageRef.current;
       if (currentPageRef.current !== startPage) {
         pendingStartPageRef.current = startPage;
         quizPageIdxRef.current = 0;
