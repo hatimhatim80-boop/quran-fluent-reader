@@ -8,7 +8,7 @@ import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
-import { Play, Eye, MousePointerClick, Mic } from 'lucide-react';
+import { Play, Eye, MousePointerClick, Mic, Minus, Plus } from 'lucide-react';
 import { SURAH_INFO, SURAH_NAMES } from '@/utils/quranPageIndex';
 
 const SURAHS = Object.entries(SURAH_NAMES).map(([name, number]) => ({
