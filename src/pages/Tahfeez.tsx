@@ -1172,8 +1172,7 @@ export default function TahfeezPage() {
     speech.stop();
 
     // Reset engine page state
-    const pageItemCount = blankedKeysListRef.current.length;
-    engine.resetPage(currentPage, pageItemCount);
+    engine.resetPage(currentPage);
 
     // Reset visual state
     setRevealedKeys(new Set());
