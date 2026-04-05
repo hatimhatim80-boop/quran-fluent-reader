@@ -41,10 +41,16 @@ const SURAHS = Object.entries(SURAH_NAMES).map(([name, number]) => ({
 })).sort((a, b) => a.number - b.number);
 
 function formatSessionTime(ms: number): string {
-  const totalSec = Math.floor(ms / 1000);
-  const h = Math.floor(totalSec / 3600);
-  const m = Math.floor((totalSec % 3600) / 60);
-  const s = totalSec % 60;
+  if (ms <= 0) return '0:00';
+  const totalSec = ms / 1000;
+  // Sub-10s: show one decimal for precision at fast speeds
+  if (totalSec < 10) {
+    return `${totalSec.toFixed(1)}ث`;
+  }
+  const wholeSec = Math.floor(totalSec);
+  const h = Math.floor(wholeSec / 3600);
+  const m = Math.floor((wholeSec % 3600) / 60);
+  const s = wholeSec % 60;
   if (h > 0) return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
   return `${m}:${String(s).padStart(2, '0')}`;
 }
