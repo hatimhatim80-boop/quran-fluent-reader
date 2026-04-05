@@ -1154,6 +1154,71 @@ export default function TahfeezPage() {
     }
   };
 
+  /** Reset current page only — clears this page's state and restarts it */
+  const handleResetPage = () => {
+    if (revealTimerRef.current) clearTimeout(revealTimerRef.current);
+    if (autoAdvanceTimerRef.current) clearTimeout(autoAdvanceTimerRef.current);
+    speech.stop();
+
+    // Reset engine page state
+    const pageItemCount = blankedKeysListRef.current.length;
+    engine.resetPage(currentPage, pageItemCount);
+
+    // Reset visual state
+    setRevealedKeys(new Set());
+    setShowAll(false);
+    setActiveBlankKey(null);
+    setCurrentRevealIdx(-1);
+    currentRevealIdxRef.current = -1;
+
+    // Restart from fresh on this page
+    isFirstStartRef.current = true;
+    autoResumeQuizRef.current = false;
+
+    // If session was paused, keep paused; otherwise re-trigger advance
+    if (!isPaused) {
+      // Use a tiny delay so the MutationObserver picks up the fresh keys
+      setTimeout(() => {
+        setCurrentRevealIdx(0);
+        currentRevealIdxRef.current = 0;
+        engine.startRaf();
+      }, 100);
+    }
+  };
+
+  /** Reset entire session — clears all progress, goes back to first page */
+  const handleResetSession = () => {
+    if (revealTimerRef.current) clearTimeout(revealTimerRef.current);
+    if (autoAdvanceTimerRef.current) clearTimeout(autoAdvanceTimerRef.current);
+    speech.stop();
+
+    const pagesRange = quizPagesRangeRef.current;
+    const { total } = computeSessionTotalItems(pages, pagesRange);
+
+    // Reset engine
+    engine.resetSession(total, timerSeconds * 1000, firstWordTimerSeconds * 1000, pagesRange[0] || 1);
+
+    // Reset visual state
+    setRevealedKeys(new Set());
+    setShowAll(false);
+    setActiveBlankKey(null);
+    setCurrentRevealIdx(-1);
+    currentRevealIdxRef.current = -1;
+    setQuizPageIdx(0);
+    setIsPaused(false);
+
+    // Navigate to first page and restart
+    if (pagesRange.length > 0) goToPage(pagesRange[0]);
+    isFirstStartRef.current = true;
+    autoResumeQuizRef.current = false;
+
+    // Trigger advance chain
+    setTimeout(() => {
+      setCurrentRevealIdx(0);
+      currentRevealIdxRef.current = 0;
+    }, 200);
+  };
+
   const handleRevealAll = () => {
     try {
       if (revealTimerRef.current) clearTimeout(revealTimerRef.current);
