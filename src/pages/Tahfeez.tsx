@@ -516,7 +516,9 @@ export default function TahfeezPage() {
     const isSessionComplete = sessionTotalItemsRef.current > 0 && sessionProcessedItemsRef.current >= sessionTotalItemsRef.current;
     const sessionPhase = isPaused ? 'paused' : isSessionComplete ? 'completed' : quizStarted ? 'running' : 'paused';
     
-    const computedRemainingMs = Math.max(0, sessionTotalItemsRef.current - sessionProcessedItemsRef.current) * timerSeconds * 1000;
+    // Use live sessionRemainingMs as source of truth, fallback to computed
+    const liveRemaining = sessionRemainingMs;
+    const computedRemainingMs = liveRemaining > 0 ? liveRemaining : Math.max(0, sessionTotalItemsRef.current - sessionProcessedItemsRef.current) * timerSeconds * 1000;
     
     return {
       kind,
