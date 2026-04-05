@@ -796,8 +796,13 @@ export default function TahfeezPage() {
     if (prevPageRef.current !== currentPage) {
       const oldPage = prevPageRef.current;
       prevPageRef.current = currentPage;
-      // Clear all timers first
+      
+      // Stop all timers — reveals must not continue on old page
       if (revealTimerRef.current) clearTimeout(revealTimerRef.current);
+      revealTimerRef.current = null;
+      if (autoAdvanceTimerRef.current) clearTimeout(autoAdvanceTimerRef.current);
+      autoAdvanceTimerRef.current = null;
+      pauseItemTimer();
       
       // Save current page state before switching
       pageStatesRef.current[oldPage] = {
@@ -810,10 +815,16 @@ export default function TahfeezPage() {
         savedAt: Date.now(),
       };
       
+      // Pause the quiz when navigating away from an incomplete page
+      // (auto-advance from a completed page should NOT pause)
+      if (!showAll) {
+        setIsPaused(true);
+        pauseSessionTimer();
+      }
+      
       // Check if we have saved state for the new page
       const savedPageState = pageStatesRef.current[currentPage];
       if (savedPageState) {
-        // Restore previously visited page (even if revealedKeys is empty)
         setRevealedKeys(new Set(savedPageState.revealedKeys));
         setBlankedKeysList(savedPageState.blankedKeysList);
         blankedKeysListRef.current = savedPageState.blankedKeysList;
@@ -821,24 +832,19 @@ export default function TahfeezPage() {
         setCurrentRevealIdx(savedPageState.currentRevealIdx);
         setActiveBlankKey(savedPageState.activeBlankKey);
         setFirstKeysSet(new Set());
-        setIsPaused(false);
-        // If page was completed, don't auto-advance; otherwise resume from saved idx
         if (savedPageState.showAll) {
           autoResumeQuizRef.current = false;
         } else {
-          autoResumeQuizRef.current = true;
+          autoResumeQuizRef.current = !isPaused && showAll; // only auto-resume if came from completed page
         }
       } else {
-        // Fresh page — reset for new content
         setShowAll(false);
         setRevealedKeys(new Set());
         setActiveBlankKey(null);
         setCurrentRevealIdx(-1);
         setBlankedKeysList([]);
         setFirstKeysSet(new Set());
-        setIsPaused(false);
-        // Flag to auto-start when blanked keys are loaded from DOM
-        autoResumeQuizRef.current = true;
+        autoResumeQuizRef.current = showAll; // only auto-start if auto-advanced from completed page
       }
     }
   }, [currentPage, quizStarted]);
