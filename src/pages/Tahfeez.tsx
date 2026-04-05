@@ -431,7 +431,89 @@ export default function TahfeezPage() {
   // Keep quizPagesRange in a ref so setTimeout callbacks always read the latest array
   useEffect(() => { quizPagesRangeRef.current = quizPagesRange; }, [quizPagesRange]);
 
-  // Pinch-to-zoom + swipe handler
+  // ── Auto-save session state (throttled) ──
+  const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastSavedStateRef = useRef<string>('');
+
+  const buildResumeState = useCallback((): TahfeezAutoResumeState | TahfeezTestResumeState | null => {
+    const sessionId = sessionIdParam || activeSessionId;
+    if (!sessionId) return null;
+    const session = getSession(sessionId);
+    if (!session) return null;
+    
+    const isTahfeezAuto = session.type === 'tahfeez-auto';
+    const kind = isTahfeezAuto ? 'tahfeez-auto' as const : 'tahfeez-test' as const;
+    
+    return {
+      kind,
+      currentPage,
+      sessionPhase: (isPaused ? 'paused' : showAll ? 'completed' : quizStarted ? 'running' : 'paused') as 'running' | 'paused' | 'completed',
+      hideChrome: hideBars,
+      currentRevealIdx: currentRevealIdxRef.current,
+      blankedKeysList: blankedKeysListRef.current,
+      revealedKeys: Array.from(revealedKeys),
+      activeBlankKey,
+      quizPageIdx,
+      showAll,
+      remainingMs: expectedEndAtRef.current ? Math.max(0, expectedEndAtRef.current - Date.now()) : 0,
+      expectedEndAt: expectedEndAtRef.current,
+      timerSeconds,
+      firstWordTimerSeconds,
+      quizInteraction,
+      quizScope,
+      quizScopeFrom,
+      quizScopeTo,
+      quizSource,
+      distributionSeed: useTahfeezStore.getState().distributionSeed,
+    } as TahfeezAutoResumeState | TahfeezTestResumeState;
+  }, [currentPage, isPaused, showAll, quizStarted, hideBars, revealedKeys, activeBlankKey, quizPageIdx, timerSeconds, firstWordTimerSeconds, quizInteraction, quizScope, quizScopeFrom, quizScopeTo, quizSource, activeSessionId, sessionIdParam, getSession]);
+
+  // Throttled auto-save
+  useEffect(() => {
+    if (!quizStarted) return;
+    const sessionId = sessionIdParam || activeSessionId;
+    if (!sessionId) return;
+    
+    if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
+    autoSaveTimerRef.current = setTimeout(() => {
+      const rs = buildResumeState();
+      if (!rs) return;
+      const sig = JSON.stringify(rs);
+      if (sig !== lastSavedStateRef.current) {
+        lastSavedStateRef.current = sig;
+        saveResumeState(sessionId, rs);
+        const total = blankedKeysListRef.current.length;
+        const revealed = revealedKeys.size;
+        const progress = total > 0 ? Math.round((revealed / total) * 100) : 0;
+        updateSession(sessionId, { currentPage, progress });
+      }
+    }, 800);
+    
+    return () => {
+      if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
+    };
+  }, [quizStarted, currentPage, revealedKeys, activeBlankKey, isPaused, showAll, quizPageIdx, buildResumeState, saveResumeState, updateSession, activeSessionId, sessionIdParam]);
+
+  // Save on unmount / visibility change
+  useEffect(() => {
+    const saveOnExit = () => {
+      const sessionId = sessionIdParam || activeSessionId;
+      if (!sessionId || !quizStarted) return;
+      const rs = buildResumeState();
+      if (rs) saveResumeState(sessionId, rs);
+    };
+
+    const handleVisChange = () => {
+      if (document.hidden) saveOnExit();
+    };
+
+    document.addEventListener('visibilitychange', handleVisChange);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisChange);
+      saveOnExit();
+    };
+  }, [quizStarted, buildResumeState, saveResumeState, activeSessionId, sessionIdParam]);
+
   useEffect(() => {
     const el = contentRef.current;
     if (!el) return;
