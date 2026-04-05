@@ -68,6 +68,13 @@ export interface BaseResumeState {
   currentScrollTop?: number;
 }
 
+export interface PageState {
+  revealedKeys: string[];
+  blankedKeysList: string[];
+  showAll: boolean;
+  currentRevealIdx: number;
+}
+
 export interface TahfeezAutoResumeState extends BaseResumeState {
   kind: 'tahfeez-auto';
   currentItemIndex: number;
@@ -96,6 +103,9 @@ export interface TahfeezAutoResumeState extends BaseResumeState {
   sessionStartedAt: number | null;
   pausedAt: number | null;
   isPaused: boolean;
+  sessionTotalItems: number;
+  sessionProcessedItems: number;
+  pageStates: Record<number, PageState>;
 }
 
 export interface TahfeezTestResumeState extends BaseResumeState {
