@@ -1035,13 +1035,13 @@ export default function TahfeezPage() {
       setMcqShowResults(false);
       setMcqCurrentIdx(0);
       // Reset session remaining timer
-      sessionTotalItemsRef.current = 0;
+      // Compute session plan: total items across all pages in range
+      const pagesRange = quizPagesRangeRef.current;
+      const { total } = computeSessionTotalItems(pages, pagesRange);
+      sessionTotalItemsRef.current = total;
       sessionProcessedItemsRef.current = 0;
-      sessionRemainingItemsRef.current = 0;
-      sessionPageItemCountsRef.current = {};
       sessionTimerPausedRef.current = false;
-      setSessionRemainingMs(0);
-      // Initial estimate will be set when first page's blanked keys are loaded
+      setSessionRemainingMs(total * timerSeconds * 1000);
     } catch (err) {
       console.error('[tahfeez] Error in handleStart:', err);
       toast.error('حدث خطأ أثناء بدء الاختبار');
