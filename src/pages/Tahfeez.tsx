@@ -168,27 +168,88 @@ export default function TahfeezPage() {
   useEffect(() => { startItemTimerRef.current = startItemTimer; }, [startItemTimer]);
   useEffect(() => { return () => { if (timerRafRef.current) cancelAnimationFrame(timerRafRef.current); }; }, []);
 
-  // ── Session-level remaining time (monotonic, only decreases) ──
+  // ── Session-level remaining time (true, RAF-driven) ──
   const [sessionRemainingMs, setSessionRemainingMs] = useState(0);
   const sessionTotalItemsRef = useRef(0);
   const sessionProcessedItemsRef = useRef(0);
   const sessionTimerPausedRef = useRef(false);
+  const sessionTimerRafRef = useRef<number | null>(null);
+  const sessionPausedSnapshotRef = useRef<number | null>(null); // snapshot when paused
   // Per-page state map — tracks revealed keys for each visited page
   const pageStatesRef = useRef<Record<number, PageState>>({});
 
-  // Called when an item is revealed — decrements remaining
-  const onSessionItemProcessed = useCallback(() => {
-    sessionProcessedItemsRef.current += 1;
-    const remaining = Math.max(0, sessionTotalItemsRef.current - sessionProcessedItemsRef.current);
+  /**
+   * getTrueRemainingSessionMs — single source of truth for session remaining time.
+   * = current item's live remaining + future unprocessed items × timerSeconds
+   * We intentionally exclude autoAdvanceDelay and firstWordTimerSeconds from the
+   * estimate to keep it simple and monotonically decreasing. These are sub-second
+   * delays that don't meaningfully affect the total estimate.
+   */
+  const getTrueRemainingSessionMs = useCallback((): number => {
+    const futureItems = Math.max(0, sessionTotalItemsRef.current - sessionProcessedItemsRef.current);
+    if (futureItems <= 0) return 0;
+
+    // Current item's live remaining from the item timer
+    const currentItemRemaining = expectedEndAtRef.current !== null
+      ? Math.max(0, expectedEndAtRef.current - Date.now())
+      : 0;
+
+    // Items after the current one (futureItems includes the current active item)
+    const itemsAfterCurrent = Math.max(0, futureItems - 1);
     const perItemMs = timerSecondsRef.current * 1000;
-    setSessionRemainingMs(remaining * perItemMs);
+
+    return currentItemRemaining + (itemsAfterCurrent * perItemMs);
   }, []);
 
-  // Recalculate remaining when speed changes (only for unprocessed items)
+  // RAF loop that live-ticks sessionRemainingMs from the true source
+  const tickSessionTimer = useCallback(() => {
+    if (sessionTimerPausedRef.current) return;
+    const trueMs = getTrueRemainingSessionMs();
+    setSessionRemainingMs(trueMs);
+    if (trueMs > 0) {
+      sessionTimerRafRef.current = requestAnimationFrame(tickSessionTimer);
+    }
+  }, [getTrueRemainingSessionMs]);
+
+  const startSessionTimer = useCallback(() => {
+    sessionTimerPausedRef.current = false;
+    sessionPausedSnapshotRef.current = null;
+    if (sessionTimerRafRef.current) cancelAnimationFrame(sessionTimerRafRef.current);
+    sessionTimerRafRef.current = requestAnimationFrame(tickSessionTimer);
+  }, [tickSessionTimer]);
+
+  const pauseSessionTimer = useCallback(() => {
+    sessionTimerPausedRef.current = true;
+    if (sessionTimerRafRef.current) {
+      cancelAnimationFrame(sessionTimerRafRef.current);
+      sessionTimerRafRef.current = null;
+    }
+    // Snapshot the true remaining so we can persist and restore it
+    sessionPausedSnapshotRef.current = getTrueRemainingSessionMs();
+    setSessionRemainingMs(sessionPausedSnapshotRef.current);
+  }, [getTrueRemainingSessionMs]);
+
+  const resumeSessionTimer = useCallback(() => {
+    sessionPausedSnapshotRef.current = null;
+    startSessionTimer();
+  }, [startSessionTimer]);
+
+  // Called when an item is revealed — just increment processed count; RAF handles the rest
+  const onSessionItemProcessed = useCallback(() => {
+    sessionProcessedItemsRef.current += 1;
+  }, []);
+
+  // Recalculate remaining when speed changes — RAF handles continuous update,
+  // but we do an immediate refresh so the UI updates instantly
   const recalcSessionRemaining = useCallback(() => {
-    const remaining = Math.max(0, sessionTotalItemsRef.current - sessionProcessedItemsRef.current);
-    const perItemMs = timerSecondsRef.current * 1000;
-    setSessionRemainingMs(remaining * perItemMs);
+    setSessionRemainingMs(getTrueRemainingSessionMs());
+  }, [getTrueRemainingSessionMs]);
+
+  // Cleanup session timer RAF on unmount
+  useEffect(() => {
+    return () => {
+      if (sessionTimerRafRef.current) cancelAnimationFrame(sessionTimerRafRef.current);
+    };
   }, []);
 
   const suppressScrollRef = useRef(false);
