@@ -823,22 +823,42 @@ export default function TahfeezPage() {
           // Auto-resume after page transition OR first start
           if (autoResumeQuizRef.current || isFirstStartRef.current) {
             autoResumeQuizRef.current = false;
+            const isFirst = isFirstStartRef.current;
             isFirstStartRef.current = false;
-            console.log('[tahfeez] Starting quiz, keys count:', keys.length);
-            // Set state directly — no requestAnimationFrame delay
-            setRevealedKeys(new Set());
-            setShowAll(false);
-            setActiveBlankKey(null);
-            if (quizInteraction === 'mcq') {
-              // MCQ mode: set active blank to first key, update total
-              setMcqCurrentIdx(0);
-              setActiveBlankKey(keys[0]);
-              setMcqStats(prev => ({ ...prev, total: keys.length }));
-            } else if (quizInteraction === 'tap-only') {
-              // Tap-only: set first blank as active, no timer
-              setActiveBlankKey(keys[0]);
+            
+            // Check if we have saved state for this page (don't reset if so)
+            const savedPS = pageStatesRef.current[currentPageRef.current];
+            if (savedPS && !isFirst) {
+              // Restore from saved page state — don't reset revealed keys
+              console.log('[tahfeez] Restoring saved page state for page', currentPageRef.current);
+              setRevealedKeys(new Set(savedPS.revealedKeys));
+              setBlankedKeysList(savedPS.blankedKeysList);
+              blankedKeysListRef.current = savedPS.blankedKeysList;
+              setShowAll(savedPS.showAll);
+              setActiveBlankKey(savedPS.activeBlankKey);
+              if (!savedPS.showAll) {
+                // Resume from where we left off
+                const nextUnrevealed = keys.findIndex((k: string) => !new Set(savedPS.revealedKeys).has(k));
+                if (nextUnrevealed >= 0) {
+                  setCurrentRevealIdx(nextUnrevealed);
+                  currentRevealIdxRef.current = nextUnrevealed;
+                }
+              }
             } else {
-              setCurrentRevealIdx(0);
+              // Fresh page — reset
+              console.log('[tahfeez] Starting fresh page, keys count:', keys.length);
+              setRevealedKeys(new Set());
+              setShowAll(false);
+              setActiveBlankKey(null);
+              if (quizInteraction === 'mcq') {
+                setMcqCurrentIdx(0);
+                setActiveBlankKey(keys[0]);
+                setMcqStats(prev => ({ ...prev, total: keys.length }));
+              } else if (quizInteraction === 'tap-only') {
+                setActiveBlankKey(keys[0]);
+              } else {
+                setCurrentRevealIdx(0);
+              }
             }
           }
           return true;
