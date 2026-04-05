@@ -1128,8 +1128,8 @@ export default function TahfeezPage() {
       setMcqCurrentIdx(0);
       // Initialize engine for new session
       const pagesRange = quizPagesRangeRef.current;
-      const { total } = computeSessionTotalItems(pages, pagesRange);
-      engine.initSession(total, timerSeconds * 1000, firstWordTimerSeconds * 1000, pagesRange[0] || currentPage);
+      const { total, perPage } = computeSessionTotalItems(pages, pagesRange);
+      engine.initSession(pagesRange, perPage, timerSeconds * 1000, pagesRange[0] || currentPage);
     } catch (err) {
       console.error('[tahfeez] Error in handleStart:', err);
       toast.error('حدث خطأ أثناء بدء الاختبار');
