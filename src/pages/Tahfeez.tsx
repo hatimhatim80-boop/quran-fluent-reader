@@ -225,23 +225,30 @@ export default function TahfeezPage() {
     // Full hydration from resumeState
     const rs = session.resumeState;
     hasHydratedRef.current = true;
+    isHydratingSessionRef.current = true;
     
     // Clean URL params
     setSearchParams({}, { replace: true });
     
-    // Navigate to saved page
-    goToPage(rs.currentPage);
-    
     if (rs.kind === 'tahfeez-auto' || rs.kind === 'tahfeez-test') {
       const autoRs = rs as TahfeezAutoResumeState | TahfeezTestResumeState;
       
-      // Restore quiz state
-      setBlankedKeysList(autoRs.blankedKeysList);
-      blankedKeysListRef.current = autoRs.blankedKeysList;
-      setRevealedKeys(new Set(autoRs.revealedKeys));
-      setActiveBlankKey(autoRs.activeBlankKey);
-      setQuizPageIdx(autoRs.quizPageIdx);
-      setShowAll(autoRs.showAll);
+      // a) Restore refs first (before any navigation or state)
+      if (autoRs.sessionTotalItems > 0) {
+        sessionTotalItemsRef.current = autoRs.sessionTotalItems;
+        sessionProcessedItemsRef.current = autoRs.sessionProcessedItems || 0;
+      }
+      if (autoRs.pageStates) {
+        pageStatesRef.current = { ...autoRs.pageStates };
+      }
+      
+      // Restore session remaining from saved value
+      if (autoRs.sessionRemainingMs !== undefined && autoRs.sessionRemainingMs > 0) {
+        setSessionRemainingMs(autoRs.sessionRemainingMs);
+      } else if (autoRs.sessionTotalItems > 0) {
+        const remaining = Math.max(0, autoRs.sessionTotalItems - (autoRs.sessionProcessedItems || 0));
+        setSessionRemainingMs(remaining * (autoRs.timerSeconds || 1) * 1000);
+      }
       
       // Restore settings
       if (autoRs.quizInteraction) setQuizInteraction(autoRs.quizInteraction as any);
@@ -254,66 +261,71 @@ export default function TahfeezPage() {
       
       // Suppress scrollToTop when page changes during hydration
       suppressScrollRef.current = true;
-      setTimeout(() => { suppressScrollRef.current = false; }, 1500);
       
-      // Restore session timer from saved values
-      if (autoRs.sessionTotalItems > 0) {
-        sessionTotalItemsRef.current = autoRs.sessionTotalItems;
-        sessionProcessedItemsRef.current = autoRs.sessionProcessedItems || 0;
-      }
-      if (autoRs.sessionRemainingMs !== undefined && autoRs.sessionRemainingMs > 0) {
-        setSessionRemainingMs(autoRs.sessionRemainingMs);
-      } else if (autoRs.sessionTotalItems > 0) {
-        // Fallback: compute from items
-        const remaining = Math.max(0, autoRs.sessionTotalItems - (autoRs.sessionProcessedItems || 0));
-        setSessionRemainingMs(remaining * (autoRs.timerSeconds || 1) * 1000);
-      }
-      // Restore per-page states
-      if (autoRs.pageStates) {
-        pageStatesRef.current = autoRs.pageStates;
-      }
+      // b) Navigate to saved page
+      goToPage(rs.currentPage);
+      prevPageRef.current = rs.currentPage;
+      setQuizPageIdx(autoRs.quizPageIdx);
       
-      // Start quiz in resumed state
-      if (rs.sessionPhase === 'running' || rs.sessionPhase === 'paused') {
-        setQuizStarted(true);
-        setHideBars(!!rs.hideChrome);
-        
-        if (rs.sessionPhase === 'paused') {
-          setIsPaused(true);
-          sessionTimerPausedRef.current = true;
-          if ('remainingMs' in autoRs && autoRs.remainingMs > 0) {
-            setRemainingMs(autoRs.remainingMs);
+      // c) After render: restore page state, then start quiz
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          // Restore current page's visual state
+          setBlankedKeysList(autoRs.blankedKeysList);
+          blankedKeysListRef.current = autoRs.blankedKeysList;
+          setRevealedKeys(new Set(autoRs.revealedKeys));
+          setActiveBlankKey(autoRs.activeBlankKey);
+          setShowAll(autoRs.showAll);
+          
+          if (autoRs.currentRevealIdx !== undefined) {
+            setCurrentRevealIdx(autoRs.currentRevealIdx);
+            currentRevealIdxRef.current = autoRs.currentRevealIdx;
           }
-        } else {
-          setIsPaused(false);
-          sessionTimerPausedRef.current = false;
-          // Resume auto-advance from saved position
-          if (!autoRs.showAll && autoRs.blankedKeysList.length > 0) {
-            const nextIdx = autoRs.blankedKeysList.findIndex(k => !new Set(autoRs.revealedKeys).has(k));
-            if (nextIdx >= 0) {
-              setCurrentRevealIdx(nextIdx);
-              if ('remainingMs' in autoRs && autoRs.remainingMs > 0) {
-                resumeItemTimer(autoRs.remainingMs);
+          
+          // d) Start quiz
+          setQuizStarted(true);
+          setHideBars(!!rs.hideChrome);
+          
+          if (rs.sessionPhase === 'paused' || rs.sessionPhase === 'completed') {
+            setIsPaused(true);
+            sessionTimerPausedRef.current = true;
+            if ('remainingMs' in autoRs && autoRs.remainingMs > 0) {
+              setRemainingMs(autoRs.remainingMs);
+            }
+          } else {
+            setIsPaused(false);
+            sessionTimerPausedRef.current = false;
+            // Resume auto-advance from saved position
+            if (!autoRs.showAll && autoRs.blankedKeysList.length > 0) {
+              const nextIdx = autoRs.blankedKeysList.findIndex(k => !new Set(autoRs.revealedKeys).has(k));
+              if (nextIdx >= 0) {
+                setCurrentRevealIdx(nextIdx);
+                currentRevealIdxRef.current = nextIdx;
+                if ('remainingMs' in autoRs && autoRs.remainingMs > 0) {
+                  resumeItemTimer(autoRs.remainingMs);
+                }
               }
             }
           }
-        }
-      }
-      
-      // Scroll to saved position after render
-      if (rs.currentScrollTop !== undefined && rs.currentScrollTop > 0) {
-        requestAnimationFrame(() => {
-          window.scrollTo({ top: rs.currentScrollTop!, behavior: 'auto' });
+          
+          // Scroll to saved position
+          if (rs.currentScrollTop !== undefined && rs.currentScrollTop > 0) {
+            window.scrollTo({ top: rs.currentScrollTop!, behavior: 'auto' });
+          } else if (rs.currentAnchorKey) {
+            const el = document.querySelector<HTMLElement>(`[data-key="${rs.currentAnchorKey}"]`);
+            if (el) el.scrollIntoView({ behavior: 'auto', block: 'center' });
+          }
+          
+          // e) Hydration complete
+          isHydratingSessionRef.current = false;
+          suppressScrollRef.current = false;
         });
-      } else if (rs.currentAnchorKey) {
-        requestAnimationFrame(() => {
-          const el = document.querySelector<HTMLElement>(`[data-key="${rs.currentAnchorKey}"]`);
-          if (el) el.scrollIntoView({ behavior: 'auto', block: 'center' });
-        });
-      }
+      });
       
       markSessionResumed(resolvedSessionId);
       toast.success('تم استئناف الجلسة');
+    } else {
+      isHydratingSessionRef.current = false;
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
