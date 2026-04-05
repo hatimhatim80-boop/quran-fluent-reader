@@ -661,8 +661,9 @@ export default function TahfeezPage() {
     const saveOnExit = () => {
       const sessionId = sessionIdParam || activeSessionId;
       if (!sessionId || !quizStarted) return;
-      // Pause item timer to capture remaining ms
+      // Pause both item and session timers to capture remaining ms
       pauseItemTimer();
+      pauseSessionTimer();
       const rs = buildResumeState();
       if (rs) {
         // Force session phase to 'paused' on exit (not completed)
