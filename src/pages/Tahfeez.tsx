@@ -494,11 +494,20 @@ export default function TahfeezPage() {
     const allPageStates = { ...pageStatesRef.current, [currentPage]: currentPageState };
     
     // Determine session phase: only 'completed' if ALL items processed
-    const isSessionComplete = sessionTotalItemsRef.current > 0 && sessionProcessedItemsRef.current >= sessionTotalItemsRef.current;
+    const totalItems = engine.getTotalItems();
+    const processedItems = engine.getProcessedItems();
+    const isSessionComplete = totalItems > 0 && processedItems >= totalItems;
     const sessionPhase = isPaused ? 'paused' : isSessionComplete ? 'completed' : quizStarted ? 'running' : 'paused';
     
-    // Use engine as the source of truth for remaining time
-    const trueRemaining = engine.computeRemaining();
+    // Use engine snapshot for remaining time
+    const engineSnap = engine.snapshot(currentPage, {
+      revealedKeys: Array.from(revealedKeys),
+      blankedKeysList: blankedKeysListRef.current,
+      showAll,
+      currentRevealIdx: currentRevealIdxRef.current,
+      activeBlankKey,
+      scrollTop: window.scrollY,
+    });
     
     return {
       kind,
@@ -528,14 +537,18 @@ export default function TahfeezPage() {
       distributionSeed: useTahfeezStore.getState().distributionSeed,
       sessionTimerMode: 'countup',
       sessionElapsedMs: 0,
-      sessionRemainingMs: trueRemaining,
+      sessionRemainingMs: engineSnap.sessionRemainingMs,
       sessionStartedAt: null,
       pausedAt: isPaused ? Date.now() : null,
       isPaused,
-      sessionTotalItems: sessionTotalItemsRef.current,
-      sessionProcessedItems: sessionProcessedItemsRef.current,
+      sessionTotalItems: totalItems,
+      sessionProcessedItems: processedItems,
       pageStates: allPageStates,
-    } as TahfeezAutoResumeState | TahfeezTestResumeState;
+      // Store engine schedule data for exact restore
+      pageSchedules: engineSnap.pageSchedules,
+      sessionPages: engineSnap.sessionPages,
+      unregisteredPages: engineSnap.unregisteredPages,
+    } as any;
   }, [currentPage, isPaused, showAll, quizStarted, hideBars, revealedKeys, activeBlankKey, quizPageIdx, timerSeconds, firstWordTimerSeconds, quizInteraction, quizScope, quizScopeFrom, quizScopeTo, quizSource, activeSessionId, sessionIdParam, getSession, engine]);
 
   // Throttled auto-save
