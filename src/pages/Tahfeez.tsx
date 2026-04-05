@@ -160,7 +160,7 @@ export default function TahfeezPage() {
   }, [engine]);
 
   const recalcSessionRemaining = useCallback(() => {
-    engine.setSpeed(engine.defaultItemMsRef.current);
+    engine.setSpeed(engine.defaultItemMsRef.current, {});
   }, [engine]);
 
   const suppressScrollRef = useRef(false);
