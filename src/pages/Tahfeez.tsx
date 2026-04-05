@@ -11,6 +11,7 @@ import { useSettingsStore } from '@/stores/settingsStore';
 import { useKeepAwake } from '@/hooks/useKeepAwake';
 import { useSpeech } from '@/hooks/useSpeech';
 import { normalizeArabic } from '@/utils/quranParser';
+import { computeSessionTotalItems } from '@/utils/sessionWordCount';
 import { Link, useNavigate } from 'react-router-dom';
 import { BookOpen, Play, Pause, Eye, EyeOff, ArrowRight, Save, Trash2, GraduationCap, ListChecks, Zap, Book, Layers, Hash, FileText, Search, X, ChevronLeft, Download, Upload, ChevronsRight, Undo2, Palette, Mic, MicOff, MousePointerClick, RotateCcw, Settings, Clock } from 'lucide-react';
 import { SpeedControlWidget } from '@/components/SpeedControlWidget';
@@ -167,51 +168,28 @@ export default function TahfeezPage() {
   useEffect(() => { return () => { if (timerRafRef.current) cancelAnimationFrame(timerRafRef.current); }; }, []);
 
   // ── Session-level remaining time (monotonic, only decreases) ──
-  // Tracks remaining items across the whole session, not per-page.
+  // totalItemsInSession is computed ONCE at session start from all pages in range.
   const [sessionRemainingMs, setSessionRemainingMs] = useState(0);
-  const sessionRemainingItemsRef = useRef(0); // total remaining items in session
-  const sessionTotalItemsRef = useRef(0); // total items in session (set once at start)
-  const sessionProcessedItemsRef = useRef(0); // items processed so far across all pages
-  const sessionPageItemCountsRef = useRef<Record<number, number>>({}); // items per page (learned as pages load)
+  const sessionTotalItemsRef = useRef(0);
+  const sessionProcessedItemsRef = useRef(0);
   const sessionTimerPausedRef = useRef(false);
-  const suppressScrollRef = useRef(false);
 
   // Called when an item is revealed — decrements remaining
   const onSessionItemProcessed = useCallback(() => {
     sessionProcessedItemsRef.current += 1;
     const remaining = Math.max(0, sessionTotalItemsRef.current - sessionProcessedItemsRef.current);
-    sessionRemainingItemsRef.current = remaining;
     const perItemMs = timerSecondsRef.current * 1000;
     setSessionRemainingMs(remaining * perItemMs);
   }, []);
 
   // Recalculate remaining when speed changes (only for unprocessed items)
   const recalcSessionRemaining = useCallback(() => {
-    const remaining = sessionRemainingItemsRef.current;
+    const remaining = Math.max(0, sessionTotalItemsRef.current - sessionProcessedItemsRef.current);
     const perItemMs = timerSecondsRef.current * 1000;
     setSessionRemainingMs(remaining * perItemMs);
   }, []);
 
-  // Update remaining page items when a new page's blanked keys are loaded
-  const updateSessionPlan = useCallback((page: number, itemCount: number) => {
-    const prev = sessionPageItemCountsRef.current[page];
-    if (prev === undefined) {
-      // First time seeing this page — update total estimate
-      sessionPageItemCountsRef.current[page] = itemCount;
-      // Recalculate total: use actual counts for seen pages, estimate for unseen
-      const pagesRange = quizPagesRangeRef.current;
-      const seenCounts = Object.values(sessionPageItemCountsRef.current);
-      const avgPerPage = seenCounts.length > 0 ? seenCounts.reduce((a, b) => a + b, 0) / seenCounts.length : 10;
-      const unseenPages = pagesRange.filter(p => sessionPageItemCountsRef.current[p] === undefined).length;
-      const totalEstimate = seenCounts.reduce((a, b) => a + b, 0) + Math.round(unseenPages * avgPerPage);
-      // Only increase total if new estimate is higher (monotonic safety)
-      if (totalEstimate > sessionTotalItemsRef.current) {
-        sessionTotalItemsRef.current = totalEstimate;
-      }
-      sessionRemainingItemsRef.current = Math.max(0, sessionTotalItemsRef.current - sessionProcessedItemsRef.current);
-      recalcSessionRemaining();
-    }
-  }, [recalcSessionRemaining]);
+  const suppressScrollRef = useRef(false);
 
   // Session hydration on mount
   useEffect(() => {
@@ -279,10 +257,8 @@ export default function TahfeezPage() {
       // Restore session remaining timer
       if (autoRs.sessionRemainingMs !== undefined && autoRs.sessionRemainingMs > 0) {
         setSessionRemainingMs(autoRs.sessionRemainingMs);
-        // Estimate remaining items from saved data
         const perItemMs = (autoRs.timerSeconds || 1) * 1000;
         const remainingItems = Math.ceil(autoRs.sessionRemainingMs / perItemMs);
-        sessionRemainingItemsRef.current = remainingItems;
         sessionProcessedItemsRef.current = Math.max(0, (sessionTotalItemsRef.current || 0) - remainingItems);
       }
       
@@ -541,7 +517,7 @@ export default function TahfeezPage() {
       distributionSeed: useTahfeezStore.getState().distributionSeed,
       sessionTimerMode: 'countup',
       sessionElapsedMs: 0,
-      sessionRemainingMs: sessionRemainingItemsRef.current * timerSeconds * 1000,
+      sessionRemainingMs: Math.max(0, sessionTotalItemsRef.current - sessionProcessedItemsRef.current) * timerSeconds * 1000,
       sessionStartedAt: null,
       pausedAt: isPaused ? Date.now() : null,
       isPaused,
@@ -710,7 +686,7 @@ export default function TahfeezPage() {
             blankedKeysListRef.current = keys;
             setBlankedKeysList(keys);
             // Update session plan with this page's item count
-            updateSessionPlan(currentPageRef.current, keys.length);
+            // Session plan is computed at start; no per-page update needed
           }
 
           if (firstKeysSig !== lastFirstKeysSig) {
@@ -1059,13 +1035,13 @@ export default function TahfeezPage() {
       setMcqShowResults(false);
       setMcqCurrentIdx(0);
       // Reset session remaining timer
-      sessionTotalItemsRef.current = 0;
+      // Compute session plan: total items across all pages in range
+      const pagesRange = quizPagesRangeRef.current;
+      const { total } = computeSessionTotalItems(pages, pagesRange);
+      sessionTotalItemsRef.current = total;
       sessionProcessedItemsRef.current = 0;
-      sessionRemainingItemsRef.current = 0;
-      sessionPageItemCountsRef.current = {};
       sessionTimerPausedRef.current = false;
-      setSessionRemainingMs(0);
-      // Initial estimate will be set when first page's blanked keys are loaded
+      setSessionRemainingMs(total * timerSeconds * 1000);
     } catch (err) {
       console.error('[tahfeez] Error in handleStart:', err);
       toast.error('حدث خطأ أثناء بدء الاختبار');
