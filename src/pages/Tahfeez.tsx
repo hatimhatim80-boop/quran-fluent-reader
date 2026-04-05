@@ -41,10 +41,16 @@ const SURAHS = Object.entries(SURAH_NAMES).map(([name, number]) => ({
 })).sort((a, b) => a.number - b.number);
 
 function formatSessionTime(ms: number): string {
-  const totalSec = Math.floor(ms / 1000);
-  const h = Math.floor(totalSec / 3600);
-  const m = Math.floor((totalSec % 3600) / 60);
-  const s = totalSec % 60;
+  if (ms <= 0) return '0:00';
+  const totalSec = ms / 1000;
+  // Sub-10s: show one decimal for precision at fast speeds
+  if (totalSec < 10) {
+    return `${totalSec.toFixed(1)}ث`;
+  }
+  const wholeSec = Math.floor(totalSec);
+  const h = Math.floor(wholeSec / 3600);
+  const m = Math.floor((wholeSec % 3600) / 60);
+  const s = wholeSec % 60;
   if (h > 0) return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
   return `${m}:${String(s).padStart(2, '0')}`;
 }
@@ -1715,13 +1721,27 @@ export default function TahfeezPage() {
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-xs font-arabic text-muted-foreground">مهلة التفكير قبل الكلمة الأولى: {firstWordTimerSeconds < 1 ? `${(firstWordTimerSeconds * 1000).toFixed(0)}ms` : `${firstWordTimerSeconds} ثانية`}</label>
-                  <Slider value={[firstWordTimerSeconds]} onValueChange={([v]) => setFirstWordTimerSeconds(+v.toFixed(2))} min={0.1} max={30} step={0.1} />
+                  <label className="text-xs font-arabic text-muted-foreground">مهلة التفكير قبل الكلمة الأولى: {firstWordTimerSeconds < 1 ? `${Math.round(firstWordTimerSeconds * 1000)}ms` : `${firstWordTimerSeconds.toFixed(1)} ثانية`}</label>
+                  <div className="flex gap-1 flex-wrap mb-1">
+                    {[0.3, 0.5, 1, 2, 5].map(p => (
+                      <button key={p} onClick={() => setFirstWordTimerSeconds(p)} className={`px-2 py-0.5 rounded text-[10px] font-arabic transition-all ${Math.abs(firstWordTimerSeconds - p) < 0.05 ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:text-foreground'}`}>
+                        {p < 1 ? `${Math.round(p * 1000)}ms` : `${p}s`}
+                      </button>
+                    ))}
+                  </div>
+                  <Slider value={[firstWordTimerSeconds]} onValueChange={([v]) => setFirstWordTimerSeconds(+v.toFixed(2))} min={0.1} max={30} step={firstWordTimerSeconds < 1 ? 0.1 : 0.5} />
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-xs font-arabic text-muted-foreground">مدة ظهور كل كلمة: {timerSeconds < 1 ? `${(timerSeconds * 1000).toFixed(0)}ms` : `${timerSeconds} ثانية`}</label>
-                  <Slider value={[timerSeconds]} onValueChange={([v]) => setTimerSeconds(+v.toFixed(2))} min={0.1} max={30} step={0.1} />
+                  <label className="text-xs font-arabic text-muted-foreground">مدة ظهور كل كلمة: {timerSeconds < 1 ? `${Math.round(timerSeconds * 1000)}ms` : `${timerSeconds.toFixed(1)} ثانية`}</label>
+                  <div className="flex gap-1 flex-wrap mb-1">
+                    {[0.2, 0.3, 0.5, 0.7, 1, 2, 4].map(p => (
+                      <button key={p} onClick={() => setTimerSeconds(p)} className={`px-2 py-0.5 rounded text-[10px] font-arabic transition-all ${Math.abs(timerSeconds - p) < 0.05 ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:text-foreground'}`}>
+                        {p < 1 ? `${Math.round(p * 1000)}ms` : `${p}s`}
+                      </button>
+                    ))}
+                  </div>
+                  <Slider value={[timerSeconds]} onValueChange={([v]) => setTimerSeconds(+v.toFixed(2))} min={0.1} max={30} step={timerSeconds < 1 ? 0.1 : 0.5} />
                 </div>
 
                 <div className="space-y-1">
@@ -2309,7 +2329,6 @@ export default function TahfeezPage() {
             label="مدة ظهور الكلمة"
             min={0.1}
             max={30}
-            step={0.1}
           />
         )}
       </div>

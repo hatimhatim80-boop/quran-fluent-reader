@@ -113,7 +113,7 @@ export function useAutoQuizEngine() {
   const pausedSnapshotRef = useRef<number>(0);
 
   const setCurrentItemRemainingValue = useCallback((ms: number) => {
-    const normalized = Math.max(0, Math.round(ms));
+    const normalized = Math.max(0, ms);
     currentItemRemainingRef.current = normalized;
     setCurrentItemRemainingMs(normalized);
   }, []);

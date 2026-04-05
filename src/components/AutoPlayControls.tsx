@@ -85,28 +85,45 @@ export function AutoPlayControls({
       </div>
 
       {/* Speed Control */}
-      <div className="flex items-center gap-4 px-4" dir="ltr">
-        <span className="text-sm font-arabic text-muted-foreground whitespace-nowrap">
-          سريع
-        </span>
-        <Slider
-          value={[speed]}
-          onValueChange={([val]) => onSpeedChange(+val.toFixed(2))}
-          min={0.1}
-          max={30}
-          step={0.1}
-          className="flex-1"
-        />
-        <span className="text-sm font-arabic text-muted-foreground whitespace-nowrap">
-          بطيء
-        </span>
+      <div className="space-y-2 px-4" dir="rtl">
+        <div className="flex gap-1 flex-wrap justify-center">
+          {[0.2, 0.3, 0.5, 0.7, 1, 2, 4].map(p => (
+            <button
+              key={p}
+              onClick={() => onSpeedChange(p)}
+              className={`px-2 py-0.5 rounded text-[10px] font-arabic transition-all ${
+                Math.abs(speed - p) < 0.05
+                  ? 'bg-primary text-primary-foreground'
+                  : 'bg-muted text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              {p < 1 ? `${Math.round(p * 1000)}ms` : `${p}s`}
+            </button>
+          ))}
+        </div>
+        <div className="flex items-center gap-4" dir="ltr">
+          <span className="text-sm font-arabic text-muted-foreground whitespace-nowrap">
+            سريع
+          </span>
+          <Slider
+            value={[speed]}
+            onValueChange={([val]) => onSpeedChange(+val.toFixed(2))}
+            min={0.1}
+            max={30}
+            step={speed < 1 ? 0.1 : 0.5}
+            className="flex-1"
+          />
+          <span className="text-sm font-arabic text-muted-foreground whitespace-nowrap">
+            بطيء
+          </span>
+        </div>
       </div>
 
       {/* Progress Indicator */}
       <div className="text-center text-sm text-muted-foreground font-arabic">
         {currentWordIndex >= 0 ? (
           <span>
-            الكلمة {currentWordIndex + 1} من {wordsCount} • {speed} ثوانٍ
+            الكلمة {currentWordIndex + 1} من {wordsCount} • {speed < 1 ? `${Math.round(speed * 1000)}ms` : `${speed}s`}
           </span>
         ) : (
           <span>{wordsCount} كلمة غريبة في هذه الصفحة</span>
