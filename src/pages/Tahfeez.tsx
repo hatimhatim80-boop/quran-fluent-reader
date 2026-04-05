@@ -276,13 +276,15 @@ export default function TahfeezPage() {
       suppressScrollRef.current = true;
       setTimeout(() => { suppressScrollRef.current = false; }, 1500);
       
-      // Restore session-wide timer
-      if (autoRs.sessionElapsedMs !== undefined) {
-        setSessionElapsedMs(autoRs.sessionElapsedMs);
-        sessionTimerBaseRef.current = autoRs.sessionElapsedMs;
+      // Restore session remaining timer
+      if (autoRs.sessionRemainingMs !== undefined && autoRs.sessionRemainingMs > 0) {
+        setSessionRemainingMs(autoRs.sessionRemainingMs);
+        // Estimate remaining items from saved data
+        const perItemMs = (autoRs.timerSeconds || 1) * 1000;
+        const remainingItems = Math.ceil(autoRs.sessionRemainingMs / perItemMs);
+        sessionRemainingItemsRef.current = remainingItems;
+        sessionProcessedItemsRef.current = Math.max(0, (sessionTotalItemsRef.current || 0) - remainingItems);
       }
-      if (autoRs.sessionTimerMode) setSessionTimerMode(autoRs.sessionTimerMode);
-      if (autoRs.sessionRemainingMs !== undefined) setSessionTotalMs(autoRs.sessionRemainingMs + (autoRs.sessionElapsedMs || 0));
       
       // Start quiz in resumed state
       if (rs.sessionPhase === 'running' || rs.sessionPhase === 'paused') {
@@ -291,13 +293,13 @@ export default function TahfeezPage() {
         
         if (rs.sessionPhase === 'paused') {
           setIsPaused(true);
+          sessionTimerPausedRef.current = true;
           if ('remainingMs' in autoRs && autoRs.remainingMs > 0) {
             setRemainingMs(autoRs.remainingMs);
           }
         } else {
           setIsPaused(false);
-          // Resume session timer
-          startSessionTimer(autoRs.sessionElapsedMs || 0);
+          sessionTimerPausedRef.current = false;
           // Resume auto-advance from saved position
           if (!autoRs.showAll && autoRs.blankedKeysList.length > 0) {
             const nextIdx = autoRs.blankedKeysList.findIndex(k => !new Set(autoRs.revealedKeys).has(k));
