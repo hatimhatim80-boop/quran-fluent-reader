@@ -166,45 +166,52 @@ export default function TahfeezPage() {
   useEffect(() => { startItemTimerRef.current = startItemTimer; }, [startItemTimer]);
   useEffect(() => { return () => { if (timerRafRef.current) cancelAnimationFrame(timerRafRef.current); }; }, []);
 
-  // ── Session-wide timer (countup/countdown — displayed to user) ──
-  const [sessionElapsedMs, setSessionElapsedMs] = useState(0);
-  const [sessionTimerMode, setSessionTimerMode] = useState<'countup' | 'countdown'>('countup');
-  const [sessionTotalMs, setSessionTotalMs] = useState(0);
-  const sessionTimerStartRef = useRef<number | null>(null);
-  const sessionTimerBaseRef = useRef(0);
-  const sessionTimerRafRef = useRef<number | null>(null);
-  const isSessionTimerRunningRef = useRef(false);
+  // ── Session-level remaining time (monotonic, only decreases) ──
+  // Tracks remaining items across the whole session, not per-page.
+  const [sessionRemainingMs, setSessionRemainingMs] = useState(0);
+  const sessionRemainingItemsRef = useRef(0); // total remaining items in session
+  const sessionTotalItemsRef = useRef(0); // total items in session (set once at start)
+  const sessionProcessedItemsRef = useRef(0); // items processed so far across all pages
+  const sessionPageItemCountsRef = useRef<Record<number, number>>({}); // items per page (learned as pages load)
+  const sessionTimerPausedRef = useRef(false);
   const suppressScrollRef = useRef(false);
 
-  const tickSessionTimer = useCallback(() => {
-    if (!isSessionTimerRunningRef.current || !sessionTimerStartRef.current) return;
-    const elapsed = sessionTimerBaseRef.current + (Date.now() - sessionTimerStartRef.current);
-    setSessionElapsedMs(elapsed);
-    sessionTimerRafRef.current = requestAnimationFrame(tickSessionTimer);
+  // Called when an item is revealed — decrements remaining
+  const onSessionItemProcessed = useCallback(() => {
+    sessionProcessedItemsRef.current += 1;
+    const remaining = Math.max(0, sessionTotalItemsRef.current - sessionProcessedItemsRef.current);
+    sessionRemainingItemsRef.current = remaining;
+    const perItemMs = timerSecondsRef.current * 1000;
+    setSessionRemainingMs(remaining * perItemMs);
   }, []);
-  const startSessionTimer = useCallback((baseMs = 0) => {
-    sessionTimerBaseRef.current = baseMs;
-    sessionTimerStartRef.current = Date.now();
-    isSessionTimerRunningRef.current = true;
-    if (sessionTimerRafRef.current) cancelAnimationFrame(sessionTimerRafRef.current);
-    sessionTimerRafRef.current = requestAnimationFrame(tickSessionTimer);
-  }, [tickSessionTimer]);
-  const pauseSessionTimer = useCallback(() => {
-    if (isSessionTimerRunningRef.current && sessionTimerStartRef.current) {
-      sessionTimerBaseRef.current += Date.now() - sessionTimerStartRef.current;
+
+  // Recalculate remaining when speed changes (only for unprocessed items)
+  const recalcSessionRemaining = useCallback(() => {
+    const remaining = sessionRemainingItemsRef.current;
+    const perItemMs = timerSecondsRef.current * 1000;
+    setSessionRemainingMs(remaining * perItemMs);
+  }, []);
+
+  // Update remaining page items when a new page's blanked keys are loaded
+  const updateSessionPlan = useCallback((page: number, itemCount: number) => {
+    const prev = sessionPageItemCountsRef.current[page];
+    if (prev === undefined) {
+      // First time seeing this page — update total estimate
+      sessionPageItemCountsRef.current[page] = itemCount;
+      // Recalculate total: use actual counts for seen pages, estimate for unseen
+      const pagesRange = quizPagesRangeRef.current;
+      const seenCounts = Object.values(sessionPageItemCountsRef.current);
+      const avgPerPage = seenCounts.length > 0 ? seenCounts.reduce((a, b) => a + b, 0) / seenCounts.length : 10;
+      const unseenPages = pagesRange.filter(p => sessionPageItemCountsRef.current[p] === undefined).length;
+      const totalEstimate = seenCounts.reduce((a, b) => a + b, 0) + Math.round(unseenPages * avgPerPage);
+      // Only increase total if new estimate is higher (monotonic safety)
+      if (totalEstimate > sessionTotalItemsRef.current) {
+        sessionTotalItemsRef.current = totalEstimate;
+      }
+      sessionRemainingItemsRef.current = Math.max(0, sessionTotalItemsRef.current - sessionProcessedItemsRef.current);
+      recalcSessionRemaining();
     }
-    isSessionTimerRunningRef.current = false;
-    sessionTimerStartRef.current = null;
-    if (sessionTimerRafRef.current) cancelAnimationFrame(sessionTimerRafRef.current);
-    setSessionElapsedMs(sessionTimerBaseRef.current);
-  }, []);
-  const resumeSessionTimer = useCallback(() => {
-    sessionTimerStartRef.current = Date.now();
-    isSessionTimerRunningRef.current = true;
-    if (sessionTimerRafRef.current) cancelAnimationFrame(sessionTimerRafRef.current);
-    sessionTimerRafRef.current = requestAnimationFrame(tickSessionTimer);
-  }, [tickSessionTimer]);
-  useEffect(() => { return () => { if (sessionTimerRafRef.current) cancelAnimationFrame(sessionTimerRafRef.current); }; }, []);
+  }, [recalcSessionRemaining]);
 
   // Session hydration on mount
   useEffect(() => {
@@ -269,13 +276,15 @@ export default function TahfeezPage() {
       suppressScrollRef.current = true;
       setTimeout(() => { suppressScrollRef.current = false; }, 1500);
       
-      // Restore session-wide timer
-      if (autoRs.sessionElapsedMs !== undefined) {
-        setSessionElapsedMs(autoRs.sessionElapsedMs);
-        sessionTimerBaseRef.current = autoRs.sessionElapsedMs;
+      // Restore session remaining timer
+      if (autoRs.sessionRemainingMs !== undefined && autoRs.sessionRemainingMs > 0) {
+        setSessionRemainingMs(autoRs.sessionRemainingMs);
+        // Estimate remaining items from saved data
+        const perItemMs = (autoRs.timerSeconds || 1) * 1000;
+        const remainingItems = Math.ceil(autoRs.sessionRemainingMs / perItemMs);
+        sessionRemainingItemsRef.current = remainingItems;
+        sessionProcessedItemsRef.current = Math.max(0, (sessionTotalItemsRef.current || 0) - remainingItems);
       }
-      if (autoRs.sessionTimerMode) setSessionTimerMode(autoRs.sessionTimerMode);
-      if (autoRs.sessionRemainingMs !== undefined) setSessionTotalMs(autoRs.sessionRemainingMs + (autoRs.sessionElapsedMs || 0));
       
       // Start quiz in resumed state
       if (rs.sessionPhase === 'running' || rs.sessionPhase === 'paused') {
@@ -284,13 +293,13 @@ export default function TahfeezPage() {
         
         if (rs.sessionPhase === 'paused') {
           setIsPaused(true);
+          sessionTimerPausedRef.current = true;
           if ('remainingMs' in autoRs && autoRs.remainingMs > 0) {
             setRemainingMs(autoRs.remainingMs);
           }
         } else {
           setIsPaused(false);
-          // Resume session timer
-          startSessionTimer(autoRs.sessionElapsedMs || 0);
+          sessionTimerPausedRef.current = false;
           // Resume auto-advance from saved position
           if (!autoRs.showAll && autoRs.blankedKeysList.length > 0) {
             const nextIdx = autoRs.blankedKeysList.findIndex(k => !new Set(autoRs.revealedKeys).has(k));
@@ -504,10 +513,6 @@ export default function TahfeezPage() {
     const isTahfeezAuto = session.type === 'tahfeez-auto';
     const kind = isTahfeezAuto ? 'tahfeez-auto' as const : 'tahfeez-test' as const;
     
-    const currentElapsed = isSessionTimerRunningRef.current && sessionTimerStartRef.current
-      ? sessionTimerBaseRef.current + (Date.now() - sessionTimerStartRef.current)
-      : sessionTimerBaseRef.current;
-    
     return {
       kind,
       currentPage,
@@ -534,14 +539,14 @@ export default function TahfeezPage() {
       quizScopeTo,
       quizSource,
       distributionSeed: useTahfeezStore.getState().distributionSeed,
-      sessionTimerMode,
-      sessionElapsedMs: currentElapsed,
-      sessionRemainingMs: sessionTotalMs > 0 ? Math.max(0, sessionTotalMs - currentElapsed) : 0,
-      sessionStartedAt: sessionTimerStartRef.current,
+      sessionTimerMode: 'countup',
+      sessionElapsedMs: 0,
+      sessionRemainingMs: sessionRemainingItemsRef.current * timerSeconds * 1000,
+      sessionStartedAt: null,
       pausedAt: isPaused ? Date.now() : null,
       isPaused,
     } as TahfeezAutoResumeState | TahfeezTestResumeState;
-  }, [currentPage, isPaused, showAll, quizStarted, hideBars, revealedKeys, activeBlankKey, quizPageIdx, timerSeconds, firstWordTimerSeconds, quizInteraction, quizScope, quizScopeFrom, quizScopeTo, quizSource, activeSessionId, sessionIdParam, getSession, sessionTimerMode, sessionTotalMs]);
+  }, [currentPage, isPaused, showAll, quizStarted, hideBars, revealedKeys, activeBlankKey, quizPageIdx, timerSeconds, firstWordTimerSeconds, quizInteraction, quizScope, quizScopeFrom, quizScopeTo, quizSource, activeSessionId, sessionIdParam, getSession]);
 
   // Throttled auto-save
   useEffect(() => {
@@ -704,6 +709,8 @@ export default function TahfeezPage() {
             lastKeysSig = keysSig;
             blankedKeysListRef.current = keys;
             setBlankedKeysList(keys);
+            // Update session plan with this page's item count
+            updateSessionPlan(currentPageRef.current, keys.length);
           }
 
           if (firstKeysSig !== lastFirstKeysSig) {
@@ -827,6 +834,9 @@ export default function TahfeezPage() {
 
   // Ref to track reveal index internally (avoids re-triggering the advance effect)
   const currentRevealIdxRef = useRef(-1);
+  // Ref for session item processed callback (used inside advance() to avoid stale closure)
+  const onSessionItemProcessedRef = useRef(onSessionItemProcessed);
+  useEffect(() => { onSessionItemProcessedRef.current = onSessionItemProcessed; }, [onSessionItemProcessed]);
 
   // Auto-reveal sequencing
   // IMPORTANT: Does NOT depend on currentRevealIdx state to avoid re-triggering.
@@ -912,7 +922,6 @@ export default function TahfeezPage() {
           const groups = granularity === 'ayah' ? ayahKeyGroupsRef.current : granularity === 'waqf-segment' ? waqfKeyGroupsRef.current : null;
           
           if (groups && groups.length > 0) {
-            // Find the group containing the current key
             const groupIdx = groups.findIndex(g => g.includes(key));
             const groupKeys = groupIdx >= 0 ? groups[groupIdx] : [key];
             
@@ -926,19 +935,21 @@ export default function TahfeezPage() {
               });
             }
             setActiveBlankKey(null);
-            // Find the next key AFTER this entire group
+            // Decrement session remaining for each revealed item in the group
+            groupKeys.forEach(() => onSessionItemProcessedRef.current());
             const lastGroupKey = groupKeys[groupKeys.length - 1];
             const lastIdx = list.indexOf(lastGroupKey);
             const nextIdx = lastIdx >= 0 ? lastIdx + 1 : idx + 1;
             revealTimerRef.current = setTimeout(() => advance(nextIdx), 150);
           } else {
-            // Word-by-word (default)
             if (singleWordMode) {
               setRevealedKeys(new Set([key]));
             } else {
               setRevealedKeys(prev => new Set([...prev, key]));
             }
             setActiveBlankKey(null);
+            // Decrement session remaining
+            onSessionItemProcessedRef.current();
             revealTimerRef.current = setTimeout(() => advance(idx + 1), 150);
           }
         };
@@ -1047,9 +1058,14 @@ export default function TahfeezPage() {
       setMcqStats({ correct: 0, wrong: 0, total: 0, startTime: Date.now(), answers: [] });
       setMcqShowResults(false);
       setMcqCurrentIdx(0);
-      // Start session-wide timer
-      setSessionElapsedMs(0);
-      startSessionTimer(0);
+      // Reset session remaining timer
+      sessionTotalItemsRef.current = 0;
+      sessionProcessedItemsRef.current = 0;
+      sessionRemainingItemsRef.current = 0;
+      sessionPageItemCountsRef.current = {};
+      sessionTimerPausedRef.current = false;
+      setSessionRemainingMs(0);
+      // Initial estimate will be set when first page's blanked keys are loaded
     } catch (err) {
       console.error('[tahfeez] Error in handleStart:', err);
       toast.error('حدث خطأ أثناء بدء الاختبار');
@@ -1071,7 +1087,7 @@ export default function TahfeezPage() {
   const handlePauseResume = () => {
     if (isPaused) {
       setIsPaused(false);
-      resumeSessionTimer();
+      sessionTimerPausedRef.current = false;
       // Resume from next unrevealed
       const nextIdx = blankedKeysList.findIndex(k => !revealedKeys.has(k));
       if (nextIdx >= 0) {
@@ -1080,7 +1096,7 @@ export default function TahfeezPage() {
       }
     } else {
       setIsPaused(true);
-      pauseSessionTimer();
+      sessionTimerPausedRef.current = true;
       if (revealTimerRef.current) clearTimeout(revealTimerRef.current);
       pauseItemTimer();
       speech.stop();
@@ -1162,20 +1178,10 @@ export default function TahfeezPage() {
     ? Math.round(((revealedKeys.size) / blankedKeysList.length) * 100)
     : 0;
 
-  // ── Estimated remaining time for the session ──
-  // Counts remaining items on current page + estimates for remaining pages
-  const estimatedRemainingMs = useMemo(() => {
-    if (!quizStarted || showAll) return 0;
-    const currentPageRemaining = Math.max(0, blankedKeysList.length - revealedKeys.size);
-    const perItemMs = timerSeconds * 1000;
-    // For multi-page: estimate remaining pages have similar blanked count
-    const pagesRange = quizPagesRange;
-    const currentPageIdx = pagesRange.indexOf(currentPage);
-    const remainingPages = currentPageIdx >= 0 ? Math.max(0, pagesRange.length - 1 - currentPageIdx) : 0;
-    const avgBlanksPerPage = blankedKeysList.length > 0 ? blankedKeysList.length : 10;
-    const futureItemsEstimate = remainingPages * avgBlanksPerPage;
-    return (currentPageRemaining + futureItemsEstimate) * perItemMs;
-  }, [quizStarted, showAll, blankedKeysList.length, revealedKeys.size, timerSeconds, quizPagesRange, currentPage]);
+  // ── Recalc session remaining when speed changes ──
+  useEffect(() => {
+    if (quizStarted && !showAll) recalcSessionRemaining();
+  }, [timerSeconds, quizStarted, showAll, recalcSessionRemaining]);
 
   const filteredSurahs = useMemo(() => {
     if (!indexSearch.trim()) return SURAHS;
@@ -1330,7 +1336,7 @@ export default function TahfeezPage() {
               <div className="flex items-center gap-1.5">
                 <Clock className="w-3 h-3 text-muted-foreground/70" />
                 <span className="text-[11px] font-mono text-muted-foreground tabular-nums" dir="rtl">
-                  {estimatedRemainingMs > 0 ? `المتبقي: ${formatSessionTime(estimatedRemainingMs)}` : 'انتهت'}
+                  {sessionRemainingMs > 0 ? `المتبقي: ${formatSessionTime(sessionRemainingMs)}` : 'انتهت'}
                 </span>
               </div>
             </div>
@@ -2057,13 +2063,13 @@ export default function TahfeezPage() {
               </div>
             )}
 
-            {/* Session estimated remaining time */}
-            {quizStarted && (
-              <div className="flex items-center justify-center gap-2">
+            {/* Session estimated remaining time — only when top bars visible (hidden-bars has its own overlay) */}
+            {!shouldHideTopBars && (
+              <div className="flex items-center justify-center gap-2 pointer-events-none">
                 <div className="flex items-center gap-1.5 bg-muted/40 px-3 py-1 rounded-full">
                   <Clock className="w-3 h-3 text-muted-foreground/70" />
                   <span className="text-[11px] font-mono text-muted-foreground tabular-nums" dir="rtl">
-                    {estimatedRemainingMs > 0 ? `المتبقي: ${formatSessionTime(estimatedRemainingMs)}` : 'انتهت'}
+                    {sessionRemainingMs > 0 ? `المتبقي: ${formatSessionTime(sessionRemainingMs)}` : 'انتهت'}
                   </span>
                 </div>
               </div>
