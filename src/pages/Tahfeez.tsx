@@ -517,7 +517,7 @@ export default function TahfeezPage() {
       distributionSeed: useTahfeezStore.getState().distributionSeed,
       sessionTimerMode: 'countup',
       sessionElapsedMs: 0,
-      sessionRemainingMs: sessionRemainingItemsRef.current * timerSeconds * 1000,
+      sessionRemainingMs: Math.max(0, sessionTotalItemsRef.current - sessionProcessedItemsRef.current) * timerSeconds * 1000,
       sessionStartedAt: null,
       pausedAt: isPaused ? Date.now() : null,
       isPaused,
