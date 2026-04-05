@@ -291,15 +291,9 @@ export default function TahfeezPage() {
             // Engine already restored as paused
           } else {
             setIsPaused(false);
-            // Resume auto-advance from saved position
-            if (!autoRs.showAll && autoRs.blankedKeysList.length > 0) {
-              const nextIdx = autoRs.blankedKeysList.findIndex(k => !new Set(autoRs.revealedKeys).has(k));
-              if (nextIdx >= 0) {
-                setCurrentRevealIdx(nextIdx);
-                currentRevealIdxRef.current = nextIdx;
-                // Engine handles the item timer via the advance() chain
-              }
-            }
+            autoResumeQuizRef.current = true;
+            setCurrentRevealIdx(-1);
+            currentRevealIdxRef.current = autoRs.currentRevealIdx ?? -1;
             // Start the engine's RAF timer for running sessions
             startRaf();
           }
@@ -792,9 +786,9 @@ export default function TahfeezPage() {
 
     const processKeys = (el: HTMLElement) => {
       try {
-        // Verify the element belongs to the current page (avoid stale data from previous page)
+        // Verify the element belongs to the current render page (avoid stale data from previous page)
         const elPage = el.getAttribute('data-page');
-        if (elPage && Number(elPage) !== currentPageRef.current) return false;
+        if (!elPage || Number(elPage) !== currentPage) return false;
 
         const keysSig = el.getAttribute('data-keys') || '[]';
         const firstKeysSig = el.getAttribute('data-first-keys') || '[]';
@@ -890,6 +884,7 @@ export default function TahfeezPage() {
               blankedKeysListRef.current = savedPS.blankedKeysList;
               setShowAll(savedPS.showAll);
               setActiveBlankKey(savedPS.activeBlankKey);
+              currentRevealIdxRef.current = savedPS.currentRevealIdx;
               if (!savedPS.showAll) {
                 // Resume from where we left off
                 const nextUnrevealed = keys.findIndex((k: string) => !new Set(savedPS.revealedKeys).has(k));
@@ -924,12 +919,12 @@ export default function TahfeezPage() {
     };
 
     // Try immediately (element may already be rendered)
-    const el = document.getElementById('tahfeez-blanked-keys');
+    const el = document.querySelector<HTMLElement>(`#tahfeez-blanked-keys[data-page="${currentPage}"]`);
     if (el) processKeys(el);
 
     // Use MutationObserver to keep parent sequencing synced with rendered keys.
     const observer = new MutationObserver(() => {
-      const el = document.getElementById('tahfeez-blanked-keys');
+      const el = document.querySelector<HTMLElement>(`#tahfeez-blanked-keys[data-page="${currentPage}"]`);
       if (el) processKeys(el);
     });
 
