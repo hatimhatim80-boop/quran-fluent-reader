@@ -211,15 +211,17 @@ export default function TahfeezPage() {
         currentPage: rs.currentPage,
         sessionRemainingMs: autoRs.sessionRemainingMs || 0,
         currentItemRemainingMs: ('remainingMs' in autoRs ? autoRs.remainingMs : 0) || 0,
-        sessionTotalItems: autoRs.sessionTotalItems || 0,
-        sessionProcessedItems: autoRs.sessionProcessedItems || 0,
         currentRevealIdx: autoRs.currentRevealIdx || 0,
         activeBlankKey: autoRs.activeBlankKey,
         revealedKeys: autoRs.revealedKeys || [],
         blankedKeysList: autoRs.blankedKeysList || [],
         showAll: autoRs.showAll || false,
         pageStates: (autoRs.pageStates || {}) as Record<number, EnginePageState>,
-      }, (autoRs.timerSeconds || 1) * 1000, (autoRs.firstWordTimerSeconds || 0) * 1000);
+        pageSchedules: (autoRs as any).pageSchedules || {},
+        sessionPages: (autoRs as any).sessionPages || [],
+        unregisteredPages: (autoRs as any).unregisteredPages || {},
+        defaultItemMs: ((autoRs.timerSeconds || 1) * 1000),
+      });
       
       // Restore settings
       if (autoRs.quizInteraction) setQuizInteraction(autoRs.quizInteraction as any);
