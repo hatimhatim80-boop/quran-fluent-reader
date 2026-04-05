@@ -124,56 +124,53 @@ export default function TahfeezPage() {
   const markSessionResumed = useSessionsStore((s) => s.markSessionResumed);
   const hasHydratedRef = useRef(false);
 
-  // Timer state for auto-quiz countdown
-  const [remainingMs, setRemainingMs] = useState<number>(0);
-  const expectedEndAtRef = useRef<number | null>(null);
-  const timerRafRef = useRef<number | null>(null);
+  // ── Session-wide timer (countup/countdown) ──
+  const [sessionElapsedMs, setSessionElapsedMs] = useState(0);
+  const [sessionTimerMode, setSessionTimerMode] = useState<'countup' | 'countdown'>('countup');
+  const [sessionTotalMs, setSessionTotalMs] = useState(0); // for countdown mode
+  const sessionTimerStartRef = useRef<number | null>(null); // wall-clock start for current run segment
+  const sessionTimerBaseRef = useRef(0); // accumulated elapsed before current run segment
+  const sessionTimerRafRef = useRef<number | null>(null);
+  const isSessionTimerRunningRef = useRef(false);
+  // Flag to suppress scrollToTop during resume hydration
+  const suppressScrollRef = useRef(false);
 
-  // Timer tick using rAF
-  const tickTimer = useCallback(() => {
-    if (expectedEndAtRef.current !== null) {
-      const r = Math.max(0, expectedEndAtRef.current - Date.now());
-      setRemainingMs(r);
-      if (r > 0) {
-        timerRafRef.current = requestAnimationFrame(tickTimer);
-      }
-    }
+  const tickSessionTimer = useCallback(() => {
+    if (!isSessionTimerRunningRef.current || !sessionTimerStartRef.current) return;
+    const elapsed = sessionTimerBaseRef.current + (Date.now() - sessionTimerStartRef.current);
+    setSessionElapsedMs(elapsed);
+    sessionTimerRafRef.current = requestAnimationFrame(tickSessionTimer);
   }, []);
 
-  // Start timer for current item
-  const startItemTimer = useCallback((durationMs: number) => {
-    expectedEndAtRef.current = Date.now() + durationMs;
-    setRemainingMs(durationMs);
-    if (timerRafRef.current) cancelAnimationFrame(timerRafRef.current);
-    timerRafRef.current = requestAnimationFrame(tickTimer);
-  }, [tickTimer]);
+  const startSessionTimer = useCallback((baseMs = 0) => {
+    sessionTimerBaseRef.current = baseMs;
+    sessionTimerStartRef.current = Date.now();
+    isSessionTimerRunningRef.current = true;
+    if (sessionTimerRafRef.current) cancelAnimationFrame(sessionTimerRafRef.current);
+    sessionTimerRafRef.current = requestAnimationFrame(tickSessionTimer);
+  }, [tickSessionTimer]);
 
-  // Pause timer
-  const pauseItemTimer = useCallback(() => {
-    if (timerRafRef.current) cancelAnimationFrame(timerRafRef.current);
-    timerRafRef.current = null;
-    if (expectedEndAtRef.current !== null) {
-      setRemainingMs(Math.max(0, expectedEndAtRef.current - Date.now()));
+  const pauseSessionTimer = useCallback(() => {
+    if (isSessionTimerRunningRef.current && sessionTimerStartRef.current) {
+      sessionTimerBaseRef.current += Date.now() - sessionTimerStartRef.current;
     }
-    expectedEndAtRef.current = null;
+    isSessionTimerRunningRef.current = false;
+    sessionTimerStartRef.current = null;
+    if (sessionTimerRafRef.current) cancelAnimationFrame(sessionTimerRafRef.current);
+    setSessionElapsedMs(sessionTimerBaseRef.current);
   }, []);
 
-  // Resume timer from remaining
-  const resumeItemTimer = useCallback((ms: number) => {
-    expectedEndAtRef.current = Date.now() + ms;
-    setRemainingMs(ms);
-    if (timerRafRef.current) cancelAnimationFrame(timerRafRef.current);
-    timerRafRef.current = requestAnimationFrame(tickTimer);
-  }, [tickTimer]);
+  const resumeSessionTimer = useCallback(() => {
+    sessionTimerStartRef.current = Date.now();
+    isSessionTimerRunningRef.current = true;
+    if (sessionTimerRafRef.current) cancelAnimationFrame(sessionTimerRafRef.current);
+    sessionTimerRafRef.current = requestAnimationFrame(tickSessionTimer);
+  }, [tickSessionTimer]);
 
-  // Keep startItemTimer in a ref for use inside advance() closure
-  const startItemTimerRef = useRef(startItemTimer);
-  useEffect(() => { startItemTimerRef.current = startItemTimer; }, [startItemTimer]);
-
-  // Cleanup timer on unmount
+  // Cleanup session timer on unmount
   useEffect(() => {
     return () => {
-      if (timerRafRef.current) cancelAnimationFrame(timerRafRef.current);
+      if (sessionTimerRafRef.current) cancelAnimationFrame(sessionTimerRafRef.current);
     };
   }, []);
 
