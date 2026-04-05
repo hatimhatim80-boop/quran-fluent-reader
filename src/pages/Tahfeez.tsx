@@ -903,10 +903,12 @@ export default function TahfeezPage() {
               revealTimerRef.current = pollInterval as any;
             });
           } else {
-            // Timer mode (no voice)
+            // Timer mode (no voice) — start countdown timer for UI display
+            const durationMs = timerSecondsRef.current * 1000;
+            startItemTimerRef.current(durationMs);
             revealTimerRef.current = setTimeout(() => {
               revealAndAdvance();
-            }, timerSecondsRef.current * 1000);
+            }, durationMs);
           }
         };
 
