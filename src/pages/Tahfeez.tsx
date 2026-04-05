@@ -344,6 +344,7 @@ export default function TahfeezPage() {
   const [currentRevealIdx, setCurrentRevealIdx] = useState(-1);
   const revealTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const autoAdvanceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [advanceGeneration, setAdvanceGeneration] = useState(0);
   const [showIndex, setShowIndex] = useState(false);
   const [indexSearch, setIndexSearch] = useState('');
   const [indexTab, setIndexTab] = useState('surahs');
