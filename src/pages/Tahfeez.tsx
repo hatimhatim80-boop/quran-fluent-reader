@@ -255,12 +255,21 @@ export default function TahfeezPage() {
       suppressScrollRef.current = true;
       setTimeout(() => { suppressScrollRef.current = false; }, 1500);
       
-      // Restore session remaining timer
+      // Restore session timer from saved values
+      if (autoRs.sessionTotalItems > 0) {
+        sessionTotalItemsRef.current = autoRs.sessionTotalItems;
+        sessionProcessedItemsRef.current = autoRs.sessionProcessedItems || 0;
+      }
       if (autoRs.sessionRemainingMs !== undefined && autoRs.sessionRemainingMs > 0) {
         setSessionRemainingMs(autoRs.sessionRemainingMs);
-        const perItemMs = (autoRs.timerSeconds || 1) * 1000;
-        const remainingItems = Math.ceil(autoRs.sessionRemainingMs / perItemMs);
-        sessionProcessedItemsRef.current = Math.max(0, (sessionTotalItemsRef.current || 0) - remainingItems);
+      } else if (autoRs.sessionTotalItems > 0) {
+        // Fallback: compute from items
+        const remaining = Math.max(0, autoRs.sessionTotalItems - (autoRs.sessionProcessedItems || 0));
+        setSessionRemainingMs(remaining * (autoRs.timerSeconds || 1) * 1000);
+      }
+      // Restore per-page states
+      if (autoRs.pageStates) {
+        pageStatesRef.current = autoRs.pageStates;
       }
       
       // Start quiz in resumed state
