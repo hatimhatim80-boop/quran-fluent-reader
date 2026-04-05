@@ -199,7 +199,8 @@ export const useSessionsStore = create<SessionsState>()(
       addGroup: (name) => {
         const id = `g_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
         const order = get().groups.length;
-        set({ groups: [...get().groups, { id, name, order }] });
+        const now = Date.now();
+        set({ groups: [...get().groups, { id, name, order, createdAt: now, updatedAt: now }] });
         return id;
       },
 
