@@ -292,8 +292,6 @@ export default function TahfeezPage() {
           } else {
             setIsPaused(false);
             autoResumeQuizRef.current = true;
-            setCurrentRevealIdx(-1);
-            currentRevealIdxRef.current = autoRs.currentRevealIdx ?? -1;
             // Start the engine's RAF timer for running sessions
             startRaf();
           }
@@ -344,6 +342,7 @@ export default function TahfeezPage() {
   const [currentRevealIdx, setCurrentRevealIdx] = useState(-1);
   const revealTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const autoAdvanceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [advanceGeneration, setAdvanceGeneration] = useState(0);
   const [showIndex, setShowIndex] = useState(false);
   const [indexSearch, setIndexSearch] = useState('');
   const [indexTab, setIndexTab] = useState('surahs');
@@ -756,7 +755,6 @@ export default function TahfeezPage() {
         setShowAll(false);
         setRevealedKeys(new Set());
         setActiveBlankKey(null);
-        setCurrentRevealIdx(-1);
         currentRevealIdxRef.current = -1;
         setBlankedKeysList([]);
         setFirstKeysSet(new Set());
@@ -889,8 +887,8 @@ export default function TahfeezPage() {
                 // Resume from where we left off
                 const nextUnrevealed = keys.findIndex((k: string) => !new Set(savedPS.revealedKeys).has(k));
                 if (nextUnrevealed >= 0) {
-                  setCurrentRevealIdx(nextUnrevealed);
                   currentRevealIdxRef.current = nextUnrevealed;
+                  setAdvanceGeneration(g => g + 1);
                 }
               }
             } else {
@@ -907,8 +905,8 @@ export default function TahfeezPage() {
                 setActiveBlankKey(keys[0]);
               } else {
                 setActiveBlankKey(keys[0] ?? null);
-                setCurrentRevealIdx(0);
                 currentRevealIdxRef.current = 0;
+                setAdvanceGeneration(g => g + 1);
               }
             }
           }
@@ -972,6 +970,12 @@ export default function TahfeezPage() {
   const onSessionItemProcessedRef = useRef(onSessionItemProcessed);
   useEffect(() => { onSessionItemProcessedRef.current = onSessionItemProcessed; }, [onSessionItemProcessed]);
 
+  // Refs for advance chain callbacks (avoid unstable deps in auto-reveal effect)
+  const advanceToNextQuizPageRef = useRef(advanceToNextQuizPage);
+  useEffect(() => { advanceToNextQuizPageRef.current = advanceToNextQuizPage; }, [advanceToNextQuizPage]);
+  const completeQuizSessionRef = useRef(completeQuizSession);
+  useEffect(() => { completeQuizSessionRef.current = completeQuizSession; }, [completeQuizSession]);
+
   // Auto-reveal sequencing
   // IMPORTANT: Does NOT depend on currentRevealIdx state to avoid re-triggering.
   // advance() chains itself via setTimeout. The effect only starts/stops the chain.
@@ -979,11 +983,11 @@ export default function TahfeezPage() {
     if (!quizStarted || isPaused || showAll || blankedKeysListRef.current.length === 0) return;
     // Skip auto-reveal chain in MCQ and tap-only modes
     if (quizInteraction === 'mcq' || quizInteraction === 'tap-only') return;
-    // Don't start if currentRevealIdx is still -1 (waiting for auto-resume)
-    if (currentRevealIdx < 0) return;
+    // Don't start if currentRevealIdx ref is still -1 (waiting for auto-resume)
+    if (currentRevealIdxRef.current < 0) return;
 
     // Mark: we only start the chain once per effect run
-    const startIdx = currentRevealIdx;
+    const startIdx = currentRevealIdxRef.current;
     currentRevealIdxRef.current = startIdx;
 
     // ── advance() for Tahfeez ─────────────────────────────────────────────────
@@ -1024,7 +1028,7 @@ export default function TahfeezPage() {
               console.log('[tahfeez][advance] END OF PAGE → curPage:', curPage, 'rangeIdx:', currentPageIdx, '/', range.length - 1);
 
               if (range.length > 1) {
-                if (!advanceToNextQuizPage()) completeQuizSession();
+                if (!advanceToNextQuizPageRef.current()) completeQuizSessionRef.current();
               } else if (range.length <= 1) {
                 autoResumeQuizRef.current = true;
                 nextPage();
@@ -1158,9 +1162,8 @@ export default function TahfeezPage() {
     return () => {
       if (revealTimerRef.current) clearTimeout(revealTimerRef.current);
     };
-  // CRITICAL: currentRevealIdx is here ONLY to start the chain (from -1 → 0).
-  // advance() chains itself via setTimeout and does NOT update currentRevealIdx state.
-  }, [quizStarted, isPaused, showAll, currentRevealIdx, advanceToNextQuizPage, completeQuizSession]);
+  // advanceGeneration triggers re-start of the chain. Refs used for callbacks.
+  }, [quizStarted, isPaused, showAll, advanceGeneration, quizInteraction]);
 
   const handleStart = () => {
     try {
@@ -1185,7 +1188,6 @@ export default function TahfeezPage() {
       setShowAll(false);
       setRevealedKeys(new Set());
       setActiveBlankKey(null);
-      setCurrentRevealIdx(-1);
       currentRevealIdxRef.current = -1;
       setBlankedKeysList([]);
       blankedKeysListRef.current = [];
@@ -1246,7 +1248,8 @@ export default function TahfeezPage() {
       // Resume from next unrevealed
       const nextIdx = blankedKeysList.findIndex(k => !revealedKeys.has(k));
       if (nextIdx >= 0) {
-        setCurrentRevealIdx(nextIdx);
+        currentRevealIdxRef.current = nextIdx;
+        setAdvanceGeneration(g => g + 1);
       }
     } else {
       setIsPaused(true);
@@ -1269,7 +1272,6 @@ export default function TahfeezPage() {
     setRevealedKeys(new Set());
     setShowAll(false);
     setActiveBlankKey(null);
-    setCurrentRevealIdx(-1);
     currentRevealIdxRef.current = -1;
 
     // Restart from fresh on this page
@@ -1278,10 +1280,9 @@ export default function TahfeezPage() {
 
     // If session was paused, keep paused; otherwise re-trigger advance
     if (!isPaused) {
-      // Use a tiny delay so the MutationObserver picks up the fresh keys
       setTimeout(() => {
-        setCurrentRevealIdx(0);
         currentRevealIdxRef.current = 0;
+        setAdvanceGeneration(g => g + 1);
         startRaf();
       }, 100);
     }
@@ -1303,7 +1304,6 @@ export default function TahfeezPage() {
     setRevealedKeys(new Set());
     setShowAll(false);
     setActiveBlankKey(null);
-    setCurrentRevealIdx(-1);
     currentRevealIdxRef.current = -1;
     setQuizPageIdx(0);
     setIsPaused(false);
@@ -1315,8 +1315,8 @@ export default function TahfeezPage() {
 
     // Trigger advance chain
     setTimeout(() => {
-      setCurrentRevealIdx(0);
       currentRevealIdxRef.current = 0;
+      setAdvanceGeneration(g => g + 1);
     }, 200);
   };
 
