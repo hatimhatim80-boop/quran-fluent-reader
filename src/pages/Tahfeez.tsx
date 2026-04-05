@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import { useAutoQuizEngine, EnginePageState } from '@/hooks/useAutoQuizEngine';
 import { useTahfeezStore, TahfeezItem } from '@/stores/tahfeezStore';
 import { MCQStats, TahfeezMCQPanel } from '@/components/TahfeezMCQPanel';
 import { TahfeezSegmentMCQView, SegmentMCQStats } from '@/components/TahfeezSegmentMCQView';
