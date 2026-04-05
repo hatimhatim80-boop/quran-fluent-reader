@@ -628,7 +628,7 @@ export default function TahfeezPage() {
       sessionProcessedItems: sessionProcessedItemsRef.current,
       pageStates: allPageStates,
     } as TahfeezAutoResumeState | TahfeezTestResumeState;
-  }, [currentPage, isPaused, showAll, quizStarted, hideBars, revealedKeys, activeBlankKey, quizPageIdx, timerSeconds, firstWordTimerSeconds, quizInteraction, quizScope, quizScopeFrom, quizScopeTo, quizSource, activeSessionId, sessionIdParam, getSession, sessionRemainingMs]);
+  }, [currentPage, isPaused, showAll, quizStarted, hideBars, revealedKeys, activeBlankKey, quizPageIdx, timerSeconds, firstWordTimerSeconds, quizInteraction, quizScope, quizScopeFrom, quizScopeTo, quizSource, activeSessionId, sessionIdParam, getSession, getTrueRemainingSessionMs]);
 
   // Throttled auto-save
   useEffect(() => {
