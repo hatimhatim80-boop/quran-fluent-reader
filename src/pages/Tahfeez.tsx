@@ -313,8 +313,9 @@ export default function TahfeezPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Scroll to top on page change
+  // Scroll to top on page change (suppressed during resume hydration)
   useEffect(() => {
+    if (suppressScrollRef.current) return;
     window.scrollTo({ top: 0, behavior: 'auto' });
     if (contentRef.current) {
       contentRef.current.scrollTo({ top: 0, behavior: 'auto' });
