@@ -174,31 +174,80 @@ export default function TahfeezPage() {
   const sessionProcessedItemsRef = useRef(0);
   const sessionTimerPausedRef = useRef(false);
   const sessionTimerRafRef = useRef<number | null>(null);
-  const sessionPausedSnapshotRef = useRef<number | null>(null); // snapshot when paused
+  const sessionPausedSnapshotRef = useRef<number | null>(null);
   // Per-page state map — tracks revealed keys for each visited page
   const pageStatesRef = useRef<Record<number, PageState>>({});
+  // Per-page word counts for accurate future-time estimation
+  const perPageCountsRef = useRef<Record<number, number>>({});
 
   /**
    * getTrueRemainingSessionMs — single source of truth for session remaining time.
-   * = current item's live remaining + future unprocessed items × timerSeconds
-   * We intentionally exclude autoAdvanceDelay and firstWordTimerSeconds from the
-   * estimate to keep it simple and monotonically decreasing. These are sub-second
-   * delays that don't meaningfully affect the total estimate.
+   * Accounts for:
+   *  - Current item's live remaining (from expectedEndAtRef)
+   *  - Remaining unrevealed items on the current page
+   *  - All items on future unvisited pages
+   *  - firstWordTimerSeconds delay once per future page
+   *  - autoAdvanceDelay between pages
    */
   const getTrueRemainingSessionMs = useCallback((): number => {
-    const futureItems = Math.max(0, sessionTotalItemsRef.current - sessionProcessedItemsRef.current);
+    const totalItems = sessionTotalItemsRef.current;
+    const processedItems = sessionProcessedItemsRef.current;
+    const futureItems = Math.max(0, totalItems - processedItems);
     if (futureItems <= 0) return 0;
+
+    const perItemMs = timerSecondsRef.current * 1000;
+    const firstWordDelayMs = firstWordTimerSecondsRef.current * 1000;
+    const autoAdvanceDelayMs = (useSettingsStore.getState().settings.autoplay.autoAdvanceDelay || 1.5) * 1000;
 
     // Current item's live remaining from the item timer
     const currentItemRemaining = expectedEndAtRef.current !== null
       ? Math.max(0, expectedEndAtRef.current - Date.now())
       : 0;
 
-    // Items after the current one (futureItems includes the current active item)
-    const itemsAfterCurrent = Math.max(0, futureItems - 1);
-    const perItemMs = timerSecondsRef.current * 1000;
+    // Items after current on the CURRENT page
+    const curPage = currentPageRef.current;
+    const curPageBlanked = blankedKeysListRef.current.length;
+    const curRevealIdx = currentRevealIdxRef.current;
+    const remainingOnCurrentPage = Math.max(0, curPageBlanked - Math.max(0, curRevealIdx) - 1); // -1 for current item
 
-    return currentItemRemaining + (itemsAfterCurrent * perItemMs);
+    // Future pages: compute from perPageCounts and quizPagesRange
+    const range = quizPagesRangeRef.current;
+    const curPageRangeIdx = range.indexOf(curPage);
+    let futurePageTimeMs = 0;
+    let futurePagesCount = 0;
+
+    if (curPageRangeIdx >= 0) {
+      for (let i = curPageRangeIdx + 1; i < range.length; i++) {
+        const pn = range[i];
+        // Skip pages already fully completed
+        const ps = pageStatesRef.current[pn];
+        if (ps && ps.showAll) continue;
+
+        const pageItemCount = perPageCountsRef.current[pn] || 0;
+        if (pageItemCount <= 0) continue;
+        
+        // Items on this page (subtract already revealed if visited)
+        const alreadyRevealed = ps ? ps.revealedKeys.length : 0;
+        const remaining = Math.max(0, pageItemCount - alreadyRevealed);
+        if (remaining <= 0) continue;
+
+        futurePagesCount++;
+        // First word of each page gets firstWordTimerSeconds delay
+        futurePageTimeMs += firstWordDelayMs + (remaining * perItemMs);
+      }
+    }
+
+    // autoAdvanceDelay between pages (current→next, and between future pages)
+    const totalAutoAdvanceDelays = futurePagesCount > 0 ? futurePagesCount : 0;
+    // Also add delay from current page to next if current page isn't the last
+    const hasMorePages = curPageRangeIdx >= 0 && curPageRangeIdx < range.length - 1;
+
+    const result = currentItemRemaining
+      + (remainingOnCurrentPage * perItemMs)
+      + futurePageTimeMs
+      + ((hasMorePages ? 1 : 0) + Math.max(0, totalAutoAdvanceDelays - 1)) * autoAdvanceDelayMs;
+
+    return Math.max(0, result);
   }, []);
 
   // RAF loop that live-ticks sessionRemainingMs from the true source
@@ -224,7 +273,6 @@ export default function TahfeezPage() {
       cancelAnimationFrame(sessionTimerRafRef.current);
       sessionTimerRafRef.current = null;
     }
-    // Snapshot the true remaining so we can persist and restore it
     sessionPausedSnapshotRef.current = getTrueRemainingSessionMs();
     setSessionRemainingMs(sessionPausedSnapshotRef.current);
   }, [getTrueRemainingSessionMs]);
