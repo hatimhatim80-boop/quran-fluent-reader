@@ -43,6 +43,8 @@ const idbStorage: StateStorage = {
   },
 };
 
+export type SessionType = 'ghareeb' | 'tahfeez' | 'ghareeb-review' | 'ghareeb-read' | 'tahfeez-test' | 'tahfeez-auto' | 'tahfeez-review';
+
 export interface SessionSection {
   id: string;
   title: string;
@@ -54,25 +56,28 @@ export interface SessionSection {
 export interface Session {
   id: string;
   name: string;
-  type: 'ghareeb' | 'tahfeez';
+  type: SessionType;
   createdAt: number;
   updatedAt: number;
+  lastOpenedAt: number;
   archived: boolean;
   currentPage: number;
   startPage?: number;
   endPage?: number;
   sections?: SessionSection[];
-  /** Group/category this session belongs to */
   groupId?: string;
-  /** For tahfeez: snapshot of stored items */
   tahfeezItems?: unknown[];
-  /** For tahfeez: quiz settings snapshot */
   quizSettings?: Record<string, unknown>;
+  status: 'active' | 'paused' | 'completed' | 'archived';
+  progress?: number;
+  resumeState?: Record<string, unknown>;
 }
 
 export interface SessionGroup {
   id: string;
   name: string;
+  createdAt: number;
+  updatedAt: number;
   order: number;
 }
 
