@@ -1231,7 +1231,20 @@ export default function TahfeezPage() {
 
       {/* Show bars overlay - floating when bars are hidden, with swipe support */}
       {shouldHideTopBars && (
-        <HiddenBarsOverlay onShow={() => setHideBars(false)} onNextPage={nextPage} onPrevPage={prevPage} />
+        <>
+          <HiddenBarsOverlay onShow={() => setHideBars(false)} onNextPage={nextPage} onPrevPage={prevPage} />
+          {/* Floating timer when bars are hidden */}
+          {!showAll && (quizInteraction === 'auto-reveal' || quizInteraction === 'auto-tap') && remainingMs > 0 && (
+            <div className="fixed top-3 left-1/2 -translate-x-1/2 z-50 bg-background/80 backdrop-blur-sm px-3 py-1 rounded-full border border-border/30 shadow-sm">
+              <div className="flex items-center gap-1.5">
+                <Clock className="w-3 h-3 text-muted-foreground" />
+                <span className="text-xs font-mono font-semibold text-foreground tabular-nums">
+                  {(remainingMs / 1000).toFixed(1)}
+                </span>
+              </div>
+            </div>
+          )}
+        </>
       )}
 
       {/* Voice debug overlay disabled */}
