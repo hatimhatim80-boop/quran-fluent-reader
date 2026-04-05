@@ -133,6 +133,7 @@ export default function TahfeezPage() {
   const markSessionPaused = useSessionsStore((s) => s.markSessionPaused);
   const markSessionResumed = useSessionsStore((s) => s.markSessionResumed);
   const hasHydratedRef = useRef(false);
+  const isHydratingSessionRef = useRef(false);
 
   // ── Per-item timer (internal, drives auto-reveal timing) ──
   const [remainingMs, setRemainingMs] = useState<number>(0);
