@@ -1956,6 +1956,19 @@ export default function TahfeezPage() {
               </div>
             )}
 
+            {/* Timer countdown for auto-quiz */}
+            {quizStarted && !showAll && (quizInteraction === 'auto-reveal' || quizInteraction === 'auto-tap') && remainingMs > 0 && (
+              <div className="flex items-center justify-center gap-2">
+                <div className="flex items-center gap-1.5 bg-muted/60 px-3 py-1 rounded-full">
+                  <Clock className="w-3 h-3 text-muted-foreground" />
+                  <span className="text-xs font-mono font-semibold text-foreground tabular-nums">
+                    {(remainingMs / 1000).toFixed(1)}
+                  </span>
+                  <span className="text-[10px] font-arabic text-muted-foreground">ث</span>
+                </div>
+              </div>
+            )}
+
             {/* Controls */}
             <div className="flex items-center justify-center gap-2 flex-wrap">
               <Button variant="outline" size="sm" onClick={handlePauseResume} className="font-arabic">
