@@ -134,6 +134,9 @@ export interface TahfeezTestResumeState extends BaseResumeState {
   sessionStartedAt: number | null;
   pausedAt: number | null;
   isPaused: boolean;
+  sessionTotalItems: number;
+  sessionProcessedItems: number;
+  pageStates: Record<number, PageState>;
 }
 
 export interface TahfeezReviewResumeState extends BaseResumeState {
