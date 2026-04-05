@@ -596,13 +596,24 @@ export default function TahfeezPage() {
     };
   }, [quizStarted, currentPage, revealedKeys, activeBlankKey, isPaused, showAll, quizPageIdx, buildResumeState, saveResumeState, updateSession, activeSessionId, sessionIdParam]);
 
-  // Save on unmount / visibility change
+  // Save on unmount / visibility change — pause running sessions
   useEffect(() => {
     const saveOnExit = () => {
       const sessionId = sessionIdParam || activeSessionId;
       if (!sessionId || !quizStarted) return;
+      // Pause item timer to capture remaining ms
+      pauseItemTimer();
       const rs = buildResumeState();
-      if (rs) saveResumeState(sessionId, rs);
+      if (rs) {
+        // Force session phase to 'paused' on exit (not completed)
+        if (rs.sessionPhase === 'running') {
+          rs.sessionPhase = 'paused';
+          rs.isPaused = true;
+          rs.pausedAt = Date.now();
+        }
+        saveResumeState(sessionId, rs);
+        markSessionPaused(sessionId);
+      }
     };
 
     const handleVisChange = () => {
@@ -614,7 +625,7 @@ export default function TahfeezPage() {
       document.removeEventListener('visibilitychange', handleVisChange);
       saveOnExit();
     };
-  }, [quizStarted, buildResumeState, saveResumeState, activeSessionId, sessionIdParam]);
+  }, [quizStarted, buildResumeState, saveResumeState, activeSessionId, sessionIdParam, pauseItemTimer, markSessionPaused]);
 
   useEffect(() => {
     const el = contentRef.current;
