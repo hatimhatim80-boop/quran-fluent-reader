@@ -1329,8 +1329,8 @@ export default function TahfeezPage() {
             <div className="fixed top-3 left-1/2 -translate-x-1/2 z-50 bg-background/70 backdrop-blur-sm px-3 py-1 rounded-full border border-border/20 shadow-sm pointer-events-none">
               <div className="flex items-center gap-1.5">
                 <Clock className="w-3 h-3 text-muted-foreground/70" />
-                <span className="text-[11px] font-mono text-muted-foreground tabular-nums">
-                  {formatSessionTime(sessionElapsedMs)}
+                <span className="text-[11px] font-mono text-muted-foreground tabular-nums" dir="rtl">
+                  {estimatedRemainingMs > 0 ? `المتبقي: ${formatSessionTime(estimatedRemainingMs)}` : 'انتهت'}
                 </span>
               </div>
             </div>
