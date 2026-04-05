@@ -332,7 +332,7 @@ export default function TahfeezPage() {
 
   // Scroll to top on page change (suppressed during resume hydration)
   useEffect(() => {
-    if (suppressScrollRef.current) return;
+    if (suppressScrollRef.current || isHydratingSessionRef.current) return;
     window.scrollTo({ top: 0, behavior: 'auto' });
     if (contentRef.current) {
       contentRef.current.scrollTo({ top: 0, behavior: 'auto' });
