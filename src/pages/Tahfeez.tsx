@@ -1307,7 +1307,20 @@ export default function TahfeezPage() {
   // ── Recalc session remaining when speed changes ──
   useEffect(() => {
     if (quizStarted && !showAll) {
-      engine.setSpeed(timerSeconds * 1000, firstWordTimerSeconds * 1000);
+      const newDefaultMs = timerSeconds * 1000;
+      const newFwMs = firstWordTimerSeconds * 1000;
+      // Rebuild all page durations with new speed
+      engine.setSpeed(newDefaultMs, (page, itemIdx) => {
+        // Check if this item is a first key on its page
+        const ps = engine.pageStatesRef.current[page];
+        if (ps && ps.blankedKeysList && ps.blankedKeysList[itemIdx]) {
+          const key = ps.blankedKeysList[itemIdx];
+          if (firstKeysSetRef.current.has(key)) {
+            return newFwMs + newDefaultMs;
+          }
+        }
+        return newDefaultMs;
+      });
     }
   }, [timerSeconds, firstWordTimerSeconds, quizStarted, showAll, engine]);
 
