@@ -38,6 +38,15 @@ const SURAHS = Object.entries(SURAH_NAMES).map(([name, number]) => ({
   startPage: SURAH_INFO[number]?.[0] || 1,
 })).sort((a, b) => a.number - b.number);
 
+function formatSessionTime(ms: number): string {
+  const totalSec = Math.floor(ms / 1000);
+  const h = Math.floor(totalSec / 3600);
+  const m = Math.floor((totalSec % 3600) / 60);
+  const s = totalSec % 60;
+  if (h > 0) return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+  return `${m}:${String(s).padStart(2, '0')}`;
+}
+
 const JUZ_DATA = [
   { number: 1, name: 'الم', page: 1 }, { number: 2, name: 'سيقول', page: 22 },
   { number: 3, name: 'تلك الرسل', page: 42 }, { number: 4, name: 'لن تنالوا', page: 62 },
@@ -124,58 +133,78 @@ export default function TahfeezPage() {
   const markSessionResumed = useSessionsStore((s) => s.markSessionResumed);
   const hasHydratedRef = useRef(false);
 
-  // Timer state for auto-quiz countdown
+  // ── Per-item timer (internal, drives auto-reveal timing) ──
   const [remainingMs, setRemainingMs] = useState<number>(0);
   const expectedEndAtRef = useRef<number | null>(null);
   const timerRafRef = useRef<number | null>(null);
-
-  // Timer tick using rAF
   const tickTimer = useCallback(() => {
     if (expectedEndAtRef.current !== null) {
       const r = Math.max(0, expectedEndAtRef.current - Date.now());
       setRemainingMs(r);
-      if (r > 0) {
-        timerRafRef.current = requestAnimationFrame(tickTimer);
-      }
+      if (r > 0) timerRafRef.current = requestAnimationFrame(tickTimer);
     }
   }, []);
-
-  // Start timer for current item
   const startItemTimer = useCallback((durationMs: number) => {
     expectedEndAtRef.current = Date.now() + durationMs;
     setRemainingMs(durationMs);
     if (timerRafRef.current) cancelAnimationFrame(timerRafRef.current);
     timerRafRef.current = requestAnimationFrame(tickTimer);
   }, [tickTimer]);
-
-  // Pause timer
   const pauseItemTimer = useCallback(() => {
     if (timerRafRef.current) cancelAnimationFrame(timerRafRef.current);
     timerRafRef.current = null;
-    if (expectedEndAtRef.current !== null) {
-      setRemainingMs(Math.max(0, expectedEndAtRef.current - Date.now()));
-    }
+    if (expectedEndAtRef.current !== null) setRemainingMs(Math.max(0, expectedEndAtRef.current - Date.now()));
     expectedEndAtRef.current = null;
   }, []);
-
-  // Resume timer from remaining
   const resumeItemTimer = useCallback((ms: number) => {
     expectedEndAtRef.current = Date.now() + ms;
     setRemainingMs(ms);
     if (timerRafRef.current) cancelAnimationFrame(timerRafRef.current);
     timerRafRef.current = requestAnimationFrame(tickTimer);
   }, [tickTimer]);
-
-  // Keep startItemTimer in a ref for use inside advance() closure
   const startItemTimerRef = useRef(startItemTimer);
   useEffect(() => { startItemTimerRef.current = startItemTimer; }, [startItemTimer]);
+  useEffect(() => { return () => { if (timerRafRef.current) cancelAnimationFrame(timerRafRef.current); }; }, []);
 
-  // Cleanup timer on unmount
-  useEffect(() => {
-    return () => {
-      if (timerRafRef.current) cancelAnimationFrame(timerRafRef.current);
-    };
+  // ── Session-wide timer (countup/countdown — displayed to user) ──
+  const [sessionElapsedMs, setSessionElapsedMs] = useState(0);
+  const [sessionTimerMode, setSessionTimerMode] = useState<'countup' | 'countdown'>('countup');
+  const [sessionTotalMs, setSessionTotalMs] = useState(0);
+  const sessionTimerStartRef = useRef<number | null>(null);
+  const sessionTimerBaseRef = useRef(0);
+  const sessionTimerRafRef = useRef<number | null>(null);
+  const isSessionTimerRunningRef = useRef(false);
+  const suppressScrollRef = useRef(false);
+
+  const tickSessionTimer = useCallback(() => {
+    if (!isSessionTimerRunningRef.current || !sessionTimerStartRef.current) return;
+    const elapsed = sessionTimerBaseRef.current + (Date.now() - sessionTimerStartRef.current);
+    setSessionElapsedMs(elapsed);
+    sessionTimerRafRef.current = requestAnimationFrame(tickSessionTimer);
   }, []);
+  const startSessionTimer = useCallback((baseMs = 0) => {
+    sessionTimerBaseRef.current = baseMs;
+    sessionTimerStartRef.current = Date.now();
+    isSessionTimerRunningRef.current = true;
+    if (sessionTimerRafRef.current) cancelAnimationFrame(sessionTimerRafRef.current);
+    sessionTimerRafRef.current = requestAnimationFrame(tickSessionTimer);
+  }, [tickSessionTimer]);
+  const pauseSessionTimer = useCallback(() => {
+    if (isSessionTimerRunningRef.current && sessionTimerStartRef.current) {
+      sessionTimerBaseRef.current += Date.now() - sessionTimerStartRef.current;
+    }
+    isSessionTimerRunningRef.current = false;
+    sessionTimerStartRef.current = null;
+    if (sessionTimerRafRef.current) cancelAnimationFrame(sessionTimerRafRef.current);
+    setSessionElapsedMs(sessionTimerBaseRef.current);
+  }, []);
+  const resumeSessionTimer = useCallback(() => {
+    sessionTimerStartRef.current = Date.now();
+    isSessionTimerRunningRef.current = true;
+    if (sessionTimerRafRef.current) cancelAnimationFrame(sessionTimerRafRef.current);
+    sessionTimerRafRef.current = requestAnimationFrame(tickSessionTimer);
+  }, [tickSessionTimer]);
+  useEffect(() => { return () => { if (sessionTimerRafRef.current) cancelAnimationFrame(sessionTimerRafRef.current); }; }, []);
 
   // Session hydration on mount
   useEffect(() => {
@@ -236,6 +265,18 @@ export default function TahfeezPage() {
       if (autoRs.timerSeconds) setTimerSeconds(autoRs.timerSeconds);
       if (autoRs.firstWordTimerSeconds) setFirstWordTimerSeconds(autoRs.firstWordTimerSeconds);
       
+      // Suppress scrollToTop when page changes during hydration
+      suppressScrollRef.current = true;
+      setTimeout(() => { suppressScrollRef.current = false; }, 1500);
+      
+      // Restore session-wide timer
+      if (autoRs.sessionElapsedMs !== undefined) {
+        setSessionElapsedMs(autoRs.sessionElapsedMs);
+        sessionTimerBaseRef.current = autoRs.sessionElapsedMs;
+      }
+      if (autoRs.sessionTimerMode) setSessionTimerMode(autoRs.sessionTimerMode);
+      if (autoRs.sessionRemainingMs !== undefined) setSessionTotalMs(autoRs.sessionRemainingMs + (autoRs.sessionElapsedMs || 0));
+      
       // Start quiz in resumed state
       if (rs.sessionPhase === 'running' || rs.sessionPhase === 'paused') {
         setQuizStarted(true);
@@ -248,6 +289,8 @@ export default function TahfeezPage() {
           }
         } else {
           setIsPaused(false);
+          // Resume session timer
+          startSessionTimer(autoRs.sessionElapsedMs || 0);
           // Resume auto-advance from saved position
           if (!autoRs.showAll && autoRs.blankedKeysList.length > 0) {
             const nextIdx = autoRs.blankedKeysList.findIndex(k => !new Set(autoRs.revealedKeys).has(k));
@@ -261,14 +304,27 @@ export default function TahfeezPage() {
         }
       }
       
+      // Scroll to saved position after render
+      if (rs.currentScrollTop !== undefined && rs.currentScrollTop > 0) {
+        requestAnimationFrame(() => {
+          window.scrollTo({ top: rs.currentScrollTop!, behavior: 'auto' });
+        });
+      } else if (rs.currentAnchorKey) {
+        requestAnimationFrame(() => {
+          const el = document.querySelector<HTMLElement>(`[data-key="${rs.currentAnchorKey}"]`);
+          if (el) el.scrollIntoView({ behavior: 'auto', block: 'center' });
+        });
+      }
+      
       markSessionResumed(resolvedSessionId);
       toast.success('تم استئناف الجلسة');
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Scroll to top on page change
+  // Scroll to top on page change (suppressed during resume hydration)
   useEffect(() => {
+    if (suppressScrollRef.current) return;
     window.scrollTo({ top: 0, behavior: 'auto' });
     if (contentRef.current) {
       contentRef.current.scrollTo({ top: 0, behavior: 'auto' });
@@ -448,15 +504,24 @@ export default function TahfeezPage() {
     const isTahfeezAuto = session.type === 'tahfeez-auto';
     const kind = isTahfeezAuto ? 'tahfeez-auto' as const : 'tahfeez-test' as const;
     
+    const currentElapsed = isSessionTimerRunningRef.current && sessionTimerStartRef.current
+      ? sessionTimerBaseRef.current + (Date.now() - sessionTimerStartRef.current)
+      : sessionTimerBaseRef.current;
+    
     return {
       kind,
       currentPage,
       sessionPhase: (isPaused ? 'paused' : showAll ? 'completed' : quizStarted ? 'running' : 'paused') as 'running' | 'paused' | 'completed',
       hideChrome: hideBars,
       currentRevealIdx: currentRevealIdxRef.current,
+      currentAnchorKey: activeBlankKey,
+      currentScrollTop: window.scrollY,
       blankedKeysList: blankedKeysListRef.current,
       revealedKeys: Array.from(revealedKeys),
       activeBlankKey,
+      revealOrder: blankedKeysListRef.current,
+      hiddenWords: [],
+      activeBlanks: [],
       quizPageIdx,
       showAll,
       remainingMs: expectedEndAtRef.current ? Math.max(0, expectedEndAtRef.current - Date.now()) : 0,
@@ -469,8 +534,14 @@ export default function TahfeezPage() {
       quizScopeTo,
       quizSource,
       distributionSeed: useTahfeezStore.getState().distributionSeed,
+      sessionTimerMode,
+      sessionElapsedMs: currentElapsed,
+      sessionRemainingMs: sessionTotalMs > 0 ? Math.max(0, sessionTotalMs - currentElapsed) : 0,
+      sessionStartedAt: sessionTimerStartRef.current,
+      pausedAt: isPaused ? Date.now() : null,
+      isPaused,
     } as TahfeezAutoResumeState | TahfeezTestResumeState;
-  }, [currentPage, isPaused, showAll, quizStarted, hideBars, revealedKeys, activeBlankKey, quizPageIdx, timerSeconds, firstWordTimerSeconds, quizInteraction, quizScope, quizScopeFrom, quizScopeTo, quizSource, activeSessionId, sessionIdParam, getSession]);
+  }, [currentPage, isPaused, showAll, quizStarted, hideBars, revealedKeys, activeBlankKey, quizPageIdx, timerSeconds, firstWordTimerSeconds, quizInteraction, quizScope, quizScopeFrom, quizScopeTo, quizSource, activeSessionId, sessionIdParam, getSession, sessionTimerMode, sessionTotalMs]);
 
   // Throttled auto-save
   useEffect(() => {
@@ -976,6 +1047,9 @@ export default function TahfeezPage() {
       setMcqStats({ correct: 0, wrong: 0, total: 0, startTime: Date.now(), answers: [] });
       setMcqShowResults(false);
       setMcqCurrentIdx(0);
+      // Start session-wide timer
+      setSessionElapsedMs(0);
+      startSessionTimer(0);
     } catch (err) {
       console.error('[tahfeez] Error in handleStart:', err);
       toast.error('حدث خطأ أثناء بدء الاختبار');
@@ -997,6 +1071,7 @@ export default function TahfeezPage() {
   const handlePauseResume = () => {
     if (isPaused) {
       setIsPaused(false);
+      resumeSessionTimer();
       // Resume from next unrevealed
       const nextIdx = blankedKeysList.findIndex(k => !revealedKeys.has(k));
       if (nextIdx >= 0) {
@@ -1005,6 +1080,7 @@ export default function TahfeezPage() {
       }
     } else {
       setIsPaused(true);
+      pauseSessionTimer();
       if (revealTimerRef.current) clearTimeout(revealTimerRef.current);
       pauseItemTimer();
       speech.stop();
@@ -1233,13 +1309,13 @@ export default function TahfeezPage() {
       {shouldHideTopBars && (
         <>
           <HiddenBarsOverlay onShow={() => setHideBars(false)} onNextPage={nextPage} onPrevPage={prevPage} />
-          {/* Floating timer when bars are hidden */}
-          {!showAll && (quizInteraction === 'auto-reveal' || quizInteraction === 'auto-tap') && remainingMs > 0 && (
-            <div className="fixed top-3 left-1/2 -translate-x-1/2 z-50 bg-background/80 backdrop-blur-sm px-3 py-1 rounded-full border border-border/30 shadow-sm">
+          {/* Floating session timer when bars are hidden */}
+          {quizStarted && (
+            <div className="fixed top-3 left-1/2 -translate-x-1/2 z-50 bg-background/70 backdrop-blur-sm px-3 py-1 rounded-full border border-border/20 shadow-sm pointer-events-none">
               <div className="flex items-center gap-1.5">
-                <Clock className="w-3 h-3 text-muted-foreground" />
-                <span className="text-xs font-mono font-semibold text-foreground tabular-nums">
-                  {(remainingMs / 1000).toFixed(1)}
+                <Clock className="w-3 h-3 text-muted-foreground/70" />
+                <span className="text-[11px] font-mono text-muted-foreground tabular-nums">
+                  {formatSessionTime(sessionElapsedMs)}
                 </span>
               </div>
             </div>
@@ -1980,15 +2056,14 @@ export default function TahfeezPage() {
               </div>
             )}
 
-            {/* Timer countdown for auto-quiz */}
-            {quizStarted && !showAll && (quizInteraction === 'auto-reveal' || quizInteraction === 'auto-tap') && remainingMs > 0 && (
+            {/* Session timer */}
+            {quizStarted && (
               <div className="flex items-center justify-center gap-2">
-                <div className="flex items-center gap-1.5 bg-muted/60 px-3 py-1 rounded-full">
-                  <Clock className="w-3 h-3 text-muted-foreground" />
-                  <span className="text-xs font-mono font-semibold text-foreground tabular-nums">
-                    {(remainingMs / 1000).toFixed(1)}
+                <div className="flex items-center gap-1.5 bg-muted/40 px-3 py-1 rounded-full">
+                  <Clock className="w-3 h-3 text-muted-foreground/70" />
+                  <span className="text-[11px] font-mono text-muted-foreground tabular-nums">
+                    {formatSessionTime(sessionElapsedMs)}
                   </span>
-                  <span className="text-[10px] font-arabic text-muted-foreground">ث</span>
                 </div>
               </div>
             )}
