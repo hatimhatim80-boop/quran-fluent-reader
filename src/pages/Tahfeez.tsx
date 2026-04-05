@@ -753,18 +753,33 @@ export default function TahfeezPage() {
         if (keys.length > 0) {
           hasReceivedKeys = true;
 
-          if (keysSig !== lastKeysSig) {
+          const keysChanged = keysSig !== lastKeysSig;
+          const fKeysChanged = firstKeysSig !== lastFirstKeysSig;
+
+          if (keysChanged) {
             lastKeysSig = keysSig;
             blankedKeysListRef.current = keys;
             setBlankedKeysList(keys);
-            // Update session plan with this page's item count
-            // Session plan is computed at start; no per-page update needed
           }
 
-          if (firstKeysSig !== lastFirstKeysSig) {
+          if (fKeysChanged) {
             lastFirstKeysSig = firstKeysSig;
             firstKeysSetRef.current = new Set(fKeys);
             setFirstKeysSet(new Set(fKeys));
+          }
+
+          // Register exact per-item durations with engine when keys or firstKeys change
+          if (keysChanged || fKeysChanged) {
+            const fSet = new Set(fKeys);
+            const defaultMs = timerSecondsRef.current * 1000;
+            const fwMs = firstWordTimerSecondsRef.current * 1000;
+            const durations = (keys as string[]).map(k =>
+              fSet.has(k) ? fwMs + defaultMs : defaultMs
+            );
+            // Check if this page already has consumed items (restored page)
+            const existingSched = engine.pageSchedulesRef.current[currentPageRef.current];
+            const consumed = existingSched ? existingSched.consumed : 0;
+            engine.registerPageDurations(currentPageRef.current, durations, consumed);
           }
 
           if (wordTextsSig !== lastWordTextsSig) {
