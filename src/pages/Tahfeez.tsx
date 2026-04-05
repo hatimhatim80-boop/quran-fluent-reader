@@ -709,6 +709,8 @@ export default function TahfeezPage() {
             lastKeysSig = keysSig;
             blankedKeysListRef.current = keys;
             setBlankedKeysList(keys);
+            // Update session plan with this page's item count
+            updateSessionPlan(currentPageRef.current, keys.length);
           }
 
           if (firstKeysSig !== lastFirstKeysSig) {
