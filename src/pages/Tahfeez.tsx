@@ -2063,7 +2063,7 @@ export default function TahfeezPage() {
                 <div className="flex items-center gap-1.5 bg-muted/40 px-3 py-1 rounded-full">
                   <Clock className="w-3 h-3 text-muted-foreground/70" />
                   <span className="text-[11px] font-mono text-muted-foreground tabular-nums" dir="rtl">
-                    {estimatedRemainingMs > 0 ? `المتبقي: ${formatSessionTime(estimatedRemainingMs)}` : 'انتهت'}
+                    {sessionRemainingMs > 0 ? `المتبقي: ${formatSessionTime(sessionRemainingMs)}` : 'انتهت'}
                   </span>
                 </div>
               </div>
