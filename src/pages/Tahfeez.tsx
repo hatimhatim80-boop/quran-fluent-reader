@@ -263,10 +263,7 @@ export default function TahfeezPage() {
           
           if (rs.sessionPhase === 'paused' || rs.sessionPhase === 'completed') {
             setIsPaused(true);
-            pauseSessionTimer();
-            if ('remainingMs' in autoRs && autoRs.remainingMs > 0) {
-              setRemainingMs(autoRs.remainingMs);
-            }
+            // Engine already restored as paused
           } else {
             setIsPaused(false);
             // Resume auto-advance from saved position
@@ -275,12 +272,11 @@ export default function TahfeezPage() {
               if (nextIdx >= 0) {
                 setCurrentRevealIdx(nextIdx);
                 currentRevealIdxRef.current = nextIdx;
-                if ('remainingMs' in autoRs && autoRs.remainingMs > 0) {
-                  resumeItemTimer(autoRs.remainingMs);
-                }
+                // Engine handles the item timer via the advance() chain
               }
             }
-            startSessionTimer();
+            // Start the engine's RAF timer for running sessions
+            engine.startRaf();
           }
           
           // Scroll to saved position
