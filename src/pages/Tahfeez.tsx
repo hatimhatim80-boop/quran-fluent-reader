@@ -139,13 +139,9 @@ export default function TahfeezPage() {
   // ── Unified Auto-Quiz Engine ──
   const engine = useAutoQuizEngine();
 
-  // Aliases for backward compat
+  // Aliases
   const sessionRemainingMs = engine.sessionRemainingMs;
-  const sessionTotalItemsRef = engine.totalItemsRef;
-  const sessionProcessedItemsRef = engine.processedItemsRef;
   const pageStatesRef = engine.pageStatesRef as React.MutableRefObject<Record<number, PageState>>;
-
-  // Per-item remaining (for item-level UI if needed)
   const remainingMs = engine.currentItemRemainingMs;
 
   // Ref to latest scheduleItem for use in advance() closure
@@ -164,7 +160,7 @@ export default function TahfeezPage() {
   }, [engine]);
 
   const recalcSessionRemaining = useCallback(() => {
-    engine.setSpeed(engine.perItemMsRef.current);
+    engine.setSpeed(engine.defaultItemMsRef.current);
   }, [engine]);
 
   const suppressScrollRef = useRef(false);
@@ -215,15 +211,17 @@ export default function TahfeezPage() {
         currentPage: rs.currentPage,
         sessionRemainingMs: autoRs.sessionRemainingMs || 0,
         currentItemRemainingMs: ('remainingMs' in autoRs ? autoRs.remainingMs : 0) || 0,
-        sessionTotalItems: autoRs.sessionTotalItems || 0,
-        sessionProcessedItems: autoRs.sessionProcessedItems || 0,
         currentRevealIdx: autoRs.currentRevealIdx || 0,
         activeBlankKey: autoRs.activeBlankKey,
         revealedKeys: autoRs.revealedKeys || [],
         blankedKeysList: autoRs.blankedKeysList || [],
         showAll: autoRs.showAll || false,
         pageStates: (autoRs.pageStates || {}) as Record<number, EnginePageState>,
-      }, (autoRs.timerSeconds || 1) * 1000, (autoRs.firstWordTimerSeconds || 0) * 1000);
+        pageSchedules: (autoRs as any).pageSchedules || {},
+        sessionPages: (autoRs as any).sessionPages || [],
+        unregisteredPages: (autoRs as any).unregisteredPages || {},
+        defaultItemMs: ((autoRs.timerSeconds || 1) * 1000),
+      });
       
       // Restore settings
       if (autoRs.quizInteraction) setQuizInteraction(autoRs.quizInteraction as any);
@@ -496,11 +494,20 @@ export default function TahfeezPage() {
     const allPageStates = { ...pageStatesRef.current, [currentPage]: currentPageState };
     
     // Determine session phase: only 'completed' if ALL items processed
-    const isSessionComplete = sessionTotalItemsRef.current > 0 && sessionProcessedItemsRef.current >= sessionTotalItemsRef.current;
+    const totalItems = engine.getTotalItems();
+    const processedItems = engine.getProcessedItems();
+    const isSessionComplete = totalItems > 0 && processedItems >= totalItems;
     const sessionPhase = isPaused ? 'paused' : isSessionComplete ? 'completed' : quizStarted ? 'running' : 'paused';
     
-    // Use engine as the source of truth for remaining time
-    const trueRemaining = engine.computeRemaining();
+    // Use engine snapshot for remaining time
+    const engineSnap = engine.snapshot(currentPage, {
+      revealedKeys: Array.from(revealedKeys),
+      blankedKeysList: blankedKeysListRef.current,
+      showAll,
+      currentRevealIdx: currentRevealIdxRef.current,
+      activeBlankKey,
+      scrollTop: window.scrollY,
+    });
     
     return {
       kind,
@@ -530,14 +537,18 @@ export default function TahfeezPage() {
       distributionSeed: useTahfeezStore.getState().distributionSeed,
       sessionTimerMode: 'countup',
       sessionElapsedMs: 0,
-      sessionRemainingMs: trueRemaining,
+      sessionRemainingMs: engineSnap.sessionRemainingMs,
       sessionStartedAt: null,
       pausedAt: isPaused ? Date.now() : null,
       isPaused,
-      sessionTotalItems: sessionTotalItemsRef.current,
-      sessionProcessedItems: sessionProcessedItemsRef.current,
+      sessionTotalItems: totalItems,
+      sessionProcessedItems: processedItems,
       pageStates: allPageStates,
-    } as TahfeezAutoResumeState | TahfeezTestResumeState;
+      // Store engine schedule data for exact restore
+      pageSchedules: engineSnap.pageSchedules,
+      sessionPages: engineSnap.sessionPages,
+      unregisteredPages: engineSnap.unregisteredPages,
+    } as any;
   }, [currentPage, isPaused, showAll, quizStarted, hideBars, revealedKeys, activeBlankKey, quizPageIdx, timerSeconds, firstWordTimerSeconds, quizInteraction, quizScope, quizScopeFrom, quizScopeTo, quizSource, activeSessionId, sessionIdParam, getSession, engine]);
 
   // Throttled auto-save
@@ -742,18 +753,33 @@ export default function TahfeezPage() {
         if (keys.length > 0) {
           hasReceivedKeys = true;
 
-          if (keysSig !== lastKeysSig) {
+          const keysChanged = keysSig !== lastKeysSig;
+          const fKeysChanged = firstKeysSig !== lastFirstKeysSig;
+
+          if (keysChanged) {
             lastKeysSig = keysSig;
             blankedKeysListRef.current = keys;
             setBlankedKeysList(keys);
-            // Update session plan with this page's item count
-            // Session plan is computed at start; no per-page update needed
           }
 
-          if (firstKeysSig !== lastFirstKeysSig) {
+          if (fKeysChanged) {
             lastFirstKeysSig = firstKeysSig;
             firstKeysSetRef.current = new Set(fKeys);
             setFirstKeysSet(new Set(fKeys));
+          }
+
+          // Register exact per-item durations with engine when keys or firstKeys change
+          if (keysChanged || fKeysChanged) {
+            const fSet = new Set(fKeys);
+            const defaultMs = timerSecondsRef.current * 1000;
+            const fwMs = firstWordTimerSecondsRef.current * 1000;
+            const durations = (keys as string[]).map(k =>
+              fSet.has(k) ? fwMs + defaultMs : defaultMs
+            );
+            // Check if this page already has consumed items (restored page)
+            const existingSched = engine.pageSchedulesRef.current[currentPageRef.current];
+            const consumed = existingSched ? existingSched.consumed : 0;
+            engine.registerPageDurations(currentPageRef.current, durations, consumed);
           }
 
           if (wordTextsSig !== lastWordTextsSig) {
@@ -1117,8 +1143,8 @@ export default function TahfeezPage() {
       setMcqCurrentIdx(0);
       // Initialize engine for new session
       const pagesRange = quizPagesRangeRef.current;
-      const { total } = computeSessionTotalItems(pages, pagesRange);
-      engine.initSession(total, timerSeconds * 1000, firstWordTimerSeconds * 1000, pagesRange[0] || currentPage);
+      const { total, perPage } = computeSessionTotalItems(pages, pagesRange);
+      engine.initSession(pagesRange, perPage, timerSeconds * 1000, pagesRange[0] || currentPage);
     } catch (err) {
       console.error('[tahfeez] Error in handleStart:', err);
       toast.error('حدث خطأ أثناء بدء الاختبار');
@@ -1161,8 +1187,7 @@ export default function TahfeezPage() {
     speech.stop();
 
     // Reset engine page state
-    const pageItemCount = blankedKeysListRef.current.length;
-    engine.resetPage(currentPage, pageItemCount);
+    engine.resetPage(currentPage);
 
     // Reset visual state
     setRevealedKeys(new Set());
@@ -1193,10 +1218,10 @@ export default function TahfeezPage() {
     speech.stop();
 
     const pagesRange = quizPagesRangeRef.current;
-    const { total } = computeSessionTotalItems(pages, pagesRange);
+    const { total, perPage } = computeSessionTotalItems(pages, pagesRange);
 
     // Reset engine
-    engine.resetSession(total, timerSeconds * 1000, firstWordTimerSeconds * 1000, pagesRange[0] || 1);
+    engine.resetSession(pagesRange, perPage, timerSeconds * 1000, pagesRange[0] || 1);
 
     // Reset visual state
     setRevealedKeys(new Set());
@@ -1297,7 +1322,20 @@ export default function TahfeezPage() {
   // ── Recalc session remaining when speed changes ──
   useEffect(() => {
     if (quizStarted && !showAll) {
-      engine.setSpeed(timerSeconds * 1000, firstWordTimerSeconds * 1000);
+      const newDefaultMs = timerSeconds * 1000;
+      const newFwMs = firstWordTimerSeconds * 1000;
+      // Rebuild all page durations with new speed
+      engine.setSpeed(newDefaultMs, (page, itemIdx) => {
+        // Check if this item is a first key on its page
+        const ps = engine.pageStatesRef.current[page];
+        if (ps && ps.blankedKeysList && ps.blankedKeysList[itemIdx]) {
+          const key = ps.blankedKeysList[itemIdx];
+          if (firstKeysSetRef.current.has(key)) {
+            return newFwMs + newDefaultMs;
+          }
+        }
+        return newDefaultMs;
+      });
     }
   }, [timerSeconds, firstWordTimerSeconds, quizStarted, showAll, engine]);
 
@@ -1454,7 +1492,7 @@ export default function TahfeezPage() {
               <div className="flex items-center gap-1.5">
                 <Clock className="w-3 h-3 text-muted-foreground/70" />
                 <span className="text-[11px] font-mono text-muted-foreground tabular-nums" dir="rtl">
-                  {(sessionTotalItemsRef.current > 0 && sessionProcessedItemsRef.current >= sessionTotalItemsRef.current) ? 'انتهت' : sessionRemainingMs > 0 ? `المتبقي: ${formatSessionTime(sessionRemainingMs)}` : isPaused ? 'متوقفة' : `المتبقي: ${formatSessionTime(0)}`}
+                  {engine.phase === 'completed' ? 'انتهت' : sessionRemainingMs > 0 ? `المتبقي: ${formatSessionTime(sessionRemainingMs)}` : isPaused ? 'متوقفة' : `المتبقي: ${formatSessionTime(0)}`}
                 </span>
               </div>
             </div>
@@ -2187,7 +2225,7 @@ export default function TahfeezPage() {
                 <div className="flex items-center gap-1.5 bg-muted/40 px-3 py-1 rounded-full">
                   <Clock className="w-3 h-3 text-muted-foreground/70" />
                   <span className="text-[11px] font-mono text-muted-foreground tabular-nums" dir="rtl">
-                    {(sessionTotalItemsRef.current > 0 && sessionProcessedItemsRef.current >= sessionTotalItemsRef.current) ? 'انتهت' : sessionRemainingMs > 0 ? `المتبقي: ${formatSessionTime(sessionRemainingMs)}` : isPaused ? 'متوقفة' : `المتبقي: ${formatSessionTime(0)}`}
+                    {engine.phase === 'completed' ? 'انتهت' : sessionRemainingMs > 0 ? `المتبقي: ${formatSessionTime(sessionRemainingMs)}` : isPaused ? 'متوقفة' : `المتبقي: ${formatSessionTime(0)}`}
                   </span>
                 </div>
               </div>
