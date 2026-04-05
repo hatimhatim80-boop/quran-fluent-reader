@@ -620,7 +620,7 @@ export default function TahfeezPage() {
       distributionSeed: useTahfeezStore.getState().distributionSeed,
       sessionTimerMode: 'countup',
       sessionElapsedMs: 0,
-      sessionRemainingMs: computedRemainingMs,
+      sessionRemainingMs: trueRemaining,
       sessionStartedAt: null,
       pausedAt: isPaused ? Date.now() : null,
       isPaused,
