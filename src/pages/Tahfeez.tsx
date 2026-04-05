@@ -166,6 +166,10 @@ export default function TahfeezPage() {
     timerRafRef.current = requestAnimationFrame(tickTimer);
   }, [tickTimer]);
 
+  // Keep startItemTimer in a ref for use inside advance() closure
+  const startItemTimerRef = useRef(startItemTimer);
+  useEffect(() => { startItemTimerRef.current = startItemTimer; }, [startItemTimer]);
+
   // Cleanup timer on unmount
   useEffect(() => {
     return () => {
