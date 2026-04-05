@@ -112,16 +112,156 @@ export default function TahfeezPage() {
   const keepScreenAwake = useSettingsStore((s) => s.settings.autoplay.keepScreenAwake ?? false);
   const pageData = getCurrentPageData();
 
-  // Restore page from session on mount + scroll to top
-  useEffect(() => {
-    window.scrollTo({ top: 0, behavior: 'auto' });
-    const startPage = localStorage.getItem('quran-app-tahfeez-start-page');
-    if (startPage) {
-      localStorage.removeItem('quran-app-tahfeez-start-page');
-      const p = parseInt(startPage, 10);
-      if (!isNaN(p) && p >= 1 && p <= 604) goToPage(p);
+  // ── Session resume & hydration ──
+  const [searchParams, setSearchParams] = useSearchParams();
+  const sessionIdParam = searchParams.get('sessionId');
+  const isResumeParam = searchParams.get('resume') === '1';
+  const activeSessionId = useSessionsStore((s) => s.activeSessionId);
+  const updateSession = useSessionsStore((s) => s.updateSession);
+  const getSession = useSessionsStore((s) => s.getSession);
+  const saveResumeState = useSessionsStore((s) => s.saveResumeState);
+  const markSessionPaused = useSessionsStore((s) => s.markSessionPaused);
+  const markSessionResumed = useSessionsStore((s) => s.markSessionResumed);
+  const hasHydratedRef = useRef(false);
+
+  // Timer state for auto-quiz countdown
+  const [remainingMs, setRemainingMs] = useState<number>(0);
+  const expectedEndAtRef = useRef<number | null>(null);
+  const timerRafRef = useRef<number | null>(null);
+
+  // Timer tick using rAF
+  const tickTimer = useCallback(() => {
+    if (expectedEndAtRef.current !== null) {
+      const r = Math.max(0, expectedEndAtRef.current - Date.now());
+      setRemainingMs(r);
+      if (r > 0) {
+        timerRafRef.current = requestAnimationFrame(tickTimer);
+      }
     }
-  }, [goToPage]);
+  }, []);
+
+  // Start timer for current item
+  const startItemTimer = useCallback((durationMs: number) => {
+    expectedEndAtRef.current = Date.now() + durationMs;
+    setRemainingMs(durationMs);
+    if (timerRafRef.current) cancelAnimationFrame(timerRafRef.current);
+    timerRafRef.current = requestAnimationFrame(tickTimer);
+  }, [tickTimer]);
+
+  // Pause timer
+  const pauseItemTimer = useCallback(() => {
+    if (timerRafRef.current) cancelAnimationFrame(timerRafRef.current);
+    timerRafRef.current = null;
+    if (expectedEndAtRef.current !== null) {
+      setRemainingMs(Math.max(0, expectedEndAtRef.current - Date.now()));
+    }
+    expectedEndAtRef.current = null;
+  }, []);
+
+  // Resume timer from remaining
+  const resumeItemTimer = useCallback((ms: number) => {
+    expectedEndAtRef.current = Date.now() + ms;
+    setRemainingMs(ms);
+    if (timerRafRef.current) cancelAnimationFrame(timerRafRef.current);
+    timerRafRef.current = requestAnimationFrame(tickTimer);
+  }, [tickTimer]);
+
+  // Cleanup timer on unmount
+  useEffect(() => {
+    return () => {
+      if (timerRafRef.current) cancelAnimationFrame(timerRafRef.current);
+    };
+  }, []);
+
+  // Session hydration on mount
+  useEffect(() => {
+    if (hasHydratedRef.current) return;
+    
+    const resolvedSessionId = sessionIdParam || activeSessionId;
+    if (!resolvedSessionId || !isResumeParam) {
+      // Normal entry — use localStorage fallback
+      window.scrollTo({ top: 0, behavior: 'auto' });
+      const startPage = localStorage.getItem('quran-app-tahfeez-start-page');
+      if (startPage) {
+        localStorage.removeItem('quran-app-tahfeez-start-page');
+        const p = parseInt(startPage, 10);
+        if (!isNaN(p) && p >= 1 && p <= 604) goToPage(p);
+      }
+      hasHydratedRef.current = true;
+      return;
+    }
+
+    const session = getSession(resolvedSessionId);
+    if (!session || !session.resumeState) {
+      // No resumeState — fallback to currentPage
+      window.scrollTo({ top: 0, behavior: 'auto' });
+      if (session?.currentPage) goToPage(session.currentPage);
+      hasHydratedRef.current = true;
+      // Clean up URL params
+      setSearchParams({}, { replace: true });
+      return;
+    }
+
+    // Full hydration from resumeState
+    const rs = session.resumeState;
+    hasHydratedRef.current = true;
+    
+    // Clean URL params
+    setSearchParams({}, { replace: true });
+    
+    // Navigate to saved page
+    goToPage(rs.currentPage);
+    
+    if (rs.kind === 'tahfeez-auto' || rs.kind === 'tahfeez-test') {
+      const autoRs = rs as TahfeezAutoResumeState | TahfeezTestResumeState;
+      
+      // Restore quiz state
+      setBlankedKeysList(autoRs.blankedKeysList);
+      blankedKeysListRef.current = autoRs.blankedKeysList;
+      setRevealedKeys(new Set(autoRs.revealedKeys));
+      setActiveBlankKey(autoRs.activeBlankKey);
+      setQuizPageIdx(autoRs.quizPageIdx);
+      setShowAll(autoRs.showAll);
+      
+      // Restore settings
+      if (autoRs.quizInteraction) setQuizInteraction(autoRs.quizInteraction as any);
+      if (autoRs.quizScope) setQuizScope(autoRs.quizScope as any);
+      if (autoRs.quizScopeFrom) setQuizScopeFrom(autoRs.quizScopeFrom);
+      if (autoRs.quizScopeTo) setQuizScopeTo(autoRs.quizScopeTo);
+      if (autoRs.quizSource) setQuizSource(autoRs.quizSource as any);
+      if (autoRs.timerSeconds) setTimerSeconds(autoRs.timerSeconds);
+      if (autoRs.firstWordTimerSeconds) setFirstWordTimerSeconds(autoRs.firstWordTimerSeconds);
+      
+      // Start quiz in resumed state
+      if (rs.sessionPhase === 'running' || rs.sessionPhase === 'paused') {
+        setQuizStarted(true);
+        setHideBars(!!rs.hideChrome);
+        
+        if (rs.sessionPhase === 'paused') {
+          setIsPaused(true);
+          if ('remainingMs' in autoRs && autoRs.remainingMs > 0) {
+            setRemainingMs(autoRs.remainingMs);
+          }
+        } else {
+          setIsPaused(false);
+          // Resume auto-advance from saved position
+          if (!autoRs.showAll && autoRs.blankedKeysList.length > 0) {
+            const nextIdx = autoRs.blankedKeysList.findIndex(k => !new Set(autoRs.revealedKeys).has(k));
+            if (nextIdx >= 0) {
+              setCurrentRevealIdx(nextIdx);
+              if ('remainingMs' in autoRs && autoRs.remainingMs > 0) {
+                resumeItemTimer(autoRs.remainingMs);
+              }
+            }
+          }
+        }
+      }
+      
+      markSessionResumed(resolvedSessionId);
+      toast.success('تم استئناف الجلسة');
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Scroll to top on page change
   useEffect(() => {
@@ -131,21 +271,91 @@ export default function TahfeezPage() {
     }
   }, [currentPage]);
 
-  // Auto-save session progress
-  const activeSessionId = useSessionsStore((s) => s.activeSessionId);
-  const updateSession = useSessionsStore((s) => s.updateSession);
-  const getSession = useSessionsStore((s) => s.getSession);
-  
+  // ── Auto-save session state (throttled) ──
+  const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastSavedStateRef = useRef<string>('');
+
+  const buildResumeState = useCallback((): TahfeezAutoResumeState | TahfeezTestResumeState | null => {
+    const sessionId = sessionIdParam || activeSessionId;
+    if (!sessionId) return null;
+    const session = getSession(sessionId);
+    if (!session) return null;
+    
+    const isTahfeezAuto = session.type === 'tahfeez-auto';
+    const kind = isTahfeezAuto ? 'tahfeez-auto' as const : 'tahfeez-test' as const;
+    
+    const base = {
+      kind,
+      currentPage,
+      sessionPhase: (isPaused ? 'paused' : showAll ? 'completed' : quizStarted ? 'running' : 'paused') as 'running' | 'paused' | 'completed',
+      hideChrome: hideBars,
+      currentRevealIdx: currentRevealIdxRef.current,
+      blankedKeysList: blankedKeysListRef.current,
+      revealedKeys: Array.from(revealedKeys),
+      activeBlankKey,
+      quizPageIdx,
+      showAll,
+      remainingMs: expectedEndAtRef.current ? Math.max(0, expectedEndAtRef.current - Date.now()) : 0,
+      expectedEndAt: expectedEndAtRef.current,
+      timerSeconds,
+      firstWordTimerSeconds,
+      quizInteraction,
+      quizScope,
+      quizScopeFrom,
+      quizScopeTo,
+      quizSource,
+      distributionSeed: useTahfeezStore.getState().distributionSeed,
+    };
+    
+    return base as TahfeezAutoResumeState | TahfeezTestResumeState;
+  }, [currentPage, isPaused, showAll, quizStarted, hideBars, revealedKeys, activeBlankKey, quizPageIdx, timerSeconds, firstWordTimerSeconds, quizInteraction, quizScope, quizScopeFrom, quizScopeTo, quizSource, activeSessionId, sessionIdParam, getSession]);
+
+  // Throttled auto-save
   useEffect(() => {
-    if (activeSessionId) {
-      const session = getSession(activeSessionId);
-      const tahfeezItemsSnapshot = session?.type === 'tahfeez' ? storedItems : undefined;
-      updateSession(activeSessionId, { 
-        currentPage,
-        tahfeezItems: tahfeezItemsSnapshot,
-      });
-    }
-  }, [currentPage, storedItems, activeSessionId, updateSession, getSession]);
+    if (!quizStarted) return;
+    const sessionId = sessionIdParam || activeSessionId;
+    if (!sessionId) return;
+    
+    if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
+    autoSaveTimerRef.current = setTimeout(() => {
+      const rs = buildResumeState();
+      if (!rs) return;
+      const sig = JSON.stringify(rs);
+      if (sig !== lastSavedStateRef.current) {
+        lastSavedStateRef.current = sig;
+        saveResumeState(sessionId, rs);
+        // Also update progress
+        const total = blankedKeysListRef.current.length;
+        const revealed = revealedKeys.size;
+        const progress = total > 0 ? Math.round((revealed / total) * 100) : 0;
+        updateSession(sessionId, { currentPage, progress });
+      }
+    }, 800);
+    
+    return () => {
+      if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
+    };
+  }, [quizStarted, currentPage, revealedKeys, activeBlankKey, isPaused, showAll, quizPageIdx, buildResumeState, saveResumeState, updateSession, activeSessionId, sessionIdParam]);
+
+  // Save on unmount / visibility change
+  useEffect(() => {
+    const saveOnExit = () => {
+      const sessionId = sessionIdParam || activeSessionId;
+      if (!sessionId || !quizStarted) return;
+      const rs = buildResumeState();
+      if (rs) saveResumeState(sessionId, rs);
+    };
+
+    const handleVisChange = () => {
+      if (document.hidden) saveOnExit();
+    };
+
+    document.addEventListener('visibilitychange', handleVisChange);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisChange);
+      saveOnExit();
+    };
+  }, [quizStarted, buildResumeState, saveResumeState, activeSessionId, sessionIdParam]);
 
   const [quizStarted, setQuizStarted] = useState(false);
   const [storeWhileQuiz, setStoreWhileQuiz] = useState(false);
