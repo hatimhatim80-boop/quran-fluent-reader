@@ -1203,10 +1203,10 @@ export default function TahfeezPage() {
     speech.stop();
 
     const pagesRange = quizPagesRangeRef.current;
-    const { total } = computeSessionTotalItems(pages, pagesRange);
+    const { total, perPage } = computeSessionTotalItems(pages, pagesRange);
 
     // Reset engine
-    engine.resetSession(total, timerSeconds * 1000, firstWordTimerSeconds * 1000, pagesRange[0] || 1);
+    engine.resetSession(pagesRange, perPage, timerSeconds * 1000, pagesRange[0] || 1);
 
     // Reset visual state
     setRevealedKeys(new Set());
