@@ -349,6 +349,9 @@ export default function TahfeezPage() {
   const contentRef = useRef<HTMLDivElement>(null);
   const swipeRef = useRef<{ startX: number; startY: number; startTime: number } | null>(null);
   const [quizPageIdx, setQuizPageIdx] = useState(0);
+  const quizPageIdxRef = useRef(0);
+  useEffect(() => { quizPageIdxRef.current = quizPageIdx; }, [quizPageIdx]);
+  const pendingStartPageRef = useRef<number | null>(null);
 
   // Guard against stale persisted tab values from older app versions
   useEffect(() => {
@@ -659,6 +662,32 @@ export default function TahfeezPage() {
   // Reset quiz state when page changes during an active quiz AND auto-restart
   const prevPageRef = useRef(currentPage);
   const autoResumeQuizRef = useRef(false);
+  const completeQuizSession = useCallback(() => {
+    engine.complete();
+    setShowAll(true);
+    setActiveBlankKey(null);
+    speechRef.current.stop();
+  }, [engine]);
+
+  const advanceToNextQuizPage = useCallback(() => {
+    const range = quizPagesRangeRef.current;
+    if (range.length === 0) return false;
+
+    const exactIdx = range.indexOf(currentPageRef.current);
+    const currentIdx = exactIdx >= 0
+      ? exactIdx
+      : Math.max(0, Math.min(quizPageIdxRef.current, range.length - 1));
+    const nextIdx = currentIdx + 1;
+
+    if (nextIdx >= range.length) return false;
+
+    quizPageIdxRef.current = nextIdx;
+    setQuizPageIdx(nextIdx);
+    autoResumeQuizRef.current = true;
+    goToPage(range[nextIdx]);
+    return true;
+  }, [goToPage]);
+
   useEffect(() => {
     if (!quizStarted) return;
     if (isHydratingSessionRef.current) return;
@@ -699,6 +728,7 @@ export default function TahfeezPage() {
         setRevealedKeys(new Set());
         setActiveBlankKey(null);
         setCurrentRevealIdx(-1);
+        currentRevealIdxRef.current = -1;
         setBlankedKeysList([]);
         setFirstKeysSet(new Set());
         setIsPaused(false);
@@ -846,7 +876,9 @@ export default function TahfeezPage() {
               } else if (quizInteraction === 'tap-only') {
                 setActiveBlankKey(keys[0]);
               } else {
+                setActiveBlankKey(keys[0] ?? null);
                 setCurrentRevealIdx(0);
+                currentRevealIdxRef.current = 0;
               }
             }
           }
@@ -887,13 +919,9 @@ export default function TahfeezPage() {
         console.log('[tahfeez] No blanked keys on page', currentPageRef.current, '— skipping to next in', delayMs, 'ms');
 
         setTimeout(() => {
-          const curPage = currentPageRef.current;
           const range = quizPagesRangeRef.current;
-          const currentPageIdx = range.indexOf(curPage);
-
-          if (range.length > 1 && currentPageIdx >= 0 && currentPageIdx < range.length - 1) {
-            setQuizPageIdx(prev => prev + 1);
-            goToPage(range[currentPageIdx + 1]);
+          if (range.length > 1) {
+            if (!advanceToNextQuizPage()) completeQuizSession();
           } else {
             nextPage();
           }
@@ -906,7 +934,7 @@ export default function TahfeezPage() {
       if (fallbackTimer) clearTimeout(fallbackTimer);
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [quizStarted, pageData, currentPage, autoBlankMode, quizInteraction]);
+  }, [quizStarted, pageData, currentPage, autoBlankMode, quizInteraction, advanceToNextQuizPage, completeQuizSession]);
 
   // Ref to track reveal index internally (avoids re-triggering the advance effect)
   const currentRevealIdxRef = useRef(-1);
@@ -965,11 +993,8 @@ export default function TahfeezPage() {
 
               console.log('[tahfeez][advance] END OF PAGE → curPage:', curPage, 'rangeIdx:', currentPageIdx, '/', range.length - 1);
 
-              if (currentPageIdx >= 0 && currentPageIdx < range.length - 1) {
-                const nextPageInRange = range[currentPageIdx + 1];
-                setQuizPageIdx(currentPageIdx + 1);
-                autoResumeQuizRef.current = true;
-                goToPage(nextPageInRange);
+              if (range.length > 1) {
+                if (!advanceToNextQuizPage()) completeQuizSession();
               } else if (range.length <= 1) {
                 autoResumeQuizRef.current = true;
                 nextPage();
@@ -1076,10 +1101,10 @@ export default function TahfeezPage() {
 
         if (isFirstKey) {
           const fwDelay = firstWordTimerSecondsRef.current * 1000;
+          setActiveBlankKey(key);
           if (fwDelay <= 0) {
             startVoiceOrTimer();
           } else {
-            setActiveBlankKey(null);
             startItemTimerRef.current(fwDelay, () => startVoiceOrTimer());
           }
         } else {
@@ -1105,10 +1130,11 @@ export default function TahfeezPage() {
     };
   // CRITICAL: currentRevealIdx is here ONLY to start the chain (from -1 → 0).
   // advance() chains itself via setTimeout and does NOT update currentRevealIdx state.
-  }, [quizStarted, isPaused, showAll, currentRevealIdx]);
+  }, [quizStarted, isPaused, showAll, currentRevealIdx, advanceToNextQuizPage, completeQuizSession]);
 
   const handleStart = () => {
     try {
+      pendingStartPageRef.current = null;
       // Clear any lingering timers from previous runs
       if (revealTimerRef.current) clearTimeout(revealTimerRef.current);
       if (autoAdvanceTimerRef.current) clearTimeout(autoAdvanceTimerRef.current);
@@ -1125,8 +1151,10 @@ export default function TahfeezPage() {
       setRevealedKeys(new Set());
       setActiveBlankKey(null);
       setCurrentRevealIdx(-1);
+      currentRevealIdxRef.current = -1;
       setBlankedKeysList([]);
       setQuizPageIdx(0);
+      quizPageIdxRef.current = 0;
       // Reset MCQ state
       setMcqStats({ correct: 0, wrong: 0, total: 0, startTime: Date.now(), answers: [] });
       setMcqShowResults(false);
@@ -1143,8 +1171,13 @@ export default function TahfeezPage() {
 
   const handleStartMultiPage = () => {
     try {
-      if (quizPagesRange.length > 0) {
-        goToPage(quizPagesRange[0]);
+      const startPage = quizPagesRangeRef.current[0] || currentPageRef.current;
+      if (currentPageRef.current !== startPage) {
+        pendingStartPageRef.current = startPage;
+        quizPageIdxRef.current = 0;
+        setQuizPageIdx(0);
+        goToPage(startPage);
+        return;
       }
       handleStart();
     } catch (err) {
@@ -1152,6 +1185,16 @@ export default function TahfeezPage() {
       toast.error('حدث خطأ أثناء بدء الاختبار');
     }
   };
+
+  useEffect(() => {
+    if (pendingStartPageRef.current === null) return;
+    if (currentPage !== pendingStartPageRef.current) return;
+
+    pendingStartPageRef.current = null;
+    requestAnimationFrame(() => {
+      handleStart();
+    });
+  }, [currentPage]);
 
   const handlePauseResume = () => {
     if (isPaused) {
@@ -1247,14 +1290,9 @@ export default function TahfeezPage() {
         if (autoAdvanceTimerRef.current) clearTimeout(autoAdvanceTimerRef.current);
         autoAdvanceTimerRef.current = setTimeout(() => {
           try {
-            const curPage = currentPageRef.current;
             const range = quizPagesRangeRef.current;
-            const currentPageIdx = range.indexOf(curPage);
-            if (currentPageIdx >= 0 && currentPageIdx < range.length - 1) {
-              const nextPageInRange = range[currentPageIdx + 1];
-              setQuizPageIdx(currentPageIdx + 1);
-              autoResumeQuizRef.current = true;
-              goToPage(nextPageInRange);
+            if (range.length > 1) {
+              if (!advanceToNextQuizPage()) completeQuizSession();
             } else if (range.length <= 1) {
               autoResumeQuizRef.current = true;
               nextPage();
