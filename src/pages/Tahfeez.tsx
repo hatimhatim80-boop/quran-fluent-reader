@@ -136,122 +136,36 @@ export default function TahfeezPage() {
   const hasHydratedRef = useRef(false);
   const isHydratingSessionRef = useRef(false);
 
-  // ── Per-item timer (internal, drives auto-reveal timing) ──
-  const [remainingMs, setRemainingMs] = useState<number>(0);
-  const expectedEndAtRef = useRef<number | null>(null);
-  const timerRafRef = useRef<number | null>(null);
-  const tickTimer = useCallback(() => {
-    if (expectedEndAtRef.current !== null) {
-      const r = Math.max(0, expectedEndAtRef.current - Date.now());
-      setRemainingMs(r);
-      if (r > 0) timerRafRef.current = requestAnimationFrame(tickTimer);
-    }
-  }, []);
-  const startItemTimer = useCallback((durationMs: number) => {
-    expectedEndAtRef.current = Date.now() + durationMs;
-    setRemainingMs(durationMs);
-    if (timerRafRef.current) cancelAnimationFrame(timerRafRef.current);
-    timerRafRef.current = requestAnimationFrame(tickTimer);
-  }, [tickTimer]);
-  const pauseItemTimer = useCallback(() => {
-    if (timerRafRef.current) cancelAnimationFrame(timerRafRef.current);
-    timerRafRef.current = null;
-    if (expectedEndAtRef.current !== null) setRemainingMs(Math.max(0, expectedEndAtRef.current - Date.now()));
-    expectedEndAtRef.current = null;
-  }, []);
-  const resumeItemTimer = useCallback((ms: number) => {
-    expectedEndAtRef.current = Date.now() + ms;
-    setRemainingMs(ms);
-    if (timerRafRef.current) cancelAnimationFrame(timerRafRef.current);
-    timerRafRef.current = requestAnimationFrame(tickTimer);
-  }, [tickTimer]);
-  const startItemTimerRef = useRef(startItemTimer);
-  useEffect(() => { startItemTimerRef.current = startItemTimer; }, [startItemTimer]);
-  useEffect(() => { return () => { if (timerRafRef.current) cancelAnimationFrame(timerRafRef.current); }; }, []);
+  // ── Unified Auto-Quiz Engine ──
+  const engine = useAutoQuizEngine();
 
-  // ── Session-level remaining time (true, RAF-driven) ──
-  const [sessionRemainingMs, setSessionRemainingMs] = useState(0);
-  const sessionTotalItemsRef = useRef(0);
-  const sessionProcessedItemsRef = useRef(0);
-  const sessionTimerPausedRef = useRef(false);
-  const sessionTimerRafRef = useRef<number | null>(null);
-  const sessionPausedSnapshotRef = useRef<number | null>(null); // snapshot when paused
-  // Per-page state map — tracks revealed keys for each visited page
-  const pageStatesRef = useRef<Record<number, PageState>>({});
+  // Aliases for backward compat
+  const sessionRemainingMs = engine.sessionRemainingMs;
+  const sessionTotalItemsRef = engine.totalItemsRef;
+  const sessionProcessedItemsRef = engine.processedItemsRef;
+  const pageStatesRef = engine.pageStatesRef as React.MutableRefObject<Record<number, PageState>>;
 
-  /**
-   * getTrueRemainingSessionMs — single source of truth for session remaining time.
-   * = current item's live remaining + future unprocessed items × timerSeconds
-   * We intentionally exclude autoAdvanceDelay and firstWordTimerSeconds from the
-   * estimate to keep it simple and monotonically decreasing. These are sub-second
-   * delays that don't meaningfully affect the total estimate.
-   */
-  const getTrueRemainingSessionMs = useCallback((): number => {
-    const futureItems = Math.max(0, sessionTotalItemsRef.current - sessionProcessedItemsRef.current);
-    if (futureItems <= 0) return 0;
+  // Per-item remaining (for item-level UI if needed)
+  const remainingMs = engine.currentItemRemainingMs;
 
-    // Current item's live remaining from the item timer
-    const currentItemRemaining = expectedEndAtRef.current !== null
-      ? Math.max(0, expectedEndAtRef.current - Date.now())
-      : 0;
-
-    // Items after the current one (futureItems includes the current active item)
-    const itemsAfterCurrent = Math.max(0, futureItems - 1);
-    const perItemMs = timerSecondsRef.current * 1000;
-
-    return currentItemRemaining + (itemsAfterCurrent * perItemMs);
-  }, []);
-
-  // RAF loop that live-ticks sessionRemainingMs from the true source
-  const tickSessionTimer = useCallback(() => {
-    if (sessionTimerPausedRef.current) return;
-    const trueMs = getTrueRemainingSessionMs();
-    setSessionRemainingMs(trueMs);
-    if (trueMs > 0) {
-      sessionTimerRafRef.current = requestAnimationFrame(tickSessionTimer);
-    }
-  }, [getTrueRemainingSessionMs]);
-
-  const startSessionTimer = useCallback(() => {
-    sessionTimerPausedRef.current = false;
-    sessionPausedSnapshotRef.current = null;
-    if (sessionTimerRafRef.current) cancelAnimationFrame(sessionTimerRafRef.current);
-    sessionTimerRafRef.current = requestAnimationFrame(tickSessionTimer);
-  }, [tickSessionTimer]);
-
-  const pauseSessionTimer = useCallback(() => {
-    sessionTimerPausedRef.current = true;
-    if (sessionTimerRafRef.current) {
-      cancelAnimationFrame(sessionTimerRafRef.current);
-      sessionTimerRafRef.current = null;
-    }
-    // Snapshot the true remaining so we can persist and restore it
-    sessionPausedSnapshotRef.current = getTrueRemainingSessionMs();
-    setSessionRemainingMs(sessionPausedSnapshotRef.current);
-  }, [getTrueRemainingSessionMs]);
-
-  const resumeSessionTimer = useCallback(() => {
-    sessionPausedSnapshotRef.current = null;
-    startSessionTimer();
-  }, [startSessionTimer]);
-
-  // Called when an item is revealed — just increment processed count; RAF handles the rest
-  const onSessionItemProcessed = useCallback(() => {
-    sessionProcessedItemsRef.current += 1;
-  }, []);
-
-  // Recalculate remaining when speed changes — RAF handles continuous update,
-  // but we do an immediate refresh so the UI updates instantly
-  const recalcSessionRemaining = useCallback(() => {
-    setSessionRemainingMs(getTrueRemainingSessionMs());
-  }, [getTrueRemainingSessionMs]);
-
-  // Cleanup session timer RAF on unmount
+  // Ref to latest scheduleItem for use in advance() closure
+  const startItemTimerRef = useRef((durationMs: number) => {
+    engine.scheduleItem(durationMs, () => {});
+  });
   useEffect(() => {
-    return () => {
-      if (sessionTimerRafRef.current) cancelAnimationFrame(sessionTimerRafRef.current);
+    startItemTimerRef.current = (durationMs: number) => {
+      engine.scheduleItem(durationMs, () => {});
     };
-  }, []);
+  }, [engine]);
+
+  // Backward-compat wrappers
+  const onSessionItemProcessed = useCallback((count = 1) => {
+    engine.recordProcessed(count);
+  }, [engine]);
+
+  const recalcSessionRemaining = useCallback(() => {
+    engine.setSpeed(engine.perItemMsRef.current);
+  }, [engine]);
 
   const suppressScrollRef = useRef(false);
 
