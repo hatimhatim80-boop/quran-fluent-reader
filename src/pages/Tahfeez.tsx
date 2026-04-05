@@ -481,18 +481,6 @@ export default function TahfeezPage() {
     const isTahfeezAuto = session.type === 'tahfeez-auto';
     const kind = isTahfeezAuto ? 'tahfeez-auto' as const : 'tahfeez-test' as const;
     
-    // Save current page state into pageStates before building
-    const currentPageState: PageState = {
-      revealedKeys: Array.from(revealedKeys),
-      blankedKeysList: blankedKeysListRef.current,
-      showAll,
-      currentRevealIdx: currentRevealIdxRef.current,
-      activeBlankKey,
-      scrollTop: window.scrollY,
-      savedAt: Date.now(),
-    };
-    const allPageStates = { ...pageStatesRef.current, [currentPage]: currentPageState };
-    
     // Determine session phase: only 'completed' if ALL items processed
     const totalItems = engine.getTotalItems();
     const processedItems = engine.getProcessedItems();
