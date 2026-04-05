@@ -506,6 +506,9 @@ export default function TahfeezPage() {
       blankedKeysList: blankedKeysListRef.current,
       showAll,
       currentRevealIdx: currentRevealIdxRef.current,
+      activeBlankKey,
+      scrollTop: window.scrollY,
+      savedAt: Date.now(),
     };
     const allPageStates = { ...pageStatesRef.current, [currentPage]: currentPageState };
     
