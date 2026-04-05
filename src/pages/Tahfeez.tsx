@@ -1215,6 +1215,8 @@ export default function TahfeezPage() {
       sessionTimerPausedRef.current = false;
       pageStatesRef.current = {}; // Clear per-page states for fresh session
       setSessionRemainingMs(total * timerSeconds * 1000);
+      // Start the continuous RAF-driven session timer
+      startSessionTimer();
     } catch (err) {
       console.error('[tahfeez] Error in handleStart:', err);
       toast.error('حدث خطأ أثناء بدء الاختبار');
