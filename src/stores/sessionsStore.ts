@@ -86,7 +86,7 @@ interface SessionsState {
   groups: SessionGroup[];
   activeSessionId: string | null;
 
-  createSession: (name: string, type: 'ghareeb' | 'tahfeez', startPage?: number, endPage?: number, groupId?: string) => string;
+  createSession: (name: string, type: SessionType, startPage?: number, endPage?: number, groupId?: string) => string;
   updateSession: (id: string, patch: Partial<Pick<Session, 'name' | 'currentPage' | 'startPage' | 'endPage' | 'tahfeezItems' | 'quizSettings' | 'sections' | 'groupId'>>) => void;
   archiveSession: (id: string) => void;
   unarchiveSession: (id: string) => void;
