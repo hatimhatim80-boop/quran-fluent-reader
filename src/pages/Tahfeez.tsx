@@ -38,6 +38,15 @@ const SURAHS = Object.entries(SURAH_NAMES).map(([name, number]) => ({
   startPage: SURAH_INFO[number]?.[0] || 1,
 })).sort((a, b) => a.number - b.number);
 
+function formatSessionTime(ms: number): string {
+  const totalSec = Math.floor(ms / 1000);
+  const h = Math.floor(totalSec / 3600);
+  const m = Math.floor((totalSec % 3600) / 60);
+  const s = totalSec % 60;
+  if (h > 0) return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+  return `${m}:${String(s).padStart(2, '0')}`;
+}
+
 const JUZ_DATA = [
   { number: 1, name: 'الم', page: 1 }, { number: 2, name: 'سيقول', page: 22 },
   { number: 3, name: 'تلك الرسل', page: 42 }, { number: 4, name: 'لن تنالوا', page: 62 },
