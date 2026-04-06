@@ -244,14 +244,14 @@ export function useAutoQuizEngine() {
     itemExpectedEndRef.current = performance.now() + durationMs;
     setCurrentItemRemainingValue(durationMs);
 
-    const callback = currentItemExpireCallbackRef.current;
-    revealTimeoutRef.current = callback
+    // Capture callback in closure so navigateToQuizPage clearing the ref won't break it
+    const capturedCallback = onExpire || currentItemExpireCallbackRef.current;
+    revealTimeoutRef.current = capturedCallback
       ? setTimeout(() => {
           revealTimeoutRef.current = null;
           itemExpectedEndRef.current = null;
-          const expire = currentItemExpireCallbackRef.current;
           currentItemExpireCallbackRef.current = null;
-          expire?.();
+          capturedCallback();
         }, durationMs)
       : null;
   }, [setCurrentItemRemainingValue]);
