@@ -1359,16 +1359,34 @@ export default function TahfeezPage() {
           }
         };
 
+        // ── Compute effective duration for this item (proportional-aware) ──
+        const computeItemDuration = (): number => {
+          const baseWordMs = timerSecondsRef.current * 1000;
+          const proportional = groupDurationProportionalRef.current;
+          if (proportional) {
+            const granularity = revealGranularityRef.current;
+            const groups: string[][] = granularity === 'ayah' ? ayahKeyGroupsRef.current : granularity === 'waqf-segment' ? waqfKeyGroupsRef.current : [];
+            if (groups.length > 0) {
+              const group = groups.find(g => g.includes(key));
+              if (group) {
+                // Duration = number of words in this blank group × per-word duration
+                return group.length * baseWordMs;
+              }
+            }
+          }
+          return baseWordMs;
+        };
+
         const startVoiceOrTimer = () => {
           setActiveBlankKey(key);
+          const itemDurationMs = computeItemDuration();
           if (useVoice && wordText && speechRef.current.isSupported) {
             // Voice mode: start listening and match against expected word
             const sp = speechRef.current;
             sp.start('ar-SA').then(ok => {
               if (!ok) {
                 // Fallback to timer if speech fails — use engine timer as sole source
-                const durationMs = timerSecondsRef.current * 1000;
-                startItemTimerRef.current(durationMs, () => revealAndAdvance());
+                startItemTimerRef.current(itemDurationMs, () => revealAndAdvance());
                 return;
               }
               // Poll transcript for a match (every 300ms, NO timeout — wait for voice only)
@@ -1396,8 +1414,7 @@ export default function TahfeezPage() {
             });
           } else {
             // Timer mode (no voice) — engine scheduleItem is the SOLE timer
-            const durationMs = timerSecondsRef.current * 1000;
-            startItemTimerRef.current(durationMs, () => revealAndAdvance());
+            startItemTimerRef.current(itemDurationMs, () => revealAndAdvance());
           }
         };
 
