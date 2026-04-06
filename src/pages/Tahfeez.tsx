@@ -791,7 +791,8 @@ export default function TahfeezPage() {
 
     quizPageIdxRef.current = nextIdx;
     setQuizPageIdx(nextIdx);
-    autoResumeQuizRef.current = true;
+    hasRestoredCurrentPageRef.current = false;
+    pendingFreshPageRef.current = { page: range[nextIdx], reason: 'page-change', shouldAutoStart: true };
     goToPage(range[nextIdx]);
     return true;
   }, [goToPage, resolveQuizPagesRange]);
@@ -1157,7 +1158,8 @@ export default function TahfeezPage() {
               if (range.length > 1) {
                 if (!advanceToNextQuizPageRef.current()) completeQuizSessionRef.current();
               } else if (range.length <= 1) {
-                autoResumeQuizRef.current = true;
+                hasRestoredCurrentPageRef.current = false;
+                pendingFreshPageRef.current = { page: currentPageRef.current + 1, reason: 'page-change', shouldAutoStart: true };
                 nextPage();
               }
             } catch (err) {
@@ -1486,7 +1488,8 @@ export default function TahfeezPage() {
             if (range.length > 1) {
               if (!advanceToNextQuizPage()) completeQuizSession();
             } else if (range.length <= 1) {
-              autoResumeQuizRef.current = true;
+              hasRestoredCurrentPageRef.current = false;
+              pendingFreshPageRef.current = { page: currentPageRef.current + 1, reason: 'page-change', shouldAutoStart: true };
               nextPage();
             }
           } catch (err) {
