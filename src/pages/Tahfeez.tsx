@@ -104,6 +104,7 @@ export default function TahfeezPage() {
     mcqPanelPosition, setMcqPanelPosition,
     dotScale, setDotScale,
     revealGranularity, setRevealGranularity,
+    groupDurationProportional, setGroupDurationProportional,
     segmentMcqInline, setSegmentMcqInline,
     segmentMcqChoicesAtBlank, setSegmentMcqChoicesAtBlank,
     segmentMcqCorrectDelay, setSegmentMcqCorrectDelay,
