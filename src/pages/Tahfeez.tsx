@@ -495,6 +495,8 @@ export default function TahfeezPage() {
   const waqfKeyGroupsRef = useRef<string[][]>([]);
   const revealGranularityRef = useRef(revealGranularity);
   useEffect(() => { revealGranularityRef.current = revealGranularity; }, [revealGranularity]);
+  const groupDurationProportionalRef = useRef(groupDurationProportional);
+  useEffect(() => { groupDurationProportionalRef.current = groupDurationProportional; }, [groupDurationProportional]);
 
   // Compute pages range for multi-page quiz
   const quizPagesRange = useMemo(() => {
