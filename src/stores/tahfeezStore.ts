@@ -193,6 +193,10 @@ interface TahfeezState {
   revealGranularity: 'word' | 'ayah' | 'waqf-segment';
   setRevealGranularity: (g: TahfeezState['revealGranularity']) => void;
 
+  // Group duration proportional: duration = groupSize × wordDuration
+  groupDurationProportional: boolean;
+  setGroupDurationProportional: (on: boolean) => void;
+
   // Segment MCQ inline mode: show choices on the Quran page
   segmentMcqInline: boolean;
   setSegmentMcqInline: (on: boolean) => void;
