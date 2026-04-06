@@ -95,6 +95,11 @@ export interface TahfeezSessionSettings {
   quizScopeFrom: number;
   quizScopeTo: number;
   quizSource: string;
+  /* Font settings snapshot */
+  fontFamily?: string;
+  quranFontSize?: number;
+  lineHeight?: number;
+  fontWeight?: number;
 }
 
 /* ─── Typed Resume States ─── */

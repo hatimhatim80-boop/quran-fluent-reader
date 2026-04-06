@@ -299,6 +299,15 @@ export default function TahfeezPage() {
         store.setQuizScopeFrom(ts.quizScopeFrom);
         store.setQuizScopeTo(ts.quizScopeTo);
         store.setQuizSource(ts.quizSource as any);
+        // Restore font settings
+        if (ts.fontFamily || ts.quranFontSize || ts.lineHeight || ts.fontWeight) {
+          const fontPatch: Record<string, any> = {};
+          if (ts.fontFamily) fontPatch.fontFamily = ts.fontFamily;
+          if (ts.quranFontSize) fontPatch.quranFontSize = ts.quranFontSize;
+          if (ts.lineHeight) fontPatch.lineHeight = ts.lineHeight;
+          if (ts.fontWeight) fontPatch.fontWeight = ts.fontWeight;
+          useSettingsStore.getState().setFonts(fontPatch);
+        }
       } else {
         // Legacy fallback: restore individual settings
         if (autoRs.quizInteraction) setQuizInteraction(autoRs.quizInteraction as any);
@@ -756,6 +765,10 @@ export default function TahfeezPage() {
         quizScopeFrom,
         quizScopeTo,
         quizSource,
+        fontFamily: useSettingsStore.getState().settings.fonts.fontFamily,
+        quranFontSize: useSettingsStore.getState().settings.fonts.quranFontSize,
+        lineHeight: useSettingsStore.getState().settings.fonts.lineHeight,
+        fontWeight: useSettingsStore.getState().settings.fonts.fontWeight,
       } as TahfeezSessionSettings,
     } as any;
   }, [currentPage, isPaused, showAll, quizStarted, hideBars, revealedKeys, activeBlankKey, quizPageIdx, timerSeconds, firstWordTimerSeconds, quizInteraction, quizScope, quizScopeFrom, quizScopeTo, quizSource, activeSessionId, sessionIdParam, getSession, getProcessedItems, getTotalItems, remainingMs, snapshotEngine]);
