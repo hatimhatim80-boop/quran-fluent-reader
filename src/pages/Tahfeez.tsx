@@ -756,6 +756,10 @@ export default function TahfeezPage() {
         quizScopeFrom,
         quizScopeTo,
         quizSource,
+        fontFamily: useSettingsStore.getState().settings.fonts.fontFamily,
+        quranFontSize: useSettingsStore.getState().settings.fonts.quranFontSize,
+        lineHeight: useSettingsStore.getState().settings.fonts.lineHeight,
+        fontWeight: useSettingsStore.getState().settings.fonts.fontWeight,
       } as TahfeezSessionSettings,
     } as any;
   }, [currentPage, isPaused, showAll, quizStarted, hideBars, revealedKeys, activeBlankKey, quizPageIdx, timerSeconds, firstWordTimerSeconds, quizInteraction, quizScope, quizScopeFrom, quizScopeTo, quizSource, activeSessionId, sessionIdParam, getSession, getProcessedItems, getTotalItems, remainingMs, snapshotEngine]);
