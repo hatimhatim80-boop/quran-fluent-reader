@@ -393,6 +393,9 @@ export const useTahfeezStore = create<TahfeezState>()(
       revealGranularity: 'word',
       setRevealGranularity: (g) => set({ revealGranularity: g }),
 
+      groupDurationProportional: false,
+      setGroupDurationProportional: (on) => set({ groupDurationProportional: on }),
+
       segmentMcqInline: false,
       setSegmentMcqInline: (on) => set({ segmentMcqInline: on }),
 
