@@ -885,6 +885,7 @@ export default function TahfeezPage() {
         if (keys.length > 0) {
           hasReceivedKeys = true;
           renderedQuizPageRef.current = effectPage;
+          currentPageRef.current = effectPage;
 
           const keysChanged = keysSig !== lastKeysSig;
           const fKeysChanged = firstKeysSig !== lastFirstKeysSig;
@@ -910,9 +911,9 @@ export default function TahfeezPage() {
               fSet.has(k) ? fwMs + defaultMs : defaultMs
             );
             // Check if this page already has consumed items (restored page)
-            const existingSched = enginePageSchedulesRef.current[currentPageRef.current];
+            const existingSched = enginePageSchedulesRef.current[effectPage];
             const consumed = existingSched ? existingSched.consumed : 0;
-            registerPageDurations(currentPageRef.current, durations, consumed);
+            registerPageDurations(effectPage, durations, consumed);
           }
 
           if (wordTextsSig !== lastWordTextsSig) {
@@ -956,16 +957,16 @@ export default function TahfeezPage() {
             isFirstStartRef.current = false;
             
             // Check if we have saved state for this page (don't reset if so)
-            const savedPS = pageStatesRef.current[currentPageRef.current];
+            const savedPS = pageStatesRef.current[effectPage];
             const canUseSavedPageState = !isFirst && isPageStateCompatibleWithRenderedKeys(savedPS, keys);
 
             if (savedPS && !isFirst && !canUseSavedPageState) {
-              console.warn('[tahfeez] Ignoring stale saved page state for page', currentPageRef.current);
+              console.warn('[tahfeez] Ignoring stale saved page state for page', effectPage);
             }
 
             if (savedPS && canUseSavedPageState) {
               // Restore from saved page state — don't reset revealed keys
-              console.log('[tahfeez] Restoring saved page state for page', currentPageRef.current);
+              console.log('[tahfeez] Restoring saved page state for page', effectPage);
               setRevealedKeys(new Set(savedPS.revealedKeys));
               setBlankedKeysList(savedPS.blankedKeysList);
               blankedKeysListRef.current = savedPS.blankedKeysList;
