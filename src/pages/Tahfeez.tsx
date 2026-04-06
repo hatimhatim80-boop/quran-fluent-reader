@@ -173,8 +173,10 @@ export default function TahfeezPage() {
   const startItemTimerRef = useRef((durationMs: number, onExpire: () => void) => {
     scheduleItem(durationMs, onExpire);
   });
+  const currentItemExpireHandlerRef = useRef<(() => void) | null>(null);
   useEffect(() => {
     startItemTimerRef.current = (durationMs: number, onExpire: () => void) => {
+      currentItemExpireHandlerRef.current = onExpire;
       scheduleItem(durationMs, onExpire);
     };
   }, [scheduleItem]);
@@ -1524,6 +1526,7 @@ export default function TahfeezPage() {
       // Rebuild all page durations with new speed
       setEngineSpeed(newDefaultMs, {
         activeItemPolicy: 'scale-remaining',
+        onCurrentItemExpire: currentItemExpireHandlerRef.current ?? undefined,
         getDuration: (page, itemIdx) => {
           // Check if this item is a first key on its page
           const ps = pageStatesRef.current[page];
