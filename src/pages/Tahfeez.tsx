@@ -291,6 +291,7 @@ export default function TahfeezPage() {
             // Engine already restored as paused
           } else {
             setIsPaused(false);
+            pendingAutoStartPageRef.current = rs.currentPage;
             autoResumeQuizRef.current = true;
             // Start the engine's RAF timer for running sessions
             startRaf();
@@ -759,16 +760,20 @@ export default function TahfeezPage() {
   // Reset quiz state when page changes during an active quiz AND auto-restart
   const prevPageRef = useRef(currentPage);
   const autoResumeQuizRef = useRef(false);
+  const pendingAutoStartPageRef = useRef<number | null>(null);
   const autoStartHandledPageRef = useRef<number | null>(null);
   useEffect(() => {
     if (!quizStarted) {
       prevPageRef.current = currentPage;
+      pendingAutoStartPageRef.current = null;
       autoStartHandledPageRef.current = null;
     }
   }, [currentPage, quizStarted]);
 
   const completeQuizSession = useCallback(() => {
     completeEngine();
+    pendingAutoStartPageRef.current = null;
+    autoResumeQuizRef.current = false;
     setShowAll(true);
     setActiveBlankKey(null);
     speechRef.current.stop();
@@ -786,10 +791,12 @@ export default function TahfeezPage() {
 
     if (nextIdx >= range.length) return false;
 
+    const targetPage = range[nextIdx];
     quizPageIdxRef.current = nextIdx;
     setQuizPageIdx(nextIdx);
+    pendingAutoStartPageRef.current = targetPage;
     autoResumeQuizRef.current = true;
-    goToPage(range[nextIdx]);
+    goToPage(targetPage);
     return true;
   }, [goToPage, resolveQuizPagesRange]);
 
@@ -825,8 +832,10 @@ export default function TahfeezPage() {
         setIsPaused(false);
         // If page was completed, don't auto-advance; otherwise resume from saved idx
         if (savedPageState.showAll) {
+          pendingAutoStartPageRef.current = null;
           autoResumeQuizRef.current = false;
         } else {
+          pendingAutoStartPageRef.current = currentPage;
           autoResumeQuizRef.current = true;
         }
       } else {
@@ -840,6 +849,7 @@ export default function TahfeezPage() {
         setFirstKeysSet(new Set());
         setIsPaused(false);
         // Flag to auto-start when blanked keys are loaded from DOM
+        pendingAutoStartPageRef.current = currentPage;
         autoResumeQuizRef.current = true;
       }
     }
@@ -953,15 +963,22 @@ export default function TahfeezPage() {
             });
           }
 
-          // Auto-resume after page transition OR first start
-          if (autoResumeQuizRef.current || isFirstStartRef.current) {
+          // Auto-resume only for the intended target page OR on the first start
+          const shouldAutoResumePage = pendingAutoStartPageRef.current === effectPage;
+          if (shouldAutoResumePage || isFirstStartRef.current) {
             if (autoStartHandledPageRef.current === effectPage) {
+              if (pendingAutoStartPageRef.current === effectPage) {
+                pendingAutoStartPageRef.current = null;
+              }
               autoResumeQuizRef.current = false;
               isFirstStartRef.current = false;
               return true;
             }
 
             autoStartHandledPageRef.current = effectPage;
+            if (pendingAutoStartPageRef.current === effectPage) {
+              pendingAutoStartPageRef.current = null;
+            }
             autoResumeQuizRef.current = false;
             const isFirst = isFirstStartRef.current;
             isFirstStartRef.current = false;
@@ -1036,7 +1053,11 @@ export default function TahfeezPage() {
     fallbackTimer = setTimeout(() => {
       if (hasReceivedKeys) return;
       observer.disconnect();
-      if (autoResumeQuizRef.current || isFirstStartRef.current) {
+      const shouldSkipCurrentPage = pendingAutoStartPageRef.current === currentPageRef.current || isFirstStartRef.current;
+      if (shouldSkipCurrentPage) {
+        if (pendingAutoStartPageRef.current === currentPageRef.current) {
+          pendingAutoStartPageRef.current = null;
+        }
         autoResumeQuizRef.current = false;
         isFirstStartRef.current = false;
         const autoplaySettings = useSettingsStore.getState().settings.autoplay;
@@ -1128,6 +1149,7 @@ export default function TahfeezPage() {
               if (range.length > 1) {
                 if (!advanceToNextQuizPageRef.current()) completeQuizSessionRef.current();
               } else if (range.length <= 1) {
+                pendingAutoStartPageRef.current = curPage + 1;
                 autoResumeQuizRef.current = true;
                 nextPage();
               }
@@ -1279,6 +1301,7 @@ export default function TahfeezPage() {
 
       isFirstStartRef.current = true;
       autoStartHandledPageRef.current = null;
+      pendingAutoStartPageRef.current = null;
       autoResumeQuizRef.current = false;
       rotateDistributionSeed();
       setQuizStarted(true);
@@ -1375,6 +1398,7 @@ export default function TahfeezPage() {
     // Restart from fresh on this page
     isFirstStartRef.current = true;
     autoStartHandledPageRef.current = null;
+    pendingAutoStartPageRef.current = null;
     autoResumeQuizRef.current = false;
 
     // If session was paused, keep paused; otherwise re-trigger advance
@@ -1411,6 +1435,7 @@ export default function TahfeezPage() {
     if (pagesRange.length > 0) goToPage(pagesRange[0]);
     isFirstStartRef.current = true;
     autoStartHandledPageRef.current = null;
+    pendingAutoStartPageRef.current = null;
     autoResumeQuizRef.current = false;
 
     // Trigger advance chain
@@ -1437,6 +1462,7 @@ export default function TahfeezPage() {
             if (range.length > 1) {
               if (!advanceToNextQuizPage()) completeQuizSession();
             } else if (range.length <= 1) {
+              pendingAutoStartPageRef.current = currentPageRef.current + 1;
               autoResumeQuizRef.current = true;
               nextPage();
             }
@@ -2454,6 +2480,7 @@ export default function TahfeezPage() {
                   if (revealTimerRef.current) clearTimeout(revealTimerRef.current);
                   const nextIdx = quizPagesRange.indexOf(currentPage) + 1;
                   if (nextIdx < quizPagesRange.length) {
+                    pendingAutoStartPageRef.current = quizPagesRange[nextIdx];
                     autoResumeQuizRef.current = true;
                     goToPage(quizPagesRange[nextIdx]);
                     setQuizPageIdx(nextIdx);
