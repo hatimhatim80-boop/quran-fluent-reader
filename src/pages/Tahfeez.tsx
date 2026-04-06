@@ -1038,18 +1038,18 @@ export default function TahfeezPage() {
             const groups: string[][] = granularity === 'ayah' ? ayahGrps : granularity === 'waqf-segment' ? waqfGrps : [];
             
             const durations = (keys as string[]).map((k: string, i: number) => {
-              const baseDur = fSet.has(k) ? fwMs + defaultMs : defaultMs;
+              const isFirst = fSet.has(k);
               if (proportional && groups.length > 0) {
                 const group = groups.find(g => g.includes(k));
                 if (group && group[0] === k) {
-                  // First key in group: duration = groupSize × baseDuration
-                  return group.length * baseDur;
+                  // First key in group: duration = firstWordDelay + groupSize × wordDuration
+                  return (isFirst ? fwMs : 0) + group.length * defaultMs;
                 } else if (group) {
-                  // Non-first key in group: will be consumed instantly with the first
+                  // Non-first key in group: consumed instantly with the first
                   return 0;
                 }
               }
-              return baseDur;
+              return isFirst ? fwMs + defaultMs : defaultMs;
             });
             // Check if this page already has consumed items (restored page)
             const existingSched = enginePageSchedulesRef.current[effectPage];
