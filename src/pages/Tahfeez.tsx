@@ -2524,7 +2524,8 @@ export default function TahfeezPage() {
                   if (revealTimerRef.current) clearTimeout(revealTimerRef.current);
                   const nextIdx = quizPagesRange.indexOf(currentPage) + 1;
                   if (nextIdx < quizPagesRange.length) {
-                    autoResumeQuizRef.current = true;
+                    hasRestoredCurrentPageRef.current = false;
+                    pendingFreshPageRef.current = { page: quizPagesRange[nextIdx], reason: 'page-change', shouldAutoStart: true };
                     goToPage(quizPagesRange[nextIdx]);
                     setQuizPageIdx(nextIdx);
                   }
