@@ -130,6 +130,13 @@ export default function TahfeezPage() {
 
   const resolvedSessionId = sessionIdParam || activeSessionId || null;
   const { pages, currentPage, getCurrentPageData, goToPage, totalPages, nextPage, prevPage } = useQuranData({ sessionId: resolvedSessionId });
+  useSettingsApplier(); // Apply font/display settings globally
+  const displayMode = useSettingsStore((s) => s.settings.display?.mode || 'auto15');
+  const autoplaySpeed = useSettingsStore((s) => s.settings.autoplay.speed);
+  const setAutoplay = useSettingsStore((s) => s.setAutoplay);
+  const keepScreenAwake = useSettingsStore((s) => s.settings.autoplay.keepScreenAwake ?? false);
+  const pageData = getCurrentPageData();
+
   const updateSession = useSessionsStore((s) => s.updateSession);
   const getSession = useSessionsStore((s) => s.getSession);
   const saveResumeState = useSessionsStore((s) => s.saveResumeState);
