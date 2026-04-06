@@ -253,14 +253,60 @@ export default function TahfeezPage() {
         realElapsedMs: (autoRs as any).realElapsedMs ?? 0,
       });
       
-      // Restore settings
-      if (autoRs.quizInteraction) setQuizInteraction(autoRs.quizInteraction as any);
-      if (autoRs.quizScope) setQuizScope(autoRs.quizScope as any);
-      if (autoRs.quizScopeFrom) setQuizScopeFrom(autoRs.quizScopeFrom);
-      if (autoRs.quizScopeTo) setQuizScopeTo(autoRs.quizScopeTo);
-      if (autoRs.quizSource) setQuizSource(autoRs.quizSource as any);
-      if (autoRs.timerSeconds) setTimerSeconds(autoRs.timerSeconds);
-      if (autoRs.firstWordTimerSeconds) setFirstWordTimerSeconds(autoRs.firstWordTimerSeconds);
+      // Restore settings — prefer full tahfeezSettings snapshot if available
+      const ts = autoRs.tahfeezSettings;
+      if (ts) {
+        const store = useTahfeezStore.getState();
+        store.setAutoBlankMode(ts.autoBlankMode as any);
+        store.setWaqfCombinedModes(ts.waqfCombinedModes as any);
+        store.setBlankCount(ts.blankCount);
+        store.setAyahCount(ts.ayahCount);
+        store.setTimerSeconds(ts.timerSeconds);
+        store.setFirstWordTimerSeconds(ts.firstWordTimerSeconds);
+        store.setRevealMode(ts.revealMode as any);
+        store.setVoiceMode(ts.voiceMode);
+        store.setMatchLevel(ts.matchLevel as any);
+        store.setRevealedColor(ts.revealedColor as any);
+        store.setRevealedWithBg(ts.revealedWithBg);
+        store.setActiveWordColor(ts.activeWordColor as any);
+        store.setSingleWordMode(ts.singleWordMode);
+        store.setQuizInteraction(ts.quizInteraction as any);
+        store.setMcqDisplayMode(ts.mcqDisplayMode as any);
+        store.setMcqPanelPosition(ts.mcqPanelPosition as any);
+        store.setDotScale(ts.dotScale);
+        store.setRevealGranularity(ts.revealGranularity as any);
+        store.setGroupDurationProportional(ts.groupDurationProportional);
+        store.setSegmentMcqInline(ts.segmentMcqInline);
+        store.setSegmentMcqChoicesAtBlank(ts.segmentMcqChoicesAtBlank);
+        store.setSegmentMcqCorrectDelay(ts.segmentMcqCorrectDelay);
+        store.setSegmentMcqWrongDelay(ts.segmentMcqWrongDelay);
+        store.setSegmentMcqRandomOrder(ts.segmentMcqRandomOrder);
+        store.setSegmentMcqMultiPage(ts.segmentMcqMultiPage);
+        store.setSegmentMcqBlankDuration(ts.segmentMcqBlankDuration);
+        store.setWaqfDisplayMode(ts.waqfDisplayMode as any);
+        store.setReviewMode(ts.reviewMode as any);
+        store.setHiddenAyatCount(ts.hiddenAyatCount);
+        store.setHiddenWordsCount(ts.hiddenWordsCount);
+        store.setHiddenWordsMode(ts.hiddenWordsMode as any);
+        store.setHiddenWordsPercentage(ts.hiddenWordsPercentage);
+        store.setPercentageScope(ts.percentageScope as any);
+        store.setWordSequenceMode(ts.wordSequenceMode as any);
+        store.setWordBlankPosition(ts.wordBlankPosition as any);
+        store.setDistributionMode(ts.distributionMode as any);
+        store.setQuizScope(ts.quizScope as any);
+        store.setQuizScopeFrom(ts.quizScopeFrom);
+        store.setQuizScopeTo(ts.quizScopeTo);
+        store.setQuizSource(ts.quizSource as any);
+      } else {
+        // Legacy fallback: restore individual settings
+        if (autoRs.quizInteraction) setQuizInteraction(autoRs.quizInteraction as any);
+        if (autoRs.quizScope) setQuizScope(autoRs.quizScope as any);
+        if (autoRs.quizScopeFrom) setQuizScopeFrom(autoRs.quizScopeFrom);
+        if (autoRs.quizScopeTo) setQuizScopeTo(autoRs.quizScopeTo);
+        if (autoRs.quizSource) setQuizSource(autoRs.quizSource as any);
+        if (autoRs.timerSeconds) setTimerSeconds(autoRs.timerSeconds);
+        if (autoRs.firstWordTimerSeconds) setFirstWordTimerSeconds(autoRs.firstWordTimerSeconds);
+      }
       
       // Suppress scrollToTop when page changes during hydration
       suppressScrollRef.current = true;
