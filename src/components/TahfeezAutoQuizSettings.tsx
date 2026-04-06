@@ -350,9 +350,7 @@ export function TahfeezAutoQuizSettings({ currentPage, quizPagesRange, onStart, 
                   </div>
                 </SettingRow>
 
-                {revealGranularity !== 'word' && (
-                  <SettingToggle label="مدة تناسبية" desc="المدة = عدد الكلمات × سرعة الكلمة" checked={groupDurationProportional} onChange={setGroupDurationProportional} />
-                )}
+                <SettingToggle label="مدة تناسبية" desc="المدة = عدد الكلمات × سرعة الكلمة" checked={groupDurationProportional} onChange={setGroupDurationProportional} />
 
                 <SettingToggle label="كلمة واحدة فقط" desc="تختفي بعد ظهورها" checked={singleWordMode} onChange={setSingleWordMode} />
                 
