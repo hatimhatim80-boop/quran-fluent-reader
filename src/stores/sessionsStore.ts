@@ -153,6 +153,8 @@ export interface TahfeezAutoResumeState extends BaseResumeState {
   sessionTotalItems: number;
   sessionProcessedItems: number;
   pageStates: Record<number, PageState>;
+  /** Full tahfeez settings snapshot for independent per-session settings */
+  tahfeezSettings?: TahfeezSessionSettings;
 }
 
 export interface TahfeezTestResumeState extends BaseResumeState {
