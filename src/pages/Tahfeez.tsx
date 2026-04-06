@@ -299,6 +299,15 @@ export default function TahfeezPage() {
         store.setQuizScopeFrom(ts.quizScopeFrom);
         store.setQuizScopeTo(ts.quizScopeTo);
         store.setQuizSource(ts.quizSource as any);
+        // Restore font settings
+        if (ts.fontFamily || ts.quranFontSize || ts.lineHeight || ts.fontWeight) {
+          const fontPatch: Record<string, any> = {};
+          if (ts.fontFamily) fontPatch.fontFamily = ts.fontFamily;
+          if (ts.quranFontSize) fontPatch.quranFontSize = ts.quranFontSize;
+          if (ts.lineHeight) fontPatch.lineHeight = ts.lineHeight;
+          if (ts.fontWeight) fontPatch.fontWeight = ts.fontWeight;
+          useSettingsStore.getState().setFonts(fontPatch);
+        }
       } else {
         // Legacy fallback: restore individual settings
         if (autoRs.quizInteraction) setQuizInteraction(autoRs.quizInteraction as any);
