@@ -122,7 +122,14 @@ export default function TahfeezPage() {
 
   const speech = useSpeech();
 
-  const { pages, currentPage, getCurrentPageData, goToPage, totalPages, nextPage, prevPage } = useQuranData();
+  // ── Session resume & hydration ──
+  const [searchParams, setSearchParams] = useSearchParams();
+  const sessionIdParam = searchParams.get('sessionId');
+  const isResumeParam = searchParams.get('resume') === '1';
+  const activeSessionId = useSessionsStore((s) => s.activeSessionId);
+
+  const resolvedSessionId = sessionIdParam || activeSessionId || null;
+  const { pages, currentPage, getCurrentPageData, goToPage, totalPages, nextPage, prevPage } = useQuranData({ sessionId: resolvedSessionId });
   useSettingsApplier(); // Apply font/display settings globally
   const displayMode = useSettingsStore((s) => s.settings.display?.mode || 'auto15');
   const autoplaySpeed = useSettingsStore((s) => s.settings.autoplay.speed);
@@ -130,11 +137,6 @@ export default function TahfeezPage() {
   const keepScreenAwake = useSettingsStore((s) => s.settings.autoplay.keepScreenAwake ?? false);
   const pageData = getCurrentPageData();
 
-  // ── Session resume & hydration ──
-  const [searchParams, setSearchParams] = useSearchParams();
-  const sessionIdParam = searchParams.get('sessionId');
-  const isResumeParam = searchParams.get('resume') === '1';
-  const activeSessionId = useSessionsStore((s) => s.activeSessionId);
   const updateSession = useSessionsStore((s) => s.updateSession);
   const getSession = useSessionsStore((s) => s.getSession);
   const saveResumeState = useSessionsStore((s) => s.saveResumeState);
