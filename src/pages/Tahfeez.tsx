@@ -346,6 +346,7 @@ export default function TahfeezPage() {
   const currentRevealIdxRef = useRef(-1);
   const revealTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const autoAdvanceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const advanceFrameRef = useRef<number | null>(null);
   const stalledAutoRecoverySigRef = useRef<string | null>(null);
   const [advanceGeneration, setAdvanceGeneration] = useState(0);
   const [showIndex, setShowIndex] = useState(false);
@@ -424,6 +425,13 @@ export default function TahfeezPage() {
     setAdvanceGeneration(g => g + 1);
   }, []);
 
+  const clearAdvanceFrame = useCallback(() => {
+    if (advanceFrameRef.current !== null) {
+      cancelAnimationFrame(advanceFrameRef.current);
+      advanceFrameRef.current = null;
+    }
+  }, []);
+
   // Guard against stale persisted tab values from older app versions
   useEffect(() => {
     const validTabs: Array<typeof activeTab> = ['store', 'custom-quiz', 'auto-quiz', 'srs-review'];
@@ -444,6 +452,12 @@ export default function TahfeezPage() {
   const [mcqShowResults, setMcqShowResults] = useState(false);
   const [mcqCurrentIdx, setMcqCurrentIdx] = useState(0);
   const [allPageWordTexts, setAllPageWordTexts] = useState<string[]>([]);
+  const quizStartedRef = useRef(quizStarted);
+  useEffect(() => { quizStartedRef.current = quizStarted; }, [quizStarted]);
+  const isPausedRef = useRef(isPaused);
+  useEffect(() => { isPausedRef.current = isPaused; }, [isPaused]);
+  const showAllRef = useRef(showAll);
+  useEffect(() => { showAllRef.current = showAll; }, [showAll]);
 
   // Refs to always read latest values inside setTimeout chains (avoids stale closures)
   const currentPageRef = useRef(currentPage);
@@ -774,13 +788,16 @@ export default function TahfeezPage() {
   }, [currentPage, quizStarted]);
 
   const completeQuizSession = useCallback(() => {
+    clearAdvanceFrame();
+    if (revealTimerRef.current) clearTimeout(revealTimerRef.current);
+    if (autoAdvanceTimerRef.current) clearTimeout(autoAdvanceTimerRef.current);
     completeEngine();
     pendingAutoStartPageRef.current = null;
     autoResumeQuizRef.current = false;
     setShowAll(true);
     setActiveBlankKey(null);
     speechRef.current.stop();
-  }, [completeEngine]);
+  }, [clearAdvanceFrame, completeEngine]);
 
   const advanceToNextQuizPage = useCallback(() => {
     const range = resolveQuizPagesRange();
@@ -812,6 +829,7 @@ export default function TahfeezPage() {
       autoStartHandledPageRef.current = null;
       // Clear all timers first
       if (revealTimerRef.current) clearTimeout(revealTimerRef.current);
+      clearAdvanceFrame();
       
       // Save old page state through engine (preserves partial active-item timing)
       const savedPageState = navigateToQuizPage(oldPage, currentPage, {
@@ -856,7 +874,7 @@ export default function TahfeezPage() {
         autoResumeQuizRef.current = true;
       }
     }
-  }, [currentPage, quizStarted]);
+  }, [clearAdvanceFrame, currentPage, quizStarted]);
 
   // Read blanked keys from the quiz view after it renders.
   // Uses MutationObserver for instant detection instead of slow polling.
@@ -1117,6 +1135,11 @@ export default function TahfeezPage() {
     // Does NOT call setCurrentRevealIdx to avoid re-triggering this effect.
     const advance = (idx: number) => {
       try {
+        if (!quizStartedRef.current || isPausedRef.current || showAllRef.current) {
+          clearAdvanceFrame();
+          return;
+        }
+
         // Always read from refs — never from closure state
         const list = blankedKeysListRef.current;
         const total = list.length;
@@ -1176,6 +1199,11 @@ export default function TahfeezPage() {
         const wordText = wordTextsMapRef.current[key] || '';
 
         const revealAndAdvance = () => {
+          if (!quizStartedRef.current || isPausedRef.current || showAllRef.current) {
+            clearAdvanceFrame();
+            return;
+          }
+
           const granularity = revealGranularityRef.current;
           const groups = granularity === 'ayah' ? ayahKeyGroupsRef.current : granularity === 'waqf-segment' ? waqfKeyGroupsRef.current : null;
           
@@ -1199,7 +1227,12 @@ export default function TahfeezPage() {
             const lastIdx = list.indexOf(lastGroupKey);
             const nextIdx = lastIdx >= 0 ? lastIdx + 1 : idx + 1;
             // Use rAF instead of 150ms gap — engine stopwatch is the sole timekeeper
-            requestAnimationFrame(() => advance(nextIdx));
+            clearAdvanceFrame();
+            advanceFrameRef.current = requestAnimationFrame(() => {
+              advanceFrameRef.current = null;
+              if (!quizStartedRef.current || isPausedRef.current || showAllRef.current) return;
+              advance(nextIdx);
+            });
           } else {
             if (singleWordMode) {
               setRevealedKeys(new Set([key]));
@@ -1210,7 +1243,12 @@ export default function TahfeezPage() {
             // Decrement session remaining
             onSessionItemProcessedRef.current();
             // Use rAF instead of 150ms gap — engine stopwatch is the sole timekeeper
-            requestAnimationFrame(() => advance(idx + 1));
+            clearAdvanceFrame();
+            advanceFrameRef.current = requestAnimationFrame(() => {
+              advanceFrameRef.current = null;
+              if (!quizStartedRef.current || isPausedRef.current || showAllRef.current) return;
+              advance(idx + 1);
+            });
           }
         };
 
@@ -1283,10 +1321,11 @@ export default function TahfeezPage() {
     }
 
     return () => {
+      clearAdvanceFrame();
       if (revealTimerRef.current) clearTimeout(revealTimerRef.current);
     };
   // advanceGeneration triggers re-start of the chain. Refs used for callbacks.
-  }, [quizStarted, isPaused, showAll, advanceGeneration, quizInteraction]);
+  }, [advanceGeneration, clearAdvanceFrame, quizInteraction, quizStarted, isPaused, showAll]);
 
   useEffect(() => {
     if (!quizStarted || isPaused || showAll) {
@@ -1412,16 +1451,19 @@ export default function TahfeezPage() {
   const handlePauseResume = () => {
     if (isPaused) {
       setIsPaused(false);
-      resumeEngine(); // advance() chain handles actual item scheduling
-      // Resume from next unrevealed
-      const nextIdx = blankedKeysList.findIndex(k => !revealedKeys.has(k));
-      if (nextIdx >= 0) {
-        restartAutoRevealFrom(nextIdx, blankedKeysList[nextIdx] ?? null);
+      const remaining = resumeEngine();
+      if (remaining <= 0) {
+        const nextIdx = blankedKeysListRef.current.findIndex(k => !revealedKeys.has(k));
+        if (nextIdx >= 0) {
+          restartAutoRevealFrom(nextIdx, blankedKeysListRef.current[nextIdx] ?? null);
+        }
       }
     } else {
       setIsPaused(true);
+      clearAdvanceFrame();
       pauseEngine();
       if (revealTimerRef.current) clearTimeout(revealTimerRef.current);
+      if (autoAdvanceTimerRef.current) clearTimeout(autoAdvanceTimerRef.current);
       speech.stop();
     }
   };
