@@ -42,6 +42,7 @@ export interface EnginePageState {
   showAll: boolean;
   currentRevealIdx: number;
   activeBlankKey: string | null;
+  currentTimerStage?: string | null;
   scrollTop: number;
   savedAt: number;
   /** Remaining ms on the active item when this page was saved */
@@ -380,6 +381,19 @@ export function useAutoQuizEngine() {
     armItemTimer(durationMs, onExpire);
   }, [armItemTimer]);
 
+  /** Cancel the current scheduled item without altering session/page progress */
+  const cancelScheduledItem = useCallback((preserveRemaining = false): number => {
+    const remaining = preserveRemaining ? getCurrentItemRemainingMs() : 0;
+    if (revealTimeoutRef.current) {
+      clearTimeout(revealTimeoutRef.current);
+      revealTimeoutRef.current = null;
+    }
+    itemExpectedEndRef.current = null;
+    currentItemExpireCallbackRef.current = null;
+    setCurrentItemRemainingValue(remaining);
+    return remaining;
+  }, [getCurrentItemRemainingMs, setCurrentItemRemainingValue]);
+
   /**
    * Change speed: recalculate plannedTotalMs = realElapsed + unconsumedItems × newDuration
    * + currentItemRemaining (scaled or preserved).
@@ -554,6 +568,18 @@ export function useAutoQuizEngine() {
   /** Get saved state for a page */
   const getPageState = useCallback((page: number): EnginePageState | null => {
     return pageStatesRef.current[page] || null;
+  }, []);
+
+  /** Check whether a page already has stored progress/state in the engine */
+  const hasStoredPageData = useCallback((page: number): boolean => {
+    return !!pageStatesRef.current[page] || !!pageSchedulesRef.current[page];
+  }, []);
+
+  /** Read consumed count for a page from exact schedule or saved state */
+  const getPageConsumed = useCallback((page: number): number => {
+    return pageSchedulesRef.current[page]?.consumed
+      ?? pageStatesRef.current[page]?.pageConsumed
+      ?? 0;
   }, []);
 
   /** Navigate to a new page */
@@ -780,11 +806,14 @@ export function useAutoQuizEngine() {
     setSpeed,
     recordProcessed,
     scheduleItem,
+    cancelScheduledItem,
     pause,
     resume,
     complete,
     saveCurrentPageState,
     getPageState,
+    hasStoredPageData,
+    getPageConsumed,
     navigateToPage,
     resetPage,
     resetSession,
