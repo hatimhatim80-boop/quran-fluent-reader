@@ -346,6 +346,7 @@ export default function TahfeezPage() {
   const currentRevealIdxRef = useRef(-1);
   const revealTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const autoAdvanceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const stalledAutoRecoverySigRef = useRef<string | null>(null);
   const [advanceGeneration, setAdvanceGeneration] = useState(0);
   const [showIndex, setShowIndex] = useState(false);
   const [indexSearch, setIndexSearch] = useState('');
@@ -1286,6 +1287,49 @@ export default function TahfeezPage() {
     };
   // advanceGeneration triggers re-start of the chain. Refs used for callbacks.
   }, [quizStarted, isPaused, showAll, advanceGeneration, quizInteraction]);
+
+  useEffect(() => {
+    if (!quizStarted || isPaused || showAll) {
+      stalledAutoRecoverySigRef.current = null;
+      return;
+    }
+    if (quizInteraction === 'mcq' || quizInteraction === 'tap-only' || voiceModeRef.current) {
+      stalledAutoRecoverySigRef.current = null;
+      return;
+    }
+
+    const idx = currentRevealIdxRef.current;
+    const list = blankedKeysListRef.current;
+    const key = activeBlankKey ?? (idx >= 0 ? list[idx] ?? null : null);
+
+    if (idx < 0 || idx >= list.length || !key) {
+      stalledAutoRecoverySigRef.current = null;
+      return;
+    }
+
+    if (remainingMs > 150) {
+      stalledAutoRecoverySigRef.current = null;
+      return;
+    }
+
+    const sig = `${currentPage}:${idx}:${key}`;
+    if (stalledAutoRecoverySigRef.current === sig) return;
+
+    const recoveryTimer = window.setTimeout(() => {
+      if (!quizStarted || isPaused || showAll) return;
+      if (currentPageRef.current !== currentPage) return;
+      if (currentRevealIdxRef.current !== idx) return;
+      if (engine.currentItemRemainingMs > 150) return;
+
+      stalledAutoRecoverySigRef.current = sig;
+      console.warn('[tahfeez] Recovering stalled auto-reveal', { page: currentPage, idx, key });
+      restartAutoRevealFrom(idx, key);
+    }, 250);
+
+    return () => {
+      window.clearTimeout(recoveryTimer);
+    };
+  }, [quizStarted, isPaused, showAll, quizInteraction, currentPage, activeBlankKey, remainingMs, restartAutoRevealFrom, engine.currentItemRemainingMs]);
 
   const handleStart = () => {
     try {
