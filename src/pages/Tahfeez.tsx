@@ -104,6 +104,7 @@ export default function TahfeezPage() {
     mcqPanelPosition, setMcqPanelPosition,
     dotScale, setDotScale,
     revealGranularity, setRevealGranularity,
+    groupDurationProportional, setGroupDurationProportional,
     segmentMcqInline, setSegmentMcqInline,
     segmentMcqChoicesAtBlank, setSegmentMcqChoicesAtBlank,
     segmentMcqCorrectDelay, setSegmentMcqCorrectDelay,
@@ -494,6 +495,8 @@ export default function TahfeezPage() {
   const waqfKeyGroupsRef = useRef<string[][]>([]);
   const revealGranularityRef = useRef(revealGranularity);
   useEffect(() => { revealGranularityRef.current = revealGranularity; }, [revealGranularity]);
+  const groupDurationProportionalRef = useRef(groupDurationProportional);
+  useEffect(() => { groupDurationProportionalRef.current = groupDurationProportional; }, [groupDurationProportional]);
 
   // Compute pages range for multi-page quiz
   const quizPagesRange = useMemo(() => {
@@ -941,9 +944,24 @@ export default function TahfeezPage() {
             const fSet = new Set(fKeys);
             const defaultMs = timerSecondsRef.current * 1000;
             const fwMs = firstWordTimerSecondsRef.current * 1000;
-            const durations = (keys as string[]).map(k =>
-              fSet.has(k) ? fwMs + defaultMs : defaultMs
-            );
+            const granularity = revealGranularityRef.current;
+            const proportional = groupDurationProportionalRef.current;
+            const groups: string[][] = granularity === 'ayah' ? ayahGrps : granularity === 'waqf-segment' ? waqfGrps : [];
+            
+            const durations = (keys as string[]).map((k: string, i: number) => {
+              const baseDur = fSet.has(k) ? fwMs + defaultMs : defaultMs;
+              if (proportional && groups.length > 0) {
+                const group = groups.find(g => g.includes(k));
+                if (group && group[0] === k) {
+                  // First key in group: duration = groupSize × baseDuration
+                  return group.length * baseDur;
+                } else if (group) {
+                  // Non-first key in group: will be consumed instantly with the first
+                  return 0;
+                }
+              }
+              return baseDur;
+            });
             // Check if this page already has consumed items (restored page)
             const existingSched = enginePageSchedulesRef.current[effectPage];
             const consumed = existingSched ? existingSched.consumed : 0;
@@ -1614,19 +1632,24 @@ export default function TahfeezPage() {
         activeItemPolicy: 'scale-remaining',
         onCurrentItemExpire: currentItemExpireHandlerRef.current ?? undefined,
         getDuration: (page, itemIdx) => {
-          // Check if this item is a first key on its page
           const ps = pageStatesRef.current[page];
-          if (ps && ps.blankedKeysList && ps.blankedKeysList[itemIdx]) {
-            const key = ps.blankedKeysList[itemIdx];
-            if (firstKeysSetRef.current.has(key)) {
-              return newFwMs + newDefaultMs;
+          const key = ps?.blankedKeysList?.[itemIdx];
+          const baseDur = (key && firstKeysSetRef.current.has(key)) ? newFwMs + newDefaultMs : newDefaultMs;
+          
+          if (groupDurationProportional) {
+            const granularity = revealGranularityRef.current;
+            const groups: string[][] = granularity === 'ayah' ? ayahKeyGroupsRef.current : granularity === 'waqf-segment' ? waqfKeyGroupsRef.current : [];
+            if (groups.length > 0 && key) {
+              const group = groups.find(g => g.includes(key));
+              if (group && group[0] === key) return group.length * baseDur;
+              if (group) return 0;
             }
           }
-          return newDefaultMs;
+          return baseDur;
         },
       });
     }
-  }, [timerSeconds, firstWordTimerSeconds, quizStarted, showAll, pageStatesRef, setEngineSpeed]);
+  }, [timerSeconds, firstWordTimerSeconds, quizStarted, showAll, pageStatesRef, setEngineSpeed, groupDurationProportional]);
 
   const filteredSurahs = useMemo(() => {
     if (!indexSearch.trim()) return SURAHS;
@@ -2145,6 +2168,19 @@ export default function TahfeezPage() {
                     </Button>
                   </div>
                 </div>
+
+                {/* Group duration proportional - only when granularity is group-based */}
+                {revealGranularity !== 'word' && (
+                  <div className="flex items-center justify-between p-2 rounded-lg border">
+                    <div className="flex flex-col">
+                      <label className="text-xs font-arabic text-foreground">مدة تناسبية</label>
+                      <span className="text-[10px] text-muted-foreground font-arabic">
+                        المدة = عدد الكلمات × سرعة الكلمة
+                      </span>
+                    </div>
+                    <Switch checked={groupDurationProportional} onCheckedChange={setGroupDurationProportional} />
+                  </div>
+                )}
 
                 <div className="space-y-1">
                   <label className="text-xs font-arabic text-foreground">

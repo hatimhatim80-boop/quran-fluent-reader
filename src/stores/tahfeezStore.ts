@@ -193,6 +193,10 @@ interface TahfeezState {
   revealGranularity: 'word' | 'ayah' | 'waqf-segment';
   setRevealGranularity: (g: TahfeezState['revealGranularity']) => void;
 
+  // Group duration proportional: duration = groupSize × wordDuration
+  groupDurationProportional: boolean;
+  setGroupDurationProportional: (on: boolean) => void;
+
   // Segment MCQ inline mode: show choices on the Quran page
   segmentMcqInline: boolean;
   setSegmentMcqInline: (on: boolean) => void;
@@ -389,6 +393,9 @@ export const useTahfeezStore = create<TahfeezState>()(
       revealGranularity: 'word',
       setRevealGranularity: (g) => set({ revealGranularity: g }),
 
+      groupDurationProportional: false,
+      setGroupDurationProportional: (on) => set({ groupDurationProportional: on }),
+
       segmentMcqInline: false,
       setSegmentMcqInline: (on) => set({ segmentMcqInline: on }),
 
@@ -473,6 +480,7 @@ export const useTahfeezStore = create<TahfeezState>()(
         mcqPanelPosition: state.mcqPanelPosition,
         dotScale: state.dotScale,
         revealGranularity: state.revealGranularity,
+        groupDurationProportional: state.groupDurationProportional,
         segmentMcqInline: state.segmentMcqInline,
         segmentMcqChoicesAtBlank: state.segmentMcqChoicesAtBlank,
         segmentMcqCorrectDelay: state.segmentMcqCorrectDelay,

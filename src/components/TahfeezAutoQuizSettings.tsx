@@ -47,6 +47,7 @@ export function TahfeezAutoQuizSettings({ currentPage, quizPagesRange, onStart, 
     mcqPanelPosition, setMcqPanelPosition,
     dotScale, setDotScale,
     revealGranularity, setRevealGranularity,
+    groupDurationProportional, setGroupDurationProportional,
     segmentMcqInline, setSegmentMcqInline,
     segmentMcqChoicesAtBlank, setSegmentMcqChoicesAtBlank,
     segmentMcqCorrectDelay, setSegmentMcqCorrectDelay,
@@ -348,6 +349,10 @@ export function TahfeezAutoQuizSettings({ currentPage, quizPagesRange, onStart, 
                     <Button variant={revealGranularity === 'waqf-segment' ? 'default' : 'outline'} size="sm" onClick={() => setRevealGranularity('waqf-segment')} className="font-arabic text-[10px] h-6 px-2">مقطع وقفي</Button>
                   </div>
                 </SettingRow>
+
+                {revealGranularity !== 'word' && (
+                  <SettingToggle label="مدة تناسبية" desc="المدة = عدد الكلمات × سرعة الكلمة" checked={groupDurationProportional} onChange={setGroupDurationProportional} />
+                )}
 
                 <SettingToggle label="كلمة واحدة فقط" desc="تختفي بعد ظهورها" checked={singleWordMode} onChange={setSingleWordMode} />
                 
