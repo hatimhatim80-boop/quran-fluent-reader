@@ -1038,18 +1038,18 @@ export default function TahfeezPage() {
             const groups: string[][] = granularity === 'ayah' ? ayahGrps : granularity === 'waqf-segment' ? waqfGrps : [];
             
             const durations = (keys as string[]).map((k: string, i: number) => {
-              const baseDur = fSet.has(k) ? fwMs + defaultMs : defaultMs;
+              const isFirst = fSet.has(k);
               if (proportional && groups.length > 0) {
                 const group = groups.find(g => g.includes(k));
                 if (group && group[0] === k) {
-                  // First key in group: duration = groupSize × baseDuration
-                  return group.length * baseDur;
+                  // First key in group: duration = firstWordDelay + groupSize × wordDuration
+                  return (isFirst ? fwMs : 0) + group.length * defaultMs;
                 } else if (group) {
-                  // Non-first key in group: will be consumed instantly with the first
+                  // Non-first key in group: consumed instantly with the first
                   return 0;
                 }
               }
-              return baseDur;
+              return isFirst ? fwMs + defaultMs : defaultMs;
             });
             // Check if this page already has consumed items (restored page)
             const existingSched = enginePageSchedulesRef.current[effectPage];
@@ -1359,16 +1359,34 @@ export default function TahfeezPage() {
           }
         };
 
+        // ── Compute effective duration for this item (proportional-aware) ──
+        const computeItemDuration = (): number => {
+          const baseWordMs = timerSecondsRef.current * 1000;
+          const proportional = groupDurationProportionalRef.current;
+          if (proportional) {
+            const granularity = revealGranularityRef.current;
+            const groups: string[][] = granularity === 'ayah' ? ayahKeyGroupsRef.current : granularity === 'waqf-segment' ? waqfKeyGroupsRef.current : [];
+            if (groups.length > 0) {
+              const group = groups.find(g => g.includes(key));
+              if (group) {
+                // Duration = number of words in this blank group × per-word duration
+                return group.length * baseWordMs;
+              }
+            }
+          }
+          return baseWordMs;
+        };
+
         const startVoiceOrTimer = () => {
           setActiveBlankKey(key);
+          const itemDurationMs = computeItemDuration();
           if (useVoice && wordText && speechRef.current.isSupported) {
             // Voice mode: start listening and match against expected word
             const sp = speechRef.current;
             sp.start('ar-SA').then(ok => {
               if (!ok) {
                 // Fallback to timer if speech fails — use engine timer as sole source
-                const durationMs = timerSecondsRef.current * 1000;
-                startItemTimerRef.current(durationMs, () => revealAndAdvance());
+                startItemTimerRef.current(itemDurationMs, () => revealAndAdvance());
                 return;
               }
               // Poll transcript for a match (every 300ms, NO timeout — wait for voice only)
@@ -1396,8 +1414,7 @@ export default function TahfeezPage() {
             });
           } else {
             // Timer mode (no voice) — engine scheduleItem is the SOLE timer
-            const durationMs = timerSecondsRef.current * 1000;
-            startItemTimerRef.current(durationMs, () => revealAndAdvance());
+            startItemTimerRef.current(itemDurationMs, () => revealAndAdvance());
           }
         };
 
@@ -1723,18 +1740,18 @@ export default function TahfeezPage() {
         getDuration: (page, itemIdx) => {
           const ps = pageStatesRef.current[page];
           const key = ps?.blankedKeysList?.[itemIdx];
-          const baseDur = (key && firstKeysSetRef.current.has(key)) ? newFwMs + newDefaultMs : newDefaultMs;
+          const isFirst = key && firstKeysSetRef.current.has(key);
           
           if (groupDurationProportional) {
             const granularity = revealGranularityRef.current;
             const groups: string[][] = granularity === 'ayah' ? ayahKeyGroupsRef.current : granularity === 'waqf-segment' ? waqfKeyGroupsRef.current : [];
             if (groups.length > 0 && key) {
               const group = groups.find(g => g.includes(key));
-              if (group && group[0] === key) return group.length * baseDur;
+              if (group && group[0] === key) return (isFirst ? newFwMs : 0) + group.length * newDefaultMs;
               if (group) return 0;
             }
           }
-          return baseDur;
+          return isFirst ? newFwMs + newDefaultMs : newDefaultMs;
         },
       });
     }
