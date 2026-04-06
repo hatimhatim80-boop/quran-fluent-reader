@@ -53,6 +53,50 @@ export interface SessionSection {
   currentPage: number;
 }
 
+/* ─── Per-session tahfeez settings snapshot ─── */
+export interface TahfeezSessionSettings {
+  autoBlankMode: string;
+  waqfCombinedModes: string[];
+  blankCount: number;
+  ayahCount: number;
+  timerSeconds: number;
+  firstWordTimerSeconds: number;
+  revealMode: string;
+  voiceMode: boolean;
+  matchLevel: string;
+  revealedColor: string;
+  revealedWithBg: boolean;
+  activeWordColor: string;
+  singleWordMode: boolean;
+  quizInteraction: string;
+  mcqDisplayMode: string;
+  mcqPanelPosition: string;
+  dotScale: number;
+  revealGranularity: string;
+  groupDurationProportional: boolean;
+  segmentMcqInline: boolean;
+  segmentMcqChoicesAtBlank: boolean;
+  segmentMcqCorrectDelay: number;
+  segmentMcqWrongDelay: number;
+  segmentMcqRandomOrder: boolean;
+  segmentMcqMultiPage: boolean;
+  segmentMcqBlankDuration: number;
+  waqfDisplayMode: string;
+  reviewMode: string;
+  hiddenAyatCount: number;
+  hiddenWordsCount: number;
+  hiddenWordsMode: string;
+  hiddenWordsPercentage: number;
+  percentageScope: string;
+  wordSequenceMode: string;
+  wordBlankPosition: string;
+  distributionMode: string;
+  quizScope: string;
+  quizScopeFrom: number;
+  quizScopeTo: number;
+  quizSource: string;
+}
+
 /* ─── Typed Resume States ─── */
 
 export interface BaseResumeState {
@@ -109,6 +153,8 @@ export interface TahfeezAutoResumeState extends BaseResumeState {
   sessionTotalItems: number;
   sessionProcessedItems: number;
   pageStates: Record<number, PageState>;
+  /** Full tahfeez settings snapshot for independent per-session settings */
+  tahfeezSettings?: TahfeezSessionSettings;
 }
 
 export interface TahfeezTestResumeState extends BaseResumeState {
@@ -140,6 +186,8 @@ export interface TahfeezTestResumeState extends BaseResumeState {
   sessionTotalItems: number;
   sessionProcessedItems: number;
   pageStates: Record<number, PageState>;
+  /** Full tahfeez settings snapshot for independent per-session settings */
+  tahfeezSettings?: TahfeezSessionSettings;
 }
 
 export interface TahfeezReviewResumeState extends BaseResumeState {
