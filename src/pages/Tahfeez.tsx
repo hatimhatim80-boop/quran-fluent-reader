@@ -2169,6 +2169,19 @@ export default function TahfeezPage() {
                   </div>
                 </div>
 
+                {/* Group duration proportional - only when granularity is group-based */}
+                {revealGranularity !== 'word' && (
+                  <div className="flex items-center justify-between p-2 rounded-lg border">
+                    <div className="flex flex-col">
+                      <label className="text-xs font-arabic text-foreground">مدة تناسبية</label>
+                      <span className="text-[10px] text-muted-foreground font-arabic">
+                        المدة = عدد الكلمات × سرعة الكلمة
+                      </span>
+                    </div>
+                    <Switch checked={groupDurationProportional} onCheckedChange={setGroupDurationProportional} />
+                  </div>
+                )}
+
                 <div className="space-y-1">
                   <label className="text-xs font-arabic text-foreground">
                     حجم النقاط: <span className="text-primary font-bold">{Math.round(dotScale * 100)}%</span>
