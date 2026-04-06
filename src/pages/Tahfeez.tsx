@@ -944,9 +944,24 @@ export default function TahfeezPage() {
             const fSet = new Set(fKeys);
             const defaultMs = timerSecondsRef.current * 1000;
             const fwMs = firstWordTimerSecondsRef.current * 1000;
-            const durations = (keys as string[]).map(k =>
-              fSet.has(k) ? fwMs + defaultMs : defaultMs
-            );
+            const granularity = revealGranularityRef.current;
+            const proportional = groupDurationProportionalRef.current;
+            const groups: string[][] = granularity === 'ayah' ? ayahGrps : granularity === 'waqf-segment' ? waqfGrps : [];
+            
+            const durations = (keys as string[]).map((k: string, i: number) => {
+              const baseDur = fSet.has(k) ? fwMs + defaultMs : defaultMs;
+              if (proportional && groups.length > 0) {
+                const group = groups.find(g => g.includes(k));
+                if (group && group[0] === k) {
+                  // First key in group: duration = groupSize × baseDuration
+                  return group.length * baseDur;
+                } else if (group) {
+                  // Non-first key in group: will be consumed instantly with the first
+                  return 0;
+                }
+              }
+              return baseDur;
+            });
             // Check if this page already has consumed items (restored page)
             const existingSched = enginePageSchedulesRef.current[effectPage];
             const consumed = existingSched ? existingSched.consumed : 0;
