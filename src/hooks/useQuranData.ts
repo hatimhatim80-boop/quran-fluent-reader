@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { QuranPage, GhareebWord, SavedProgress } from '@/types/quran';
 import { parseMushafText } from '@/utils/quranParser';
 import { loadGhareebData, getWordsForPage } from '@/utils/ghareebLoader';
@@ -8,7 +8,13 @@ import { useSettingsStore } from '@/stores/settingsStore';
 
 const STORAGE_KEY = 'quran-app-progress';
 
-export function useQuranData() {
+/**
+ * @param options.sessionId — when provided, page position is persisted
+ *   per-session (key: `quran-app-progress-{sessionId}`) and the global
+ *   key is NOT written, keeping each session's position independent.
+ */
+export function useQuranData(options?: { sessionId?: string | null }) {
+  const sessionId = options?.sessionId ?? null;
   const [pages, setPages] = useState<QuranPage[]>([]);
   const [ghareebPageMap, setGhareebPageMap] = useState<Map<number, GhareebWord[]>>(new Map());
   const [isLoading, setIsLoading] = useState(true);
