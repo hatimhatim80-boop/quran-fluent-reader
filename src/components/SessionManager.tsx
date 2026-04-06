@@ -205,10 +205,11 @@ export function SessionManager() {
     // Save the session's page to localStorage so useQuranData picks it up on load
     if (session.type === 'ghareeb') {
       localStorage.setItem('quran-app-ghareeb-start-page', String(session.currentPage));
+      navigate('/mushaf');
     } else {
       localStorage.setItem('quran-app-tahfeez-start-page', String(session.currentPage));
+      navigate(`/tahfeez?sessionId=${session.id}&resume=1`);
     }
-    navigate(session.type === 'ghareeb' ? '/mushaf' : '/tahfeez');
   };
 
   const handleAddGroup = () => {

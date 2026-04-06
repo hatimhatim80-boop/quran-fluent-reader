@@ -340,6 +340,7 @@ export default function TahfeezPage() {
   const [blankedKeysList, setBlankedKeysList] = useState<string[]>([]);
   const [firstKeysSet, setFirstKeysSet] = useState<Set<string>>(new Set());
   const [currentRevealIdx, setCurrentRevealIdx] = useState(-1);
+  const currentRevealIdxRef = useRef(-1);
   const revealTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const autoAdvanceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [advanceGeneration, setAdvanceGeneration] = useState(0);
@@ -363,6 +364,14 @@ export default function TahfeezPage() {
   const quizPageIdxRef = useRef(0);
   useEffect(() => { quizPageIdxRef.current = quizPageIdx; }, [quizPageIdx]);
   const pendingStartPageRef = useRef<number | null>(null);
+  const pageObserverGenerationRef = useRef(0);
+
+  const restartAutoRevealFrom = useCallback((idx: number, activeKey?: string | null) => {
+    currentRevealIdxRef.current = idx;
+    setCurrentRevealIdx(idx);
+    setActiveBlankKey(idx >= 0 ? (activeKey ?? blankedKeysListRef.current[idx] ?? null) : null);
+    setAdvanceGeneration(g => g + 1);
+  }, []);
 
   // Guard against stale persisted tab values from older app versions
   useEffect(() => {
@@ -740,6 +749,7 @@ export default function TahfeezPage() {
         setBlankedKeysList(savedPageState.blankedKeysList);
         blankedKeysListRef.current = savedPageState.blankedKeysList;
         setShowAll(savedPageState.showAll);
+        currentRevealIdxRef.current = savedPageState.currentRevealIdx;
         setCurrentRevealIdx(savedPageState.currentRevealIdx);
         setActiveBlankKey(savedPageState.activeBlankKey);
         setFirstKeysSet(new Set());
@@ -756,6 +766,7 @@ export default function TahfeezPage() {
         setRevealedKeys(new Set());
         setActiveBlankKey(null);
         currentRevealIdxRef.current = -1;
+        setCurrentRevealIdx(-1);
         setBlankedKeysList([]);
         setFirstKeysSet(new Set());
         setIsPaused(false);
@@ -773,6 +784,9 @@ export default function TahfeezPage() {
     // Segment MCQ modes handle their own navigation — skip the blanked-keys observer entirely
     if (autoBlankMode === 'next-ayah-mcq' || autoBlankMode === 'next-waqf-mcq') return;
 
+    const observerGeneration = ++pageObserverGenerationRef.current;
+    const effectPage = currentPage;
+
     let hasReceivedKeys = false;
     let fallbackTimer: ReturnType<typeof setTimeout> | null = null;
     let lastKeysSig = '';
@@ -784,9 +798,11 @@ export default function TahfeezPage() {
 
     const processKeys = (el: HTMLElement) => {
       try {
+        if (observerGeneration !== pageObserverGenerationRef.current) return false;
+        if (effectPage !== currentPageRef.current) return false;
         // Verify the element belongs to the current render page (avoid stale data from previous page)
         const elPage = el.getAttribute('data-page');
-        if (!elPage || Number(elPage) !== currentPage) return false;
+        if (!elPage || Number(elPage) !== effectPage) return false;
 
         const keysSig = el.getAttribute('data-keys') || '[]';
         const firstKeysSig = el.getAttribute('data-first-keys') || '[]';
@@ -883,12 +899,12 @@ export default function TahfeezPage() {
               setShowAll(savedPS.showAll);
               setActiveBlankKey(savedPS.activeBlankKey);
               currentRevealIdxRef.current = savedPS.currentRevealIdx;
+              setCurrentRevealIdx(savedPS.currentRevealIdx);
               if (!savedPS.showAll) {
                 // Resume from where we left off
                 const nextUnrevealed = keys.findIndex((k: string) => !new Set(savedPS.revealedKeys).has(k));
                 if (nextUnrevealed >= 0) {
-                  currentRevealIdxRef.current = nextUnrevealed;
-                  setAdvanceGeneration(g => g + 1);
+                  restartAutoRevealFrom(nextUnrevealed, keys[nextUnrevealed] ?? null);
                 }
               }
             } else {
@@ -904,9 +920,7 @@ export default function TahfeezPage() {
               } else if (quizInteraction === 'tap-only') {
                 setActiveBlankKey(keys[0]);
               } else {
-                setActiveBlankKey(keys[0] ?? null);
-                currentRevealIdxRef.current = 0;
-                setAdvanceGeneration(g => g + 1);
+                restartAutoRevealFrom(0, keys[0] ?? null);
               }
             }
           }
@@ -959,13 +973,14 @@ export default function TahfeezPage() {
 
     return () => {
       observer.disconnect();
+      if (pageObserverGenerationRef.current === observerGeneration) {
+        pageObserverGenerationRef.current += 1;
+      }
       if (fallbackTimer) clearTimeout(fallbackTimer);
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [quizStarted, currentPage, autoBlankMode, quizInteraction, advanceToNextQuizPage, completeQuizSession, enginePageSchedulesRef, registerPageDurations]);
+  }, [quizStarted, currentPage, autoBlankMode, quizInteraction, advanceToNextQuizPage, completeQuizSession, enginePageSchedulesRef, registerPageDurations, restartAutoRevealFrom]);
 
-  // Ref to track reveal index internally (avoids re-triggering the advance effect)
-  const currentRevealIdxRef = useRef(-1);
   // Ref for session item processed callback (used inside advance() to avoid stale closure)
   const onSessionItemProcessedRef = useRef(onSessionItemProcessed);
   useEffect(() => { onSessionItemProcessedRef.current = onSessionItemProcessed; }, [onSessionItemProcessed]);
@@ -1248,8 +1263,7 @@ export default function TahfeezPage() {
       // Resume from next unrevealed
       const nextIdx = blankedKeysList.findIndex(k => !revealedKeys.has(k));
       if (nextIdx >= 0) {
-        currentRevealIdxRef.current = nextIdx;
-        setAdvanceGeneration(g => g + 1);
+        restartAutoRevealFrom(nextIdx, blankedKeysList[nextIdx] ?? null);
       }
     } else {
       setIsPaused(true);
@@ -2199,13 +2213,13 @@ export default function TahfeezPage() {
                   const lastGroupKey = groupKeys[groupKeys.length - 1];
                   const lastIdx = blankedKeysList.indexOf(lastGroupKey);
                   const nextIdx = lastIdx >= 0 ? lastIdx + 1 : blankedKeysList.indexOf(activeBlankKey) + 1;
-                  setTimeout(() => setCurrentRevealIdx(nextIdx), 300);
+                  setTimeout(() => restartAutoRevealFrom(nextIdx, blankedKeysList[nextIdx] ?? null), 300);
                 } else {
                   setRevealedKeys(prev => singleWordMode ? new Set([activeBlankKey]) : new Set([...prev, activeBlankKey]));
                   setActiveBlankKey(null);
                   const idx = blankedKeysList.indexOf(activeBlankKey);
                   if (idx >= 0) {
-                    setTimeout(() => setCurrentRevealIdx(idx + 1), 300);
+                    setTimeout(() => restartAutoRevealFrom(idx + 1, blankedKeysList[idx + 1] ?? null), 300);
                   }
                 }
               }}
@@ -2253,7 +2267,7 @@ export default function TahfeezPage() {
                 setShowAll(false);
                 setActiveBlankKey(null);
                 // Keep already revealed words before this index
-                setCurrentRevealIdx(idx);
+                restartAutoRevealFrom(idx, key);
               }}
               inlineMCQ={quizInteraction === 'mcq' && mcqDisplayMode === 'inline'}
               allWordTexts={allPageWordTexts}
