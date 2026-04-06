@@ -365,6 +365,53 @@ export default function TahfeezPage() {
   useEffect(() => { quizPageIdxRef.current = quizPageIdx; }, [quizPageIdx]);
   const pendingStartPageRef = useRef<number | null>(null);
   const pageObserverGenerationRef = useRef(0);
+  const renderedQuizPageRef = useRef(currentPage);
+
+  const areOrderedKeysEqual = useCallback((a: string[] | undefined, b: string[] | undefined) => {
+    if (!a || !b || a.length !== b.length) return false;
+    for (let i = 0; i < a.length; i += 1) {
+      if (a[i] !== b[i]) return false;
+    }
+    return true;
+  }, []);
+
+  const isPageStateCompatibleWithRenderedKeys = useCallback((
+    savedPageState: Pick<PageState, 'blankedKeysList'> | Pick<EnginePageState, 'blankedKeysList'> | null | undefined,
+    renderedKeys: string[],
+  ) => {
+    if (!savedPageState) return false;
+    return areOrderedKeysEqual(savedPageState.blankedKeysList, renderedKeys);
+  }, [areOrderedKeysEqual]);
+
+  const resolveResumeIndex = useCallback((
+    savedPageState: Pick<PageState, 'revealedKeys' | 'currentRevealIdx' | 'activeBlankKey' | 'showAll'>
+      | Pick<EnginePageState, 'revealedKeys' | 'currentRevealIdx' | 'activeBlankKey' | 'showAll'>
+      | null
+      | undefined,
+    renderedKeys: string[],
+  ) => {
+    if (renderedKeys.length === 0) return -1;
+    if (!savedPageState || savedPageState.showAll) return renderedKeys.length;
+
+    const revealedSet = new Set(savedPageState.revealedKeys || []);
+
+    if (savedPageState.activeBlankKey && !revealedSet.has(savedPageState.activeBlankKey)) {
+      const activeIdx = renderedKeys.indexOf(savedPageState.activeBlankKey);
+      if (activeIdx >= 0) return activeIdx;
+    }
+
+    if (
+      typeof savedPageState.currentRevealIdx === 'number'
+      && savedPageState.currentRevealIdx >= 0
+      && savedPageState.currentRevealIdx < renderedKeys.length
+    ) {
+      const keyAtIdx = renderedKeys[savedPageState.currentRevealIdx];
+      if (!revealedSet.has(keyAtIdx)) return savedPageState.currentRevealIdx;
+    }
+
+    const firstUnrevealedIdx = renderedKeys.findIndex((key) => !revealedSet.has(key));
+    return firstUnrevealedIdx >= 0 ? firstUnrevealedIdx : renderedKeys.length;
+  }, []);
 
   const restartAutoRevealFrom = useCallback((idx: number, activeKey?: string | null) => {
     currentRevealIdxRef.current = idx;
@@ -523,6 +570,25 @@ export default function TahfeezPage() {
     
     const isTahfeezAuto = session.type === 'tahfeez-auto';
     const kind = isTahfeezAuto ? 'tahfeez-auto' as const : 'tahfeez-test' as const;
+      const snapshotPage = renderedQuizPageRef.current || currentPage;
+      const snapshotPageState = snapshotPage === currentPage
+        ? {
+            revealedKeys: Array.from(revealedKeys),
+            blankedKeysList: blankedKeysListRef.current,
+            showAll,
+            currentRevealIdx: currentRevealIdxRef.current,
+            activeBlankKey,
+            scrollTop: window.scrollY,
+          }
+        : pageStatesRef.current[snapshotPage] || {
+            revealedKeys: Array.from(revealedKeys),
+            blankedKeysList: blankedKeysListRef.current,
+            showAll,
+            currentRevealIdx: currentRevealIdxRef.current,
+            activeBlankKey,
+            scrollTop: window.scrollY,
+          };
+      const snapshotQuizPageIdx = Math.max(0, resolveQuizPagesRange().indexOf(snapshotPage));
     
     // Determine session phase: only 'completed' if ALL items processed
     const totalItems = getTotalItems();
@@ -531,31 +597,31 @@ export default function TahfeezPage() {
     const sessionPhase = isPaused ? 'paused' : isSessionComplete ? 'completed' : quizStarted ? 'running' : 'paused';
     
     // Use engine snapshot for remaining time
-    const engineSnap = snapshotEngine(currentPage, {
-      revealedKeys: Array.from(revealedKeys),
-      blankedKeysList: blankedKeysListRef.current,
-      showAll,
-      currentRevealIdx: currentRevealIdxRef.current,
-      activeBlankKey,
-      scrollTop: window.scrollY,
+      const engineSnap = snapshotEngine(snapshotPage, {
+        revealedKeys: snapshotPageState.revealedKeys,
+        blankedKeysList: snapshotPageState.blankedKeysList,
+        showAll: snapshotPageState.showAll,
+        currentRevealIdx: snapshotPageState.currentRevealIdx,
+        activeBlankKey: snapshotPageState.activeBlankKey,
+        scrollTop: snapshotPageState.scrollTop,
     });
     
     return {
       kind,
-      currentPage,
+        currentPage: snapshotPage,
       sessionPhase: sessionPhase as 'running' | 'paused' | 'completed',
       hideChrome: hideBars,
-      currentRevealIdx: currentRevealIdxRef.current,
-      currentAnchorKey: activeBlankKey,
-      currentScrollTop: window.scrollY,
-      blankedKeysList: blankedKeysListRef.current,
-      revealedKeys: Array.from(revealedKeys),
-      activeBlankKey,
-      revealOrder: blankedKeysListRef.current,
+        currentRevealIdx: snapshotPageState.currentRevealIdx,
+        currentAnchorKey: snapshotPageState.activeBlankKey,
+        currentScrollTop: snapshotPageState.scrollTop,
+        blankedKeysList: snapshotPageState.blankedKeysList,
+        revealedKeys: snapshotPageState.revealedKeys,
+        activeBlankKey: snapshotPageState.activeBlankKey,
+        revealOrder: snapshotPageState.blankedKeysList,
       hiddenWords: [],
       activeBlanks: [],
-      quizPageIdx,
-      showAll,
+        quizPageIdx: snapshotQuizPageIdx >= 0 ? snapshotQuizPageIdx : quizPageIdx,
+        showAll: snapshotPageState.showAll,
       remainingMs,
       expectedEndAt: null,
       timerSeconds,
@@ -818,6 +884,7 @@ export default function TahfeezPage() {
 
         if (keys.length > 0) {
           hasReceivedKeys = true;
+          renderedQuizPageRef.current = effectPage;
 
           const keysChanged = keysSig !== lastKeysSig;
           const fKeysChanged = firstKeysSig !== lastFirstKeysSig;
@@ -890,7 +957,13 @@ export default function TahfeezPage() {
             
             // Check if we have saved state for this page (don't reset if so)
             const savedPS = pageStatesRef.current[currentPageRef.current];
-            if (savedPS && !isFirst) {
+            const canUseSavedPageState = !isFirst && isPageStateCompatibleWithRenderedKeys(savedPS, keys);
+
+            if (savedPS && !isFirst && !canUseSavedPageState) {
+              console.warn('[tahfeez] Ignoring stale saved page state for page', currentPageRef.current);
+            }
+
+            if (savedPS && canUseSavedPageState) {
               // Restore from saved page state — don't reset revealed keys
               console.log('[tahfeez] Restoring saved page state for page', currentPageRef.current);
               setRevealedKeys(new Set(savedPS.revealedKeys));
@@ -901,10 +974,9 @@ export default function TahfeezPage() {
               currentRevealIdxRef.current = savedPS.currentRevealIdx;
               setCurrentRevealIdx(savedPS.currentRevealIdx);
               if (!savedPS.showAll) {
-                // Resume from where we left off
-                const nextUnrevealed = keys.findIndex((k: string) => !new Set(savedPS.revealedKeys).has(k));
-                if (nextUnrevealed >= 0) {
-                  restartAutoRevealFrom(nextUnrevealed, keys[nextUnrevealed] ?? null);
+                const resumeIdx = resolveResumeIndex(savedPS, keys);
+                if (resumeIdx >= 0 && resumeIdx < keys.length) {
+                  restartAutoRevealFrom(resumeIdx, keys[resumeIdx] ?? null);
                 }
               }
             } else {
