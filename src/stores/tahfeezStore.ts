@@ -480,6 +480,7 @@ export const useTahfeezStore = create<TahfeezState>()(
         mcqPanelPosition: state.mcqPanelPosition,
         dotScale: state.dotScale,
         revealGranularity: state.revealGranularity,
+        groupDurationProportional: state.groupDurationProportional,
         segmentMcqInline: state.segmentMcqInline,
         segmentMcqChoicesAtBlank: state.segmentMcqChoicesAtBlank,
         segmentMcqCorrectDelay: state.segmentMcqCorrectDelay,
