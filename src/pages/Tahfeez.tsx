@@ -3,7 +3,7 @@ import { useAutoQuizEngine, EnginePageState } from '@/hooks/useAutoQuizEngine';
 import { useTahfeezStore, TahfeezItem } from '@/stores/tahfeezStore';
 import { MCQStats, TahfeezMCQPanel } from '@/components/TahfeezMCQPanel';
 import { TahfeezSegmentMCQView, SegmentMCQStats } from '@/components/TahfeezSegmentMCQView';
-import { useSessionsStore, TahfeezAutoResumeState, TahfeezTestResumeState, PageState } from '@/stores/sessionsStore';
+import { useSessionsStore, TahfeezAutoResumeState, TahfeezTestResumeState, PageState, TahfeezSessionSettings } from '@/stores/sessionsStore';
 import { useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import { useQuranData } from '@/hooks/useQuranData';
