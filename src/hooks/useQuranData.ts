@@ -98,14 +98,24 @@ export function useQuranData(options?: { sessionId?: string | null }) {
     loadData();
   }, []);
 
-  // Save progress
+  // Save progress — per-session when sessionId is set, otherwise global
+  const sessionIdRef = useRef(sessionId);
+  sessionIdRef.current = sessionId;
+
   useEffect(() => {
     if (pages.length > 0) {
       const progress: SavedProgress = {
         currentPage,
         currentWordIndex,
       };
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(progress));
+      const key = sessionIdRef.current
+        ? `${STORAGE_KEY}-${sessionIdRef.current}`
+        : STORAGE_KEY;
+      localStorage.setItem(key, JSON.stringify(progress));
+      // Also update global key when no session (so ghareeb / free browsing still works)
+      if (!sessionIdRef.current) {
+        // no-op, already saved to STORAGE_KEY
+      }
     }
   }, [currentPage, currentWordIndex, pages.length]);
 
