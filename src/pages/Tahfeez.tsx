@@ -1632,19 +1632,24 @@ export default function TahfeezPage() {
         activeItemPolicy: 'scale-remaining',
         onCurrentItemExpire: currentItemExpireHandlerRef.current ?? undefined,
         getDuration: (page, itemIdx) => {
-          // Check if this item is a first key on its page
           const ps = pageStatesRef.current[page];
-          if (ps && ps.blankedKeysList && ps.blankedKeysList[itemIdx]) {
-            const key = ps.blankedKeysList[itemIdx];
-            if (firstKeysSetRef.current.has(key)) {
-              return newFwMs + newDefaultMs;
+          const key = ps?.blankedKeysList?.[itemIdx];
+          const baseDur = (key && firstKeysSetRef.current.has(key)) ? newFwMs + newDefaultMs : newDefaultMs;
+          
+          if (groupDurationProportional) {
+            const granularity = revealGranularityRef.current;
+            const groups: string[][] = granularity === 'ayah' ? ayahKeyGroupsRef.current : granularity === 'waqf-segment' ? waqfKeyGroupsRef.current : [];
+            if (groups.length > 0 && key) {
+              const group = groups.find(g => g.includes(key));
+              if (group && group[0] === key) return group.length * baseDur;
+              if (group) return 0;
             }
           }
-          return newDefaultMs;
+          return baseDur;
         },
       });
     }
-  }, [timerSeconds, firstWordTimerSeconds, quizStarted, showAll, pageStatesRef, setEngineSpeed]);
+  }, [timerSeconds, firstWordTimerSeconds, quizStarted, showAll, pageStatesRef, setEngineSpeed, groupDurationProportional]);
 
   const filteredSurahs = useMemo(() => {
     if (!indexSearch.trim()) return SURAHS;
