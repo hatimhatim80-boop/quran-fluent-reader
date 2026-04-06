@@ -1740,18 +1740,18 @@ export default function TahfeezPage() {
         getDuration: (page, itemIdx) => {
           const ps = pageStatesRef.current[page];
           const key = ps?.blankedKeysList?.[itemIdx];
-          const baseDur = (key && firstKeysSetRef.current.has(key)) ? newFwMs + newDefaultMs : newDefaultMs;
+          const isFirst = key && firstKeysSetRef.current.has(key);
           
           if (groupDurationProportional) {
             const granularity = revealGranularityRef.current;
             const groups: string[][] = granularity === 'ayah' ? ayahKeyGroupsRef.current : granularity === 'waqf-segment' ? waqfKeyGroupsRef.current : [];
             if (groups.length > 0 && key) {
               const group = groups.find(g => g.includes(key));
-              if (group && group[0] === key) return group.length * baseDur;
+              if (group && group[0] === key) return (isFirst ? newFwMs : 0) + group.length * newDefaultMs;
               if (group) return 0;
             }
           }
-          return baseDur;
+          return isFirst ? newFwMs + newDefaultMs : newDefaultMs;
         },
       });
     }
