@@ -759,9 +759,11 @@ export default function TahfeezPage() {
   // Reset quiz state when page changes during an active quiz AND auto-restart
   const prevPageRef = useRef(currentPage);
   const autoResumeQuizRef = useRef(false);
+  const autoStartHandledPageRef = useRef<number | null>(null);
   useEffect(() => {
     if (!quizStarted) {
       prevPageRef.current = currentPage;
+      autoStartHandledPageRef.current = null;
     }
   }, [currentPage, quizStarted]);
 
@@ -797,6 +799,7 @@ export default function TahfeezPage() {
     if (prevPageRef.current !== currentPage) {
       const oldPage = prevPageRef.current;
       prevPageRef.current = currentPage;
+      autoStartHandledPageRef.current = null;
       // Clear all timers first
       if (revealTimerRef.current) clearTimeout(revealTimerRef.current);
       
@@ -952,6 +955,13 @@ export default function TahfeezPage() {
 
           // Auto-resume after page transition OR first start
           if (autoResumeQuizRef.current || isFirstStartRef.current) {
+            if (autoStartHandledPageRef.current === effectPage) {
+              autoResumeQuizRef.current = false;
+              isFirstStartRef.current = false;
+              return true;
+            }
+
+            autoStartHandledPageRef.current = effectPage;
             autoResumeQuizRef.current = false;
             const isFirst = isFirstStartRef.current;
             isFirstStartRef.current = false;
@@ -1268,6 +1278,7 @@ export default function TahfeezPage() {
       autoAdvanceTimerRef.current = null;
 
       isFirstStartRef.current = true;
+      autoStartHandledPageRef.current = null;
       autoResumeQuizRef.current = false;
       rotateDistributionSeed();
       setQuizStarted(true);
@@ -1363,6 +1374,7 @@ export default function TahfeezPage() {
 
     // Restart from fresh on this page
     isFirstStartRef.current = true;
+    autoStartHandledPageRef.current = null;
     autoResumeQuizRef.current = false;
 
     // If session was paused, keep paused; otherwise re-trigger advance
@@ -1398,6 +1410,7 @@ export default function TahfeezPage() {
     // Navigate to first page and restart
     if (pagesRange.length > 0) goToPage(pagesRange[0]);
     isFirstStartRef.current = true;
+    autoStartHandledPageRef.current = null;
     autoResumeQuizRef.current = false;
 
     // Trigger advance chain
