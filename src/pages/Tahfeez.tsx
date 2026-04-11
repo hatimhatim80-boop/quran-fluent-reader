@@ -322,7 +322,14 @@ export default function TahfeezPage() {
       // Suppress scrollToTop when page changes during hydration
       suppressScrollRef.current = true;
       
-      // b) Navigate to saved page
+      // b) Pre-write correct page to session localStorage so useQuranData's async
+      //    loadData picks up the right page even if it finishes after this effect
+      if (resolvedSessionId) {
+        const progressKey = `quran-app-progress-${resolvedSessionId}`;
+        localStorage.setItem(progressKey, JSON.stringify({ currentPage: rs.currentPage, currentWordIndex: -1 }));
+      }
+      
+      // Navigate to saved page
       goToPage(rs.currentPage);
       prevPageRef.current = rs.currentPage;
       setQuizPageIdx(autoRs.quizPageIdx);

@@ -74,8 +74,12 @@ export function useQuranData(options?: { sessionId?: string | null }) {
               setCurrentWordIndex(-1);
             }
           } else {
-            // Load saved progress
-            const saved = localStorage.getItem(STORAGE_KEY);
+            // Load saved progress — session-specific key takes priority
+            const progressKey = sessionId
+              ? `${STORAGE_KEY}-${sessionId}`
+              : STORAGE_KEY;
+            const saved = localStorage.getItem(progressKey)
+              || (sessionId ? localStorage.getItem(STORAGE_KEY) : null);
             if (saved) {
               try {
                 const progress: SavedProgress = JSON.parse(saved);
