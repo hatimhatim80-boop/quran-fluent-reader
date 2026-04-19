@@ -25,7 +25,7 @@ function extractPageWords(text: string, pageNumber: number): WordToken[] {
   for (let li = 0; li < lines.length; li++) {
     const l = lines[li];
     if (l.startsWith('سُورَةُ') || l.startsWith('سورة ')) continue;
-    if (!isFatiha) { const n = normalizeArabic(l); if (n.includes('بسم الله الرحمن الرحيم') || n.includes('بسم الله')) continue; }
+    if (!isFatiha && isBismillahStrict(l)) continue;
     const parts = l.split(/(\s+)/);
     for (let ti = 0; ti < parts.length; ti++) {
       const t = parts[ti]; if (/^\s+$/.test(t)) continue;
