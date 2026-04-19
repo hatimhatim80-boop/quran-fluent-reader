@@ -2704,13 +2704,21 @@ export default function TahfeezPage() {
 
             {/* Session estimated remaining time — only when top bars visible (hidden-bars has its own overlay) */}
             {!shouldHideTopBars && (
-              <div className="flex items-center justify-center gap-2 pointer-events-none">
+              <div className="flex items-center justify-center gap-2 pointer-events-none flex-wrap" dir="rtl">
                 <div className="flex items-center gap-1.5 bg-muted/40 px-3 py-1 rounded-full">
                   <Clock className="w-3 h-3 text-muted-foreground/70" />
-                  <span className="text-[11px] font-mono text-muted-foreground tabular-nums" dir="rtl">
-                    {engine.phase === 'completed' ? 'انتهت' : sessionRemainingMs > 0 ? `المتبقي: ${formatSessionTime(sessionRemainingMs)}` : isPaused ? 'متوقفة' : `المتبقي: ${formatSessionTime(0)}`}
+                  <span className="text-[11px] font-mono text-muted-foreground tabular-nums">
+                    {engine.phase === 'completed' ? 'انتهت' : sessionRemainingMs > 0 ? `الكلي: ${formatSessionTime(sessionRemainingMs)}` : isPaused ? 'متوقفة' : `الكلي: ${formatSessionTime(0)}`}
                   </span>
                 </div>
+                {/* Segment / current item remaining (= group word count × per-word ms in ayah / waqf granularity) */}
+                {engine.phase !== 'completed' && remainingMs > 0 && (
+                  <div className="flex items-center gap-1.5 bg-primary/10 px-3 py-1 rounded-full">
+                    <span className="text-[11px] font-mono text-primary tabular-nums">
+                      المقطع: {formatSessionTime(remainingMs)}
+                    </span>
+                  </div>
+                )}
               </div>
             )}
 
