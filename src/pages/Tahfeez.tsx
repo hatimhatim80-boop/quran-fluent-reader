@@ -1056,7 +1056,12 @@ export default function TahfeezPage() {
             const defaultMs = timerSecondsRef.current * 1000;
             const fwMs = firstWordTimerSecondsRef.current * 1000;
             const granularity = revealGranularityRef.current;
-            const proportional = groupDurationProportionalRef.current;
+            // Group-based granularities (ayah / waqf-segment) ALWAYS use
+            // proportional segment time = (group word count) × perWordMs.
+            // The "proportional" toggle is only meaningful for `word` granularity
+            // (where it's a no-op anyway, since each blank is its own group).
+            const isGroupGranularity = granularity === 'ayah' || granularity === 'waqf-segment';
+            const proportional = isGroupGranularity || groupDurationProportionalRef.current;
             const groups: string[][] = granularity === 'ayah' ? ayahGrps : granularity === 'waqf-segment' ? waqfGrps : [];
             
             const durations = (keys as string[]).map((k: string, i: number) => {
@@ -1382,11 +1387,15 @@ export default function TahfeezPage() {
         };
 
         // ── Compute effective duration for this item (proportional-aware) ──
+        // Group granularities (ayah/waqf-segment) ALWAYS apply proportional
+        // segment time = group word count × per-word ms. The user requested
+        // that the displayed countdown reflect the actual segment length.
         const computeItemDuration = (): number => {
           const baseWordMs = timerSecondsRef.current * 1000;
-          const proportional = groupDurationProportionalRef.current;
+          const granularity = revealGranularityRef.current;
+          const isGroupGranularity = granularity === 'ayah' || granularity === 'waqf-segment';
+          const proportional = isGroupGranularity || groupDurationProportionalRef.current;
           if (proportional) {
-            const granularity = revealGranularityRef.current;
             const groups: string[][] = granularity === 'ayah' ? ayahKeyGroupsRef.current : granularity === 'waqf-segment' ? waqfKeyGroupsRef.current : [];
             if (groups.length > 0) {
               const group = groups.find(g => g.includes(key));
@@ -1763,9 +1772,10 @@ export default function TahfeezPage() {
           const ps = pageStatesRef.current[page];
           const key = ps?.blankedKeysList?.[itemIdx];
           const isFirst = key && firstKeysSetRef.current.has(key);
-          
-          if (groupDurationProportional) {
-            const granularity = revealGranularityRef.current;
+          const granularity = revealGranularityRef.current;
+          const isGroupGranularity = granularity === 'ayah' || granularity === 'waqf-segment';
+          const proportional = isGroupGranularity || groupDurationProportional;
+          if (proportional) {
             const groups: string[][] = granularity === 'ayah' ? ayahKeyGroupsRef.current : granularity === 'waqf-segment' ? waqfKeyGroupsRef.current : [];
             if (groups.length > 0 && key) {
               const group = groups.find(g => g.includes(key));
