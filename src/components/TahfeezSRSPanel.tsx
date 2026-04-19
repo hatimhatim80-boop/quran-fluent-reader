@@ -14,8 +14,9 @@ const CLEAN_RE = /[﴿﴾()[\]{}۝۞٭؟،۔ۣۖۗۘۙۚۛۜ۟۠ۡۢۤۥۦۧۨ۩
 
 interface WordToken { text: string; lineIdx: number; tokenIdx: number; key: string; }
 
-function isSurahHeader(line: string): boolean { return line.startsWith('سُورَةُ') || line.startsWith('سورة '); }
-function isBismillah(line: string): boolean { const n = normalizeArabic(line); return n.includes('بسم الله الرحمن الرحيم') || n.includes('بسم الله'); }
+import { isBismillahLine as isBismillahStrict, isSurahHeaderLine as isSurahHeaderStrict } from '@/utils/quranLineDetect';
+function isSurahHeader(line: string): boolean { return isSurahHeaderStrict(line); }
+function isBismillah(line: string): boolean { return isBismillahStrict(line); }
 function formatArabicNumber(value: number): string { return new Intl.NumberFormat('ar-SA').format(value); }
 function buildAyahStableId(pageNumber: number, ayahIndex: number): string { return `ayah_${pageNumber}_${ayahIndex}`; }
 
@@ -24,7 +25,7 @@ function extractPageWords(text: string, pageNumber: number): WordToken[] {
   for (let li = 0; li < lines.length; li++) {
     const l = lines[li];
     if (l.startsWith('سُورَةُ') || l.startsWith('سورة ')) continue;
-    if (!isFatiha) { const n = normalizeArabic(l); if (n.includes('بسم الله الرحمن الرحيم') || n.includes('بسم الله')) continue; }
+    if (!isFatiha && isBismillahStrict(l)) continue;
     const parts = l.split(/(\s+)/);
     for (let ti = 0; ti < parts.length; ti++) {
       const t = parts[ti]; if (/^\s+$/.test(t)) continue;

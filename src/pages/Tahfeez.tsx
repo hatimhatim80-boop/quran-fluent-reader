@@ -1056,7 +1056,12 @@ export default function TahfeezPage() {
             const defaultMs = timerSecondsRef.current * 1000;
             const fwMs = firstWordTimerSecondsRef.current * 1000;
             const granularity = revealGranularityRef.current;
-            const proportional = groupDurationProportionalRef.current;
+            // Group-based granularities (ayah / waqf-segment) ALWAYS use
+            // proportional segment time = (group word count) × perWordMs.
+            // The "proportional" toggle is only meaningful for `word` granularity
+            // (where it's a no-op anyway, since each blank is its own group).
+            const isGroupGranularity = granularity === 'ayah' || granularity === 'waqf-segment';
+            const proportional = isGroupGranularity || groupDurationProportionalRef.current;
             const groups: string[][] = granularity === 'ayah' ? ayahGrps : granularity === 'waqf-segment' ? waqfGrps : [];
             
             const durations = (keys as string[]).map((k: string, i: number) => {
@@ -1382,11 +1387,15 @@ export default function TahfeezPage() {
         };
 
         // ── Compute effective duration for this item (proportional-aware) ──
+        // Group granularities (ayah/waqf-segment) ALWAYS apply proportional
+        // segment time = group word count × per-word ms. The user requested
+        // that the displayed countdown reflect the actual segment length.
         const computeItemDuration = (): number => {
           const baseWordMs = timerSecondsRef.current * 1000;
-          const proportional = groupDurationProportionalRef.current;
+          const granularity = revealGranularityRef.current;
+          const isGroupGranularity = granularity === 'ayah' || granularity === 'waqf-segment';
+          const proportional = isGroupGranularity || groupDurationProportionalRef.current;
           if (proportional) {
-            const granularity = revealGranularityRef.current;
             const groups: string[][] = granularity === 'ayah' ? ayahKeyGroupsRef.current : granularity === 'waqf-segment' ? waqfKeyGroupsRef.current : [];
             if (groups.length > 0) {
               const group = groups.find(g => g.includes(key));
@@ -1763,9 +1772,10 @@ export default function TahfeezPage() {
           const ps = pageStatesRef.current[page];
           const key = ps?.blankedKeysList?.[itemIdx];
           const isFirst = key && firstKeysSetRef.current.has(key);
-          
-          if (groupDurationProportional) {
-            const granularity = revealGranularityRef.current;
+          const granularity = revealGranularityRef.current;
+          const isGroupGranularity = granularity === 'ayah' || granularity === 'waqf-segment';
+          const proportional = isGroupGranularity || groupDurationProportional;
+          if (proportional) {
             const groups: string[][] = granularity === 'ayah' ? ayahKeyGroupsRef.current : granularity === 'waqf-segment' ? waqfKeyGroupsRef.current : [];
             if (groups.length > 0 && key) {
               const group = groups.find(g => g.includes(key));
@@ -1929,11 +1939,17 @@ export default function TahfeezPage() {
           {/* Floating session timer when bars are hidden */}
           {quizStarted && (
             <div className="fixed top-3 left-1/2 -translate-x-1/2 z-50 bg-background/70 backdrop-blur-sm px-3 py-1 rounded-full border border-border/20 shadow-sm pointer-events-none">
-              <div className="flex items-center gap-1.5">
+              <div className="flex items-center gap-2" dir="rtl">
                 <Clock className="w-3 h-3 text-muted-foreground/70" />
-                <span className="text-[11px] font-mono text-muted-foreground tabular-nums" dir="rtl">
-                  {engine.phase === 'completed' ? 'انتهت' : sessionRemainingMs > 0 ? `المتبقي: ${formatSessionTime(sessionRemainingMs)}` : isPaused ? 'متوقفة' : `المتبقي: ${formatSessionTime(0)}`}
+                <span className="text-[11px] font-mono text-muted-foreground tabular-nums">
+                  {engine.phase === 'completed' ? 'انتهت' : sessionRemainingMs > 0 ? `الكلي: ${formatSessionTime(sessionRemainingMs)}` : isPaused ? 'متوقفة' : `الكلي: ${formatSessionTime(0)}`}
                 </span>
+                {/* Segment / current item remaining */}
+                {engine.phase !== 'completed' && remainingMs > 0 && (
+                  <span className="text-[11px] font-mono text-primary tabular-nums border-r border-border/40 pr-2">
+                    المقطع: {formatSessionTime(remainingMs)}
+                  </span>
+                )}
               </div>
             </div>
           )}
@@ -2688,13 +2704,21 @@ export default function TahfeezPage() {
 
             {/* Session estimated remaining time — only when top bars visible (hidden-bars has its own overlay) */}
             {!shouldHideTopBars && (
-              <div className="flex items-center justify-center gap-2 pointer-events-none">
+              <div className="flex items-center justify-center gap-2 pointer-events-none flex-wrap" dir="rtl">
                 <div className="flex items-center gap-1.5 bg-muted/40 px-3 py-1 rounded-full">
                   <Clock className="w-3 h-3 text-muted-foreground/70" />
-                  <span className="text-[11px] font-mono text-muted-foreground tabular-nums" dir="rtl">
-                    {engine.phase === 'completed' ? 'انتهت' : sessionRemainingMs > 0 ? `المتبقي: ${formatSessionTime(sessionRemainingMs)}` : isPaused ? 'متوقفة' : `المتبقي: ${formatSessionTime(0)}`}
+                  <span className="text-[11px] font-mono text-muted-foreground tabular-nums">
+                    {engine.phase === 'completed' ? 'انتهت' : sessionRemainingMs > 0 ? `الكلي: ${formatSessionTime(sessionRemainingMs)}` : isPaused ? 'متوقفة' : `الكلي: ${formatSessionTime(0)}`}
                   </span>
                 </div>
+                {/* Segment / current item remaining (= group word count × per-word ms in ayah / waqf granularity) */}
+                {engine.phase !== 'completed' && remainingMs > 0 && (
+                  <div className="flex items-center gap-1.5 bg-primary/10 px-3 py-1 rounded-full">
+                    <span className="text-[11px] font-mono text-primary tabular-nums">
+                      المقطع: {formatSessionTime(remainingMs)}
+                    </span>
+                  </div>
+                )}
               </div>
             )}
 

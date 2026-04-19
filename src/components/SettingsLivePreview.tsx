@@ -17,8 +17,9 @@ function isSurahHeader(line: string): boolean {
   return line.startsWith('سُورَةُ') || line.startsWith('سورة ');
 }
 
+import { isBismillahLine as isBismillahStrict } from '@/utils/quranLineDetect';
 function isBismillah(line: string): boolean {
-  return line.includes('بِسمِ اللَّهِ') || line.includes('بِسۡمِ ٱللَّهِ');
+  return isBismillahStrict(line);
 }
 
 interface SettingsLivePreviewProps {

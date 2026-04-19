@@ -64,11 +64,11 @@ function SessionCard({
   const group = groups.find(g => g.id === session.groupId);
 
   return (
-    <Card className="overflow-hidden hover:shadow-md transition-shadow">
+    <Card className="overflow-hidden hover:shadow-md transition-shadow border-border/60">
       <CardContent className="p-3 sm:p-4">
         <div className="flex items-start gap-3">
           {/* Icon */}
-          <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${meta.color}`}>
+          <div className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 ${meta.color}`}>
             {meta.icon}
           </div>
 
@@ -114,22 +114,47 @@ function SessionCard({
           </Button>
         </div>
 
-        {/* Action row */}
-        <div className="flex flex-wrap gap-1 mt-2 pt-2 border-t border-border/40">
-          <button onClick={() => onRename(session)} className="text-[10px] font-arabic text-muted-foreground hover:text-foreground flex items-center gap-0.5 px-1.5 py-1 rounded hover:bg-muted/50 transition-colors">
-            <Pencil className="w-3 h-3" /> تسمية
+        {/* Action row — always visible, with edit/delete prominently themed */}
+        <div className="flex items-center gap-1 mt-3 pt-2.5 border-t border-border/40">
+          <button
+            onClick={() => onRename(session)}
+            className="text-[11px] font-arabic text-foreground/80 hover:text-primary flex items-center gap-1 px-2 py-1.5 rounded-md hover:bg-primary/5 transition-colors"
+            title="تعديل الاسم"
+          >
+            <Pencil className="w-3.5 h-3.5" />
+            تعديل
           </button>
-          <button onClick={() => onMove(session)} className="text-[10px] font-arabic text-muted-foreground hover:text-foreground flex items-center gap-0.5 px-1.5 py-1 rounded hover:bg-muted/50 transition-colors">
-            <ArrowRightLeft className="w-3 h-3" /> نقل
+          <button
+            onClick={() => onMove(session)}
+            className="text-[11px] font-arabic text-foreground/80 hover:text-primary flex items-center gap-1 px-2 py-1.5 rounded-md hover:bg-primary/5 transition-colors"
+            title="نقل لمجلد"
+          >
+            <ArrowRightLeft className="w-3.5 h-3.5" />
+            نقل
           </button>
-          <button onClick={() => onDuplicate(session)} className="text-[10px] font-arabic text-muted-foreground hover:text-foreground flex items-center gap-0.5 px-1.5 py-1 rounded hover:bg-muted/50 transition-colors">
-            <Copy className="w-3 h-3" /> نسخ
+          <button
+            onClick={() => onDuplicate(session)}
+            className="text-[11px] font-arabic text-foreground/80 hover:text-primary flex items-center gap-1 px-2 py-1.5 rounded-md hover:bg-primary/5 transition-colors"
+            title="تكرار الجلسة"
+          >
+            <Copy className="w-3.5 h-3.5" />
+            نسخ
           </button>
-          <button onClick={() => onArchive(session)} className="text-[10px] font-arabic text-muted-foreground hover:text-foreground flex items-center gap-0.5 px-1.5 py-1 rounded hover:bg-muted/50 transition-colors">
-            <Archive className="w-3 h-3" /> أرشفة
+          <button
+            onClick={() => onArchive(session)}
+            className="text-[11px] font-arabic text-foreground/80 hover:text-foreground flex items-center gap-1 px-2 py-1.5 rounded-md hover:bg-muted/60 transition-colors mr-auto"
+            title="أرشفة"
+          >
+            <Archive className="w-3.5 h-3.5" />
+            أرشفة
           </button>
-          <button onClick={() => onDelete(session)} className="text-[10px] font-arabic text-destructive/70 hover:text-destructive flex items-center gap-0.5 px-1.5 py-1 rounded hover:bg-destructive/5 transition-colors">
-            <Trash2 className="w-3 h-3" /> حذف
+          <button
+            onClick={() => onDelete(session)}
+            className="text-[11px] font-arabic text-destructive hover:text-destructive-foreground hover:bg-destructive flex items-center gap-1 px-2 py-1.5 rounded-md transition-colors"
+            title="حذف الجلسة"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+            حذف
           </button>
         </div>
       </CardContent>
