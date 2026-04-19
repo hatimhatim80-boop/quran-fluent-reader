@@ -1939,11 +1939,17 @@ export default function TahfeezPage() {
           {/* Floating session timer when bars are hidden */}
           {quizStarted && (
             <div className="fixed top-3 left-1/2 -translate-x-1/2 z-50 bg-background/70 backdrop-blur-sm px-3 py-1 rounded-full border border-border/20 shadow-sm pointer-events-none">
-              <div className="flex items-center gap-1.5">
+              <div className="flex items-center gap-2" dir="rtl">
                 <Clock className="w-3 h-3 text-muted-foreground/70" />
-                <span className="text-[11px] font-mono text-muted-foreground tabular-nums" dir="rtl">
-                  {engine.phase === 'completed' ? 'انتهت' : sessionRemainingMs > 0 ? `المتبقي: ${formatSessionTime(sessionRemainingMs)}` : isPaused ? 'متوقفة' : `المتبقي: ${formatSessionTime(0)}`}
+                <span className="text-[11px] font-mono text-muted-foreground tabular-nums">
+                  {engine.phase === 'completed' ? 'انتهت' : sessionRemainingMs > 0 ? `الكلي: ${formatSessionTime(sessionRemainingMs)}` : isPaused ? 'متوقفة' : `الكلي: ${formatSessionTime(0)}`}
                 </span>
+                {/* Segment / current item remaining */}
+                {engine.phase !== 'completed' && remainingMs > 0 && (
+                  <span className="text-[11px] font-mono text-primary tabular-nums border-r border-border/40 pr-2">
+                    المقطع: {formatSessionTime(remainingMs)}
+                  </span>
+                )}
               </div>
             </div>
           )}
