@@ -50,9 +50,9 @@ function isSurahHeader(line: string): boolean {
 }
 
 // Check if line is bismillah - use normalization to handle all Unicode variants
+import { isBismillahLine as isBismillahStrict } from '@/utils/quranLineDetect';
 function isBismillah(line: string): boolean {
-  const normalized = normalizeArabic(line);
-  return normalized.includes('بسم الله الرحمن الرحيم') || normalized.includes('بسم الله');
+  return isBismillahStrict(line);
 }
 
 // ── Kept for verse-number rendering only ──

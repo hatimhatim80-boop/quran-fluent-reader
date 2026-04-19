@@ -14,8 +14,9 @@ const CLEAN_RE = /[﴿﴾()[\]{}۝۞٭؟،۔ۣۖۗۘۙۚۛۜ۟۠ۡۢۤۥۦۧۨ۩
 
 interface WordToken { text: string; lineIdx: number; tokenIdx: number; key: string; }
 
-function isSurahHeader(line: string): boolean { return line.startsWith('سُورَةُ') || line.startsWith('سورة '); }
-function isBismillah(line: string): boolean { const n = normalizeArabic(line); return n.includes('بسم الله الرحمن الرحيم') || n.includes('بسم الله'); }
+import { isBismillahLine as isBismillahStrict, isSurahHeaderLine as isSurahHeaderStrict } from '@/utils/quranLineDetect';
+function isSurahHeader(line: string): boolean { return isSurahHeaderStrict(line); }
+function isBismillah(line: string): boolean { return isBismillahStrict(line); }
 function formatArabicNumber(value: number): string { return new Intl.NumberFormat('ar-SA').format(value); }
 function buildAyahStableId(pageNumber: number, ayahIndex: number): string { return `ayah_${pageNumber}_${ayahIndex}`; }
 

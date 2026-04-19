@@ -69,9 +69,9 @@ function isSurahHeader(line: string): boolean {
   return line.startsWith('سُورَةُ') || line.startsWith('سورة ');
 }
 
+import { isBismillahLine as isBismillahStrict } from '@/utils/quranLineDetect';
 function isBismillah(line: string): boolean {
-  const normalized = normalizeArabic(line);
-  return normalized.includes('بسم الله الرحمن الرحيم') || normalized.includes('بسم الله');
+  return isBismillahStrict(line);
 }
 
 function shuffleArray<T>(arr: T[]): T[] {
