@@ -2470,14 +2470,6 @@ export default function TahfeezPage() {
         )}
         {quizStarted && pageData && autoBlankMode !== 'next-ayah-mcq' && autoBlankMode !== 'next-waqf-mcq' && (
           <div className="space-y-4 animate-fade-in">
-            {/* Multi-page progress */}
-            {quizPagesRange.length > 1 && (
-              <div className="page-frame p-2 flex items-center justify-center gap-2">
-                <span className="text-xs font-arabic text-muted-foreground">
-                  صفحة {quizPagesRange.indexOf(currentPage) + 1} من {quizPagesRange.length}
-                </span>
-              </div>
-            )}
 
             {/* Inline word count controls (no progress bar / percentage / word count) */}
             {autoBlankMode === 'ayah-count' && hiddenWordsMode === 'fixed-count' && (
