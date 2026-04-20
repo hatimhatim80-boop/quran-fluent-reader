@@ -15,7 +15,7 @@ import { normalizeArabic } from '@/utils/quranParser';
 import { computeSessionTotalItems } from '@/utils/sessionWordCount';
 import { Link, useNavigate } from 'react-router-dom';
 import { BookOpen, Play, Pause, Eye, EyeOff, ArrowRight, Save, Trash2, GraduationCap, ListChecks, Zap, Book, Layers, Hash, FileText, Search, X, ChevronLeft, Download, Upload, ChevronsRight, Undo2, Palette, Mic, MicOff, MousePointerClick, RotateCcw, Settings, Clock } from 'lucide-react';
-import { SpeedControlWidget } from '@/components/SpeedControlWidget';
+
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 
 import { HiddenBarsOverlay } from '@/components/HiddenBarsOverlay';
@@ -1934,26 +1934,7 @@ export default function TahfeezPage() {
 
       {/* Show bars overlay - floating when bars are hidden, with swipe support */}
       {shouldHideTopBars && (
-        <>
-          <HiddenBarsOverlay onShow={() => setHideBars(false)} onNextPage={nextPage} onPrevPage={prevPage} />
-          {/* Floating session timer when bars are hidden */}
-          {quizStarted && (
-            <div className="fixed top-3 left-1/2 -translate-x-1/2 z-50 bg-background/70 backdrop-blur-sm px-3 py-1 rounded-full border border-border/20 shadow-sm pointer-events-none">
-              <div className="flex items-center gap-2" dir="rtl">
-                <Clock className="w-3 h-3 text-muted-foreground/70" />
-                <span className="text-[11px] font-mono text-muted-foreground tabular-nums">
-                  {engine.phase === 'completed' ? 'انتهت' : sessionRemainingMs > 0 ? `الكلي: ${formatSessionTime(sessionRemainingMs)}` : isPaused ? 'متوقفة' : `الكلي: ${formatSessionTime(0)}`}
-                </span>
-                {/* Segment / current item remaining */}
-                {engine.phase !== 'completed' && remainingMs > 0 && (
-                  <span className="text-[11px] font-mono text-primary tabular-nums border-r border-border/40 pr-2">
-                    المقطع: {formatSessionTime(remainingMs)}
-                  </span>
-                )}
-              </div>
-            </div>
-          )}
-        </>
+        <HiddenBarsOverlay onShow={() => setHideBars(false)} onNextPage={nextPage} onPrevPage={prevPage} />
       )}
 
       {/* Voice debug overlay disabled */}
@@ -2427,14 +2408,6 @@ export default function TahfeezPage() {
         <AutoPlayDebugPanel visible={process.env.NODE_ENV !== 'production'} />
         {quizStarted && pageData && (autoBlankMode === 'next-ayah-mcq' || autoBlankMode === 'next-waqf-mcq') && (
           <div className="space-y-4 animate-fade-in">
-            {/* Multi-page progress */}
-            {quizPagesRange.length > 1 && (
-              <div className="page-frame p-2 flex items-center justify-center gap-2">
-                <span className="text-xs font-arabic text-muted-foreground">
-                  صفحة {quizPagesRange.indexOf(currentPage) + 1} من {quizPagesRange.length}
-                </span>
-              </div>
-            )}
             <TahfeezSegmentMCQView
               page={pageData}
               mode={autoBlankMode as 'next-ayah-mcq' | 'next-waqf-mcq'}
@@ -2478,14 +2451,6 @@ export default function TahfeezPage() {
         )}
         {quizStarted && pageData && autoBlankMode !== 'next-ayah-mcq' && autoBlankMode !== 'next-waqf-mcq' && (
           <div className="space-y-4 animate-fade-in">
-            {/* Multi-page progress */}
-            {quizPagesRange.length > 1 && (
-              <div className="page-frame p-2 flex items-center justify-center gap-2">
-                <span className="text-xs font-arabic text-muted-foreground">
-                  صفحة {quizPagesRange.indexOf(currentPage) + 1} من {quizPagesRange.length}
-                </span>
-              </div>
-            )}
 
             {/* Inline word count controls (no progress bar / percentage / word count) */}
             {autoBlankMode === 'ayah-count' && hiddenWordsMode === 'fixed-count' && (
@@ -2806,16 +2771,7 @@ export default function TahfeezPage() {
           </div>
         )}
 
-        {/* Floating speed control during quiz — only when bars are hidden to avoid overlap */}
-        {quizStarted && hideBars && (
-          <SpeedControlWidget
-            value={timerSeconds}
-            onChange={(v) => setTimerSeconds(v)}
-            label="مدة ظهور الكلمة"
-            min={0.1}
-            max={30}
-          />
-        )}
+        {/* Speed control hidden in hide-bars mode for distraction-free reading */}
       </div>
     </div>
   );
