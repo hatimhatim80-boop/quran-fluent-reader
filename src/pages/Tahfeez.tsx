@@ -2771,16 +2771,7 @@ export default function TahfeezPage() {
           </div>
         )}
 
-        {/* Floating speed control during quiz — only when bars are hidden to avoid overlap */}
-        {quizStarted && hideBars && (
-          <SpeedControlWidget
-            value={timerSeconds}
-            onChange={(v) => setTimerSeconds(v)}
-            label="مدة ظهور الكلمة"
-            min={0.1}
-            max={30}
-          />
-        )}
+        {/* Speed control hidden in hide-bars mode for distraction-free reading */}
       </div>
     </div>
   );
