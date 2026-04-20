@@ -15,7 +15,7 @@ import { normalizeArabic } from '@/utils/quranParser';
 import { computeSessionTotalItems } from '@/utils/sessionWordCount';
 import { Link, useNavigate } from 'react-router-dom';
 import { BookOpen, Play, Pause, Eye, EyeOff, ArrowRight, Save, Trash2, GraduationCap, ListChecks, Zap, Book, Layers, Hash, FileText, Search, X, ChevronLeft, Download, Upload, ChevronsRight, Undo2, Palette, Mic, MicOff, MousePointerClick, RotateCcw, Settings, Clock } from 'lucide-react';
-import { SpeedControlWidget } from '@/components/SpeedControlWidget';
+
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 
 import { HiddenBarsOverlay } from '@/components/HiddenBarsOverlay';
