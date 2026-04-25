@@ -1773,7 +1773,7 @@ export default function TahfeezPage() {
   };
 
   const handleNavigateToPage = (page: number) => {
-    goToPage(page);
+    goToTahfeezPage(page);
     setShowIndex(false);
   };
 
@@ -1935,7 +1935,7 @@ export default function TahfeezPage() {
               <Link to="/mushaf" className="nav-button w-8 h-8 rounded-full flex items-center justify-center" title="بوابة الغريب">
                 <BookOpen className="w-4 h-4" />
               </Link>
-              <button onClick={() => { if (quizStarted) { setQuizStarted(false); if (revealTimerRef.current) clearTimeout(revealTimerRef.current); speech.stop(); } else { goToPage(currentPage - 1); } }} disabled={!quizStarted && currentPage <= 1} className="nav-button w-8 h-8 rounded-full flex items-center justify-center" title={quizStarted ? "العودة للإعدادات" : "الصفحة السابقة"}>
+              <button onClick={() => { if (quizStarted) { setQuizStarted(false); if (revealTimerRef.current) clearTimeout(revealTimerRef.current); speech.stop(); } else { goToTahfeezPage(currentPage - 1); } }} disabled={!quizStarted && currentPage <= 1} className="nav-button w-8 h-8 rounded-full flex items-center justify-center" title={quizStarted ? "العودة للإعدادات" : "الصفحة السابقة"}>
                 <ArrowRight className="w-4 h-4" />
               </button>
               {quizStarted && (
@@ -1946,11 +1946,11 @@ export default function TahfeezPage() {
             </div>
           </div>
           <div className="max-w-2xl mx-auto px-4 pb-2 flex items-center justify-center gap-2">
-            <Button variant="ghost" size="sm" onClick={() => goToPage(1)} disabled={currentPage <= 1} className="text-xs font-arabic h-7 px-2" title="الصفحة الأولى">⏮</Button>
-            <Button variant="ghost" size="sm" onClick={() => goToPage(currentPage - 1)} disabled={currentPage <= 1} className="text-xs font-arabic h-7 px-2">→</Button>
+            <Button variant="ghost" size="sm" onClick={() => goToTahfeezPage(1)} disabled={currentPage <= 1} className="text-xs font-arabic h-7 px-2" title="الصفحة الأولى">⏮</Button>
+            <Button variant="ghost" size="sm" onClick={() => goToTahfeezPage(currentPage - 1)} disabled={currentPage <= 1} className="text-xs font-arabic h-7 px-2">→</Button>
             <span className="text-xs font-arabic text-muted-foreground">صفحة {currentPage} / {totalPages}</span>
-            <Button variant="ghost" size="sm" onClick={() => goToPage(currentPage + 1)} disabled={currentPage >= totalPages} className="text-xs font-arabic h-7 px-2">←</Button>
-            <Button variant="ghost" size="sm" onClick={() => goToPage(totalPages)} disabled={currentPage >= totalPages} className="text-xs font-arabic h-7 px-2" title="الصفحة الأخيرة">⏭</Button>
+            <Button variant="ghost" size="sm" onClick={() => goToTahfeezPage(currentPage + 1)} disabled={currentPage >= totalPages} className="text-xs font-arabic h-7 px-2">←</Button>
+            <Button variant="ghost" size="sm" onClick={() => goToTahfeezPage(totalPages)} disabled={currentPage >= totalPages} className="text-xs font-arabic h-7 px-2" title="الصفحة الأخيرة">⏭</Button>
           </div>
         </div>
       )}
