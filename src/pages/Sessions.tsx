@@ -3,9 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import {
   BookOpen, GraduationCap, Plus, Play, Archive, Trash2, RotateCcw, Clock,
   FolderOpen, FolderPlus, ArrowRightLeft, Pencil, Search, ArrowRight,
-  Copy, ChevronDown, SortAsc, Filter, Home as HomeIcon, FileText, Brain, Zap, BookMarked
+  Copy, ChevronDown, SortAsc, Filter, Home as HomeIcon, FileText, Brain, Zap, BookMarked, BarChart3
 } from 'lucide-react';
-import { useSessionsStore, Session, SessionType, SessionGroup } from '@/stores/sessionsStore';
+import { TAHFEEZ_COMPLETABLE_SESSION_TYPES, useSessionsStore, Session, SessionType, SessionGroup } from '@/stores/sessionsStore';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -49,6 +49,7 @@ function SessionCard({
   onMove,
   onDelete,
   onArchive,
+  onStats,
   groups,
 }: {
   session: Session;
@@ -58,10 +59,13 @@ function SessionCard({
   onMove: (s: Session) => void;
   onDelete: (s: Session) => void;
   onArchive: (s: Session) => void;
+  onStats: (s: Session) => void;
   groups: SessionGroup[];
 }) {
   const meta = SESSION_TYPE_META[session.type] || SESSION_TYPE_META['ghareeb'];
   const group = groups.find(g => g.id === session.groupId);
+  const completionStats = useSessionsStore(s => s.getSessionCompletionStats(session.id));
+  const showCompletionStats = TAHFEEZ_COMPLETABLE_SESSION_TYPES.includes(session.type);
 
   return (
     <Card className="overflow-hidden hover:shadow-md transition-shadow border-border/60">
@@ -99,6 +103,23 @@ function SessionCard({
                     width: `${Math.min(100, ((session.currentPage - session.startPage) / (session.endPage - session.startPage)) * 100)}%`,
                   }}
                 />
+              </div>
+            )}
+
+            {showCompletionStats && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 pt-1">
+                <button
+                  onClick={() => onStats(session)}
+                  className="text-[10px] font-arabic text-right bg-muted/40 hover:bg-muted/70 border border-border/40 rounded-md px-2 py-1 transition-colors"
+                >
+                  خُتمت منذ إنشائها: <span className="font-bold text-foreground">{completionStats.total}</span> مرة
+                </button>
+                <button
+                  onClick={() => onStats(session)}
+                  className="text-[10px] font-arabic text-right bg-primary/10 hover:bg-primary/15 border border-primary/20 rounded-md px-2 py-1 text-primary transition-colors"
+                >
+                  خُتمت هذا الشهر: <span className="font-bold">{completionStats.thisMonth}</span> مرة
+                </button>
               </div>
             )}
           </div>
@@ -140,6 +161,16 @@ function SessionCard({
             <Copy className="w-3.5 h-3.5" />
             نسخ
           </button>
+          {showCompletionStats && (
+            <button
+              onClick={() => onStats(session)}
+              className="text-[11px] font-arabic text-foreground/80 hover:text-primary flex items-center gap-1 px-2 py-1.5 rounded-md hover:bg-primary/5 transition-colors"
+              title="إحصاءات الختم"
+            >
+              <BarChart3 className="w-3.5 h-3.5" />
+              إحصاءات
+            </button>
+          )}
           <button
             onClick={() => onArchive(session)}
             className="text-[11px] font-arabic text-foreground/80 hover:text-foreground flex items-center gap-1 px-2 py-1.5 rounded-md hover:bg-muted/60 transition-colors mr-auto"
@@ -179,6 +210,7 @@ export default function Sessions() {
   const [showRename, setShowRename] = useState<Session | null>(null);
   const [showMove, setShowMove] = useState<Session | null>(null);
   const [showDelete, setShowDelete] = useState<Session | null>(null);
+  const [showStats, setShowStats] = useState<Session | null>(null);
   const [showFolderCreate, setShowFolderCreate] = useState(false);
   const [editingGroupId, setEditingGroupId] = useState<string | null>(null);
   const [editGroupName, setEditGroupName] = useState('');
@@ -356,9 +388,12 @@ export default function Sessions() {
         onDuplicate={handleDuplicate}
         onMove={(s) => { setShowMove(s); setMoveTargetGroup(s.groupId || ''); }}
         onDelete={(s) => setShowDelete(s)}
+        onStats={(s) => setShowStats(s)}
         onArchive={(s) => { store.archiveSession(s.id); toast.success('تم الأرشفة'); }}
       />
     ));
+
+  const statsForDialog = showStats ? store.getSessionCompletionStats(showStats.id) : null;
 
   return (
     <div className="min-h-screen bg-background" dir="rtl">
@@ -684,6 +719,42 @@ export default function Sessions() {
           <DialogFooter>
             <Button onClick={handleMove} className="w-full font-arabic">نقل</Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ─── Completion Stats Dialog ─── */}
+      <Dialog open={!!showStats} onOpenChange={() => setShowStats(null)}>
+        <DialogContent className="max-w-sm" dir="rtl">
+          <DialogHeader>
+            <DialogTitle className="font-arabic text-center">إحصاءات الختم</DialogTitle>
+            <DialogDescription className="font-arabic text-center text-xs">{showStats?.name}</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 font-arabic">
+            <div className="grid grid-cols-2 gap-2">
+              <div className="rounded-lg bg-muted/50 border border-border/50 p-3 text-center">
+                <p className="text-[11px] text-muted-foreground">منذ الإنشاء</p>
+                <p className="text-xl font-bold text-foreground">{statsForDialog?.total || 0}</p>
+              </div>
+              <div className="rounded-lg bg-primary/10 border border-primary/20 p-3 text-center">
+                <p className="text-[11px] text-primary/80">هذا الشهر</p>
+                <p className="text-xl font-bold text-primary">{statsForDialog?.thisMonth || 0}</p>
+              </div>
+            </div>
+            <div className="rounded-lg border border-border/60 overflow-hidden">
+              <div className="grid grid-cols-2 bg-muted/50 px-3 py-2 text-xs font-bold text-muted-foreground">
+                <span>الشهر</span>
+                <span className="text-left">عدد الختمات</span>
+              </div>
+              {(statsForDialog?.byMonth.length || 0) > 0 ? statsForDialog!.byMonth.map(row => (
+                <div key={row.month_key} className="grid grid-cols-2 px-3 py-2 text-sm border-t border-border/40">
+                  <span className="font-mono">{row.month_key}</span>
+                  <span className="text-left">{row.count} مرات</span>
+                </div>
+              )) : (
+                <div className="px-3 py-6 text-center text-xs text-muted-foreground">لا توجد ختمات مسجلة بعد</div>
+              )}
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
 

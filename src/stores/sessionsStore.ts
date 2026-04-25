@@ -45,6 +45,28 @@ const idbStorage: StateStorage = {
 
 export type SessionType = 'ghareeb' | 'tahfeez' | 'ghareeb-review' | 'ghareeb-read' | 'tahfeez-test' | 'tahfeez-auto' | 'tahfeez-review';
 
+export const TAHFEEZ_COMPLETABLE_SESSION_TYPES: SessionType[] = ['tahfeez', 'tahfeez-test', 'tahfeez-auto', 'tahfeez-review'];
+
+const COMPLETION_DEBOUNCE_MS = 60_000;
+
+function getLocalUserId(): string {
+  const key = 'quran-app-local-user-id';
+  try {
+    const existing = localStorage.getItem(key);
+    if (existing) return existing;
+    const id = `local_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+    localStorage.setItem(key, id);
+    return id;
+  } catch {
+    return 'local_user';
+  }
+}
+
+function getMonthKey(ts: number = Date.now()): string {
+  const d = new Date(ts);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+}
+
 export interface SessionSection {
   id: string;
   title: string;
@@ -230,6 +252,22 @@ export interface Session {
   resumeState?: SessionResumeState | null;
 }
 
+export interface SessionCompletion {
+  id: string;
+  session_id: string;
+  user_id: string;
+  completed_at: number;
+  month_key: string;
+  completion_count?: number;
+  created_at: number;
+}
+
+export interface SessionCompletionStats {
+  total: number;
+  thisMonth: number;
+  byMonth: { month_key: string; count: number }[];
+}
+
 export interface SessionGroup {
   id: string;
   name: string;
@@ -241,6 +279,7 @@ export interface SessionGroup {
 interface SessionsState {
   sessions: Session[];
   groups: SessionGroup[];
+  sessionCompletions: SessionCompletion[];
   activeSessionId: string | null;
 
   createSession: (name: string, type: SessionType, startPage?: number, endPage?: number, groupId?: string) => string;
@@ -264,6 +303,8 @@ interface SessionsState {
   markSessionCompleted: (sessionId: string) => void;
   markSessionResumed: (sessionId: string) => void;
   getActiveSession: () => Session | undefined;
+  recordSessionCompletion: (sessionId: string, userId?: string) => boolean;
+  getSessionCompletionStats: (sessionId: string, userId?: string) => SessionCompletionStats;
 }
 
 export const useSessionsStore = create<SessionsState>()(
@@ -271,6 +312,7 @@ export const useSessionsStore = create<SessionsState>()(
     (set, get) => ({
       sessions: [],
       groups: [],
+      sessionCompletions: [],
       activeSessionId: null,
 
       createSession: (name, type, startPage = 1, endPage, groupId) => {
@@ -354,11 +396,48 @@ export const useSessionsStore = create<SessionsState>()(
       },
 
       markSessionCompleted: (sessionId) => {
+        get().recordSessionCompletion(sessionId);
         set({
           sessions: get().sessions.map(s =>
             s.id === sessionId ? { ...s, status: 'completed' as const, updatedAt: Date.now() } : s
           ),
         });
+      },
+
+      recordSessionCompletion: (sessionId, userId = getLocalUserId()) => {
+        const session = get().sessions.find(s => s.id === sessionId);
+        if (!session || !TAHFEEZ_COMPLETABLE_SESSION_TYPES.includes(session.type)) return false;
+        const now = Date.now();
+        const recent = get().sessionCompletions.some(c =>
+          c.session_id === sessionId &&
+          c.user_id === userId &&
+          now - c.completed_at < COMPLETION_DEBOUNCE_MS
+        );
+        if (recent) return false;
+        const completion: SessionCompletion = {
+          id: `sc_${now}_${Math.random().toString(36).slice(2, 8)}`,
+          session_id: sessionId,
+          user_id: userId,
+          completed_at: now,
+          month_key: getMonthKey(now),
+          completion_count: 1,
+          created_at: now,
+        };
+        set({ sessionCompletions: [...get().sessionCompletions, completion] });
+        return true;
+      },
+
+      getSessionCompletionStats: (sessionId, userId = getLocalUserId()) => {
+        const completions = get().sessionCompletions.filter(c => c.session_id === sessionId && c.user_id === userId);
+        const monthMap = new Map<string, number>();
+        completions.forEach(c => monthMap.set(c.month_key, (monthMap.get(c.month_key) || 0) + (c.completion_count || 1)));
+        return {
+          total: completions.reduce((sum, c) => sum + (c.completion_count || 1), 0),
+          thisMonth: monthMap.get(getMonthKey()) || 0,
+          byMonth: Array.from(monthMap.entries())
+            .map(([month_key, count]) => ({ month_key, count }))
+            .sort((a, b) => b.month_key.localeCompare(a.month_key)),
+        };
       },
 
       markSessionResumed: (sessionId) => {
@@ -433,6 +512,7 @@ export const useSessionsStore = create<SessionsState>()(
       partialize: (state) => ({
         sessions: state.sessions,
         groups: state.groups,
+        sessionCompletions: state.sessionCompletions,
         activeSessionId: state.activeSessionId,
       }),
     }
