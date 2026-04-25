@@ -124,6 +124,7 @@ export default function TahfeezPage() {
 
   // ── Session resume & hydration ──
   const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
   const sessionIdParam = searchParams.get('sessionId');
   const isResumeParam = searchParams.get('resume') === '1';
   const activeSessionId = useSessionsStore((s) => s.activeSessionId);
