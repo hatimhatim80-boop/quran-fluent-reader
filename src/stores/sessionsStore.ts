@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage, StateStorage } from 'zustand/middleware';
 import { openDB } from 'idb';
+import { recordSessionCompletion } from '@/services/localSessionCompletionStore';
 
 // IndexedDB storage
 const DB_NAME = 'sessions-persist';
@@ -46,26 +47,6 @@ const idbStorage: StateStorage = {
 export type SessionType = 'ghareeb' | 'tahfeez' | 'ghareeb-review' | 'ghareeb-read' | 'tahfeez-test' | 'tahfeez-auto' | 'tahfeez-review';
 
 export const TAHFEEZ_COMPLETABLE_SESSION_TYPES: SessionType[] = ['tahfeez', 'tahfeez-test', 'tahfeez-auto', 'tahfeez-review'];
-
-const COMPLETION_DEBOUNCE_MS = 60_000;
-
-function getLocalUserId(): string {
-  const key = 'quran-app-local-user-id';
-  try {
-    const existing = localStorage.getItem(key);
-    if (existing) return existing;
-    const id = `local_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
-    localStorage.setItem(key, id);
-    return id;
-  } catch {
-    return 'local_user';
-  }
-}
-
-function getMonthKey(ts: number = Date.now()): string {
-  const d = new Date(ts);
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-}
 
 export interface SessionSection {
   id: string;
