@@ -1246,6 +1246,8 @@ export default function TahfeezPage() {
           const range = quizPagesRangeRef.current;
           if (range.length > 1) {
             if (!advanceToNextQuizPage()) completeQuizSession();
+          } else if (sessionIdParam || activeSessionId) {
+            completeQuizSession();
           } else {
             nextPage();
           }
