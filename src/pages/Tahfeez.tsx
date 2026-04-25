@@ -2778,7 +2778,10 @@ export default function TahfeezPage() {
                   <SheetHeader>
                     <SheetTitle className="font-arabic text-right">إعدادات الجلسة</SheetTitle>
                   </SheetHeader>
-                  <div className="mt-4">
+                  <div className="mt-4 space-y-5">
+                    <div className="rounded-lg border border-border p-3 bg-card/60">
+                      <SessionFontSettings sessionType={activeSessionType || 'tahfeez-auto'} compact />
+                    </div>
                     <TahfeezAutoQuizSettings
                       currentPage={currentPage}
                       quizPagesRange={quizPagesRange}
