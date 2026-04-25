@@ -124,6 +124,7 @@ export default function TahfeezPage() {
 
   // ── Session resume & hydration ──
   const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
   const sessionIdParam = searchParams.get('sessionId');
   const isResumeParam = searchParams.get('resume') === '1';
   const activeSessionId = useSessionsStore((s) => s.activeSessionId);
@@ -916,6 +917,25 @@ export default function TahfeezPage() {
     speechRef.current.stop();
   }, [activeSessionId, clearAdvanceFrame, completeEngine, markSessionCompleted, sessionIdParam]);
 
+  const completeActiveSessionIfAtEnd = useCallback((targetPage: number) => {
+    const sessionId = sessionIdParam || activeSessionId;
+    if (!sessionId) return false;
+    const session = getSession(sessionId);
+    if (!session || !session.type.startsWith('tahfeez') || !session.endPage) return false;
+    if (currentPageRef.current >= session.endPage && targetPage > session.endPage) {
+      markSessionCompleted(sessionId);
+      toast.success('تم تسجيل ختمة الجلسة');
+      navigate('/sessions');
+      return true;
+    }
+    return false;
+  }, [activeSessionId, getSession, markSessionCompleted, navigate, sessionIdParam]);
+
+  const goToTahfeezPage = useCallback((page: number) => {
+    if (completeActiveSessionIfAtEnd(page)) return;
+    goToPage(page);
+  }, [completeActiveSessionIfAtEnd, goToPage]);
+
   const advanceToNextQuizPage = useCallback(() => {
     const range = resolveQuizPagesRange();
     if (range.length === 0) return false;
@@ -1226,6 +1246,8 @@ export default function TahfeezPage() {
           const range = quizPagesRangeRef.current;
           if (range.length > 1) {
             if (!advanceToNextQuizPage()) completeQuizSession();
+          } else if (sessionIdParam || activeSessionId) {
+            completeQuizSession();
           } else {
             nextPage();
           }
@@ -1311,6 +1333,8 @@ export default function TahfeezPage() {
 
               if (range.length > 1) {
                 if (!advanceToNextQuizPageRef.current()) completeQuizSessionRef.current();
+              } else if (sessionIdParam || activeSessionId) {
+                completeQuizSessionRef.current();
               } else if (range.length <= 1) {
                 pendingAutoStartPageRef.current = curPage + 1;
                 autoResumeQuizRef.current = true;
@@ -1707,6 +1731,8 @@ export default function TahfeezPage() {
             const range = quizPagesRangeRef.current;
             if (range.length > 1) {
               if (!advanceToNextQuizPage()) completeQuizSession();
+            } else if (sessionIdParam || activeSessionId) {
+              completeQuizSession();
             } else if (range.length <= 1) {
               pendingAutoStartPageRef.current = currentPageRef.current + 1;
               autoResumeQuizRef.current = true;
@@ -1753,7 +1779,7 @@ export default function TahfeezPage() {
   };
 
   const handleNavigateToPage = (page: number) => {
-    goToPage(page);
+    goToTahfeezPage(page);
     setShowIndex(false);
   };
 
@@ -1915,7 +1941,7 @@ export default function TahfeezPage() {
               <Link to="/mushaf" className="nav-button w-8 h-8 rounded-full flex items-center justify-center" title="بوابة الغريب">
                 <BookOpen className="w-4 h-4" />
               </Link>
-              <button onClick={() => { if (quizStarted) { setQuizStarted(false); if (revealTimerRef.current) clearTimeout(revealTimerRef.current); speech.stop(); } else { goToPage(currentPage - 1); } }} disabled={!quizStarted && currentPage <= 1} className="nav-button w-8 h-8 rounded-full flex items-center justify-center" title={quizStarted ? "العودة للإعدادات" : "الصفحة السابقة"}>
+              <button onClick={() => { if (quizStarted) { setQuizStarted(false); if (revealTimerRef.current) clearTimeout(revealTimerRef.current); speech.stop(); } else { goToTahfeezPage(currentPage - 1); } }} disabled={!quizStarted && currentPage <= 1} className="nav-button w-8 h-8 rounded-full flex items-center justify-center" title={quizStarted ? "العودة للإعدادات" : "الصفحة السابقة"}>
                 <ArrowRight className="w-4 h-4" />
               </button>
               {quizStarted && (
@@ -1926,11 +1952,11 @@ export default function TahfeezPage() {
             </div>
           </div>
           <div className="max-w-2xl mx-auto px-4 pb-2 flex items-center justify-center gap-2">
-            <Button variant="ghost" size="sm" onClick={() => goToPage(1)} disabled={currentPage <= 1} className="text-xs font-arabic h-7 px-2" title="الصفحة الأولى">⏮</Button>
-            <Button variant="ghost" size="sm" onClick={() => goToPage(currentPage - 1)} disabled={currentPage <= 1} className="text-xs font-arabic h-7 px-2">→</Button>
+            <Button variant="ghost" size="sm" onClick={() => goToTahfeezPage(1)} disabled={currentPage <= 1} className="text-xs font-arabic h-7 px-2" title="الصفحة الأولى">⏮</Button>
+            <Button variant="ghost" size="sm" onClick={() => goToTahfeezPage(currentPage - 1)} disabled={currentPage <= 1} className="text-xs font-arabic h-7 px-2">→</Button>
             <span className="text-xs font-arabic text-muted-foreground">صفحة {currentPage} / {totalPages}</span>
-            <Button variant="ghost" size="sm" onClick={() => goToPage(currentPage + 1)} disabled={currentPage >= totalPages} className="text-xs font-arabic h-7 px-2">←</Button>
-            <Button variant="ghost" size="sm" onClick={() => goToPage(totalPages)} disabled={currentPage >= totalPages} className="text-xs font-arabic h-7 px-2" title="الصفحة الأخيرة">⏭</Button>
+            <Button variant="ghost" size="sm" onClick={() => goToTahfeezPage(currentPage + 1)} disabled={currentPage >= totalPages} className="text-xs font-arabic h-7 px-2">←</Button>
+            <Button variant="ghost" size="sm" onClick={() => goToTahfeezPage(totalPages)} disabled={currentPage >= totalPages} className="text-xs font-arabic h-7 px-2" title="الصفحة الأخيرة">⏭</Button>
           </div>
         </div>
       )}
