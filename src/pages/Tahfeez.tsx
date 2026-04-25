@@ -2765,7 +2765,7 @@ export default function TahfeezPage() {
                 <Undo2 className="w-4 h-4 ml-1" />
                 إعادة الجلسة
               </Button>
-              <Button variant="outline" size="sm" onClick={() => { setQuizStarted(false); engine.stop(); if (revealTimerRef.current) clearTimeout(revealTimerRef.current); speech.stop(); }} className="font-arabic">
+              <Button variant="outline" size="sm" onClick={() => { const sessionId = sessionIdParam || activeSessionId; if (sessionId) markSessionCompleted(sessionId); setQuizStarted(false); engine.stop(); if (revealTimerRef.current) clearTimeout(revealTimerRef.current); speech.stop(); }} className="font-arabic">
                 إنهاء
               </Button>
             </div>
