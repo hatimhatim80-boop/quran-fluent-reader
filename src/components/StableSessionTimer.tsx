@@ -29,14 +29,14 @@ export const StableSessionTimer = memo(function StableSessionTimer({
   const sessionLabel = completed ? 'انتهت' : paused ? 'متوقفة' : `الكلي: ${formatSessionTime(sessionMs)}`;
   return (
     <div className="flex items-center justify-center gap-2 pointer-events-none flex-wrap" dir="rtl">
-      <div className="flex items-center justify-center gap-1.5 bg-muted/40 px-3 py-1 rounded-full min-w-[8.75rem] contain-layout">
+      <div className="flex items-center justify-center gap-1.5 bg-muted/40 px-3 py-1 rounded-full min-w-[8.75rem] [contain:layout]">
         <Clock className="w-3 h-3 text-muted-foreground/70 shrink-0" />
         <span className="text-[11px] font-mono text-muted-foreground tabular-nums whitespace-nowrap inline-block text-center min-w-[6.6rem] [font-variant-numeric:tabular-nums]">
           {sessionLabel}
         </span>
       </div>
       {!compact && !completed && itemMs > 0 && (
-        <div className="flex items-center justify-center gap-1.5 bg-primary/10 px-3 py-1 rounded-full min-w-[7rem] contain-layout">
+        <div className="flex items-center justify-center gap-1.5 bg-primary/10 px-3 py-1 rounded-full min-w-[7rem] [contain:layout]">
           <span className="text-[11px] font-mono text-primary tabular-nums whitespace-nowrap inline-block text-center min-w-[5.3rem] [font-variant-numeric:tabular-nums]">
             المقطع: {formatSessionTime(itemMs)}
           </span>
