@@ -264,6 +264,14 @@ export function SRSReviewSession({
     setShowManualInterval(false);
   }, [card, currentEntry, activeQueue, currentIdx, delayedQueue, rateCard, onFinish, sessionId, markTahfeezSessionCompleted]);
 
+  const finishReviewSession = useCallback(() => {
+    const activeTahfeezSession = useSessionsStore.getState().getActiveSession();
+    if (activeTahfeezSession?.type === 'tahfeez-review') {
+      markTahfeezSessionCompleted(activeTahfeezSession.id);
+    }
+    onFinish();
+  }, [markTahfeezSessionCompleted, onFinish]);
+
   const goToCard = useCallback((idx: number) => {
     setActiveQueue(prev => {
       if (idx >= 0 && idx < prev.length) {
@@ -288,7 +296,7 @@ export function SRSReviewSession({
         {nextDueCountdown && <p className="text-2xl font-bold text-primary animate-pulse">{nextDueCountdown}</p>}
         <p className="text-sm">ستعود البطاقات تلقائياً عند حلول موعد مراجعتها</p>
         <p className="text-xs text-muted-foreground/60">تمت مراجعة {reviewedCount} بطاقة</p>
-        <Button variant="outline" onClick={onFinish} className="mt-4 font-arabic">إنهاء الجلسة</Button>
+        <Button variant="outline" onClick={finishReviewSession} className="mt-4 font-arabic">إنهاء الجلسة</Button>
       </div>
     );
   }
@@ -358,7 +366,7 @@ export function SRSReviewSession({
               <button onClick={() => goToCard(currentIdx + 1)} disabled={currentIdx >= total - 1} className="nav-button w-7 h-7 rounded-full disabled:opacity-30">
                 <ChevronLeft className="w-4 h-4" />
               </button>
-              <button onClick={onFinish} className="nav-button w-7 h-7 rounded-full mr-2"><X className="w-4 h-4" /></button>
+              <button onClick={finishReviewSession} className="nav-button w-7 h-7 rounded-full mr-2"><X className="w-4 h-4" /></button>
             </div>
           </div>
         )}
@@ -425,7 +433,7 @@ export function SRSReviewSession({
                 >
                   <Archive className="w-3.5 h-3.5" />
                 </button>
-                <button onClick={onFinish} className="text-muted-foreground hover:text-foreground p-1 rounded">
+                <button onClick={finishReviewSession} className="text-muted-foreground hover:text-foreground p-1 rounded">
                   <X className="w-4 h-4" />
                 </button>
               </div>
