@@ -57,7 +57,7 @@ async function writeCompletions(completions: LocalSessionCompletion[]): Promise<
   window.dispatchEvent(new CustomEvent('local-session-completions-changed'));
 }
 
-export async function preventDuplicateCompletion(sessionId: string, withinMs = 60_000, userId = getLocalUserId()): Promise<boolean> {
+export async function preventDuplicateCompletion(sessionId: string, withinMs = 3_000, userId = getLocalUserId()): Promise<boolean> {
   const now = Date.now();
   const completions = await readCompletions();
   return completions.some(c => c.session_id === sessionId && c.user_id === userId && now - c.completed_at < withinMs);
@@ -65,7 +65,7 @@ export async function preventDuplicateCompletion(sessionId: string, withinMs = 6
 
 export async function recordSessionCompletion(session: Session, userId = getLocalUserId()): Promise<boolean> {
   if (!TAHFEEZ_COMPLETABLE_TYPES.includes(session.type)) return false;
-  if (await preventDuplicateCompletion(session.id, 60_000, userId)) return false;
+  if (await preventDuplicateCompletion(session.id, 3_000, userId)) return false;
   const now = Date.now();
   const completions = await readCompletions();
   completions.push({
