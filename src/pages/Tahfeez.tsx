@@ -14,7 +14,7 @@ import { useSpeech } from '@/hooks/useSpeech';
 import { normalizeArabic } from '@/utils/quranParser';
 import { computeSessionTotalItems } from '@/utils/sessionWordCount';
 import { Link, useNavigate } from 'react-router-dom';
-import { BookOpen, Play, Pause, Eye, EyeOff, ArrowRight, Save, Trash2, GraduationCap, ListChecks, Zap, Book, Layers, Hash, FileText, Search, X, ChevronLeft, Download, Upload, ChevronsRight, Undo2, Palette, Mic, MicOff, MousePointerClick, RotateCcw, Settings, Clock } from 'lucide-react';
+import { BookOpen, Play, Pause, Eye, EyeOff, ArrowRight, Save, Trash2, GraduationCap, ListChecks, Zap, Book, Layers, Hash, FileText, Search, X, ChevronLeft, Download, Upload, ChevronsRight, Undo2, Palette, Mic, MicOff, MousePointerClick, RotateCcw, Settings } from 'lucide-react';
 
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 
@@ -34,6 +34,9 @@ import { TahfeezFontSettings } from '@/components/TahfeezFontSettings';
 import { TahfeezAutoQuizSettings } from '@/components/TahfeezAutoQuizSettings';
 import { TahfeezSRSPanel } from '@/components/TahfeezSRSPanel';
 import { TahfeezSessionReviewSettings } from '@/components/TahfeezSessionReviewSettings';
+import { SessionFontSettings } from '@/components/SessionFontSettings';
+import { StableSessionTimer } from '@/components/StableSessionTimer';
+import { FloatingSessionTimer } from '@/components/FloatingSessionTimer';
 // ---- Quran Index Data ----
 const SURAHS = Object.entries(SURAH_NAMES).map(([name, number]) => ({
   number, name,
@@ -137,6 +140,10 @@ export default function TahfeezPage() {
   const setAutoplay = useSettingsStore((s) => s.setAutoplay);
   const keepScreenAwake = useSettingsStore((s) => s.settings.autoplay.keepScreenAwake ?? false);
   const pageData = getCurrentPageData();
+  const activeSessionType = useSessionsStore((s) => {
+    const id = sessionIdParam || s.activeSessionId;
+    return id ? s.sessions.find((session) => session.id === id)?.type : undefined;
+  });
 
   const updateSession = useSessionsStore((s) => s.updateSession);
   const getSession = useSessionsStore((s) => s.getSession);
@@ -1965,6 +1972,14 @@ export default function TahfeezPage() {
       {shouldHideTopBars && (
         <HiddenBarsOverlay onShow={() => setHideBars(false)} onNextPage={nextPage} onPrevPage={prevPage} />
       )}
+      {shouldHideTopBars && (
+        <FloatingSessionTimer
+          sessionMs={sessionRemainingMs}
+          itemMs={remainingMs}
+          completed={engine.phase === 'completed'}
+          paused={isPaused}
+        />
+      )}
 
       {/* Voice debug overlay disabled */}
 
@@ -2697,22 +2712,14 @@ export default function TahfeezPage() {
             )}
 
             {/* Session timer floating - always visible, even in hidden-bars mode */}
-            <div className="flex items-center justify-center gap-2 pointer-events-none flex-wrap" dir="rtl">
-              <div className="flex items-center gap-1.5 bg-muted/40 px-3 py-1 rounded-full">
-                <Clock className="w-3 h-3 text-muted-foreground/70" />
-                <span className="text-[11px] font-mono text-muted-foreground tabular-nums">
-                  {engine.phase === 'completed' ? 'انتهت' : sessionRemainingMs > 0 ? `الكلي: ${formatSessionTime(sessionRemainingMs)}` : isPaused ? 'متوقفة' : `الكلي: ${formatSessionTime(0)}`}
-                </span>
-              </div>
-              {/* Segment / current item remaining (= group word count × per-word ms in ayah / waqf granularity) */}
-              {engine.phase !== 'completed' && remainingMs > 0 && (
-                <div className="flex items-center gap-1.5 bg-primary/10 px-3 py-1 rounded-full">
-                  <span className="text-[11px] font-mono text-primary tabular-nums">
-                    المقطع: {formatSessionTime(remainingMs)}
-                  </span>
-                </div>
-              )}
-            </div>
+            {!shouldHideTopBars && (
+              <StableSessionTimer
+                sessionMs={sessionRemainingMs}
+                itemMs={remainingMs}
+                completed={engine.phase === 'completed'}
+                paused={isPaused}
+              />
+            )}
 
             {/* Controls */}
             <div className="flex items-center justify-center gap-2 flex-wrap">
@@ -2771,7 +2778,10 @@ export default function TahfeezPage() {
                   <SheetHeader>
                     <SheetTitle className="font-arabic text-right">إعدادات الجلسة</SheetTitle>
                   </SheetHeader>
-                  <div className="mt-4">
+                  <div className="mt-4 space-y-5">
+                    <div className="rounded-lg border border-border p-3 bg-card/60">
+                      <SessionFontSettings sessionType={activeSessionType || 'tahfeez-auto'} compact />
+                    </div>
                     <TahfeezAutoQuizSettings
                       currentPage={currentPage}
                       quizPagesRange={quizPagesRange}

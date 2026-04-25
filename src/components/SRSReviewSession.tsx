@@ -7,6 +7,7 @@ import { Progress } from '@/components/ui/progress';
 import { ReviewCardIndex } from './ReviewCardIndex';
 import { Ban, ChevronLeft, ChevronRight, X, Eye, Settings2, Flag, List, Archive, ArchiveRestore } from 'lucide-react';
 import { ReviewQueueEntry, partitionSessionCards, promoteDueQueue, getNextDueCountdownLabel } from '@/utils/reviewQueue';
+import { SessionFontSettings } from '@/components/SessionFontSettings';
 
 export type AnswerDisplayMode = 'bottom' | 'tooltip' | 'inline';
 
@@ -148,6 +149,7 @@ export function SRSReviewSession({
 
   const currentEntry = activeQueue[currentIdx];
   const card = currentEntry?.card;
+  const activeSessionType = useSessionsStore(s => s.getActiveSession()?.type);
 
   const availableAnswerModes = useMemo(() => {
     if (!answerModeOptions.length) return ['bottom', 'tooltip', 'inline'] as AnswerDisplayMode[];
@@ -372,6 +374,17 @@ export function SRSReviewSession({
         )}
 
         <Progress value={progress} className="h-1 rounded-none shrink-0" />
+
+        {!focusMode && (
+          <details className="border-b border-border bg-card/40 px-3 py-2 shrink-0">
+            <summary className="cursor-pointer text-xs font-arabic text-muted-foreground list-none flex items-center gap-1">
+              <Settings2 className="w-3 h-3" /> إعدادات خط الجلسة
+            </summary>
+            <div className="pt-3">
+              <SessionFontSettings sessionType={activeSessionType || 'tahfeez-review'} compact />
+            </div>
+          </details>
+        )}
 
         {/* Card content — scrollable */}
         <div data-review-scroll-container="true" className="flex-1 min-h-0 overflow-y-auto overscroll-contain">
