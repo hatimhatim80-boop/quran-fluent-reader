@@ -29,6 +29,7 @@ import { Loader2, List, SlidersHorizontal, ChevronRight, ChevronLeft, Eye, EyeOf
 import { useNavigate } from 'react-router-dom';
 import { GhareebEntryDialog, GhareebEntryResetButton } from './GhareebEntryDialog';
 import { SpeedControlWidget } from './SpeedControlWidget';
+import { SessionFontSettings } from './SessionFontSettings';
 
 const JUZ_DATA_READER = [
   { number: 1, page: 1 }, { number: 2, page: 22 }, { number: 3, page: 42 },
@@ -65,6 +66,10 @@ export function QuranReader() {
   // Auto-save session progress
   const activeSessionId = useSessionsStore((s) => s.activeSessionId);
   const updateSession = useSessionsStore((s) => s.updateSession);
+  const activeSessionType = useSessionsStore((s) => {
+    const id = s.activeSessionId;
+    return id ? s.sessions.find((session) => session.id === id)?.type : undefined;
+  });
   
   useEffect(() => {
     if (activeSessionId) {
@@ -615,6 +620,14 @@ export function QuranReader() {
             {/* Expandable autoplay controls */}
             {showControls && renderedWords.length > 0 && (
               <div className="mt-2 pt-2 border-t border-border/50 animate-fade-in">
+                <details className="mb-3 rounded-lg border border-border bg-card/60 p-3">
+                  <summary className="cursor-pointer text-xs font-arabic text-muted-foreground list-none flex items-center gap-1">
+                    <Settings className="w-3 h-3" /> إعدادات خط الجلسة
+                  </summary>
+                  <div className="pt-3">
+                    <SessionFontSettings sessionType={activeSessionType || 'ghareeb'} compact />
+                  </div>
+                </details>
                 <AutoPlayControls
                   isPlaying={isPlaying}
                   speed={speed}
