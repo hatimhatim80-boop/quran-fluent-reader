@@ -210,6 +210,7 @@ export default function Sessions() {
   const [showRename, setShowRename] = useState<Session | null>(null);
   const [showMove, setShowMove] = useState<Session | null>(null);
   const [showDelete, setShowDelete] = useState<Session | null>(null);
+  const [showStats, setShowStats] = useState<Session | null>(null);
   const [showFolderCreate, setShowFolderCreate] = useState(false);
   const [editingGroupId, setEditingGroupId] = useState<string | null>(null);
   const [editGroupName, setEditGroupName] = useState('');
@@ -387,9 +388,12 @@ export default function Sessions() {
         onDuplicate={handleDuplicate}
         onMove={(s) => { setShowMove(s); setMoveTargetGroup(s.groupId || ''); }}
         onDelete={(s) => setShowDelete(s)}
+        onStats={(s) => setShowStats(s)}
         onArchive={(s) => { store.archiveSession(s.id); toast.success('تم الأرشفة'); }}
       />
     ));
+
+  const statsForDialog = showStats ? store.getSessionCompletionStats(showStats.id) : null;
 
   return (
     <div className="min-h-screen bg-background" dir="rtl">
@@ -715,6 +719,42 @@ export default function Sessions() {
           <DialogFooter>
             <Button onClick={handleMove} className="w-full font-arabic">نقل</Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ─── Completion Stats Dialog ─── */}
+      <Dialog open={!!showStats} onOpenChange={() => setShowStats(null)}>
+        <DialogContent className="max-w-sm" dir="rtl">
+          <DialogHeader>
+            <DialogTitle className="font-arabic text-center">إحصاءات الختم</DialogTitle>
+            <DialogDescription className="font-arabic text-center text-xs">{showStats?.name}</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 font-arabic">
+            <div className="grid grid-cols-2 gap-2">
+              <div className="rounded-lg bg-muted/50 border border-border/50 p-3 text-center">
+                <p className="text-[11px] text-muted-foreground">منذ الإنشاء</p>
+                <p className="text-xl font-bold text-foreground">{statsForDialog?.total || 0}</p>
+              </div>
+              <div className="rounded-lg bg-primary/10 border border-primary/20 p-3 text-center">
+                <p className="text-[11px] text-primary/80">هذا الشهر</p>
+                <p className="text-xl font-bold text-primary">{statsForDialog?.thisMonth || 0}</p>
+              </div>
+            </div>
+            <div className="rounded-lg border border-border/60 overflow-hidden">
+              <div className="grid grid-cols-2 bg-muted/50 px-3 py-2 text-xs font-bold text-muted-foreground">
+                <span>الشهر</span>
+                <span className="text-left">عدد الختمات</span>
+              </div>
+              {(statsForDialog?.byMonth.length || 0) > 0 ? statsForDialog!.byMonth.map(row => (
+                <div key={row.month_key} className="grid grid-cols-2 px-3 py-2 text-sm border-t border-border/40">
+                  <span className="font-mono">{row.month_key}</span>
+                  <span className="text-left">{row.count} مرات</span>
+                </div>
+              )) : (
+                <div className="px-3 py-6 text-center text-xs text-muted-foreground">لا توجد ختمات مسجلة بعد</div>
+              )}
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
 
