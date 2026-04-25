@@ -142,6 +142,7 @@ export default function TahfeezPage() {
   const saveResumeState = useSessionsStore((s) => s.saveResumeState);
   const markSessionPaused = useSessionsStore((s) => s.markSessionPaused);
   const markSessionResumed = useSessionsStore((s) => s.markSessionResumed);
+  const markSessionCompleted = useSessionsStore((s) => s.markSessionCompleted);
   const hasHydratedRef = useRef(false);
   const isHydratingSessionRef = useRef(false);
 
@@ -902,16 +903,18 @@ export default function TahfeezPage() {
   }, [currentPage, quizStarted]);
 
   const completeQuizSession = useCallback(() => {
+    const sessionId = sessionIdParam || activeSessionId;
     clearAdvanceFrame();
     if (revealTimerRef.current) clearTimeout(revealTimerRef.current);
     if (autoAdvanceTimerRef.current) clearTimeout(autoAdvanceTimerRef.current);
     completeEngine();
+    if (sessionId) markSessionCompleted(sessionId);
     pendingAutoStartPageRef.current = null;
     autoResumeQuizRef.current = false;
     setShowAll(true);
     setActiveBlankKey(null);
     speechRef.current.stop();
-  }, [clearAdvanceFrame, completeEngine]);
+  }, [activeSessionId, clearAdvanceFrame, completeEngine, markSessionCompleted, sessionIdParam]);
 
   const advanceToNextQuizPage = useCallback(() => {
     const range = resolveQuizPagesRange();
