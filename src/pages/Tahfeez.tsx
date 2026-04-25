@@ -1731,6 +1731,8 @@ export default function TahfeezPage() {
             const range = quizPagesRangeRef.current;
             if (range.length > 1) {
               if (!advanceToNextQuizPage()) completeQuizSession();
+            } else if (sessionIdParam || activeSessionId) {
+              completeQuizSession();
             } else if (range.length <= 1) {
               pendingAutoStartPageRef.current = currentPageRef.current + 1;
               autoResumeQuizRef.current = true;
