@@ -9,6 +9,7 @@
         "@capacitor/app": "^8.0.1",
         "@capacitor/core": "^8.1.0",
         "@capacitor/local-notifications": "^8.0.1",
+        "@capacitor/preferences": "^8.0.1",
         "@capgo/capacitor-updater": "^8.43.2",
         "@fontsource/amiri-quran": "^5.2.10",
         "@hookform/resolvers": "^3.10.0",
@@ -284,6 +285,8 @@
     "@capacitor/core": ["@capacitor/core@8.1.0", "", { "dependencies": { "tslib": "^2.1.0" } }, "sha512-UfMBMWc1v7J+14AhH03QmeNwV3HZx3qnOWhpwnHfzALEwAwlV/itQOQqcasMQYhOHWL0tiymc5ByaLTn7KKQxw=="],
 
     "@capacitor/local-notifications": ["@capacitor/local-notifications@8.0.1", "", { "peerDependencies": { "@capacitor/core": ">=8.0.0" } }, "sha512-BWYg3wTCFQ9lsbE6tyHmJaE2IbxUuKYq4SeMIHQ9ZqVclrlTO6326sPT0sxM61YfR6K3G3fJGvyJqn89LzDk8A=="],
+
+    "@capacitor/preferences": ["@capacitor/preferences@8.0.1", "https://europe-west1-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/@capacitor/preferences/-/preferences-8.0.1.tgz", { "peerDependencies": { "@capacitor/core": ">=8.0.0" } }, "sha512-T6no3ebi79XJCk91U3Jp/liJUwgBdvHR+s6vhvPkPxSuch7z3zx5Rv1bdWM6sWruNx+pViuEGqZvbfCdyBvcHQ=="],
 
     "@capgo/capacitor-updater": ["@capgo/capacitor-updater@8.43.2", "", { "peerDependencies": { "@capacitor/core": "^8.0.0" } }, "sha512-/nsgo3Xr4bY9tT0rbfrRl3Hzo0dUIGbbZ22iv07qIhSJ0vLDe+64B+OztPr5gfKGZ4H8ZudemwfXGnteQwMpRQ=="],
 

@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   BookOpen, GraduationCap, Plus, Play, Archive, Trash2, RotateCcw, Clock,
@@ -13,6 +13,22 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent } from '@/components/ui/card';
 import { toast } from 'sonner';
+import { getSessionCompletionStats, LocalSessionCompletionStats } from '@/services/localSessionCompletionStore';
+
+const EMPTY_COMPLETION_STATS: LocalSessionCompletionStats = { total: 0, thisMonth: 0, byMonth: [] };
+
+function useLocalCompletionStats(sessionId: string | null) {
+  const [stats, setStats] = useState<LocalSessionCompletionStats>(EMPTY_COMPLETION_STATS);
+  useEffect(() => {
+    if (!sessionId) { setStats(EMPTY_COMPLETION_STATS); return; }
+    let cancelled = false;
+    const load = () => getSessionCompletionStats(sessionId).then(next => { if (!cancelled) setStats(next); });
+    load();
+    window.addEventListener('local-session-completions-changed', load);
+    return () => { cancelled = true; window.removeEventListener('local-session-completions-changed', load); };
+  }, [sessionId]);
+  return stats;
+}
 
 /* ─── helpers ─── */
 function timeAgo(ts: number): string {
@@ -64,7 +80,7 @@ function SessionCard({
 }) {
   const meta = SESSION_TYPE_META[session.type] || SESSION_TYPE_META['ghareeb'];
   const group = groups.find(g => g.id === session.groupId);
-  const completionStats = useSessionsStore(s => s.getSessionCompletionStats(session.id));
+  const completionStats = useLocalCompletionStats(session.id);
   const showCompletionStats = TAHFEEZ_COMPLETABLE_SESSION_TYPES.includes(session.type);
 
   return (
@@ -393,7 +409,7 @@ export default function Sessions() {
       />
     ));
 
-  const statsForDialog = showStats ? store.getSessionCompletionStats(showStats.id) : null;
+  const statsForDialog = useLocalCompletionStats(showStats?.id || null);
 
   return (
     <div className="min-h-screen bg-background" dir="rtl">
