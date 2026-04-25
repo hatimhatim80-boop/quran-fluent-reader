@@ -916,6 +916,25 @@ export default function TahfeezPage() {
     speechRef.current.stop();
   }, [activeSessionId, clearAdvanceFrame, completeEngine, markSessionCompleted, sessionIdParam]);
 
+  const completeActiveSessionIfAtEnd = useCallback((targetPage: number) => {
+    const sessionId = sessionIdParam || activeSessionId;
+    if (!sessionId) return false;
+    const session = getSession(sessionId);
+    if (!session || !session.type.startsWith('tahfeez') || !session.endPage) return false;
+    if (currentPageRef.current >= session.endPage && targetPage > session.endPage) {
+      markSessionCompleted(sessionId);
+      toast.success('تم تسجيل ختمة الجلسة');
+      navigate('/sessions');
+      return true;
+    }
+    return false;
+  }, [activeSessionId, getSession, markSessionCompleted, navigate, sessionIdParam]);
+
+  const goToTahfeezPage = useCallback((page: number) => {
+    if (completeActiveSessionIfAtEnd(page)) return;
+    goToPage(page);
+  }, [completeActiveSessionIfAtEnd, goToPage]);
+
   const advanceToNextQuizPage = useCallback(() => {
     const range = resolveQuizPagesRange();
     if (range.length === 0) return false;
