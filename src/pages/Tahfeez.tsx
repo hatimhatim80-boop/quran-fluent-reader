@@ -1333,6 +1333,8 @@ export default function TahfeezPage() {
 
               if (range.length > 1) {
                 if (!advanceToNextQuizPageRef.current()) completeQuizSessionRef.current();
+              } else if (sessionIdParam || activeSessionId) {
+                completeQuizSessionRef.current();
               } else if (range.length <= 1) {
                 pendingAutoStartPageRef.current = curPage + 1;
                 autoResumeQuizRef.current = true;
