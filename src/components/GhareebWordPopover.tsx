@@ -332,7 +332,15 @@ export function GhareebWordPopover({
                   {word.wordText}
                 </div>
                 <div className="ghareeb-popover__meaning" style={meaningStyle}>
-                  {effectiveMeaning}
+                  {isSharedWord && ghareebSourceSettings.sharedMeaningMode === 'ask' && !askedSource ? (
+                    <div className="space-y-2">
+                      <div>اختر مصدر المعنى:</div>
+                      <div className="flex flex-col gap-1.5">
+                        <button className="rounded-md border border-border px-2 py-1 text-xs font-arabic hover:bg-primary/10" onClick={() => setAskedSource('muyassar')}>الميسر في غريب القرآن</button>
+                        <button className="rounded-md border border-border px-2 py-1 text-xs font-arabic hover:bg-primary/10" onClick={() => setAskedSource('new')}>الكتاب الجديد</button>
+                      </div>
+                    </div>
+                  ) : effectiveMeaning}
                 </div>
               </div>
               {popoverSettings.showArrow && <div className="ghareeb-popover__arrow" />}
