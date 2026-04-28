@@ -166,45 +166,12 @@ async function loadNewBookGhareebData(pageIndex: [number, number][]): Promise<Ma
   return result;
 }
 
-async function loadJsonGhareebData(dataKey: string, source: GhareebSourceKey, pageIndex: [number, number][]): Promise<Map<number, GhareebWord[]>> {
-  const text = await getData(dataKey);
-  const parsed = JSON.parse(text) as { items: NewGhareebJsonItem[] };
-  const result = new Map<number, GhareebWord[]>();
-  const wordIndexCounters = new Map<string, number>();
-
-  for (const item of parsed.items || []) {
-    const counterKey = `${item.surahNumber}_${item.verseNumber}`;
-    const wordIndex = (wordIndexCounters.get(counterKey) ?? 0) + 1;
-    wordIndexCounters.set(counterKey, wordIndex);
-    const pageNumber = getPageForAyah(item.surahNumber, item.verseNumber, pageIndex);
-    const pageWords = result.get(pageNumber) ?? [];
-    pageWords.push({
-      pageNumber,
-      wordText: item.wordText,
-      meaning: item.meaning,
-      meaningsBySource: { [source]: item.meaning },
-      source,
-      availableSources: [source],
-      surahName: item.surahName,
-      surahNumber: item.surahNumber,
-      verseNumber: item.verseNumber,
-      wordIndex,
-      order: pageWords.length,
-      uniqueKey: `${item.surahNumber}_${item.verseNumber}_${wordIndex}_${source}`,
-    });
-    result.set(pageNumber, pageWords);
-  }
-
-  console.log(`Loaded ${parsed.items?.length ?? 0} ${source} ghareeb words across ${result.size} pages`);
-  return result;
-}
-
 function mergeGhareebSources(
   sources: Array<{ source: GhareebSourceKey; map: Map<number, GhareebWord[]> }>,
   sharedMeaningMode: GhareebSharedMeaningMode,
 ): Map<number, GhareebWord[]> {
   const result = new Map<number, GhareebWord[]>();
-  const sourceOrder: GhareebSourceKey[] = ['muyassar', 'new', 'muharrar'];
+  const sourceOrder: GhareebSourceKey[] = ['muyassar', 'new'];
   const pickMeaning = (meanings: Partial<Record<GhareebSourceKey, string>>) => {
     if (sharedMeaningMode !== 'ask' && sharedMeaningMode !== 'both') {
       return meanings[sharedMeaningMode] || sourceOrder.map((key) => meanings[key]).find(Boolean) || '';
@@ -212,7 +179,7 @@ function mergeGhareebSources(
     if (sharedMeaningMode === 'both') {
       return sourceOrder.map((key) => meanings[key]).filter(Boolean).join('\n\n');
     }
-    return meanings.muyassar || meanings.new || meanings.muharrar || '';
+    return meanings.muyassar || meanings.new || '';
   };
 
   const add = (word: GhareebWord, source: GhareebSourceKey) => {
@@ -248,16 +215,13 @@ export async function loadGhareebData(options: GhareebLoadOptions = {}): Promise
   const sharedMeaningMode = options.sharedMeaningMode ?? 'muyassar';
   if (sourceMode === 'muyassar-only') return loadMuyassarGhareebData(pageIndex);
   if (sourceMode === 'new-only') return loadNewBookGhareebData(pageIndex);
-  if (sourceMode === 'muharrar-only') return loadJsonGhareebData('ghareeb-muharrar', 'muharrar', pageIndex);
-  const [muyassar, newBook, muharrar] = await Promise.all([
+  const [muyassar, newBook] = await Promise.all([
     loadMuyassarGhareebData(pageIndex),
     loadNewBookGhareebData(pageIndex),
-    loadJsonGhareebData('ghareeb-muharrar', 'muharrar', pageIndex),
   ]);
   return mergeGhareebSources([
     { source: 'muyassar', map: muyassar },
     { source: 'new', map: newBook },
-    { source: 'muharrar', map: muharrar },
   ], sharedMeaningMode);
 }
 

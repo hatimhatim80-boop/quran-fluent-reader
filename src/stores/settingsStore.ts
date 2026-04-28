@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { GhareebSourceSettingsValue } from '@/services/ghareebSourceSettings';
-import { DEFAULT_GHAREEB_SOURCE_SETTINGS } from '@/services/ghareebSourceSettings';
+import { DEFAULT_GHAREEB_SOURCE_SETTINGS, normalizeGhareebSourceSettings } from '@/services/ghareebSourceSettings';
 
 // Font settings
 export interface FontSettings {
@@ -280,7 +280,10 @@ export const useSettingsStore = create<SettingsState>()(
         set((state) => ({
           settings: {
             ...state.settings,
-            ghareebSources: { ...(state.settings.ghareebSources ?? DEFAULT_GHAREEB_SOURCE_SETTINGS), ...ghareebSources },
+            ghareebSources: normalizeGhareebSourceSettings({
+              ...(state.settings.ghareebSources ?? DEFAULT_GHAREEB_SOURCE_SETTINGS),
+              ...ghareebSources,
+            }),
           },
         })),
 
