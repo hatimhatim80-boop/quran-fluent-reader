@@ -148,6 +148,12 @@ function looseWordMatch(tokenCan: string, phraseCan: string): boolean {
 
   const lenDiff = Math.abs(tokenCan.length - phraseCan.length);
 
+  // Quranic orthography may write long alif as dagger alif (صِرَٰط), while
+  // source books often type it with a regular alif (صراط). Match both safely.
+  const tokenAlifless = tokenCan.replace(/ا/g, '');
+  const phraseAlifless = phraseCan.replace(/ا/g, '');
+  if (tokenAlifless.length >= 3 && tokenAlifless === phraseAlifless) return true;
+
   // Substring containment with small length diff
   if (lenDiff <= 3) {
     if (tokenCan.includes(phraseCan) || phraseCan.includes(tokenCan)) return true;
