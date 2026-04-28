@@ -280,7 +280,7 @@ export const useSettingsStore = create<SettingsState>()(
         set((state) => ({
           settings: {
             ...state.settings,
-            ghareebSources: { ...state.settings.ghareebSources, ...ghareebSources },
+            ghareebSources: { ...(state.settings.ghareebSources ?? DEFAULT_GHAREEB_SOURCE_SETTINGS), ...ghareebSources },
           },
         })),
 
