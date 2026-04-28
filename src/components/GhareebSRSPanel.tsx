@@ -8,6 +8,7 @@ import { GhareebWord } from '@/types/quran';
 import { Plus, Download, Upload, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useSettingsStore } from '@/stores/settingsStore';
+import { canonicalize } from '@/utils/canonicalMatch';
 
 interface GhareebSRSPanelProps {
   pageWords: GhareebWord[];
@@ -77,6 +78,22 @@ export function GhareebSRSPanel({
     setSessionMode('review');
   }, []);
 
+  const resolveHighlightKey = useCallback((card: SRSCard) => {
+    if (allWords.some((word) => word.uniqueKey === card.contentKey)) return card.contentKey;
+
+    const surahNumber = Number(card.meta?.surahNumber || 0);
+    const verseNumber = Number(card.meta?.verseNumber || 0);
+    const cardWord = canonicalize(String(card.meta?.wordText || ''));
+    const candidate = allWords.find((word) => {
+      if (word.pageNumber !== card.page) return false;
+      if (surahNumber && word.surahNumber !== surahNumber) return false;
+      if (verseNumber && word.verseNumber !== verseNumber) return false;
+      return canonicalize(word.wordText) === cardWord;
+    });
+
+    return candidate?.uniqueKey ?? card.contentKey;
+  }, [allWords]);
+
   const handleExport = useCallback(() => {
     const json = exportData();
     const blob = new Blob([json], { type: 'application/json' });
@@ -121,6 +138,7 @@ export function GhareebSRSPanel({
             answerRevealed={answerRevealed}
             answerDisplayMode={answerDisplayMode}
             highlightStyle={highlightStyle}
+            activeContentKey={resolveHighlightKey(card)}
             renderPageWithHighlight={renderPageWithHighlight}
           />
         )}
@@ -183,12 +201,14 @@ function GhareebReviewCardContent({
   answerRevealed,
   answerDisplayMode,
   highlightStyle,
+  activeContentKey,
   renderPageWithHighlight,
 }: {
   card: SRSCard;
   answerRevealed: boolean;
   answerDisplayMode: string;
   highlightStyle: 'color' | 'bg' | 'border';
+  activeContentKey: string;
   renderPageWithHighlight: (page: number, wordKey: string | null, style: 'color' | 'bg' | 'border') => React.ReactNode;
 }) {
   const rootRef = useRef<HTMLDivElement>(null);
@@ -196,18 +216,18 @@ function GhareebReviewCardContent({
   // Unified auto-scroll: only when word/meaning hidden behind bottom bar
   const doScrollCheck = useCallback(() => {
     if (!rootRef.current) return;
-    const wordEl = rootRef.current.querySelector<HTMLElement>(`[data-ghareeb-key="${card.contentKey}"]`);
+    const wordEl = rootRef.current.querySelector<HTMLElement>(`[data-ghareeb-key="${activeContentKey}"]`);
     const meaningEl = rootRef.current.querySelector<HTMLElement>(
       '[data-ghareeb-tooltip="true"], .ghareeb-inline-answer, .ghareeb-popover'
     );
-    ensureGhareebMeaningVisibleAboveBottomBar(wordEl, meaningEl, card.contentKey);
-  }, [card.contentKey]);
+    ensureGhareebMeaningVisibleAboveBottomBar(wordEl, meaningEl, activeContentKey);
+  }, [activeContentKey]);
 
   // Auto-scroll to highlighted word on card change
   useEffect(() => {
     const timer = setTimeout(() => requestAnimationFrame(doScrollCheck), 250);
     return () => clearTimeout(timer);
-  }, [card.contentKey, card.id, doScrollCheck]);
+  }, [activeContentKey, card.id, doScrollCheck]);
 
   // Auto-scroll when answer is revealed
   useEffect(() => {
@@ -230,12 +250,12 @@ function GhareebReviewCardContent({
 
   return (
     <div ref={rootRef} className="p-2 pb-32 relative" data-ghareeb-review-root="true">
-      {renderPageWithHighlight(card.page, card.contentKey, highlightStyle)}
+      {renderPageWithHighlight(card.page, activeContentKey, highlightStyle)}
       {/* Tooltip answer anchored near the word */}
       {answerRevealed && answerDisplayMode === 'tooltip' && (
         <AnchoredGhareebTooltip
           visible
-          contentKey={card.contentKey}
+          contentKey={activeContentKey}
           wordText={String(card.meta.wordText || '')}
           meaning={String(card.meta.meaning || '')}
           surahName={String(card.meta.surahName || '')}
