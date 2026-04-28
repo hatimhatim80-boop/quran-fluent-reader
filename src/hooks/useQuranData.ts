@@ -24,7 +24,12 @@ export function useQuranData(options?: { sessionId?: string | null }) {
   // Get user overrides from dataStore
   const applyOverrides = useDataStore((s) => s.applyOverrides);
   const userOverrides = useDataStore((s) => s.userOverrides);
-  const ghareebSourceSettings = useSettingsStore((s) => normalizeGhareebSourceSettings(s.settings.ghareebSources ?? DEFAULT_GHAREEB_SOURCE_SETTINGS));
+  const storedGhareebSourceMode = useSettingsStore((s) => s.settings.ghareebSources?.sourceMode);
+  const storedGhareebSharedMeaningMode = useSettingsStore((s) => s.settings.ghareebSources?.sharedMeaningMode);
+  const ghareebSourceSettings = useMemo(() => normalizeGhareebSourceSettings({
+    sourceMode: storedGhareebSourceMode,
+    sharedMeaningMode: storedGhareebSharedMeaningMode,
+  }), [storedGhareebSourceMode, storedGhareebSharedMeaningMode]);
   
   const [currentPage, setCurrentPage] = useState(1);
   const [currentWordIndex, setCurrentWordIndex] = useState(-1);

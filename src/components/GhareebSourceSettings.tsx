@@ -7,8 +7,13 @@ import type { GhareebSharedMeaningMode, GhareebSourceMode } from '@/services/gha
 import { DEFAULT_GHAREEB_SOURCE_SETTINGS, normalizeGhareebSourceSettings } from '@/services/ghareebSourceSettings';
 
 export function GhareebSourceSettings({ compact = false }: { compact?: boolean }) {
-  const ghareebSources = useSettingsStore((s) => normalizeGhareebSourceSettings(s.settings.ghareebSources ?? DEFAULT_GHAREEB_SOURCE_SETTINGS));
+  const storedSourceMode = useSettingsStore((s) => s.settings.ghareebSources?.sourceMode);
+  const storedSharedMeaningMode = useSettingsStore((s) => s.settings.ghareebSources?.sharedMeaningMode);
   const setGhareebSources = useSettingsStore((s) => s.setGhareebSources);
+  const ghareebSources = normalizeGhareebSourceSettings({
+    sourceMode: storedSourceMode,
+    sharedMeaningMode: storedSharedMeaningMode,
+  });
 
   return (
     <div className={compact ? 'space-y-3' : 'rounded-xl border border-border bg-card/60 p-4 space-y-4'} dir="rtl">
