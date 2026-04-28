@@ -4,9 +4,10 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useSettingsStore } from '@/stores/settingsStore';
 import type { GhareebSharedMeaningMode, GhareebSourceMode } from '@/services/ghareebSourceSettings';
+import { DEFAULT_GHAREEB_SOURCE_SETTINGS } from '@/services/ghareebSourceSettings';
 
 export function GhareebSourceSettings({ compact = false }: { compact?: boolean }) {
-  const ghareebSources = useSettingsStore((s) => s.settings.ghareebSources);
+  const ghareebSources = useSettingsStore((s) => s.settings.ghareebSources ?? DEFAULT_GHAREEB_SOURCE_SETTINGS);
   const setGhareebSources = useSettingsStore((s) => s.setGhareebSources);
 
   return (
