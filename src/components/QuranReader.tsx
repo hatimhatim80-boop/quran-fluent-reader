@@ -618,8 +618,8 @@ export function QuranReader() {
               </div>
             </div>
 
-            {/* Expandable autoplay controls */}
-            {showControls && renderedWords.length > 0 && (
+            {/* Expandable reading controls */}
+            {showControls && (
               <div className="mt-2 pt-2 border-t border-border/50 animate-fade-in">
                 <details className="mb-3 rounded-lg border border-border bg-card/60 p-3">
                   <summary className="cursor-pointer text-xs font-arabic text-muted-foreground list-none flex items-center gap-1">
@@ -637,18 +637,20 @@ export function QuranReader() {
                     <GhareebSourceSettings compact />
                   </div>
                 </details>
-                <AutoPlayControls
-                  isPlaying={isPlaying}
-                  speed={speed}
-                  wordsCount={renderedWords.length}
-                  currentWordIndex={currentWordIndex}
-                  onPlay={play}
-                  onPause={pause}
-                  onStop={stop}
-                  onNext={nextWord}
-                  onPrev={prevWord}
-                  onSpeedChange={setSpeed}
-                />
+                {renderedWords.length > 0 && (
+                  <AutoPlayControls
+                    isPlaying={isPlaying}
+                    speed={speed}
+                    wordsCount={renderedWords.length}
+                    currentWordIndex={currentWordIndex}
+                    onPlay={play}
+                    onPause={pause}
+                    onStop={stop}
+                    onNext={nextWord}
+                    onPrev={prevWord}
+                    onSpeedChange={setSpeed}
+                  />
+                )}
               </div>
             )}
 

@@ -37,6 +37,7 @@ import { TahfeezSessionReviewSettings } from '@/components/TahfeezSessionReviewS
 import { SessionFontSettings } from '@/components/SessionFontSettings';
 import { StableSessionTimer } from '@/components/StableSessionTimer';
 import { FloatingSessionTimer } from '@/components/FloatingSessionTimer';
+import { GhareebSourceSettings } from '@/components/GhareebSourceSettings';
 // ---- Quran Index Data ----
 const SURAHS = Object.entries(SURAH_NAMES).map(([name, number]) => ({
   number, name,
@@ -2781,6 +2782,9 @@ export default function TahfeezPage() {
                   <div className="mt-4 space-y-5">
                     <div className="rounded-lg border border-border p-3 bg-card/60">
                       <SessionFontSettings sessionType={activeSessionType || 'tahfeez-auto'} compact />
+                    </div>
+                    <div className="rounded-lg border border-border p-3 bg-card/60">
+                      <GhareebSourceSettings compact />
                     </div>
                     <TahfeezAutoQuizSettings
                       currentPage={currentPage}

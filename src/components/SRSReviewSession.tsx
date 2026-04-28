@@ -8,6 +8,7 @@ import { ReviewCardIndex } from './ReviewCardIndex';
 import { Ban, ChevronLeft, ChevronRight, X, Eye, Settings2, Flag, List, Archive, ArchiveRestore } from 'lucide-react';
 import { ReviewQueueEntry, partitionSessionCards, promoteDueQueue, getNextDueCountdownLabel } from '@/utils/reviewQueue';
 import { SessionFontSettings } from '@/components/SessionFontSettings';
+import { GhareebSourceSettings } from '@/components/GhareebSourceSettings';
 
 export type AnswerDisplayMode = 'bottom' | 'tooltip' | 'inline';
 
@@ -382,6 +383,17 @@ export function SRSReviewSession({
             </summary>
             <div className="pt-3">
               <SessionFontSettings sessionType={activeSessionType || 'tahfeez-review'} compact />
+            </div>
+          </details>
+        )}
+
+        {!focusMode && portalName === 'الغريب' && (
+          <details className="border-b border-border bg-card/40 px-3 py-2 shrink-0">
+            <summary className="cursor-pointer text-xs font-arabic text-muted-foreground list-none flex items-center gap-1">
+              <Settings2 className="w-3 h-3" /> مصادر الكلمات والمعاني
+            </summary>
+            <div className="pt-3">
+              <GhareebSourceSettings compact />
             </div>
           </details>
         )}
