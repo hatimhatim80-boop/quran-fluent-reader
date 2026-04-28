@@ -53,7 +53,7 @@ export function GhareebWordPopover({
   const fontSettings = settings.fonts;
   const colorSettings = settings.colors;
   const ghareebSourceSettings = settings.ghareebSources ?? DEFAULT_GHAREEB_SOURCE_SETTINGS;
-  const [askedSource, setAskedSource] = useState<'muyassar' | 'new' | 'muharrar' | null>(null);
+  const [askedSource, setAskedSource] = useState<'muyassar' | 'new' | null>(null);
 
   const popoverMaxWidth = popoverSettings.width || (isMobile ? 260 : 320);
   const popoverMinWidth = isMobile ? 120 : 140;
@@ -68,7 +68,7 @@ export function GhareebWordPopover({
   const getEffectiveMeaning = useHighlightOverrideStore((s) => s.getEffectiveMeaning);
   const meaningInfo = getEffectiveMeaning(posKey, identityKey, word.meaning || "");
   
-  const availableMeaningSources = (['muyassar', 'new', 'muharrar'] as const).filter((source) => !!word.meaningsBySource?.[source]);
+  const availableMeaningSources = (['muyassar', 'new'] as const).filter((source) => !!word.meaningsBySource?.[source]);
   const isSharedWord = availableMeaningSources.length > 1;
   const sourceMeaning = (() => {
     if (!isSharedWord) return word.meaning;
