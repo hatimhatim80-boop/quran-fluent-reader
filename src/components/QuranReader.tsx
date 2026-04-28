@@ -30,6 +30,7 @@ import { useNavigate } from 'react-router-dom';
 import { GhareebEntryDialog, GhareebEntryResetButton } from './GhareebEntryDialog';
 import { SpeedControlWidget } from './SpeedControlWidget';
 import { SessionFontSettings } from './SessionFontSettings';
+import { GhareebSourceSettings } from './GhareebSourceSettings';
 
 const JUZ_DATA_READER = [
   { number: 1, page: 1 }, { number: 2, page: 22 }, { number: 3, page: 42 },
@@ -626,6 +627,14 @@ export function QuranReader() {
                   </summary>
                   <div className="pt-3">
                     <SessionFontSettings sessionType={activeSessionType || 'ghareeb'} compact />
+                  </div>
+                </details>
+                <details className="mb-3 rounded-lg border border-border bg-card/60 p-3">
+                  <summary className="cursor-pointer text-xs font-arabic text-muted-foreground list-none flex items-center gap-1">
+                    <Settings className="w-3 h-3" /> مصادر الكلمات والمعاني
+                  </summary>
+                  <div className="pt-3">
+                    <GhareebSourceSettings compact />
                   </div>
                 </details>
                 <AutoPlayControls
