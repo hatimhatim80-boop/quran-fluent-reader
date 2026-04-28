@@ -248,11 +248,17 @@ export async function loadGhareebData(options: GhareebLoadOptions = {}): Promise
   const sharedMeaningMode = options.sharedMeaningMode ?? 'muyassar';
   if (sourceMode === 'muyassar-only') return loadMuyassarGhareebData(pageIndex);
   if (sourceMode === 'new-only') return loadNewBookGhareebData(pageIndex);
-  const [muyassar, newBook] = await Promise.all([
+  if (sourceMode === 'muharrar-only') return loadJsonGhareebData('ghareeb-muharrar', 'muharrar', pageIndex);
+  const [muyassar, newBook, muharrar] = await Promise.all([
     loadMuyassarGhareebData(pageIndex),
     loadNewBookGhareebData(pageIndex),
+    loadJsonGhareebData('ghareeb-muharrar', 'muharrar', pageIndex),
   ]);
-  return mergeGhareebSources(muyassar, newBook, sharedMeaningMode);
+  return mergeGhareebSources([
+    { source: 'muyassar', map: muyassar },
+    { source: 'new', map: newBook },
+    { source: 'muharrar', map: muharrar },
+  ], sharedMeaningMode);
 }
 
 /**
