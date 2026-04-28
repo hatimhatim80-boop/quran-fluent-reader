@@ -166,6 +166,46 @@ async function loadNewBookGhareebData(pageIndex: [number, number][]): Promise<Ma
   return result;
 }
 
+function mergeGhareebSources(
+  muyassar: Map<number, GhareebWord[]>,
+  newBook: Map<number, GhareebWord[]>,
+  sharedMeaningMode: GhareebSharedMeaningMode,
+): Map<number, GhareebWord[]> {
+  const result = new Map<number, GhareebWord[]>();
+  const pickMeaning = (meanings: Partial<Record<'muyassar' | 'new', string>>) => {
+    if (sharedMeaningMode === 'new') return meanings.new || meanings.muyassar || '';
+    if (sharedMeaningMode === 'both' && meanings.muyassar && meanings.new) return `${meanings.muyassar}\n\n${meanings.new}`;
+    return meanings.muyassar || meanings.new || '';
+  };
+
+  const add = (word: GhareebWord, source: 'muyassar' | 'new') => {
+    const pageWords = result.get(word.pageNumber) ?? [];
+    const mergeKey = `${word.surahNumber}_${word.verseNumber}_${canonicalize(word.wordText)}`;
+    const existing = pageWords.find((item) => `${item.surahNumber}_${item.verseNumber}_${canonicalize(item.wordText)}` === mergeKey);
+    if (existing) {
+      existing.meaningsBySource = { ...(existing.meaningsBySource || {}), [source]: word.meaning };
+      existing.availableSources = Array.from(new Set([...(existing.availableSources || []), source]));
+      existing.source = 'combined';
+      existing.meaning = pickMeaning(existing.meaningsBySource);
+      return;
+    }
+    pageWords.push({
+      ...word,
+      meaningsBySource: { ...(word.meaningsBySource || {}), [source]: word.meaning },
+      availableSources: [source],
+      source,
+      uniqueKey: `${word.surahNumber}_${word.verseNumber}_${canonicalize(word.wordText).replace(/\s+/g, '_')}_${source}`,
+      order: pageWords.length,
+    });
+    result.set(word.pageNumber, pageWords);
+  };
+
+  muyassar.forEach((words) => words.forEach((word) => add(word, 'muyassar')));
+  newBook.forEach((words) => words.forEach((word) => add(word, 'new')));
+  result.forEach((words) => words.forEach((word, index) => { word.order = index; }));
+  return result;
+}
+
 export async function loadGhareebData(options: GhareebLoadOptions = {}): Promise<Map<number, GhareebWord[]>> {
   const pageIndex = await loadTanzilPageIndex();
   const sourceMode = options.sourceMode ?? 'muyassar-only';
