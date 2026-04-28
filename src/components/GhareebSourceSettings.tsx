@@ -29,7 +29,6 @@ export function GhareebSourceSettings({ compact = false }: { compact?: boolean }
           <SelectContent>
             <SelectItem value="muyassar-only" className="font-arabic">عرض كلمات الميسر فقط</SelectItem>
             <SelectItem value="new-only" className="font-arabic">عرض كلمات الكتاب الجديد فقط</SelectItem>
-            <SelectItem value="muharrar-only" className="font-arabic">عرض كلمات المحرر فقط</SelectItem>
             <SelectItem value="both" className="font-arabic">عرض جميع الكلمات من المصادر</SelectItem>
           </SelectContent>
         </Select>
@@ -46,7 +45,6 @@ export function GhareebSourceSettings({ compact = false }: { compact?: boolean }
             <SelectContent>
               <SelectItem value="muyassar" className="font-arabic">الميسر في غريب القرآن</SelectItem>
               <SelectItem value="new" className="font-arabic">الكتاب الجديد</SelectItem>
-              <SelectItem value="muharrar" className="font-arabic">المحرر في غريب القرآن</SelectItem>
               <SelectItem value="ask" className="font-arabic">اسألني عند الضغط على الكلمة</SelectItem>
               <SelectItem value="both" className="font-arabic">اعرض المعنيين</SelectItem>
             </SelectContent>
