@@ -5,7 +5,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { useSettingsStore } from "@/stores/settingsStore";
 import { useHighlightOverrideStore, makePositionKey } from "@/stores/highlightOverrideStore";
 import { dispatchWordInspection } from "./DevDebugPanel";
-import { DEFAULT_GHAREEB_SOURCE_SETTINGS, GHAREEB_SOURCE_LABELS } from "@/services/ghareebSourceSettings";
+import { DEFAULT_GHAREEB_SOURCE_SETTINGS, GHAREEB_SOURCE_LABELS, normalizeGhareebSourceSettings } from "@/services/ghareebSourceSettings";
 
 interface GhareebWordPopoverProps {
   word: GhareebWord;
@@ -52,7 +52,7 @@ export function GhareebWordPopover({
   const popoverSettings = settings.popover;
   const fontSettings = settings.fonts;
   const colorSettings = settings.colors;
-  const ghareebSourceSettings = settings.ghareebSources ?? DEFAULT_GHAREEB_SOURCE_SETTINGS;
+  const ghareebSourceSettings = normalizeGhareebSourceSettings(settings.ghareebSources ?? DEFAULT_GHAREEB_SOURCE_SETTINGS);
   const [askedSource, setAskedSource] = useState<'muyassar' | 'new' | null>(null);
 
   const popoverMaxWidth = popoverSettings.width || (isMobile ? 260 : 320);
