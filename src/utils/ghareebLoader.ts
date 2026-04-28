@@ -200,18 +200,22 @@ async function loadJsonGhareebData(dataKey: string, source: GhareebSourceKey, pa
 }
 
 function mergeGhareebSources(
-  muyassar: Map<number, GhareebWord[]>,
-  newBook: Map<number, GhareebWord[]>,
+  sources: Array<{ source: GhareebSourceKey; map: Map<number, GhareebWord[]> }>,
   sharedMeaningMode: GhareebSharedMeaningMode,
 ): Map<number, GhareebWord[]> {
   const result = new Map<number, GhareebWord[]>();
-  const pickMeaning = (meanings: Partial<Record<'muyassar' | 'new', string>>) => {
-    if (sharedMeaningMode === 'new') return meanings.new || meanings.muyassar || '';
-    if (sharedMeaningMode === 'both' && meanings.muyassar && meanings.new) return `${meanings.muyassar}\n\n${meanings.new}`;
-    return meanings.muyassar || meanings.new || '';
+  const sourceOrder: GhareebSourceKey[] = ['muyassar', 'new', 'muharrar'];
+  const pickMeaning = (meanings: Partial<Record<GhareebSourceKey, string>>) => {
+    if (sharedMeaningMode !== 'ask' && sharedMeaningMode !== 'both') {
+      return meanings[sharedMeaningMode] || sourceOrder.map((key) => meanings[key]).find(Boolean) || '';
+    }
+    if (sharedMeaningMode === 'both') {
+      return sourceOrder.map((key) => meanings[key]).filter(Boolean).join('\n\n');
+    }
+    return meanings.muyassar || meanings.new || meanings.muharrar || '';
   };
 
-  const add = (word: GhareebWord, source: 'muyassar' | 'new') => {
+  const add = (word: GhareebWord, source: GhareebSourceKey) => {
     const pageWords = result.get(word.pageNumber) ?? [];
     const mergeKey = `${word.surahNumber}_${word.verseNumber}_${canonicalize(word.wordText)}`;
     const existing = pageWords.find((item) => `${item.surahNumber}_${item.verseNumber}_${canonicalize(item.wordText)}` === mergeKey);
@@ -233,8 +237,7 @@ function mergeGhareebSources(
     result.set(word.pageNumber, pageWords);
   };
 
-  muyassar.forEach((words) => words.forEach((word) => add(word, 'muyassar')));
-  newBook.forEach((words) => words.forEach((word) => add(word, 'new')));
+  sources.forEach(({ source, map }) => map.forEach((words) => words.forEach((word) => add(word, source))));
   result.forEach((words) => words.forEach((word, index) => { word.order = index; }));
   return result;
 }
