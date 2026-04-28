@@ -3,6 +3,20 @@ import { normalizeArabic } from './quranParser';
 import { canonicalize } from './canonicalMatch';
 import { loadTanzilPageIndex, getPageForAyah } from './tanzilPageIndex';
 import { getData } from '@/services/dataSource';
+import type { GhareebSharedMeaningMode, GhareebSourceMode } from '@/services/ghareebSourceSettings';
+
+interface NewGhareebJsonItem {
+  surahNumber: number;
+  surahName: string;
+  verseNumber: number;
+  wordText: string;
+  meaning: string;
+}
+
+export interface GhareebLoadOptions {
+  sourceMode?: GhareebSourceMode;
+  sharedMeaningMode?: GhareebSharedMeaningMode;
+}
 
 /**
  * Convert Arabic numerals to JavaScript numbers
