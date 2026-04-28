@@ -276,6 +276,14 @@ export const useSettingsStore = create<SettingsState>()(
           },
         })),
 
+      setGhareebSources: (ghareebSources) =>
+        set((state) => ({
+          settings: {
+            ...state.settings,
+            ghareebSources: { ...state.settings.ghareebSources, ...ghareebSources },
+          },
+        })),
+
       setDebugMode: (enabled) =>
         set((state) => ({
           settings: { ...state.settings, debugMode: enabled },
