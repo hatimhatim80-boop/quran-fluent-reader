@@ -104,9 +104,24 @@ interface GhareebEntry {
   original: GhareebWord;
   originalIndex: number;
   canonicalFull: string;       // full phrase canonicalized
+  canonicalVariants: string[]; // full phrase + safe source-text variants
   canonicalWords: string[];    // individual words
   wordCount: number;
   normalizedSurah: string;
+}
+
+function buildCanonicalVariants(canonicalFull: string): string[] {
+  const words = canonicalFull.split(/\s+/).filter(Boolean);
+  const variants = new Set<string>([canonicalFull]);
+
+  // Some source entries include contextual prefixes (مثل: لقد / فهم) while
+  // the intended highlighted ghareeb phrase may be the core expression.
+  const removableLeading = new Set(['لقد', 'فهم', 'وهم', 'فهو', 'وهو', 'فهي', 'وهي']);
+  if (words.length > 1 && removableLeading.has(words[0])) {
+    variants.add(words.slice(1).join(' '));
+  }
+
+  return Array.from(variants).filter(v => v.length >= 2);
 }
 
 function normalizeSurahName(name: string): string {
@@ -277,9 +292,10 @@ function matchEntryInSegment(
     return null;
   }
 
-  const exactStart = segment.canonicalText.indexOf(entry.canonicalFull);
+  for (const variant of entry.canonicalVariants) {
+  const exactStart = segment.canonicalText.indexOf(variant);
   if (exactStart !== -1) {
-    const exactEnd = exactStart + entry.canonicalFull.length;
+    const exactEnd = exactStart + variant.length;
     const matchedPositions = collectMatchedPositions(segment.tokenRanges, exactStart, exactEnd);
     if (matchedPositions.length > 0) {
       return {
@@ -289,6 +305,7 @@ function matchEntryInSegment(
         matchedAyahText: segment.canonicalText,
       };
     }
+  }
   }
 
   if (pass === 'exact') return null;
@@ -325,11 +342,13 @@ export function matchGhareebToTokens(
   // Prepare entries
   const entries: GhareebEntry[] = ghareebWords.map((gw, idx) => {
     const canonicalFull = canonicalize(gw.wordText);
-    const canonicalWords = canonicalFull.split(/\s+/).filter(w => w.length >= 2);
+    const canonicalVariants = buildCanonicalVariants(canonicalFull);
+    const canonicalWords = (canonicalVariants[canonicalVariants.length - 1] || canonicalFull).split(/\s+/).filter(w => w.length >= 2);
     return {
       original: gw,
       originalIndex: idx,
       canonicalFull,
+      canonicalVariants,
       canonicalWords,
       wordCount: canonicalWords.length,
       normalizedSurah: normalizeSurahName(gw.surahName),
