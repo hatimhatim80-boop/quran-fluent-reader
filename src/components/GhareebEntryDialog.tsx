@@ -6,6 +6,7 @@ import { useSettingsStore } from '@/stores/settingsStore';
 import { SURAH_INFO, SURAH_NAMES } from '@/utils/quranPageIndex';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
+import { GhareebSourceSettings } from './GhareebSourceSettings';
 
 const SURAHS = Object.entries(SURAH_NAMES)
   .map(([name, number]) => ({ number, name, startPage: SURAH_INFO[number]?.[0] || 1 }))
@@ -167,6 +168,8 @@ export function GhareebEntryDialog({ open, onClose }: GhareebEntryDialogProps) {
 
             {/* Options */}
             <div className="p-5 space-y-3">
+              <GhareebSourceSettings compact />
+
               <button
                 onClick={handleRangeChoice}
                 className="w-full p-4 rounded-xl border-2 border-border hover:border-primary/60 hover:bg-primary/5 transition-all text-right flex items-center gap-4 group"

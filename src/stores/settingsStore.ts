@@ -1,5 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import type { GhareebSourceSettingsValue } from '@/services/ghareebSourceSettings';
+import { DEFAULT_GHAREEB_SOURCE_SETTINGS } from '@/services/ghareebSourceSettings';
 
 // Font settings
 export interface FontSettings {
@@ -101,6 +103,7 @@ export interface AppSettings {
   update: UpdateSettings;
   meaningBox: MeaningBoxFontSettings;
   verseNumber: VerseNumberSettings;
+  ghareebSources: GhareebSourceSettingsValue;
   debugMode: boolean;
 }
 
@@ -176,6 +179,7 @@ const defaultSettings: AppSettings = {
     bgColor: '45 70% 83%',
     visible: true,
   },
+  ghareebSources: DEFAULT_GHAREEB_SOURCE_SETTINGS,
   debugMode: false,
 };
 
@@ -189,6 +193,7 @@ interface SettingsState {
   setUpdate: (update: Partial<UpdateSettings>) => void;
   setMeaningBox: (mb: Partial<MeaningBoxFontSettings>) => void;
   setVerseNumber: (vn: Partial<VerseNumberSettings>) => void;
+  setGhareebSources: (settings: Partial<GhareebSourceSettingsValue>) => void;
   setDebugMode: (enabled: boolean) => void;
   resetFonts: () => void;
   resetColors: () => void;
@@ -268,6 +273,14 @@ export const useSettingsStore = create<SettingsState>()(
           settings: {
             ...state.settings,
             verseNumber: { ...state.settings.verseNumber, ...vn },
+          },
+        })),
+
+      setGhareebSources: (ghareebSources) =>
+        set((state) => ({
+          settings: {
+            ...state.settings,
+            ghareebSources: { ...(state.settings.ghareebSources ?? DEFAULT_GHAREEB_SOURCE_SETTINGS), ...ghareebSources },
           },
         })),
 

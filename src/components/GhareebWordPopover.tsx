@@ -5,6 +5,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { useSettingsStore } from "@/stores/settingsStore";
 import { useHighlightOverrideStore, makePositionKey } from "@/stores/highlightOverrideStore";
 import { dispatchWordInspection } from "./DevDebugPanel";
+import { DEFAULT_GHAREEB_SOURCE_SETTINGS, GHAREEB_SOURCE_LABELS } from "@/services/ghareebSourceSettings";
 
 interface GhareebWordPopoverProps {
   word: GhareebWord;
@@ -51,6 +52,8 @@ export function GhareebWordPopover({
   const popoverSettings = settings.popover;
   const fontSettings = settings.fonts;
   const colorSettings = settings.colors;
+  const ghareebSourceSettings = settings.ghareebSources ?? DEFAULT_GHAREEB_SOURCE_SETTINGS;
+  const [askedSource, setAskedSource] = useState<'muyassar' | 'new' | null>(null);
 
   const popoverMaxWidth = popoverSettings.width || (isMobile ? 260 : 320);
   const popoverMinWidth = isMobile ? 120 : 140;
@@ -65,12 +68,25 @@ export function GhareebWordPopover({
   const getEffectiveMeaning = useHighlightOverrideStore((s) => s.getEffectiveMeaning);
   const meaningInfo = getEffectiveMeaning(posKey, identityKey, word.meaning || "");
   
+  const isSharedWord = !!word.meaningsBySource?.muyassar && !!word.meaningsBySource?.new;
+  const sourceMeaning = (() => {
+    if (!isSharedWord) return word.meaning;
+    if (ghareebSourceSettings.sharedMeaningMode === 'new') return word.meaningsBySource?.new || word.meaning;
+    if (ghareebSourceSettings.sharedMeaningMode === 'both') {
+      return `${GHAREEB_SOURCE_LABELS.muyassar}: ${word.meaningsBySource?.muyassar || ''}\n\n${GHAREEB_SOURCE_LABELS.new}: ${word.meaningsBySource?.new || ''}`;
+    }
+    if (ghareebSourceSettings.sharedMeaningMode === 'ask' && askedSource) {
+      return word.meaningsBySource?.[askedSource] || word.meaning;
+    }
+    return word.meaningsBySource?.muyassar || word.meaning;
+  })();
+
   // Resolve meaningId references: if source is 'override-ref', the meaning field contains
   // a uniqueKey that needs to be resolved. Use word.meaning as final fallback.
-  let effectiveMeaning = meaningInfo.meaning || word.meaning || "⚠️ لا يوجد معنى";
+  let effectiveMeaning = meaningInfo.meaning || sourceMeaning || "⚠️ لا يوجد معنى";
   if (meaningInfo.source === 'override-ref' && meaningInfo.meaning) {
     // meaningId was returned as-is; use word.meaning which was pre-resolved in PageView
-    effectiveMeaning = word.meaning || meaningInfo.meaning || "⚠️ لا يوجد معنى";
+    effectiveMeaning = sourceMeaning || meaningInfo.meaning || "⚠️ لا يوجد معنى";
   }
 
   // Close manual popover when another word is selected (isHighlighted becomes false)
@@ -316,7 +332,15 @@ export function GhareebWordPopover({
                   {word.wordText}
                 </div>
                 <div className="ghareeb-popover__meaning" style={meaningStyle}>
-                  {effectiveMeaning}
+                  {isSharedWord && ghareebSourceSettings.sharedMeaningMode === 'ask' && !askedSource ? (
+                    <div className="space-y-2">
+                      <div>اختر مصدر المعنى:</div>
+                      <div className="flex flex-col gap-1.5">
+                        <button className="rounded-md border border-border px-2 py-1 text-xs font-arabic hover:bg-primary/10" onClick={() => setAskedSource('muyassar')}>الميسر في غريب القرآن</button>
+                        <button className="rounded-md border border-border px-2 py-1 text-xs font-arabic hover:bg-primary/10" onClick={() => setAskedSource('new')}>الكتاب الجديد</button>
+                      </div>
+                    </div>
+                  ) : effectiveMeaning}
                 </div>
               </div>
               {popoverSettings.showArrow && <div className="ghareeb-popover__arrow" />}

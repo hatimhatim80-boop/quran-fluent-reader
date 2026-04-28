@@ -5,6 +5,7 @@ import { loadGhareebData, getWordsForPage } from '@/utils/ghareebLoader';
 import { useDataStore } from '@/stores/dataStore';
 import { getData } from '@/services/dataSource';
 import { useSettingsStore } from '@/stores/settingsStore';
+import { DEFAULT_GHAREEB_SOURCE_SETTINGS } from '@/services/ghareebSourceSettings';
 
 const STORAGE_KEY = 'quran-app-progress';
 
@@ -23,6 +24,7 @@ export function useQuranData(options?: { sessionId?: string | null }) {
   // Get user overrides from dataStore
   const applyOverrides = useDataStore((s) => s.applyOverrides);
   const userOverrides = useDataStore((s) => s.userOverrides);
+  const ghareebSourceSettings = useSettingsStore((s) => s.settings.ghareebSources ?? DEFAULT_GHAREEB_SOURCE_SETTINGS);
   
   const [currentPage, setCurrentPage] = useState(1);
   const [currentWordIndex, setCurrentWordIndex] = useState(-1);
@@ -37,7 +39,7 @@ export function useQuranData(options?: { sessionId?: string | null }) {
         // Load Mushaf text (15-line Madina layout) and ghareeb data in parallel
         const [mushafText, ghareebMap] = await Promise.all([
           getData('mushaf'),
-          loadGhareebData(),
+          loadGhareebData(ghareebSourceSettings),
         ]);
         const loadedPages = parseMushafText(mushafText);
         
@@ -100,7 +102,7 @@ export function useQuranData(options?: { sessionId?: string | null }) {
     }
     
     loadData();
-  }, []);
+  }, [ghareebSourceSettings.sourceMode, ghareebSourceSettings.sharedMeaningMode]);
 
   // Save progress — per-session when sessionId is set, otherwise global
   const sessionIdRef = useRef(sessionId);
