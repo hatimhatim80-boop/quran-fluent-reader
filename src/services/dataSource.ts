@@ -12,6 +12,7 @@ const BUNDLED_PATHS: Record<string, string> = {
   'mushaf': '/data/mushaf.txt',
   'ghareeb': '/data/ghareeb-words.txt',
   'ghareeb-new': '/data/ghareeb-new-words.json',
+  'ghareeb-muharrar': '/data/ghareeb-muharrar-words.json',
   'tanzil-metadata': '/data/tanzil-metadata.xml',
   'quran-tanzil': '/data/quran-tanzil.txt',
   'page-mapping': '/data/page-mapping.json',

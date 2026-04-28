@@ -53,7 +53,7 @@ export function GhareebWordPopover({
   const fontSettings = settings.fonts;
   const colorSettings = settings.colors;
   const ghareebSourceSettings = settings.ghareebSources ?? DEFAULT_GHAREEB_SOURCE_SETTINGS;
-  const [askedSource, setAskedSource] = useState<'muyassar' | 'new' | null>(null);
+  const [askedSource, setAskedSource] = useState<'muyassar' | 'new' | 'muharrar' | null>(null);
 
   const popoverMaxWidth = popoverSettings.width || (isMobile ? 260 : 320);
   const popoverMinWidth = isMobile ? 120 : 140;
@@ -68,12 +68,15 @@ export function GhareebWordPopover({
   const getEffectiveMeaning = useHighlightOverrideStore((s) => s.getEffectiveMeaning);
   const meaningInfo = getEffectiveMeaning(posKey, identityKey, word.meaning || "");
   
-  const isSharedWord = !!word.meaningsBySource?.muyassar && !!word.meaningsBySource?.new;
+  const availableMeaningSources = (['muyassar', 'new', 'muharrar'] as const).filter((source) => !!word.meaningsBySource?.[source]);
+  const isSharedWord = availableMeaningSources.length > 1;
   const sourceMeaning = (() => {
     if (!isSharedWord) return word.meaning;
-    if (ghareebSourceSettings.sharedMeaningMode === 'new') return word.meaningsBySource?.new || word.meaning;
+    if (ghareebSourceSettings.sharedMeaningMode !== 'ask' && ghareebSourceSettings.sharedMeaningMode !== 'both') {
+      return word.meaningsBySource?.[ghareebSourceSettings.sharedMeaningMode] || word.meaning;
+    }
     if (ghareebSourceSettings.sharedMeaningMode === 'both') {
-      return `${GHAREEB_SOURCE_LABELS.muyassar}: ${word.meaningsBySource?.muyassar || ''}\n\n${GHAREEB_SOURCE_LABELS.new}: ${word.meaningsBySource?.new || ''}`;
+      return availableMeaningSources.map((source) => `${GHAREEB_SOURCE_LABELS[source]}: ${word.meaningsBySource?.[source] || ''}`).join('\n\n');
     }
     if (ghareebSourceSettings.sharedMeaningMode === 'ask' && askedSource) {
       return word.meaningsBySource?.[askedSource] || word.meaning;
@@ -336,8 +339,9 @@ export function GhareebWordPopover({
                     <div className="space-y-2">
                       <div>اختر مصدر المعنى:</div>
                       <div className="flex flex-col gap-1.5">
-                        <button className="rounded-md border border-border px-2 py-1 text-xs font-arabic hover:bg-primary/10" onClick={() => setAskedSource('muyassar')}>الميسر في غريب القرآن</button>
-                        <button className="rounded-md border border-border px-2 py-1 text-xs font-arabic hover:bg-primary/10" onClick={() => setAskedSource('new')}>الكتاب الجديد</button>
+                        {availableMeaningSources.map((source) => (
+                          <button key={source} className="rounded-md border border-border px-2 py-1 text-xs font-arabic hover:bg-primary/10" onClick={() => setAskedSource(source)}>{GHAREEB_SOURCE_LABELS[source]}</button>
+                        ))}
                       </div>
                     </div>
                   ) : effectiveMeaning}

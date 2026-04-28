@@ -3,7 +3,7 @@ import { normalizeArabic } from './quranParser';
 import { canonicalize } from './canonicalMatch';
 import { loadTanzilPageIndex, getPageForAyah } from './tanzilPageIndex';
 import { getData } from '@/services/dataSource';
-import type { GhareebSharedMeaningMode, GhareebSourceMode } from '@/services/ghareebSourceSettings';
+import type { GhareebSharedMeaningMode, GhareebSourceKey, GhareebSourceMode } from '@/services/ghareebSourceSettings';
 
 interface NewGhareebJsonItem {
   surahNumber: number;
@@ -166,19 +166,56 @@ async function loadNewBookGhareebData(pageIndex: [number, number][]): Promise<Ma
   return result;
 }
 
+async function loadJsonGhareebData(dataKey: string, source: GhareebSourceKey, pageIndex: [number, number][]): Promise<Map<number, GhareebWord[]>> {
+  const text = await getData(dataKey);
+  const parsed = JSON.parse(text) as { items: NewGhareebJsonItem[] };
+  const result = new Map<number, GhareebWord[]>();
+  const wordIndexCounters = new Map<string, number>();
+
+  for (const item of parsed.items || []) {
+    const counterKey = `${item.surahNumber}_${item.verseNumber}`;
+    const wordIndex = (wordIndexCounters.get(counterKey) ?? 0) + 1;
+    wordIndexCounters.set(counterKey, wordIndex);
+    const pageNumber = getPageForAyah(item.surahNumber, item.verseNumber, pageIndex);
+    const pageWords = result.get(pageNumber) ?? [];
+    pageWords.push({
+      pageNumber,
+      wordText: item.wordText,
+      meaning: item.meaning,
+      meaningsBySource: { [source]: item.meaning },
+      source,
+      availableSources: [source],
+      surahName: item.surahName,
+      surahNumber: item.surahNumber,
+      verseNumber: item.verseNumber,
+      wordIndex,
+      order: pageWords.length,
+      uniqueKey: `${item.surahNumber}_${item.verseNumber}_${wordIndex}_${source}`,
+    });
+    result.set(pageNumber, pageWords);
+  }
+
+  console.log(`Loaded ${parsed.items?.length ?? 0} ${source} ghareeb words across ${result.size} pages`);
+  return result;
+}
+
 function mergeGhareebSources(
-  muyassar: Map<number, GhareebWord[]>,
-  newBook: Map<number, GhareebWord[]>,
+  sources: Array<{ source: GhareebSourceKey; map: Map<number, GhareebWord[]> }>,
   sharedMeaningMode: GhareebSharedMeaningMode,
 ): Map<number, GhareebWord[]> {
   const result = new Map<number, GhareebWord[]>();
-  const pickMeaning = (meanings: Partial<Record<'muyassar' | 'new', string>>) => {
-    if (sharedMeaningMode === 'new') return meanings.new || meanings.muyassar || '';
-    if (sharedMeaningMode === 'both' && meanings.muyassar && meanings.new) return `${meanings.muyassar}\n\n${meanings.new}`;
-    return meanings.muyassar || meanings.new || '';
+  const sourceOrder: GhareebSourceKey[] = ['muyassar', 'new', 'muharrar'];
+  const pickMeaning = (meanings: Partial<Record<GhareebSourceKey, string>>) => {
+    if (sharedMeaningMode !== 'ask' && sharedMeaningMode !== 'both') {
+      return meanings[sharedMeaningMode] || sourceOrder.map((key) => meanings[key]).find(Boolean) || '';
+    }
+    if (sharedMeaningMode === 'both') {
+      return sourceOrder.map((key) => meanings[key]).filter(Boolean).join('\n\n');
+    }
+    return meanings.muyassar || meanings.new || meanings.muharrar || '';
   };
 
-  const add = (word: GhareebWord, source: 'muyassar' | 'new') => {
+  const add = (word: GhareebWord, source: GhareebSourceKey) => {
     const pageWords = result.get(word.pageNumber) ?? [];
     const mergeKey = `${word.surahNumber}_${word.verseNumber}_${canonicalize(word.wordText)}`;
     const existing = pageWords.find((item) => `${item.surahNumber}_${item.verseNumber}_${canonicalize(item.wordText)}` === mergeKey);
@@ -200,8 +237,7 @@ function mergeGhareebSources(
     result.set(word.pageNumber, pageWords);
   };
 
-  muyassar.forEach((words) => words.forEach((word) => add(word, 'muyassar')));
-  newBook.forEach((words) => words.forEach((word) => add(word, 'new')));
+  sources.forEach(({ source, map }) => map.forEach((words) => words.forEach((word) => add(word, source))));
   result.forEach((words) => words.forEach((word, index) => { word.order = index; }));
   return result;
 }
@@ -212,11 +248,17 @@ export async function loadGhareebData(options: GhareebLoadOptions = {}): Promise
   const sharedMeaningMode = options.sharedMeaningMode ?? 'muyassar';
   if (sourceMode === 'muyassar-only') return loadMuyassarGhareebData(pageIndex);
   if (sourceMode === 'new-only') return loadNewBookGhareebData(pageIndex);
-  const [muyassar, newBook] = await Promise.all([
+  if (sourceMode === 'muharrar-only') return loadJsonGhareebData('ghareeb-muharrar', 'muharrar', pageIndex);
+  const [muyassar, newBook, muharrar] = await Promise.all([
     loadMuyassarGhareebData(pageIndex),
     loadNewBookGhareebData(pageIndex),
+    loadJsonGhareebData('ghareeb-muharrar', 'muharrar', pageIndex),
   ]);
-  return mergeGhareebSources(muyassar, newBook, sharedMeaningMode);
+  return mergeGhareebSources([
+    { source: 'muyassar', map: muyassar },
+    { source: 'new', map: newBook },
+    { source: 'muharrar', map: muharrar },
+  ], sharedMeaningMode);
 }
 
 /**
