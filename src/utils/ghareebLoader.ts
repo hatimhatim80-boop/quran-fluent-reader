@@ -3,7 +3,7 @@ import { normalizeArabic } from './quranParser';
 import { canonicalize } from './canonicalMatch';
 import { loadTanzilPageIndex, getPageForAyah } from './tanzilPageIndex';
 import { getData } from '@/services/dataSource';
-import type { GhareebSharedMeaningMode, GhareebSourceMode } from '@/services/ghareebSourceSettings';
+import type { GhareebSharedMeaningMode, GhareebSourceKey, GhareebSourceMode } from '@/services/ghareebSourceSettings';
 
 interface NewGhareebJsonItem {
   surahNumber: number;
@@ -163,6 +163,39 @@ async function loadNewBookGhareebData(pageIndex: [number, number][]): Promise<Ma
   }
 
   console.log(`Loaded ${parsed.items?.length ?? 0} new-book ghareeb words across ${result.size} pages`);
+  return result;
+}
+
+async function loadJsonGhareebData(dataKey: string, source: GhareebSourceKey, pageIndex: [number, number][]): Promise<Map<number, GhareebWord[]>> {
+  const text = await getData(dataKey);
+  const parsed = JSON.parse(text) as { items: NewGhareebJsonItem[] };
+  const result = new Map<number, GhareebWord[]>();
+  const wordIndexCounters = new Map<string, number>();
+
+  for (const item of parsed.items || []) {
+    const counterKey = `${item.surahNumber}_${item.verseNumber}`;
+    const wordIndex = (wordIndexCounters.get(counterKey) ?? 0) + 1;
+    wordIndexCounters.set(counterKey, wordIndex);
+    const pageNumber = getPageForAyah(item.surahNumber, item.verseNumber, pageIndex);
+    const pageWords = result.get(pageNumber) ?? [];
+    pageWords.push({
+      pageNumber,
+      wordText: item.wordText,
+      meaning: item.meaning,
+      meaningsBySource: { [source]: item.meaning },
+      source,
+      availableSources: [source],
+      surahName: item.surahName,
+      surahNumber: item.surahNumber,
+      verseNumber: item.verseNumber,
+      wordIndex,
+      order: pageWords.length,
+      uniqueKey: `${item.surahNumber}_${item.verseNumber}_${wordIndex}_${source}`,
+    });
+    result.set(pageNumber, pageWords);
+  }
+
+  console.log(`Loaded ${parsed.items?.length ?? 0} ${source} ghareeb words across ${result.size} pages`);
   return result;
 }
 
