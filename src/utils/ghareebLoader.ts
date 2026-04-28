@@ -40,9 +40,7 @@ function parseArabicNumber(str: string): number {
  * - Word defs without verse: ﴿word﴾: meaning (inherits previous verse)
  * - Page numbers: standalone Arabic numeral
  */
-export async function loadGhareebData(): Promise<Map<number, GhareebWord[]>> {
-  const pageIndex = await loadTanzilPageIndex();
-
+async function loadMuyassarGhareebData(pageIndex: [number, number][]): Promise<Map<number, GhareebWord[]>> {
   const text = await getData('ghareeb');
 
   const result = new Map<number, GhareebWord[]>();
@@ -109,6 +107,9 @@ export async function loadGhareebData(): Promise<Map<number, GhareebWord[]>> {
         pageNumber: correctPage,
         wordText,
         meaning,
+        meaningsBySource: { muyassar: meaning },
+        source: 'muyassar',
+        availableSources: ['muyassar'],
         surahName: currentSurah,
         surahNumber: currentSurahNumber,
         verseNumber: currentVerse,
@@ -129,6 +130,53 @@ export async function loadGhareebData(): Promise<Map<number, GhareebWord[]>> {
 
   console.log(`Loaded ${totalWords} ghareeb words across ${result.size} pages`);
   return result;
+}
+
+async function loadNewBookGhareebData(pageIndex: [number, number][]): Promise<Map<number, GhareebWord[]>> {
+  const text = await getData('ghareeb-new');
+  const parsed = JSON.parse(text) as { items: NewGhareebJsonItem[] };
+  const result = new Map<number, GhareebWord[]>();
+  const wordIndexCounters = new Map<string, number>();
+
+  for (const item of parsed.items || []) {
+    const counterKey = `${item.surahNumber}_${item.verseNumber}`;
+    const wordIndex = (wordIndexCounters.get(counterKey) ?? 0) + 1;
+    wordIndexCounters.set(counterKey, wordIndex);
+    const pageNumber = getPageForAyah(item.surahNumber, item.verseNumber, pageIndex);
+    const pageWords = result.get(pageNumber) ?? [];
+    const word: GhareebWord = {
+      pageNumber,
+      wordText: item.wordText,
+      meaning: item.meaning,
+      meaningsBySource: { new: item.meaning },
+      source: 'new',
+      availableSources: ['new'],
+      surahName: item.surahName,
+      surahNumber: item.surahNumber,
+      verseNumber: item.verseNumber,
+      wordIndex,
+      order: pageWords.length,
+      uniqueKey: `${item.surahNumber}_${item.verseNumber}_${wordIndex}_new`,
+    };
+    pageWords.push(word);
+    result.set(pageNumber, pageWords);
+  }
+
+  console.log(`Loaded ${parsed.items?.length ?? 0} new-book ghareeb words across ${result.size} pages`);
+  return result;
+}
+
+export async function loadGhareebData(options: GhareebLoadOptions = {}): Promise<Map<number, GhareebWord[]>> {
+  const pageIndex = await loadTanzilPageIndex();
+  const sourceMode = options.sourceMode ?? 'muyassar-only';
+  const sharedMeaningMode = options.sharedMeaningMode ?? 'muyassar';
+  if (sourceMode === 'muyassar-only') return loadMuyassarGhareebData(pageIndex);
+  if (sourceMode === 'new-only') return loadNewBookGhareebData(pageIndex);
+  const [muyassar, newBook] = await Promise.all([
+    loadMuyassarGhareebData(pageIndex),
+    loadNewBookGhareebData(pageIndex),
+  ]);
+  return mergeGhareebSources(muyassar, newBook, sharedMeaningMode);
 }
 
 /**
