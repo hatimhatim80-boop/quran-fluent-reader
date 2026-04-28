@@ -339,8 +339,9 @@ export function GhareebWordPopover({
                     <div className="space-y-2">
                       <div>اختر مصدر المعنى:</div>
                       <div className="flex flex-col gap-1.5">
-                        <button className="rounded-md border border-border px-2 py-1 text-xs font-arabic hover:bg-primary/10" onClick={() => setAskedSource('muyassar')}>الميسر في غريب القرآن</button>
-                        <button className="rounded-md border border-border px-2 py-1 text-xs font-arabic hover:bg-primary/10" onClick={() => setAskedSource('new')}>الكتاب الجديد</button>
+                        {availableMeaningSources.map((source) => (
+                          <button key={source} className="rounded-md border border-border px-2 py-1 text-xs font-arabic hover:bg-primary/10" onClick={() => setAskedSource(source)}>{GHAREEB_SOURCE_LABELS[source]}</button>
+                        ))}
                       </div>
                     </div>
                   ) : effectiveMeaning}
