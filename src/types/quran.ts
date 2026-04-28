@@ -8,9 +8,9 @@ export interface GhareebWord {
   pageNumber: number;
   wordText: string;      // The actual Quranic word (from raw field between ﴿﴾)
   meaning: string;       // The meaning/explanation
-  meaningsBySource?: Partial<Record<'muyassar' | 'new', string>>;
-  source?: 'muyassar' | 'new' | 'combined';
-  availableSources?: Array<'muyassar' | 'new'>;
+  meaningsBySource?: Partial<Record<'muyassar' | 'new' | 'muharrar', string>>;
+  source?: 'muyassar' | 'new' | 'muharrar' | 'combined';
+  availableSources?: Array<'muyassar' | 'new' | 'muharrar'>;
   surahName: string;
   surahNumber: number;   // Surah number for precise matching
   verseNumber: number;   // Ayah number for precise matching
