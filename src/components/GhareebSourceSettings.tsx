@@ -1,6 +1,7 @@
 import React from 'react';
 import { BookMarked } from 'lucide-react';
 import { Label } from '@/components/ui/label';
+import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useSettingsStore } from '@/stores/settingsStore';
 import type { GhareebSharedMeaningMode, GhareebSourceMode } from '@/services/ghareebSourceSettings';
@@ -14,6 +15,11 @@ export function GhareebSourceSettings({ compact = false }: { compact?: boolean }
     sourceMode: storedSourceMode,
     sharedMeaningMode: storedSharedMeaningMode,
   });
+  const sourceOptions: { value: GhareebSourceMode; label: string }[] = [
+    { value: 'muyassar-only', label: 'الميسر' },
+    { value: 'new-only', label: 'الجديد' },
+    { value: 'both', label: 'الكل' },
+  ];
 
   return (
     <div className={compact ? 'space-y-3' : 'rounded-xl border border-border bg-card/60 p-4 space-y-4'} dir="rtl">
@@ -26,11 +32,27 @@ export function GhareebSourceSettings({ compact = false }: { compact?: boolean }
 
       <div className="space-y-1.5">
         <Label className="font-arabic text-xs text-muted-foreground">مصدر عرض الكلمات</Label>
+        {compact && (
+          <div className="grid grid-cols-3 gap-1.5">
+            {sourceOptions.map((option) => (
+              <Button
+                key={option.value}
+                type="button"
+                size="sm"
+                variant={ghareebSources.sourceMode === option.value ? 'default' : 'outline'}
+                className="h-8 px-2 text-[11px] font-arabic"
+                onClick={() => setGhareebSources({ sourceMode: option.value })}
+              >
+                {option.label}
+              </Button>
+            ))}
+          </div>
+        )}
         <Select
           value={ghareebSources.sourceMode}
           onValueChange={(value) => setGhareebSources({ sourceMode: value as GhareebSourceMode })}
         >
-          <SelectTrigger className="font-arabic"><SelectValue /></SelectTrigger>
+          <SelectTrigger className={`font-arabic ${compact ? 'h-8 text-xs' : ''}`}><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectItem value="muyassar-only" className="font-arabic">عرض كلمات الميسر فقط</SelectItem>
             <SelectItem value="new-only" className="font-arabic">عرض كلمات الكتاب الجديد فقط</SelectItem>
