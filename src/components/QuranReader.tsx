@@ -26,7 +26,7 @@ import { useSRSStore } from '@/stores/srsStore';
 import { useSessionsStore } from '@/stores/sessionsStore';
 import { SURAH_INFO, SURAH_NAMES } from '@/utils/quranPageIndex';
 import { Loader2, List, SlidersHorizontal, ChevronRight, ChevronLeft, Eye, EyeOff, GraduationCap, X, Settings, RotateCcw } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { GhareebEntryDialog, GhareebEntryResetButton } from './GhareebEntryDialog';
 import { SpeedControlWidget } from './SpeedControlWidget';
 import { SessionFontSettings } from './SessionFontSettings';
@@ -51,11 +51,13 @@ const SURAHS_READER = Object.entries(SURAH_NAMES).map(([name, number]) => ({
 })).sort((a, b) => a.number - b.number);
 
 export function QuranReader() {
+  const [searchParams] = useSearchParams();
+  const routeSessionId = searchParams.get('sessionId');
   const {
     pages, isLoading, error, currentPage, currentWordIndex, setCurrentWordIndex,
     totalPages, getCurrentPageData, getPageGhareebWords, allGhareebWords,
     goToPage, nextPage, prevPage, ghareebPageMap,
-  } = useQuranData();
+  } = useQuranData({ sessionId: routeSessionId || useSessionsStore.getState().activeSessionId });
 
   const settings = useSettingsApplier();
   const clearAllOverrides = useHighlightOverrideStore((s) => s.clearAllOverrides);
@@ -97,6 +99,10 @@ export function QuranReader() {
   const tahfeezSelectedCount = useTahfeezStore((s) => s.selectedWords.length);
   const clearTahfeezSelection = useTahfeezStore((s) => s.clearSelection);
   const srsDueCount = useSRSStore((s) => s.getDueCount('ghareeb'));
+
+  useEffect(() => {
+    if (activeSessionType === 'ghareeb-review') setShowSRS(true);
+  }, [activeSessionType]);
 
   const pageData = getCurrentPageData();
   const pageWords = getPageGhareebWords;
