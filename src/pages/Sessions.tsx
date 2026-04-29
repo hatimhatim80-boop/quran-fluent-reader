@@ -233,7 +233,7 @@ export default function Sessions() {
 
   // Create form
   const [newName, setNewName] = useState('');
-  const [newType, setNewType] = useState<SessionType>('ghareeb-review');
+  const [newType, setNewType] = useState<SessionType>('ghareeb-read');
   const [newStartPage, setNewStartPage] = useState('1');
   const [newEndPage, setNewEndPage] = useState('');
   const [newGroupId, setNewGroupId] = useState('');
@@ -386,7 +386,6 @@ export default function Sessions() {
   ];
 
   const sessionTypes: { type: SessionType; label: string; desc: string; icon: React.ReactNode }[] = [
-    { type: 'ghareeb-review', label: 'مراجعة الغريب', desc: 'مراجعة الكلمات الغريبة مع إخفاء المعاني', icon: <Brain className="w-6 h-6" /> },
     { type: 'ghareeb-read', label: 'قراءة الغريب', desc: 'قراءة المصحف مع تظليل الغريب ومعانيه', icon: <BookOpen className="w-6 h-6" /> },
     { type: 'tahfeez-test', label: 'اختبار تخزين', desc: 'اختبار الحفظ بإخفاء كلمات من الآيات', icon: <FileText className="w-6 h-6" /> },
     { type: 'tahfeez-auto', label: 'اختبار تلقائي', desc: 'ظهور تلقائي تدريجي للكلمات', icon: <Zap className="w-6 h-6" /> },
