@@ -405,19 +405,18 @@ export function QuranReader() {
                 const pgData = pages.find(p => p.pageNumber === pg);
                 if (!pgData) return null;
                 const pgWords = allGhareebWords.filter(w => w.pageNumber === pg);
-                const hlColor = useSettingsStore.getState().settings.colors.highlightColor || '48 80% 90%';
                 const hlVars: Record<string, string> = {
                   '--ghareeb-active-color': 'hsl(var(--primary))',
-                  '--ghareeb-active-bg': 'transparent',
-                  '--ghareeb-active-border': 'transparent',
-                  '--ghareeb-active-shadow': 'none',
+                  '--ghareeb-active-bg': 'hsl(var(--primary) / 0.14)',
+                  '--ghareeb-active-border': 'hsl(var(--primary))',
+                  '--ghareeb-active-shadow': '0 0 0 2px hsl(var(--primary) / 0.18)',
                 };
                 if (highlightStyle === 'color') {
-                  hlVars['--ghareeb-active-color'] = `hsl(${hlColor})`;
+                  hlVars['--ghareeb-active-color'] = 'hsl(var(--primary))';
                 } else if (highlightStyle === 'border') {
-                  hlVars['--ghareeb-active-border'] = `hsl(${hlColor})`;
+                  hlVars['--ghareeb-active-border'] = 'hsl(var(--primary))';
                 } else if (highlightStyle === 'bg') {
-                  hlVars['--ghareeb-active-bg'] = `hsl(${hlColor} / 0.35)`;
+                  hlVars['--ghareeb-active-bg'] = 'hsl(var(--primary) / 0.2)';
                 }
                 return (
                   <div
