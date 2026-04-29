@@ -176,8 +176,8 @@ export function PageView({
   }, [ghareebWords, highlightedTargetWord]);
 
   const matchResults = useMemo(() => {
-    return matchGhareebToTokens(flatTokens, matchingWords, surahContextByLine);
-  }, [flatTokens, matchingWords, surahContextByLine]);
+    return matchGhareebToTokens(flatTokens, matchingWords, surahContextByLine, highlightedWordKey);
+  }, [flatTokens, matchingWords, surahContextByLine, highlightedWordKey]);
 
   const renderedWords = useMemo((): GhareebWord[] => {
     return matchResults.map((m, idx) => ({ ...m.word, order: idx }));
