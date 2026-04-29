@@ -4,7 +4,7 @@ import { useAutoFlowFit } from '@/hooks/useAutoFlowFit';
 import { useAutoFit15Lines } from '@/hooks/useAutoFit15Lines';
 import { QuranPage, GhareebWord } from '@/types/quran';
 import { normalizeArabic } from '@/utils/quranParser';
-import { canonicalize, buildFlatTokens, matchGhareebToTokens, buildTokenMatchMap, type TokenMatchInfo } from '@/utils/canonicalMatch';
+import { canonicalize, canonicalFormsCompatible, buildFlatTokens, matchGhareebToTokens, buildTokenMatchMap, type TokenMatchInfo } from '@/utils/canonicalMatch';
 import { ensureGhareebMeaningVisibleAboveBottomBar } from '@/utils/ghareebAutoScroll';
 import { GhareebWordPopover } from './GhareebWordPopover';
 import { useHighlightOverrideStore } from '@/stores/highlightOverrideStore';
@@ -160,9 +160,24 @@ export function PageView({
     return buildFlatTokens(lines, isSurahHeader, isBismillah);
   }, [effectivePageText]);
 
+  const highlightedTargetWord = useMemo(() => {
+    if (!highlightedWordKey) return null;
+    const exact = ghareebWords.find((word) => word.uniqueKey === highlightedWordKey);
+    if (exact) return exact;
+    return ghareebWords.find((word) => word.uniqueKey.includes(highlightedWordKey) || highlightedWordKey.includes(word.uniqueKey)) ?? null;
+  }, [ghareebWords, highlightedWordKey]);
+
+  const matchingWords = useMemo(() => {
+    if (!highlightedTargetWord) return ghareebWords;
+    return [
+      highlightedTargetWord,
+      ...ghareebWords.filter((word) => word.uniqueKey !== highlightedTargetWord.uniqueKey),
+    ];
+  }, [ghareebWords, highlightedTargetWord]);
+
   const matchResults = useMemo(() => {
-    return matchGhareebToTokens(flatTokens, ghareebWords, surahContextByLine);
-  }, [flatTokens, ghareebWords, surahContextByLine]);
+    return matchGhareebToTokens(flatTokens, matchingWords, surahContextByLine);
+  }, [flatTokens, matchingWords, surahContextByLine]);
 
   const renderedWords = useMemo((): GhareebWord[] => {
     return matchResults.map((m, idx) => ({ ...m.word, order: idx }));
@@ -182,22 +197,11 @@ export function PageView({
     return buildTokenMatchMap(matchResults);
   }, [matchResults]);
 
-  const highlightedTargetWord = useMemo(() => {
-    if (!highlightedWordKey) return null;
-    return ghareebWords.find((word) => word.uniqueKey === highlightedWordKey) ?? null;
-  }, [ghareebWords, highlightedWordKey]);
-
   const isSameHighlightedWord = useCallback((word: GhareebWord) => {
     if (!highlightedTargetWord) return false;
     if (word.uniqueKey === highlightedTargetWord.uniqueKey) return true;
     if (word.surahNumber !== highlightedTargetWord.surahNumber || word.verseNumber !== highlightedTargetWord.verseNumber) return false;
-    const current = canonicalize(word.wordText);
-    const target = canonicalize(highlightedTargetWord.wordText);
-    if (!current || !target) return false;
-    if (current === target) return true;
-    const currentAlifless = current.replace(/ا/g, '');
-    const targetAlifless = target.replace(/ا/g, '');
-    return currentAlifless.length >= 3 && currentAlifless === targetAlifless;
+    return canonicalFormsCompatible(word.wordText, highlightedTargetWord.wordText);
   }, [highlightedTargetWord]);
 
   const renderedContent = useMemo(() => {
