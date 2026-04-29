@@ -355,7 +355,6 @@ export function SRSReviewSession({
               </span>
             </div>
             <div className="flex items-center gap-1">
-              {headerExtra}
               <button onClick={() => setShowIndex(!showIndex)} className={`w-7 h-7 rounded-full flex items-center justify-center transition-colors ${showIndex ? 'bg-primary text-primary-foreground' : 'hover:bg-accent'}`}>
                 <List className="w-3.5 h-3.5" />
               </button>
@@ -390,13 +389,13 @@ export function SRSReviewSession({
           </details>
         )}
 
-        {!focusMode && portalName === 'الغريب' && (
+        {(headerExtra || (!focusMode && portalName === 'الغريب')) && (
           <details className="border-b border-border bg-card/40 px-3 py-2 shrink-0">
             <summary className="cursor-pointer text-xs font-arabic text-muted-foreground list-none flex items-center gap-1">
               <Settings2 className="w-3 h-3" /> مصادر الكلمات والمعاني
             </summary>
             <div className="pt-3">
-              <GhareebSourceSettings compact />
+              {headerExtra ?? <GhareebSourceSettings compact />}
             </div>
           </details>
         )}
