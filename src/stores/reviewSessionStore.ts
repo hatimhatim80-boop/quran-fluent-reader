@@ -72,6 +72,7 @@ export interface ReviewSessionMeta {
     archiveFilter?: ArchiveFilter;
     highlightStyle?: string;
     answerMode?: string;
+    generalSessionId?: string;
   };
 }
 
