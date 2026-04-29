@@ -182,6 +182,24 @@ export function PageView({
     return buildTokenMatchMap(matchResults);
   }, [matchResults]);
 
+  const highlightedTargetWord = useMemo(() => {
+    if (!highlightedWordKey) return null;
+    return ghareebWords.find((word) => word.uniqueKey === highlightedWordKey) ?? null;
+  }, [ghareebWords, highlightedWordKey]);
+
+  const isSameHighlightedWord = useCallback((word: GhareebWord) => {
+    if (!highlightedTargetWord) return false;
+    if (word.uniqueKey === highlightedTargetWord.uniqueKey) return true;
+    if (word.surahNumber !== highlightedTargetWord.surahNumber || word.verseNumber !== highlightedTargetWord.verseNumber) return false;
+    const current = canonicalize(word.wordText);
+    const target = canonicalize(highlightedTargetWord.wordText);
+    if (!current || !target) return false;
+    if (current === target) return true;
+    const currentAlifless = current.replace(/ا/g, '');
+    const targetAlifless = target.replace(/ا/g, '');
+    return currentAlifless.length >= 3 && currentAlifless === targetAlifless;
+  }, [highlightedTargetWord]);
+
   const renderedContent = useMemo(() => {
     if (!effectivePageText) return null;
 
@@ -331,7 +349,7 @@ export function PageView({
           const sequentialIndex = info.sequentialIndex;
           const isHighlighted =
             highlightedWordIndex === sequentialIndex ||
-            (!!highlightedWordKey && info.word.uniqueKey === highlightedWordKey);
+            (!!highlightedWordKey && (info.word.uniqueKey === highlightedWordKey || isSameHighlightedWord(info.word)));
 
           // For cross-line phrases: collect tokens on THIS line
           const sameLineTokens = info.phraseTokens.filter(ft => ft.lineIdx === lineIdx);
@@ -557,7 +575,7 @@ export function PageView({
     return isLines15 
       ? <div className="quran-lines-container">{allElements}</div>
       : <div className="quran-page">{allElements}</div>;
-  }, [effectivePageText, page.pageNumber, ghareebWords, highlightedWordIndex, highlightedWordKey, meaningEnabled, disablePopover, isPlaying, onWordClick, surahContextByLine, tokenMatchMap, highlightVersion, displayMode, tahfeezMode, toggleTahfeezWord, isTahfeezSelected, rangeAnchor, setRangeAnchor, addItem, storedItems, activeHighlightStyle]);
+  }, [effectivePageText, page.pageNumber, ghareebWords, highlightedWordIndex, highlightedWordKey, meaningEnabled, disablePopover, isPlaying, onWordClick, surahContextByLine, tokenMatchMap, highlightVersion, displayMode, tahfeezMode, toggleTahfeezWord, isTahfeezSelected, rangeAnchor, setRangeAnchor, addItem, storedItems, activeHighlightStyle, isSameHighlightedWord]);
 
   const pageBackgroundColor = useSettingsStore((s) => (s.settings.colors as any).pageBackgroundColor || '');
   const containerBorderColor = useSettingsStore((s) => (s.settings.colors as any).containerBorderColor || '');
