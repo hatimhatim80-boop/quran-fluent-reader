@@ -369,6 +369,7 @@ export function matchGhareebToTokens(
   flatTokens: FlatToken[],
   ghareebWords: GhareebWord[],
   surahContextByLine: string[],
+  priorityWordKey?: string | null,
 ): MatchResult[] {
   if (flatTokens.length === 0 || ghareebWords.length === 0) return [];
 
@@ -389,7 +390,13 @@ export function matchGhareebToTokens(
   });
 
   // Sort by word count descending (greedy: match longer phrases first)
-  const sortedEntries = [...entries].sort((a, b) => b.wordCount - a.wordCount);
+  const sortedEntries = [...entries].sort((a, b) => {
+    if (priorityWordKey) {
+      if (a.original.uniqueKey === priorityWordKey) return -1;
+      if (b.original.uniqueKey === priorityWordKey) return 1;
+    }
+    return b.wordCount - a.wordCount;
+  });
   const verseSegments = buildVerseSegments(flatTokens, surahContextByLine);
 
   const usedEntryIndices = new Set<number>();
