@@ -22,6 +22,7 @@ interface ReviewSessionSetupProps {
   /** Called to auto-generate cards for scope if pool is empty */
   onAutoGenerateCards?: (pages: number[]) => number;
   resumeSessionId?: string | null;
+  allowInlineResume?: boolean;
 }
 
 const SESSION_TYPE_OPTIONS: { value: SessionType; label: string; desc: string }[] = [
@@ -58,6 +59,7 @@ export function ReviewSessionSetup({
   cardTypeFilter,
   onAutoGenerateCards,
   resumeSessionId,
+  allowInlineResume = true,
 }: ReviewSessionSetupProps) {
   const { getDueCards, getCardsByPages, cards, getFlaggedCards, getArchivedCards } = useSRSStore();
   const { getActiveSession, getRecentSessions, createSession, deleteSession, completeSession } = useReviewSessionStore();
@@ -268,7 +270,7 @@ export function ReviewSessionSetup({
   return (
     <div className="p-4 space-y-4 font-arabic" dir="rtl">
       {/* Resume active session */}
-      {activeSession && !activeSession.completed && (
+      {allowInlineResume && activeSession && !activeSession.completed && (
         <div className="bg-primary/5 border-2 border-primary/30 rounded-xl p-4 space-y-3">
           <div className="flex items-center justify-between">
             <h3 className="font-bold text-sm text-primary">جلسة نشطة</h3>
