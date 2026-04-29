@@ -81,6 +81,9 @@ export function SRSReviewSession({
     return useReviewSessionStore.getState().getSession(sessionId);
   }, [sessionId]);
 
+  const currentEntry = activeQueue[currentIdx];
+  const card = currentEntry?.card;
+
   useEffect(() => { currentIdxRef.current = currentIdx; }, [currentIdx]);
 
   const persistSessionState = useCallback(() => {
@@ -162,8 +165,6 @@ export function SRSReviewSession({
     persistSessionState();
   }, [sessionId, reviewedIds, archivedIds, suspendedIds, currentIdx, ratingsMap, persistSessionState]);
 
-  const currentEntry = activeQueue[currentIdx];
-  const card = currentEntry?.card;
   const activeSessionType = useSessionsStore(s => s.getActiveSession()?.type);
 
   const availableAnswerModes = useMemo(() => {
