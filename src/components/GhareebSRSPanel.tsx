@@ -9,6 +9,7 @@ import { Plus, Download, Upload, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useSettingsStore } from '@/stores/settingsStore';
 import { canonicalize, canonicalFormsCompatible } from '@/utils/canonicalMatch';
+import { GhareebSourceSettings } from './GhareebSourceSettings';
 
 interface GhareebSRSPanelProps {
   pageWords: GhareebWord[];
