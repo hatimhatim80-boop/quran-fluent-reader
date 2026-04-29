@@ -1,12 +1,11 @@
 import { Link } from 'react-router-dom';
 import { BookOpen, GraduationCap, LogOut, LayoutList } from 'lucide-react';
 import { SessionManager } from '@/components/SessionManager';
-import { useState } from 'react';
-import { GhareebEntryDialog, useGhareebEntry } from '@/components/GhareebEntryDialog';
 import { isNativeApp } from '@/services/otaUpdateService';
+import { useNavigate } from 'react-router-dom';
 
 export default function Home() {
-  const { showDialog, triggerEntry, closeDialog } = useGhareebEntry();
+  const navigate = useNavigate();
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-6" dir="rtl">
@@ -21,7 +20,7 @@ export default function Home() {
         <div className="grid gap-4">
           {/* Ghareeb Portal */}
           <button
-            onClick={triggerEntry}
+            onClick={() => navigate('/mushaf')}
             className="page-frame p-6 flex items-center gap-4 hover:border-primary/50 hover:shadow-lg transition-all group w-full text-right"
           >
             <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center shrink-0 group-hover:bg-primary/20 transition-colors">
@@ -87,8 +86,6 @@ export default function Home() {
         </button>
       </div>
 
-      {/* Ghareeb entry dialog */}
-      <GhareebEntryDialog open={showDialog} onClose={closeDialog} />
     </div>
   );
 }
