@@ -8,7 +8,7 @@ import { GhareebWord } from '@/types/quran';
 import { Plus, Download, Upload, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useSettingsStore } from '@/stores/settingsStore';
-import { canonicalize } from '@/utils/canonicalMatch';
+import { canonicalize, canonicalFormsCompatible } from '@/utils/canonicalMatch';
 
 interface GhareebSRSPanelProps {
   pageWords: GhareebWord[];
@@ -92,6 +92,7 @@ export function GhareebSRSPanel({
       const wordText = canonicalize(word.wordText);
       if (wordText === cardWord) return true;
       if (wordText.replace(/ا/g, '').length >= 3 && wordText.replace(/ا/g, '') === cardWordAlifless) return true;
+      if (canonicalFormsCompatible(word.wordText, String(card.meta?.wordText || ''))) return true;
       return wordText.includes(cardWord) || cardWord.includes(wordText);
     });
 
@@ -135,6 +136,7 @@ export function GhareebSRSPanel({
         portalName="الغريب"
         defaultAnswerMode="tooltip"
         answerModeOptions={['tooltip', 'inline']}
+        headerExtra={<GhareebSourceSettings compact />}
         focusMode
         renderCard={(card, answerRevealed, answerDisplayMode) => (
           <GhareebReviewCardContent
