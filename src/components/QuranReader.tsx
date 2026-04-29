@@ -69,16 +69,17 @@ export function QuranReader() {
   // Auto-save session progress
   const activeSessionId = useSessionsStore((s) => s.activeSessionId);
   const updateSession = useSessionsStore((s) => s.updateSession);
+  const resolvedSessionId = routeSessionId || activeSessionId;
   const activeSessionType = useSessionsStore((s) => {
-    const id = s.activeSessionId;
+    const id = routeSessionId || s.activeSessionId;
     return id ? s.sessions.find((session) => session.id === id)?.type : undefined;
   });
   
   useEffect(() => {
-    if (activeSessionId) {
-      updateSession(activeSessionId, { currentPage });
+    if (resolvedSessionId) {
+      updateSession(resolvedSessionId, { currentPage, lastOpenedAt: Date.now() });
     }
-  }, [currentPage, activeSessionId, updateSession]);
+  }, [currentPage, resolvedSessionId, updateSession]);
 
   const [renderedWords, setRenderedWords] = useState<GhareebWord[]>([]);
   const [showIndex, setShowIndex] = useState(false);
