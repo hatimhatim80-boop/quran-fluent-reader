@@ -84,11 +84,15 @@ export function GhareebSRSPanel({
     const surahNumber = Number(card.meta?.surahNumber || 0);
     const verseNumber = Number(card.meta?.verseNumber || 0);
     const cardWord = canonicalize(String(card.meta?.wordText || ''));
+    const cardWordAlifless = cardWord.replace(/ا/g, '');
     const candidate = allWords.find((word) => {
       if (word.pageNumber !== card.page) return false;
       if (surahNumber && word.surahNumber !== surahNumber) return false;
       if (verseNumber && word.verseNumber !== verseNumber) return false;
-      return canonicalize(word.wordText) === cardWord;
+      const wordText = canonicalize(word.wordText);
+      if (wordText === cardWord) return true;
+      if (wordText.replace(/ا/g, '').length >= 3 && wordText.replace(/ا/g, '') === cardWordAlifless) return true;
+      return wordText.includes(cardWord) || cardWord.includes(wordText);
     });
 
     return candidate?.uniqueKey ?? card.contentKey;
