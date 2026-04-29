@@ -81,6 +81,17 @@ export function SRSReviewSession({
 
   useEffect(() => { currentIdxRef.current = currentIdx; }, [currentIdx]);
 
+  const persistSessionState = useCallback(() => {
+    if (!sessionId) return;
+    updateSessionMeta(sessionId, {
+      reviewedIds: Array.from(reviewedIds),
+      archivedInSession: Array.from(archivedIds),
+      suspendedIds: Array.from(suspendedIds),
+      currentIdx,
+      ratingsMap: Object.fromEntries(ratingsMap),
+    });
+  }, [sessionId, reviewedIds, archivedIds, suspendedIds, currentIdx, ratingsMap, updateSessionMeta]);
+
   // Reset on new session
   useEffect(() => {
     const savedSession = getSavedSessionState();
@@ -136,17 +147,8 @@ export function SRSReviewSession({
   // Persist session state
   useEffect(() => {
     if (!sessionId) return;
-    const debounce = setTimeout(() => {
-      updateSessionMeta(sessionId, {
-        reviewedIds: Array.from(reviewedIds),
-        archivedInSession: Array.from(archivedIds),
-        suspendedIds: Array.from(suspendedIds),
-        currentIdx,
-        ratingsMap: Object.fromEntries(ratingsMap),
-      });
-    }, 500);
-    return () => clearTimeout(debounce);
-  }, [sessionId, reviewedIds, archivedIds, suspendedIds, currentIdx, ratingsMap, updateSessionMeta]);
+    persistSessionState();
+  }, [sessionId, reviewedIds, archivedIds, suspendedIds, currentIdx, ratingsMap, persistSessionState]);
 
   const currentEntry = activeQueue[currentIdx];
   const card = currentEntry?.card;
@@ -268,12 +270,13 @@ export function SRSReviewSession({
   }, [card, currentEntry, activeQueue, currentIdx, delayedQueue, rateCard, onFinish, sessionId, markTahfeezSessionCompleted]);
 
   const finishReviewSession = useCallback(() => {
+    persistSessionState();
     const activeTahfeezSession = useSessionsStore.getState().getActiveSession();
     if (activeTahfeezSession?.type === 'tahfeez-review') {
       markTahfeezSessionCompleted(activeTahfeezSession.id);
     }
     onFinish();
-  }, [markTahfeezSessionCompleted, onFinish]);
+  }, [persistSessionState, markTahfeezSessionCompleted, onFinish]);
 
   const goToCard = useCallback((idx: number) => {
     setActiveQueue(prev => {
