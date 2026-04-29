@@ -147,8 +147,7 @@ export function SRSReviewSession({
   // Persist session state
   useEffect(() => {
     if (!sessionId) return;
-    const debounce = setTimeout(persistSessionState, 500);
-    return () => clearTimeout(debounce);
+    persistSessionState();
   }, [sessionId, reviewedIds, archivedIds, suspendedIds, currentIdx, ratingsMap, persistSessionState]);
 
   const currentEntry = activeQueue[currentIdx];
