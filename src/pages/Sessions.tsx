@@ -47,7 +47,7 @@ function timeAgo(ts: number): string {
 
 const SESSION_TYPE_META: Record<SessionType, { label: string; icon: React.ReactNode; color: string; portal: string }> = {
   'ghareeb': { label: 'غريب', icon: <BookOpen className="w-5 h-5" />, color: 'bg-primary/10 text-primary', portal: '/mushaf' },
-  'ghareeb-review': { label: 'مراجعة الغريب', icon: <Brain className="w-5 h-5" />, color: 'bg-primary/10 text-primary', portal: '/mushaf' },
+  'ghareeb-review': { label: 'مراجعة غريب ذكية', icon: <Brain className="w-5 h-5" />, color: 'bg-primary/10 text-primary', portal: '/mushaf' },
   'ghareeb-read': { label: 'قراءة الغريب', icon: <BookOpen className="w-5 h-5" />, color: 'bg-primary/10 text-primary', portal: '/mushaf' },
   'tahfeez': { label: 'تحفيظ', icon: <GraduationCap className="w-5 h-5" />, color: 'bg-accent/60 text-primary', portal: '/tahfeez' },
   'tahfeez-test': { label: 'اختبار تخزين', icon: <FileText className="w-5 h-5" />, color: 'bg-accent/60 text-primary', portal: '/tahfeez' },
@@ -330,7 +330,7 @@ export default function Sessions() {
   const handleCreate = () => {
     const defaultNames: Record<SessionType, string> = {
       'ghareeb': 'جلسة غريب',
-      'ghareeb-review': 'مراجعة الغريب',
+      'ghareeb-review': 'مراجعة غريب ذكية',
       'ghareeb-read': 'قراءة الغريب',
       'tahfeez': 'جلسة تحفيظ',
       'tahfeez-test': 'اختبار تخزين',
