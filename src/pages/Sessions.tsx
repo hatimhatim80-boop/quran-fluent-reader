@@ -226,6 +226,7 @@ export default function Sessions() {
   const navigate = useNavigate();
   const store = useSessionsStore();
   const { sessions, groups } = store;
+  const reviewSessions = useReviewSessionStore((s) => s.sessions);
 
   // UI state
   const [search, setSearch] = useState('');
@@ -252,6 +253,24 @@ export default function Sessions() {
   const [newFolderName, setNewFolderName] = useState('');
   const [renameValue, setRenameValue] = useState('');
   const [moveTargetGroup, setMoveTargetGroup] = useState('');
+
+  useEffect(() => {
+    reviewSessions
+      .filter(rs => rs.portal === 'ghareeb' && !rs.settings?.generalSessionId)
+      .forEach(rs => {
+        const firstCard = rs.cardIds.map(id => useSRSStore.getState().cards.find(c => c.id === id)).find(Boolean);
+        const firstPage = firstCard?.page || 1;
+        const generalId = store.createSession(rs.name, 'ghareeb-review', firstPage, firstPage);
+        useReviewSessionStore.getState().updateSession(rs.id, {
+          settings: { ...rs.settings, generalSessionId: generalId },
+        });
+        store.updateSession(generalId, {
+          currentPage: firstPage,
+          progress: rs.cardIds.length > 0 ? Math.round((rs.reviewedIds.length / rs.cardIds.length) * 100) : 0,
+          quizSettings: { reviewSessionId: rs.id, scopeLabel: rs.scopeLabel, cardCount: rs.cardIds.length },
+        });
+      });
+  }, [reviewSessions, store]);
 
   /* ─── Filtering & Sorting ─── */
   const filteredSessions = useMemo(() => {
@@ -346,7 +365,7 @@ export default function Sessions() {
       String(session.currentPage)
     );
     // Navigate with sessionId and resume flag in search params
-    navigate(`${portal}?sessionId=${session.id}&resume=1`);
+    navigate(`${portal}?sessionId=${session.id}&resume=1${session.type === 'ghareeb-review' ? '&srs=1' : ''}`);
   };
 
   const handleRename = () => {
