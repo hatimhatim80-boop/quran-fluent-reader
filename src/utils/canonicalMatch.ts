@@ -175,6 +175,33 @@ function looseWordMatch(tokenCan: string, phraseCan: string): boolean {
   return false;
 }
 
+export function canonicalFormsCompatible(a: string, b: string): boolean {
+  const first = canonicalize(a);
+  const second = canonicalize(b);
+  if (!first || !second) return false;
+  if (first === second) return true;
+
+  const compactFirst = first.replace(/\s+/g, '');
+  const compactSecond = second.replace(/\s+/g, '');
+  if (compactFirst.length >= 2 && compactFirst === compactSecond) return true;
+
+  const firstAlifless = compactFirst.replace(/ا/g, '');
+  const secondAlifless = compactSecond.replace(/ا/g, '');
+  if (firstAlifless.length >= 3 && firstAlifless === secondAlifless) return true;
+
+  const firstWords = first.split(/\s+/).filter(Boolean);
+  const secondWords = second.split(/\s+/).filter(Boolean);
+  if (firstWords.length === 1 && secondWords.length === 1) {
+    return looseWordMatch(firstWords[0], secondWords[0]) || looseWordMatch(secondWords[0], firstWords[0]);
+  }
+
+  if (compactFirst.length >= 3 && compactSecond.length >= 3) {
+    return compactFirst.includes(compactSecond) || compactSecond.includes(compactFirst);
+  }
+
+  return false;
+}
+
 /**
  * Find the verse number that follows after a given position in the flat token list.
  */
