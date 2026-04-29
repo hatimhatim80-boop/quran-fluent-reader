@@ -6,6 +6,8 @@ import {
   Copy, ChevronDown, SortAsc, Filter, Home as HomeIcon, FileText, Brain, Zap, BookMarked, BarChart3
 } from 'lucide-react';
 import { TAHFEEZ_COMPLETABLE_SESSION_TYPES, useSessionsStore, Session, SessionType, SessionGroup } from '@/stores/sessionsStore';
+import { useReviewSessionStore } from '@/stores/reviewSessionStore';
+import { useSRSStore } from '@/stores/srsStore';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -82,6 +84,9 @@ function SessionCard({
   const group = groups.find(g => g.id === session.groupId);
   const completionStats = useLocalCompletionStats(session.id);
   const showCompletionStats = TAHFEEZ_COMPLETABLE_SESSION_TYPES.includes(session.type);
+  const isGhareebSmartReview = session.type === 'ghareeb-review';
+  const cardCount = Number(session.quizSettings?.cardCount || 0);
+  const scopeLabel = String(session.quizSettings?.scopeLabel || 'نطاق الجلسة');
 
   return (
     <Card className="overflow-hidden hover:shadow-md transition-shadow border-border/60">
@@ -104,6 +109,7 @@ function SessionCard({
                 </span>
               )}
               <span>ص {session.currentPage}{session.endPage ? ` → ${session.endPage}` : ''}</span>
+              {isGhareebSmartReview && cardCount > 0 && <span>{scopeLabel} · {cardCount} بطاقة</span>}
               <span className="flex items-center gap-0.5">
                 <Clock className="w-2.5 h-2.5" />
                 {timeAgo(session.lastOpenedAt || session.updatedAt)}
@@ -136,6 +142,12 @@ function SessionCard({
                 >
                   خُتمت هذا الشهر: <span className="font-bold">{completionStats.thisMonth}</span> مرة
                 </button>
+              </div>
+            )}
+
+            {isGhareebSmartReview && typeof session.progress === 'number' && (
+              <div className="text-[10px] font-arabic text-primary bg-primary/10 border border-primary/20 rounded-md px-2 py-1 w-fit">
+                آخر تقدم: {session.progress}%
               </div>
             )}
           </div>
