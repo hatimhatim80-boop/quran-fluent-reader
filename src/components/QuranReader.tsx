@@ -53,6 +53,7 @@ const SURAHS_READER = Object.entries(SURAH_NAMES).map(([name, number]) => ({
 export function QuranReader() {
   const [searchParams] = useSearchParams();
   const routeSessionId = searchParams.get('sessionId');
+  const isResumeParam = searchParams.get('resume') === '1';
   const activeSessionId = useSessionsStore((s) => s.activeSessionId);
   const resolvedSessionId = routeSessionId || activeSessionId;
   const {
@@ -400,6 +401,7 @@ export function QuranReader() {
               pageWords={pageWords}
               allWords={allGhareebWords}
               currentPage={currentPage}
+              resumeSessionId={isResumeParam && activeSessionType === 'ghareeb-review' ? resolvedSessionId : null}
               onNavigateToPage={goToPage}
               renderPageWithHighlight={(pg, wordKey, highlightStyle) => {
                 const pgData = pages.find(p => p.pageNumber === pg);
