@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useCallback } from 'react';
 import { useSRSStore, SRSCard } from '@/stores/srsStore';
 import { useReviewSessionStore, SessionType, SessionOrder, ArchiveFilter, ReviewSessionMeta } from '@/stores/reviewSessionStore';
+import { useSessionsStore } from '@/stores/sessionsStore';
 import { SRSScopeSelector, SRSScope, scopeToPages } from './SRSScopeSelector';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -20,6 +21,8 @@ interface ReviewSessionSetupProps {
   cardTypeFilter?: SRSCard['type'] | SRSCard['type'][];
   /** Called to auto-generate cards for scope if pool is empty */
   onAutoGenerateCards?: (pages: number[]) => number;
+  resumeSessionId?: string | null;
+  allowInlineResume?: boolean;
 }
 
 const SESSION_TYPE_OPTIONS: { value: SessionType; label: string; desc: string }[] = [
@@ -55,9 +58,12 @@ export function ReviewSessionSetup({
   extraSettings,
   cardTypeFilter,
   onAutoGenerateCards,
+  resumeSessionId,
+  allowInlineResume = true,
 }: ReviewSessionSetupProps) {
   const { getDueCards, getCardsByPages, cards, getFlaggedCards, getArchivedCards } = useSRSStore();
   const { getActiveSession, getRecentSessions, createSession, deleteSession, completeSession } = useReviewSessionStore();
+  const sessionsStore = useSessionsStore();
 
   const [sessionType, setSessionType] = useState<SessionType>('due');
   const [scope, setScope] = useState<SRSScope>({ type: 'all-due', from: currentPage, to: currentPage });
@@ -213,17 +219,30 @@ export function ReviewSessionSetup({
     const selected = pool.slice(0, effectiveMaxCount);
     const name = sessionName.trim() || `${portal === 'ghareeb' ? 'غريب' : 'تحفيظ'} — ${new Date().toLocaleDateString('ar-SA')}`;
 
+    const firstPage = selected[0]?.page ?? currentPage;
+    const lastPage = selected.reduce((max, c) => Math.max(max, c.page), firstPage);
+    const generalSessionId = portal === 'ghareeb'
+      ? sessionsStore.createSession(name, 'ghareeb-review', firstPage, lastPage)
+      : undefined;
     const sessionId = createSession({
       portal,
       name,
       sessionType,
       scopeLabel: scope.type,
       cardIds: selected.map(c => c.id),
-      settings: { order, archiveFilter },
+      settings: { order, archiveFilter, generalSessionId },
     });
+    if (generalSessionId) {
+      sessionsStore.updateSession(generalSessionId, {
+        currentPage: firstPage,
+        progress: 0,
+        quizSettings: { reviewSessionId: sessionId, scopeLabel: scope.type, cardCount: selected.length },
+      });
+      sessionsStore.setActiveSession(generalSessionId);
+    }
 
     onStartSession(selected, sessionId, name);
-  }, [orderedPool, sessionName, portal, sessionType, scope, order, archiveFilter, createSession, onStartSession, onAutoGenerateCards, scopePages, typeFilters, getRequestedCount]);
+  }, [orderedPool, sessionName, portal, sessionType, scope, order, archiveFilter, createSession, onStartSession, onAutoGenerateCards, scopePages, typeFilters, getRequestedCount, currentPage, sessionsStore]);
 
   const handleResume = useCallback((session: ReviewSessionMeta) => {
     const state = useSRSStore.getState();
@@ -239,10 +258,19 @@ export function ReviewSessionSetup({
     onStartSession(sessionCards, session.id, session.name);
   }, [completeSession, onStartSession]);
 
+  React.useEffect(() => {
+    if (!resumeSessionId) return;
+    const generalSession = sessionsStore.getSession(resumeSessionId);
+    const reviewSessionId = String(generalSession?.quizSettings?.reviewSessionId || '');
+    if (!reviewSessionId) return;
+    const reviewSession = useReviewSessionStore.getState().getSession(reviewSessionId);
+    if (reviewSession && reviewSession.portal === portal && !reviewSession.completed) handleResume(reviewSession);
+  }, [resumeSessionId, portal, handleResume, sessionsStore]);
+
   return (
     <div className="p-4 space-y-4 font-arabic" dir="rtl">
       {/* Resume active session */}
-      {activeSession && !activeSession.completed && (
+      {allowInlineResume && activeSession && !activeSession.completed && (
         <div className="bg-primary/5 border-2 border-primary/30 rounded-xl p-4 space-y-3">
           <div className="flex items-center justify-between">
             <h3 className="font-bold text-sm text-primary">جلسة نشطة</h3>

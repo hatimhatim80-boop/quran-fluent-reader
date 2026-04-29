@@ -6,6 +6,8 @@ import {
   Copy, ChevronDown, SortAsc, Filter, Home as HomeIcon, FileText, Brain, Zap, BookMarked, BarChart3
 } from 'lucide-react';
 import { TAHFEEZ_COMPLETABLE_SESSION_TYPES, useSessionsStore, Session, SessionType, SessionGroup } from '@/stores/sessionsStore';
+import { useReviewSessionStore } from '@/stores/reviewSessionStore';
+import { useSRSStore } from '@/stores/srsStore';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -45,7 +47,7 @@ function timeAgo(ts: number): string {
 
 const SESSION_TYPE_META: Record<SessionType, { label: string; icon: React.ReactNode; color: string; portal: string }> = {
   'ghareeb': { label: 'غريب', icon: <BookOpen className="w-5 h-5" />, color: 'bg-primary/10 text-primary', portal: '/mushaf' },
-  'ghareeb-review': { label: 'مراجعة الغريب', icon: <Brain className="w-5 h-5" />, color: 'bg-primary/10 text-primary', portal: '/mushaf' },
+  'ghareeb-review': { label: 'مراجعة غريب ذكية', icon: <Brain className="w-5 h-5" />, color: 'bg-primary/10 text-primary', portal: '/mushaf' },
   'ghareeb-read': { label: 'قراءة الغريب', icon: <BookOpen className="w-5 h-5" />, color: 'bg-primary/10 text-primary', portal: '/mushaf' },
   'tahfeez': { label: 'تحفيظ', icon: <GraduationCap className="w-5 h-5" />, color: 'bg-accent/60 text-primary', portal: '/tahfeez' },
   'tahfeez-test': { label: 'اختبار تخزين', icon: <FileText className="w-5 h-5" />, color: 'bg-accent/60 text-primary', portal: '/tahfeez' },
@@ -82,6 +84,9 @@ function SessionCard({
   const group = groups.find(g => g.id === session.groupId);
   const completionStats = useLocalCompletionStats(session.id);
   const showCompletionStats = TAHFEEZ_COMPLETABLE_SESSION_TYPES.includes(session.type);
+  const isGhareebSmartReview = session.type === 'ghareeb-review';
+  const cardCount = Number(session.quizSettings?.cardCount || 0);
+  const scopeLabel = String(session.quizSettings?.scopeLabel || 'نطاق الجلسة');
 
   return (
     <Card className="overflow-hidden hover:shadow-md transition-shadow border-border/60">
@@ -104,6 +109,7 @@ function SessionCard({
                 </span>
               )}
               <span>ص {session.currentPage}{session.endPage ? ` → ${session.endPage}` : ''}</span>
+              {isGhareebSmartReview && cardCount > 0 && <span>{scopeLabel} · {cardCount} بطاقة</span>}
               <span className="flex items-center gap-0.5">
                 <Clock className="w-2.5 h-2.5" />
                 {timeAgo(session.lastOpenedAt || session.updatedAt)}
@@ -136,6 +142,12 @@ function SessionCard({
                 >
                   خُتمت هذا الشهر: <span className="font-bold">{completionStats.thisMonth}</span> مرة
                 </button>
+              </div>
+            )}
+
+            {isGhareebSmartReview && typeof session.progress === 'number' && (
+              <div className="text-[10px] font-arabic text-primary bg-primary/10 border border-primary/20 rounded-md px-2 py-1 w-fit">
+                آخر تقدم: {session.progress}%
               </div>
             )}
           </div>
@@ -214,6 +226,7 @@ export default function Sessions() {
   const navigate = useNavigate();
   const store = useSessionsStore();
   const { sessions, groups } = store;
+  const reviewSessions = useReviewSessionStore((s) => s.sessions);
 
   // UI state
   const [search, setSearch] = useState('');
@@ -240,6 +253,24 @@ export default function Sessions() {
   const [newFolderName, setNewFolderName] = useState('');
   const [renameValue, setRenameValue] = useState('');
   const [moveTargetGroup, setMoveTargetGroup] = useState('');
+
+  useEffect(() => {
+    reviewSessions
+      .filter(rs => rs.portal === 'ghareeb' && !rs.settings?.generalSessionId)
+      .forEach(rs => {
+        const firstCard = rs.cardIds.map(id => useSRSStore.getState().cards.find(c => c.id === id)).find(Boolean);
+        const firstPage = firstCard?.page || 1;
+        const generalId = store.createSession(rs.name, 'ghareeb-review', firstPage, firstPage);
+        useReviewSessionStore.getState().updateSession(rs.id, {
+          settings: { ...rs.settings, generalSessionId: generalId },
+        });
+        store.updateSession(generalId, {
+          currentPage: firstPage,
+          progress: rs.cardIds.length > 0 ? Math.round((rs.reviewedIds.length / rs.cardIds.length) * 100) : 0,
+          quizSettings: { reviewSessionId: rs.id, scopeLabel: rs.scopeLabel, cardCount: rs.cardIds.length },
+        });
+      });
+  }, [reviewSessions, store]);
 
   /* ─── Filtering & Sorting ─── */
   const filteredSessions = useMemo(() => {
@@ -299,7 +330,7 @@ export default function Sessions() {
   const handleCreate = () => {
     const defaultNames: Record<SessionType, string> = {
       'ghareeb': 'جلسة غريب',
-      'ghareeb-review': 'مراجعة الغريب',
+      'ghareeb-review': 'مراجعة غريب ذكية',
       'ghareeb-read': 'قراءة الغريب',
       'tahfeez': 'جلسة تحفيظ',
       'tahfeez-test': 'اختبار تخزين',
@@ -334,7 +365,7 @@ export default function Sessions() {
       String(session.currentPage)
     );
     // Navigate with sessionId and resume flag in search params
-    navigate(`${portal}?sessionId=${session.id}&resume=1`);
+    navigate(`${portal}?sessionId=${session.id}&resume=1${session.type === 'ghareeb-review' ? '&srs=1' : ''}`);
   };
 
   const handleRename = () => {

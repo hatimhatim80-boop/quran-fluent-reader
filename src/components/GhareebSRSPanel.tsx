@@ -15,6 +15,7 @@ interface GhareebSRSPanelProps {
   pageWords: GhareebWord[];
   allWords: GhareebWord[];
   currentPage: number;
+  resumeSessionId?: string | null;
   onNavigateToPage: (page: number) => void;
   renderPageWithHighlight: (page: number, wordKey: string | null, highlightStyle: 'color' | 'bg' | 'border') => React.ReactNode;
 }
@@ -23,6 +24,7 @@ export function GhareebSRSPanel({
   pageWords,
   allWords,
   currentPage,
+  resumeSessionId,
   onNavigateToPage,
   renderPageWithHighlight,
 }: GhareebSRSPanelProps) {
@@ -160,6 +162,8 @@ export function GhareebSRSPanel({
       onStartSession={handleStartSession}
       cardTypeFilter="ghareeb"
       onAutoGenerateCards={handleAutoGenerate}
+      resumeSessionId={resumeSessionId}
+      allowInlineResume={false}
       headerContent={
         <div className="space-y-2">
           {/* Stats */}

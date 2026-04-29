@@ -52,7 +52,9 @@ export function SRSReviewSession({
   const archiveCard = useSRSStore(s => s.archiveCard);
   const unarchiveCard = useSRSStore(s => s.unarchiveCard);
   const updateSessionMeta = useReviewSessionStore(s => s.updateSession);
+  const updateGeneralSession = useSessionsStore(s => s.updateSession);
   const markTahfeezSessionCompleted = useSessionsStore(s => s.markSessionCompleted);
+  const markGeneralSessionCompleted = useSessionsStore(s => s.markSessionCompleted);
 
   const [answerRevealed, setAnswerRevealed] = useState(false);
   const [showManualInterval, setShowManualInterval] = useState(false);
@@ -79,10 +81,16 @@ export function SRSReviewSession({
     return useReviewSessionStore.getState().getSession(sessionId);
   }, [sessionId]);
 
+  const currentEntry = activeQueue[currentIdx];
+  const card = currentEntry?.card;
+
   useEffect(() => { currentIdxRef.current = currentIdx; }, [currentIdx]);
 
   const persistSessionState = useCallback(() => {
     if (!sessionId) return;
+    const savedSession = useReviewSessionStore.getState().getSession(sessionId);
+    const generalSessionId = savedSession?.settings?.generalSessionId;
+    const reviewed = Array.from(reviewedIds);
     updateSessionMeta(sessionId, {
       reviewedIds: Array.from(reviewedIds),
       archivedInSession: Array.from(archivedIds),
@@ -90,7 +98,14 @@ export function SRSReviewSession({
       currentIdx,
       ratingsMap: Object.fromEntries(ratingsMap),
     });
-  }, [sessionId, reviewedIds, archivedIds, suspendedIds, currentIdx, ratingsMap, updateSessionMeta]);
+    if (generalSessionId) {
+      updateGeneralSession(generalSessionId, {
+        currentPage: card?.page ?? 1,
+        lastOpenedAt: Date.now(),
+        progress: totalSeen > 0 ? Math.round((reviewed.length / totalSeen) * 100) : 0,
+      });
+    }
+  }, [sessionId, reviewedIds, archivedIds, suspendedIds, currentIdx, ratingsMap, updateSessionMeta, updateGeneralSession, card?.page, totalSeen]);
 
   // Reset on new session
   useEffect(() => {
@@ -150,8 +165,6 @@ export function SRSReviewSession({
     persistSessionState();
   }, [sessionId, reviewedIds, archivedIds, suspendedIds, currentIdx, ratingsMap, persistSessionState]);
 
-  const currentEntry = activeQueue[currentIdx];
-  const card = currentEntry?.card;
   const activeSessionType = useSessionsStore(s => s.getActiveSession()?.type);
 
   const availableAnswerModes = useMemo(() => {
@@ -253,7 +266,10 @@ export function SRSReviewSession({
 
     if (nextActiveQueue.length === 0 && nextDelayedQueue.length === 0) {
       if (sessionId) {
+        const savedSession = useReviewSessionStore.getState().getSession(sessionId);
         useReviewSessionStore.getState().completeSession(sessionId);
+        const generalSessionId = savedSession?.settings?.generalSessionId;
+        if (generalSessionId) markGeneralSessionCompleted(generalSessionId);
       }
       const activeTahfeezSession = useSessionsStore.getState().getActiveSession();
       if (activeTahfeezSession?.type === 'tahfeez-review') {
@@ -267,7 +283,7 @@ export function SRSReviewSession({
     setRatingsMap(prev => { const m = new Map(prev); m.set(card.id, rating); return m; });
     setAnswerRevealed(false);
     setShowManualInterval(false);
-  }, [card, currentEntry, activeQueue, currentIdx, delayedQueue, rateCard, onFinish, sessionId, markTahfeezSessionCompleted]);
+  }, [card, currentEntry, activeQueue, currentIdx, delayedQueue, rateCard, onFinish, sessionId, markTahfeezSessionCompleted, markGeneralSessionCompleted]);
 
   const finishReviewSession = useCallback(() => {
     persistSessionState();
