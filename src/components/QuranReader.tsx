@@ -53,11 +53,13 @@ const SURAHS_READER = Object.entries(SURAH_NAMES).map(([name, number]) => ({
 export function QuranReader() {
   const [searchParams] = useSearchParams();
   const routeSessionId = searchParams.get('sessionId');
+  const activeSessionId = useSessionsStore((s) => s.activeSessionId);
+  const resolvedSessionId = routeSessionId || activeSessionId;
   const {
     pages, isLoading, error, currentPage, currentWordIndex, setCurrentWordIndex,
     totalPages, getCurrentPageData, getPageGhareebWords, allGhareebWords,
     goToPage, nextPage, prevPage, ghareebPageMap,
-  } = useQuranData({ sessionId: routeSessionId || useSessionsStore.getState().activeSessionId });
+  } = useQuranData({ sessionId: resolvedSessionId });
 
   const settings = useSettingsApplier();
   const clearAllOverrides = useHighlightOverrideStore((s) => s.clearAllOverrides);
@@ -67,9 +69,7 @@ export function QuranReader() {
   // to avoid race condition with async setCurrentPage from saved progress
 
   // Auto-save session progress
-  const activeSessionId = useSessionsStore((s) => s.activeSessionId);
   const updateSession = useSessionsStore((s) => s.updateSession);
-  const resolvedSessionId = routeSessionId || activeSessionId;
   const activeSessionType = useSessionsStore((s) => {
     const id = routeSessionId || s.activeSessionId;
     return id ? s.sessions.find((session) => session.id === id)?.type : undefined;
