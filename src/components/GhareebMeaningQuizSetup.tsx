@@ -39,6 +39,8 @@ export interface MeaningQuizConfig {
 }
 
 const DEFAULT_CONFIG: MeaningQuizConfig = {
+  meaningSource: 'muyassar',
+  showMeaningSourceName: false,
   autoAdvance: true,
   correctHighlightDurationMs: 2000,
   correctHighlightColor: '142 70% 45%',
