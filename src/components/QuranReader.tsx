@@ -484,6 +484,58 @@ export function QuranReader() {
         </div>
       )}
 
+      {/* Meaning Quiz Overlay (separate from SRS) */}
+      {mqMode !== 'closed' && (
+        <div className="fixed inset-0 z-50 flex">
+          <div
+            className="fixed inset-0 bg-black/40 backdrop-blur-sm"
+            onClick={() => setMqMode('closed')}
+          />
+          <div className="relative z-50 w-full max-w-md h-screen bg-background border-l border-border shadow-xl overflow-hidden mr-auto flex flex-col">
+            {mqMode === 'setup' && (
+              <GhareebMeaningQuizSetup
+                allWords={allGhareebWords}
+                currentPage={currentPage}
+                onClose={() => setMqMode('closed')}
+                onStart={({ pool, config, sessionId, isPreview }) => {
+                  setMqPool(pool);
+                  setMqConfig(config);
+                  setMqSessionId(isPreview ? undefined : sessionId);
+                  setMqInitialIndex(0);
+                  setMqMode('quiz');
+                }}
+              />
+            )}
+            {mqMode === 'quiz' && (
+              <GhareebMeaningQuiz
+                pool={mqPool}
+                allWords={allGhareebWords}
+                config={mqConfig}
+                sessionId={mqSessionId}
+                initialIndex={mqInitialIndex}
+                onClose={() => setMqMode('closed')}
+                onNavigateToPage={goToPage}
+                renderPage={(pg) => {
+                  const pgData = pages.find((p) => p.pageNumber === pg);
+                  if (!pgData) return null;
+                  const pgWords = allGhareebWords.filter((w) => w.pageNumber === pg);
+                  return (
+                    <PageView
+                      page={pgData}
+                      ghareebWords={pgWords}
+                      highlightedWordIndex={-1}
+                      meaningEnabled={false}
+                      disablePopover
+                      onWordClick={() => {}}
+                    />
+                  );
+                }}
+              />
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Index Sidebar */}
       {showIndex && (
         <div className="fixed inset-0 z-40 flex sm:relative sm:inset-auto">
