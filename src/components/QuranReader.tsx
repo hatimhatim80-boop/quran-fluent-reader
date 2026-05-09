@@ -512,8 +512,9 @@ export function QuranReader() {
                 allWords={allGhareebWords}
                 currentPage={currentPage}
                 onClose={() => setMqMode('closed')}
-                onStart={({ pool, config, sessionId, isPreview }) => {
+                onStart={({ pool, quizAllWords, config, sessionId, isPreview }) => {
                   setMqPool(pool);
+                  setMqAllWords(quizAllWords);
                   setMqConfig(config);
                   setMqSessionId(isPreview ? undefined : sessionId);
                   setMqInitialIndex(0);
@@ -524,7 +525,7 @@ export function QuranReader() {
             {mqMode === 'quiz' && (
               <GhareebMeaningQuiz
                 pool={mqPool}
-                allWords={allGhareebWords}
+                allWords={mqAllWords.length ? mqAllWords : allGhareebWords}
                 config={mqConfig}
                 sessionId={mqSessionId}
                 initialIndex={mqInitialIndex}
@@ -533,7 +534,7 @@ export function QuranReader() {
                 renderPage={(pg) => {
                   const pgData = pages.find((p) => p.pageNumber === pg);
                   if (!pgData) return null;
-                  const pgWords = allGhareebWords.filter((w) => w.pageNumber === pg);
+                  const pgWords = (mqAllWords.length ? mqAllWords : allGhareebWords).filter((w) => w.pageNumber === pg);
                   return (
                     <PageView
                       page={pgData}
