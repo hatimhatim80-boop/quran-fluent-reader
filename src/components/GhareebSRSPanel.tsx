@@ -198,6 +198,48 @@ export function GhareebSRSPanel({
             إضافة كلمات الصفحة الحالية ({pageWords.length} كلمة)
           </Button>
 
+          {/* New training mode launcher */}
+          <div className="border border-primary/30 bg-primary/5 rounded-lg p-3 space-y-2">
+            <div className="flex items-center gap-2">
+              <Target className="w-4 h-4 text-primary" />
+              <span className="font-arabic text-sm font-bold text-primary">
+                نمط جديد: المعنى ← الكلمة في المصحف
+              </span>
+            </div>
+            <p className="font-arabic text-xs text-muted-foreground leading-relaxed">
+              يُعرض لك معنى كلمة، ثم تختار الكلمة القرآنية المقابلة على الصفحة بالنقر عليها.
+            </p>
+            <div className="flex items-center gap-1.5">
+              <Button
+                size="sm"
+                variant={quizPoolMode === 'page' ? 'default' : 'outline'}
+                className="flex-1 font-arabic text-xs"
+                onClick={() => setQuizPoolMode('page')}
+              >
+                كلمات الصفحة ({pageWords.length})
+              </Button>
+              <Button
+                size="sm"
+                variant={quizPoolMode === 'all' ? 'default' : 'outline'}
+                className="flex-1 font-arabic text-xs"
+                onClick={() => setQuizPoolMode('all')}
+              >
+                جميع الكلمات
+              </Button>
+            </div>
+            <Button
+              onClick={() => {
+                const pool = quizPoolMode === 'all' ? allWords : pageWords;
+                if (!pool.length) { toast.info('لا توجد كلمات متاحة'); return; }
+                setSessionMode('meaning-quiz');
+              }}
+              className="w-full gap-2 font-arabic"
+            >
+              <Target className="w-4 h-4" />
+              ابدأ التدريب
+            </Button>
+          </div>
+
           {/* Import/Export */}
           <div className="flex gap-2">
             <Button variant="outline" size="sm" className="flex-1 gap-1 font-arabic text-xs" onClick={handleExport}>
