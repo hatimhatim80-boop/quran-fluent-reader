@@ -4,17 +4,23 @@ import { GhareebWord } from '@/types/quran';
 import { canonicalize, canonicalFormsCompatible } from '@/utils/canonicalMatch';
 import { ChevronLeft, ChevronRight, RotateCcw, X, Shuffle } from 'lucide-react';
 import { toast } from 'sonner';
+import { MeaningQuizConfig, DEFAULT_MEANING_QUIZ_CONFIG } from './GhareebMeaningQuizSetup';
+import { useSessionsStore } from '@/stores/sessionsStore';
 
-/**
- * Question type identifier (per spec): meaning_to_mushaf_word
- */
+/** Question type identifier (per spec): meaning_to_mushaf_word */
 export const QUIZ_TYPE_MEANING_TO_MUSHAF_WORD = 'meaning_to_mushaf_word' as const;
 
 interface GhareebMeaningQuizProps {
-  /** Pool of Ghareeb words to draw questions from (current page or all). */
+  /** Pool of Ghareeb words to draw questions from. */
   pool: GhareebWord[];
-  /** Source-of-truth list of all Ghareeb words (used to look up duplicates). */
+  /** Source-of-truth list of all Ghareeb words (used to find duplicate positions for the same meaning). */
   allWords: GhareebWord[];
+  /** Quiz behavior config from the setup screen. */
+  config?: MeaningQuizConfig;
+  /** If provided, progress is persisted to this session. */
+  sessionId?: string;
+  /** Initial question index (for resume). */
+  initialIndex?: number;
   onClose: () => void;
   onNavigateToPage: (page: number) => void;
   /** Render a Mushaf page (no highlight passed by us — the target must be hidden). */
@@ -24,6 +30,10 @@ interface GhareebMeaningQuizProps {
 interface QuizQuestion {
   id: string;
   target: GhareebWord;
+  /** All uniqueKeys in `allWords` that share the same canonical word + meaning as the target. */
+  acceptableKeys: Set<string>;
+  /** Canonical forms of acceptable answers (fast match by text). */
+  acceptableCanon: Set<string>;
 }
 
 function shuffle<T>(arr: T[]): T[] {
@@ -35,55 +45,103 @@ function shuffle<T>(arr: T[]): T[] {
   return a;
 }
 
-function buildQuestions(pool: GhareebWord[]): QuizQuestion[] {
-  // De-duplicate by uniqueKey
-  const seen = new Set<string>();
-  const list: GhareebWord[] = [];
+function buildQuestions(pool: GhareebWord[], allWords: GhareebWord[]): QuizQuestion[] {
+  const seenMeaningWord = new Set<string>();
+  const list: QuizQuestion[] = [];
   for (const w of pool) {
     if (!w.meaning || !w.wordText) continue;
-    if (seen.has(w.uniqueKey)) continue;
-    seen.add(w.uniqueKey);
-    list.push(w);
+    const sig = `${canonicalize(w.wordText)}__${canonicalize(w.meaning)}`;
+    if (seenMeaningWord.has(sig)) continue;
+    seenMeaningWord.add(sig);
+
+    // Multi-position acceptance: any word in `allWords` with same canonical word
+    // AND same meaning is a valid answer.
+    const targetCanonWord = canonicalize(w.wordText);
+    const targetCanonMeaning = canonicalize(w.meaning);
+    const acceptableKeys = new Set<string>();
+    const acceptableCanon = new Set<string>([targetCanonWord]);
+    for (const cand of allWords) {
+      if (!cand.meaning || !cand.wordText) continue;
+      if (canonicalize(cand.meaning) !== targetCanonMeaning) continue;
+      if (
+        canonicalize(cand.wordText) === targetCanonWord ||
+        canonicalFormsCompatible(cand.wordText, w.wordText)
+      ) {
+        acceptableKeys.add(cand.uniqueKey);
+        acceptableCanon.add(canonicalize(cand.wordText));
+      }
+    }
+    acceptableKeys.add(w.uniqueKey);
+
+    list.push({
+      id: `${w.uniqueKey}_${list.length}`,
+      target: w,
+      acceptableKeys,
+      acceptableCanon,
+    });
   }
-  return shuffle(list).map((target, idx) => ({
-    id: `${target.uniqueKey}_${idx}`,
-    target,
-  }));
+  return shuffle(list);
 }
 
 export function GhareebMeaningQuiz({
   pool,
   allWords,
+  config: providedConfig,
+  sessionId,
+  initialIndex,
   onClose,
   onNavigateToPage,
   renderPage,
 }: GhareebMeaningQuizProps) {
-  const [questions, setQuestions] = useState<QuizQuestion[]>(() => buildQuestions(pool));
-  const [idx, setIdx] = useState(0);
+  const config = providedConfig ?? DEFAULT_MEANING_QUIZ_CONFIG;
+  const updateSession = useSessionsStore((s) => s.updateSession);
+
+  const [questions, setQuestions] = useState<QuizQuestion[]>(() => buildQuestions(pool, allWords));
+  const [idx, setIdx] = useState(initialIndex ?? 0);
   const [score, setScore] = useState({ correct: 0, wrong: 0 });
   const [solved, setSolved] = useState(false);
+  const [wrongCount, setWrongCount] = useState(0);
   const surfaceRef = useRef<HTMLDivElement>(null);
   const advanceTimerRef = useRef<number | null>(null);
+  const clearHighlightTimerRef = useRef<number | null>(null);
 
   const current = questions[idx];
 
-  // Re-build questions when the pool changes (e.g. user moved page).
+  // Re-build questions when pool/allWords change.
   useEffect(() => {
-    setQuestions(buildQuestions(pool));
-    setIdx(0);
-    setScore({ correct: 0, wrong: 0 });
+    const next = buildQuestions(pool, allWords);
+    setQuestions(next);
+    setIdx((prev) => Math.min(prev, Math.max(0, next.length - 1)));
     setSolved(false);
-  }, [pool]);
+    setWrongCount(0);
+  }, [pool, allWords]);
 
   // Navigate to the target's page when question changes.
   useEffect(() => {
     if (current) onNavigateToPage(current.target.pageNumber);
     setSolved(false);
+    setWrongCount(0);
   }, [current, onNavigateToPage]);
 
-  // Cleanup any pending advance timer on unmount.
+  // Persist progress to session (if any).
+  useEffect(() => {
+    if (!sessionId) return;
+    updateSession(sessionId, {
+      currentPage: current?.target.pageNumber || 1,
+      lastOpenedAt: Date.now(),
+      progress: {
+        currentIndex: idx,
+        total: questions.length,
+        correct: score.correct,
+        wrong: score.wrong,
+      } as unknown as Record<string, unknown>,
+    } as Parameters<typeof updateSession>[1]);
+  }, [idx, score, sessionId, current, questions.length, updateSession]);
+
+  // Cleanup pending timers on unmount.
   useEffect(() => () => {
     if (advanceTimerRef.current) window.clearTimeout(advanceTimerRef.current);
+    if (clearHighlightTimerRef.current) window.clearTimeout(clearHighlightTimerRef.current);
   }, []);
 
   const goNext = useCallback(() => {
@@ -95,59 +153,115 @@ export function GhareebMeaningQuiz({
   }, []);
 
   const reshuffle = useCallback(() => {
-    setQuestions(buildQuestions(pool));
+    setQuestions(buildQuestions(pool, allWords));
     setIdx(0);
     setScore({ correct: 0, wrong: 0 });
     setSolved(false);
-  }, [pool]);
+    setWrongCount(0);
+  }, [pool, allWords]);
 
-  const flashElement = useCallback((el: HTMLElement, kind: 'correct' | 'wrong') => {
-    const className = kind === 'correct' ? 'mq-correct' : 'mq-wrong';
-    el.classList.add(className);
-    if (kind === 'wrong') {
-      window.setTimeout(() => el.classList.remove(className), 900);
-    }
+  // Clear all .mq-correct from the surface (between questions).
+  const clearAllHighlights = useCallback(() => {
+    if (!surfaceRef.current) return;
+    surfaceRef.current.querySelectorAll('.mq-correct, .mq-wrong, .mq-hint').forEach((el) => {
+      el.classList.remove('mq-correct', 'mq-wrong', 'mq-hint');
+    });
   }, []);
 
-  // Event delegation for clicks on Quranic words inside the rendered page.
+  // Clear highlights when moving between questions.
+  useEffect(() => {
+    clearAllHighlights();
+  }, [idx, clearAllHighlights]);
+
+  // Find the target word element on the surface (for hint).
+  const findTargetEl = useCallback((): HTMLElement | null => {
+    if (!surfaceRef.current || !current) return null;
+    // Try data-ghareeb-key first (used by ghareeb words).
+    for (const key of current.acceptableKeys) {
+      const el = surfaceRef.current.querySelector<HTMLElement>(`[data-ghareeb-key="${CSS.escape(key)}"]`);
+      if (el) return el;
+    }
+    // Fallback: scan .quran-word and match by canonical text.
+    const words = surfaceRef.current.querySelectorAll<HTMLElement>('.quran-word');
+    for (const el of Array.from(words)) {
+      const txt = (el.textContent || '').trim();
+      if (!txt) continue;
+      if (current.acceptableCanon.has(canonicalize(txt))) return el;
+    }
+    return null;
+  }, [current]);
+
+  // Event delegation for clicks on Quranic words.
   const handleSurfaceClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     if (!current || solved) return;
-    const target = e.target as HTMLElement | null;
-    if (!target) return;
-    const wordEl = target.closest<HTMLElement>('.quran-word');
+    const t = e.target as HTMLElement | null;
+    if (!t) return;
+    const wordEl = t.closest<HTMLElement>('.quran-word');
     if (!wordEl) return;
-    // Exclude verse numbers and waqf/markers.
-    if (wordEl.classList.contains('verse-number')) return;
 
-    // Stop popovers etc.
+    // Exclude verse numbers, waqf marks, hizb marks, sajda marks, ornaments.
+    const blocked = ['verse-number', 'waqf-mark', 'hizb-mark', 'sajda-mark', 'page-decoration'];
+    if (blocked.some((c) => wordEl.classList.contains(c))) return;
+    if (wordEl.closest('.verse-number, .waqf-mark, .hizb-mark, .sajda-mark')) return;
+
     e.preventDefault();
     e.stopPropagation();
 
     const clickedRaw = (wordEl.textContent || '').trim();
     if (!clickedRaw) return;
 
-    const targetWord = current.target.wordText;
+    // Match by uniqueKey (most accurate) OR canonical text in acceptable set.
+    const clickedKey = wordEl.getAttribute('data-ghareeb-key') || '';
+    const clickedCanon = canonicalize(clickedRaw);
     const isMatch =
-      canonicalize(clickedRaw) === canonicalize(targetWord) ||
-      canonicalFormsCompatible(clickedRaw, targetWord);
+      (clickedKey && current.acceptableKeys.has(clickedKey)) ||
+      current.acceptableCanon.has(clickedCanon) ||
+      Array.from(current.acceptableCanon).some((c) =>
+        canonicalFormsCompatible(c, clickedRaw),
+      );
 
     if (isMatch) {
-      flashElement(wordEl, 'correct');
+      // Apply correct highlight and HOLD it for the configured duration.
+      wordEl.classList.add('mq-correct');
       setSolved(true);
       setScore((s) => ({ ...s, correct: s.correct + 1 }));
-      toast.success('أحسنت', { duration: 1200 });
+      toast.success('أحسنت', { duration: Math.min(1500, config.correctHighlightDurationMs) });
+
       if (advanceTimerRef.current) window.clearTimeout(advanceTimerRef.current);
-      advanceTimerRef.current = window.setTimeout(() => {
-        if (idx + 1 < questions.length) {
-          goNext();
-        }
-      }, 1400);
+      if (clearHighlightTimerRef.current) window.clearTimeout(clearHighlightTimerRef.current);
+
+      const hold = Math.max(300, config.correctHighlightDurationMs);
+      if (config.autoAdvance) {
+        // Advance ONLY after the highlight hold duration completes.
+        advanceTimerRef.current = window.setTimeout(() => {
+          if (idx + 1 < questions.length) {
+            goNext();
+          }
+        }, hold);
+      } else {
+        // Manual: keep highlight visible until user clicks "next" (which clears via useEffect).
+      }
     } else {
-      flashElement(wordEl, 'wrong');
+      // Wrong answer.
+      wordEl.classList.add('mq-wrong');
+      window.setTimeout(() => wordEl.classList.remove('mq-wrong'), 900);
       setScore((s) => ({ ...s, wrong: s.wrong + 1 }));
-      toast.error('حاول مرة أخرى', { duration: 1000 });
+      const newWrongCount = wrongCount + 1;
+      setWrongCount(newWrongCount);
+      toast.error('حاول مرة أخرى', { duration: 900 });
+
+      // Hint: pulse the correct location subtly (NOT a full reveal).
+      if (config.hintEnabled && newWrongCount >= config.hintAfterWrong) {
+        const hintEl = findTargetEl();
+        if (hintEl) {
+          hintEl.classList.add('mq-hint');
+          window.setTimeout(() => hintEl.classList.remove('mq-hint'), 1400);
+        }
+      }
     }
-  }, [current, solved, flashElement, idx, questions.length, goNext]);
+  }, [
+    current, solved, config, idx, questions.length, goNext, wrongCount, findTargetEl,
+  ]);
 
   if (questions.length === 0) {
     return (
@@ -157,17 +271,38 @@ export function GhareebMeaningQuiz({
       </div>
     );
   }
-
   if (!current) return null;
+
+  // Dynamic correct color based on config.
+  const correctColor = config.correctHighlightColor;
+  const dynamicCss = `
+    .mq-correct {
+      background: hsl(${correctColor} / 0.40) !important;
+      color: hsl(${correctColor.split(' ')[0]} 60% 18%) !important;
+      border-radius: 6px;
+      transition: background-color 250ms ease;
+      box-shadow: 0 0 0 2px hsl(${correctColor} / 0.65);
+    }
+    .mq-wrong {
+      background: hsl(0 75% 55% / 0.35) !important;
+      color: hsl(0 60% 25%) !important;
+      border-radius: 6px;
+      transition: background-color 200ms ease;
+      box-shadow: 0 0 0 2px hsl(0 75% 55% / 0.6);
+      animation: mq-shake 0.35s ease-in-out;
+    }
+    .mq-hint {
+      box-shadow: 0 0 0 2px hsl(${correctColor} / 0.55), 0 0 12px hsl(${correctColor} / 0.6);
+      border-radius: 6px;
+      animation: mq-pulse 1.4s ease-in-out;
+    }
+    @keyframes mq-shake { 0%,100%{transform:translateX(0)} 25%{transform:translateX(-3px)} 75%{transform:translateX(3px)} }
+    @keyframes mq-pulse { 0%,100%{ box-shadow: 0 0 0 2px hsl(${correctColor} / 0.0), 0 0 0 hsl(${correctColor} / 0.0); } 50%{ box-shadow: 0 0 0 3px hsl(${correctColor} / 0.7), 0 0 14px hsl(${correctColor} / 0.7); } }
+  `;
 
   return (
     <div className="flex h-full min-h-0 flex-col" dir="rtl">
-      {/* Inline CSS for flash feedback — scoped via class names */}
-      <style>{`
-        .mq-correct { background: hsl(142 70% 45% / 0.35) !important; color: hsl(142 60% 20%) !important; border-radius: 6px; transition: background-color 200ms ease; box-shadow: 0 0 0 2px hsl(142 70% 45% / 0.6); }
-        .mq-wrong   { background: hsl(0 75% 55% / 0.35) !important; color: hsl(0 60% 25%) !important; border-radius: 6px; transition: background-color 200ms ease; box-shadow: 0 0 0 2px hsl(0 75% 55% / 0.6); animation: mq-shake 0.35s ease-in-out; }
-        @keyframes mq-shake { 0%,100%{transform:translateX(0)} 25%{transform:translateX(-3px)} 75%{transform:translateX(3px)} }
-      `}</style>
+      <style>{dynamicCss}</style>
 
       {/* Header */}
       <div className="flex items-center justify-between gap-2 border-b border-border bg-card/80 backdrop-blur-sm px-3 py-2 shrink-0">
@@ -206,7 +341,7 @@ export function GhareebMeaningQuiz({
         </p>
       </div>
 
-      {/* Mushaf page surface (delegated clicks) */}
+      {/* Mushaf surface */}
       <div
         ref={surfaceRef}
         className="flex-1 min-h-0 overflow-auto p-2"
@@ -216,12 +351,35 @@ export function GhareebMeaningQuiz({
         {renderPage(current.target.pageNumber)}
       </div>
 
-      {/* Footer hint */}
+      {/* Footer: shows manual next button when not auto-advancing OR after solving last */}
       {solved && (
         <div className="border-t border-border bg-card/60 px-4 py-2 text-center shrink-0">
-          <Button size="sm" variant="default" onClick={goNext} disabled={idx >= questions.length - 1} className="font-arabic">
-            السؤال التالي
-          </Button>
+          {!config.autoAdvance ? (
+            <Button
+              size="sm"
+              variant="default"
+              onClick={() => { clearAllHighlights(); goNext(); }}
+              disabled={idx >= questions.length - 1}
+              className="font-arabic"
+            >
+              السؤال التالي
+            </Button>
+          ) : (
+            <p className="text-[11px] text-muted-foreground font-arabic">
+              ينتقل تلقائياً بعد {(config.correctHighlightDurationMs / 1000).toFixed(1)} ث...
+            </p>
+          )}
+          {idx >= questions.length - 1 && (
+            <div className="mt-2 flex items-center justify-center gap-2">
+              <Button size="sm" variant="outline" className="font-arabic gap-1" onClick={reshuffle}>
+                <RotateCcw className="w-3.5 h-3.5" />
+                إعادة
+              </Button>
+              <Button size="sm" variant="outline" className="font-arabic" onClick={onClose}>
+                إنهاء
+              </Button>
+            </div>
+          )}
         </div>
       )}
     </div>
