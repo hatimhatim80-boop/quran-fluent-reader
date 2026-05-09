@@ -49,6 +49,7 @@ const SESSION_TYPE_META: Record<SessionType, { label: string; icon: React.ReactN
   'ghareeb': { label: 'غريب', icon: <BookOpen className="w-5 h-5" />, color: 'bg-primary/10 text-primary', portal: '/mushaf' },
   'ghareeb-review': { label: 'مراجعة غريب ذكية', icon: <Brain className="w-5 h-5" />, color: 'bg-primary/10 text-primary', portal: '/mushaf' },
   'ghareeb-read': { label: 'قراءة الغريب', icon: <BookOpen className="w-5 h-5" />, color: 'bg-primary/10 text-primary', portal: '/mushaf' },
+  'ghareeb-meaning-quiz': { label: 'المعنى ← الكلمة', icon: <BookOpen className="w-5 h-5" />, color: 'bg-primary/10 text-primary', portal: '/mushaf' },
   'tahfeez': { label: 'تحفيظ', icon: <GraduationCap className="w-5 h-5" />, color: 'bg-accent/60 text-primary', portal: '/tahfeez' },
   'tahfeez-test': { label: 'اختبار تخزين', icon: <FileText className="w-5 h-5" />, color: 'bg-accent/60 text-primary', portal: '/tahfeez' },
   'tahfeez-auto': { label: 'اختبار تلقائي', icon: <Zap className="w-5 h-5" />, color: 'bg-accent/60 text-primary', portal: '/tahfeez' },
