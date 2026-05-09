@@ -333,6 +333,7 @@ export default function Sessions() {
       'ghareeb': 'جلسة غريب',
       'ghareeb-review': 'مراجعة غريب ذكية',
       'ghareeb-read': 'قراءة الغريب',
+      'ghareeb-meaning-quiz': 'المعنى ← الكلمة في المصحف',
       'tahfeez': 'جلسة تحفيظ',
       'tahfeez-test': 'اختبار تخزين',
       'tahfeez-auto': 'اختبار تلقائي',
