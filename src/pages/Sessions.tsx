@@ -367,7 +367,8 @@ export default function Sessions() {
       String(session.currentPage)
     );
     // Navigate with sessionId and resume flag in search params
-    navigate(`${portal}?sessionId=${session.id}&resume=1${session.type === 'ghareeb-review' ? '&srs=1' : ''}`);
+    const extra = session.type === 'ghareeb-review' ? '&srs=1' : session.type === 'ghareeb-meaning-quiz' ? '&meaningQuiz=1' : '';
+    navigate(`${portal}?sessionId=${session.id}&resume=1${extra}`);
   };
 
   const handleRename = () => {
