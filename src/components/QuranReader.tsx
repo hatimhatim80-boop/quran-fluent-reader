@@ -666,6 +666,18 @@ export function QuranReader() {
                   )}
                 </button>
 
+                {/* Meaning → Word in Mushaf training (prominent) */}
+                <button
+                  onClick={() => setMqMode('setup')}
+                  className={`h-8 px-2.5 rounded-full flex items-center justify-center gap-1 transition-all relative ${
+                    mqMode !== 'closed' ? 'bg-primary text-primary-foreground' : 'bg-primary/10 text-primary hover:bg-primary/20 border border-primary/30'
+                  }`}
+                  title="التدريب على المعنى — يعرض المعنى ثم تختار الكلمة من المصحف"
+                >
+                  <Target className="w-3.5 h-3.5" />
+                  <span className="font-arabic text-[11px] font-bold">التدريب على المعنى</span>
+                </button>
+
                 {/* Tahfeez mode - navigate to /tahfeez */}
                 <button
                   onClick={() => navigate('/tahfeez')}
