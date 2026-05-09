@@ -233,6 +233,22 @@ export function GhareebMeaningQuiz({
       setScore((s) => ({ ...s, correct: s.correct + 1 }));
       toast.success('أحسنت', { duration: Math.min(1500, config.correctHighlightDurationMs) });
 
+      // Re-queue this question N more times (spec: correctWordReviewRepeatCount).
+      const repeat = Math.max(0, config.correctWordReviewRepeatCount || 0);
+      if (repeat > 0) {
+        setQuestions((qs) => {
+          const next = [...qs];
+          const startInsert = idx + 1;
+          const stamp = Date.now();
+          for (let i = 0; i < repeat; i++) {
+            const remaining = next.length - startInsert;
+            const offset = Math.floor(Math.random() * Math.max(1, remaining + 1));
+            next.splice(startInsert + offset, 0, { ...current, id: `${current.id}_rpt_${stamp}_${i}` });
+          }
+          return next;
+        });
+      }
+
       if (advanceTimerRef.current) window.clearTimeout(advanceTimerRef.current);
       if (clearHighlightTimerRef.current) window.clearTimeout(clearHighlightTimerRef.current);
 
@@ -240,7 +256,7 @@ export function GhareebMeaningQuiz({
       if (config.autoAdvance) {
         // Advance ONLY after the highlight hold duration completes.
         advanceTimerRef.current = window.setTimeout(() => {
-          if (idx + 1 < questions.length) {
+          if (idx + 1 < questions.length + repeat) {
             goNext();
           }
         }, hold);
@@ -281,24 +297,44 @@ export function GhareebMeaningQuiz({
 
   // Dynamic correct color based on config.
   const correctColor = config.correctHighlightColor;
+  const ghareebColor = config.ghareebWordsHighlightColor;
+  const ghStyle = config.ghareebWordsHighlightStyle;
+  const ghEnabled = config.ghareebWordsHighlightEnabled && ghStyle !== 'none';
+
+  // Build CSS for highlighting ALL ghareeb words uniformly (does NOT change layout:
+  // only color/background/box-shadow are touched — no padding/margin/font-size shifts).
+  let ghareebCss = '';
+  if (ghEnabled) {
+    const sel = '[data-meaning-quiz-surface] .quran-word[data-ghareeb-key]:not(.mq-correct):not(.mq-wrong):not(.mq-hint)';
+    if (ghStyle === 'textColor') {
+      ghareebCss = `${sel} { color: hsl(${ghareebColor}) !important; background: transparent !important; box-shadow: none !important; }`;
+    } else if (ghStyle === 'background') {
+      ghareebCss = `${sel} { background: hsl(${ghareebColor} / 0.22) !important; border-radius: 4px; box-shadow: none !important; }`;
+    } else if (ghStyle === 'border') {
+      // Use box-shadow as a non-layout-shifting "border" so the page never reflows.
+      ghareebCss = `${sel} { background: transparent !important; box-shadow: inset 0 0 0 1.5px hsl(${ghareebColor} / 0.85) !important; border-radius: 4px; }`;
+    }
+  }
+
   const dynamicCss = `
+    ${ghareebCss}
     .mq-correct {
       background: hsl(${correctColor} / 0.40) !important;
       color: hsl(${correctColor.split(' ')[0]} 60% 18%) !important;
       border-radius: 6px;
       transition: background-color 250ms ease;
-      box-shadow: 0 0 0 2px hsl(${correctColor} / 0.65);
+      box-shadow: 0 0 0 2px hsl(${correctColor} / 0.65) !important;
     }
     .mq-wrong {
       background: hsl(0 75% 55% / 0.35) !important;
       color: hsl(0 60% 25%) !important;
       border-radius: 6px;
       transition: background-color 200ms ease;
-      box-shadow: 0 0 0 2px hsl(0 75% 55% / 0.6);
+      box-shadow: 0 0 0 2px hsl(0 75% 55% / 0.6) !important;
       animation: mq-shake 0.35s ease-in-out;
     }
     .mq-hint {
-      box-shadow: 0 0 0 2px hsl(${correctColor} / 0.55), 0 0 12px hsl(${correctColor} / 0.6);
+      box-shadow: 0 0 0 2px hsl(${correctColor} / 0.55), 0 0 12px hsl(${correctColor} / 0.6) !important;
       border-radius: 6px;
       animation: mq-pulse 1.4s ease-in-out;
     }

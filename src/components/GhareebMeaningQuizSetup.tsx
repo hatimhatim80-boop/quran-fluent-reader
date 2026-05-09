@@ -9,6 +9,8 @@ import { SRSScopeSelector, SRSScope, scopeToPages } from './SRSScopeSelector';
 import { useSessionsStore } from '@/stores/sessionsStore';
 import { toast } from 'sonner';
 
+export type GhareebHighlightStyle = 'textColor' | 'background' | 'border' | 'none';
+
 export interface MeaningQuizConfig {
   autoAdvance: boolean;
   correctHighlightDurationMs: number; // 500-10000
@@ -16,6 +18,14 @@ export interface MeaningQuizConfig {
   hintEnabled: boolean;
   hintAfterWrong: number;              // 1..5
   questionLimit: number | null;        // null = all
+  /** Whether to visually mark all Ghareeb words on the page during the quiz. */
+  ghareebWordsHighlightEnabled: boolean;
+  /** How to highlight Ghareeb words (text color / background / border / none). */
+  ghareebWordsHighlightStyle: GhareebHighlightStyle;
+  /** Color used to highlight all Ghareeb words BEFORE answering. Must differ from correct color. */
+  ghareebWordsHighlightColor: string;
+  /** How many extra times a correctly answered word is re-queued for additional review. */
+  correctWordReviewRepeatCount: number;
 }
 
 const DEFAULT_CONFIG: MeaningQuizConfig = {
@@ -25,6 +35,10 @@ const DEFAULT_CONFIG: MeaningQuizConfig = {
   hintEnabled: true,
   hintAfterWrong: 2,
   questionLimit: 20,
+  ghareebWordsHighlightEnabled: false,
+  ghareebWordsHighlightStyle: 'background',
+  ghareebWordsHighlightColor: '42 90% 50%',
+  correctWordReviewRepeatCount: 0,
 };
 
 const STORAGE_KEY = 'ghareeb_meaning_quiz_settings';
@@ -292,6 +306,108 @@ export function GhareebMeaningQuizSetup({
               );
             })}
           </div>
+          <p className="text-[10px] text-muted-foreground">يجب أن يختلف هذا اللون عن لون تمييز كلمات الغريب لتفادي الالتباس.</p>
+        </section>
+
+        {/* Ghareeb words highlight on page */}
+        <section className="bg-card border border-border rounded-lg p-3 space-y-2">
+          <div className="flex items-center justify-between gap-2">
+            <div>
+              <Label className="text-xs font-bold">تمييز كلمات الغريب في الصفحة</Label>
+              <p className="text-[10px] text-muted-foreground mt-0.5">يميّز جميع كلمات الغريب في النطاق دون كشف الجواب</p>
+            </div>
+            <Switch
+              checked={config.ghareebWordsHighlightEnabled}
+              onCheckedChange={(v) => setCfg('ghareebWordsHighlightEnabled', v)}
+            />
+          </div>
+          {config.ghareebWordsHighlightEnabled && (
+            <>
+              <div>
+                <Label className="text-[11px] text-muted-foreground">طريقة تمييز كلمات الغريب</Label>
+                <div className="grid grid-cols-4 gap-1.5 mt-1">
+                  {([
+                    { v: 'textColor',  l: 'لون النص' },
+                    { v: 'background', l: 'خلفية' },
+                    { v: 'border',     l: 'إطار' },
+                    { v: 'none',       l: 'بدون' },
+                  ] as const).map((opt) => {
+                    const active = config.ghareebWordsHighlightStyle === opt.v;
+                    return (
+                      <button
+                        key={opt.v}
+                        onClick={() => setCfg('ghareebWordsHighlightStyle', opt.v)}
+                        className={`h-9 rounded-md text-xs transition-colors ${
+                          active ? 'bg-primary text-primary-foreground font-bold' : 'bg-muted hover:bg-accent text-foreground'
+                        }`}
+                      >
+                        {opt.l}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+              <div>
+                <Label className="text-[11px] text-muted-foreground">لون تمييز كلمات الغريب</Label>
+                <div className="grid grid-cols-5 gap-1.5 mt-1">
+                  {COLOR_PRESETS.map((c) => {
+                    const active = c.value === config.ghareebWordsHighlightColor;
+                    const sameAsCorrect = c.value === config.correctHighlightColor;
+                    return (
+                      <button
+                        key={c.value}
+                        onClick={() => setCfg('ghareebWordsHighlightColor', c.value)}
+                        className={`h-10 rounded-md text-[10px] flex flex-col items-center justify-center gap-1 border-2 transition-all ${
+                          active ? 'border-foreground' : 'border-transparent hover:border-border'
+                        } ${sameAsCorrect ? 'opacity-50' : ''}`}
+                        style={{ backgroundColor: `hsl(${c.value} / 0.25)`, color: `hsl(${c.value})` }}
+                        title={sameAsCorrect ? 'نفس لون الكلمة الصحيحة — يفضّل اختيار لون مختلف' : ''}
+                      >
+                        <span className="w-3 h-3 rounded-full" style={{ backgroundColor: `hsl(${c.value})` }} />
+                        <span>{c.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+                {config.ghareebWordsHighlightColor === config.correctHighlightColor && (
+                  <p className="text-[10px] text-destructive mt-1">تنبيه: لون كلمات الغريب مطابق للون الكلمة الصحيحة.</p>
+                )}
+              </div>
+            </>
+          )}
+        </section>
+
+        {/* Correct word repeat count */}
+        <section className="bg-card border border-border rounded-lg p-3 space-y-2">
+          <Label className="text-xs font-bold">عدد مرات إعادة الكلمة الصحيحة</Label>
+          <p className="text-[10px] text-muted-foreground">
+            بعد الإجابة الصحيحة تُعاد الكلمة لاحقًا داخل التدريب بهذا العدد. (0 = بدون إعادة)
+          </p>
+          <div className="grid grid-cols-5 gap-1.5">
+            {[0, 1, 2, 3, 5].map((n) => {
+              const active = config.correctWordReviewRepeatCount === n;
+              return (
+                <button
+                  key={n}
+                  onClick={() => setCfg('correctWordReviewRepeatCount', n)}
+                  className={`h-9 rounded-md text-xs transition-colors ${
+                    active ? 'bg-primary text-primary-foreground font-bold' : 'bg-muted hover:bg-accent text-foreground'
+                  }`}
+                >
+                  {n}
+                </button>
+              );
+            })}
+          </div>
+          <Input
+            type="number"
+            min={0}
+            max={20}
+            value={config.correctWordReviewRepeatCount}
+            onChange={(e) => setCfg('correctWordReviewRepeatCount', Math.max(0, Math.min(20, Number(e.target.value) || 0)))}
+            className="h-9 text-sm"
+            dir="ltr"
+          />
         </section>
 
         {/* Hint */}
