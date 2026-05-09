@@ -9,6 +9,8 @@ import { SRSScopeSelector, SRSScope, scopeToPages } from './SRSScopeSelector';
 import { useSessionsStore } from '@/stores/sessionsStore';
 import { toast } from 'sonner';
 
+export type GhareebHighlightStyle = 'textColor' | 'background' | 'border' | 'none';
+
 export interface MeaningQuizConfig {
   autoAdvance: boolean;
   correctHighlightDurationMs: number; // 500-10000
@@ -16,6 +18,14 @@ export interface MeaningQuizConfig {
   hintEnabled: boolean;
   hintAfterWrong: number;              // 1..5
   questionLimit: number | null;        // null = all
+  /** Whether to visually mark all Ghareeb words on the page during the quiz. */
+  ghareebWordsHighlightEnabled: boolean;
+  /** How to highlight Ghareeb words (text color / background / border / none). */
+  ghareebWordsHighlightStyle: GhareebHighlightStyle;
+  /** Color used to highlight all Ghareeb words BEFORE answering. Must differ from correct color. */
+  ghareebWordsHighlightColor: string;
+  /** How many extra times a correctly answered word is re-queued for additional review. */
+  correctWordReviewRepeatCount: number;
 }
 
 const DEFAULT_CONFIG: MeaningQuizConfig = {
@@ -25,6 +35,10 @@ const DEFAULT_CONFIG: MeaningQuizConfig = {
   hintEnabled: true,
   hintAfterWrong: 2,
   questionLimit: 20,
+  ghareebWordsHighlightEnabled: false,
+  ghareebWordsHighlightStyle: 'background',
+  ghareebWordsHighlightColor: '42 90% 50%',
+  correctWordReviewRepeatCount: 0,
 };
 
 const STORAGE_KEY = 'ghareeb_meaning_quiz_settings';
