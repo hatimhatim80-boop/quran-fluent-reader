@@ -25,12 +25,14 @@ import { useTahfeezStore } from '@/stores/tahfeezStore';
 import { useSRSStore } from '@/stores/srsStore';
 import { useSessionsStore } from '@/stores/sessionsStore';
 import { SURAH_INFO, SURAH_NAMES } from '@/utils/quranPageIndex';
-import { Loader2, List, SlidersHorizontal, ChevronRight, ChevronLeft, Eye, EyeOff, GraduationCap, X, Settings, RotateCcw } from 'lucide-react';
+import { Loader2, List, SlidersHorizontal, ChevronRight, ChevronLeft, Eye, EyeOff, GraduationCap, X, Settings, RotateCcw, Target } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { GhareebEntryDialog, GhareebEntryResetButton } from './GhareebEntryDialog';
 import { SpeedControlWidget } from './SpeedControlWidget';
 import { SessionFontSettings } from './SessionFontSettings';
 import { GhareebSourceSettings } from './GhareebSourceSettings';
+import { GhareebMeaningQuizSetup, MeaningQuizConfig, DEFAULT_MEANING_QUIZ_CONFIG } from './GhareebMeaningQuizSetup';
+import { GhareebMeaningQuiz } from './GhareebMeaningQuiz';
 
 const JUZ_DATA_READER = [
   { number: 1, page: 1 }, { number: 2, page: 22 }, { number: 3, page: 42 },
