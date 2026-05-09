@@ -30,11 +30,12 @@ export function GhareebSRSPanel({
   renderPageWithHighlight,
 }: GhareebSRSPanelProps) {
   const { addCard, hasCard, cards, exportData, importData, clearAll } = useSRSStore();
-  const [sessionMode, setSessionMode] = useState<'setup' | 'review'>('setup');
+  const [sessionMode, setSessionMode] = useState<'setup' | 'review' | 'meaning-quiz'>('setup');
   const [sessionCards, setSessionCards] = useState<SRSCard[]>([]);
   const [sessionId, setSessionId] = useState<string | undefined>();
   const [sessionName, setSessionName] = useState<string>('');
   const [highlightStyle] = useState<'color' | 'bg' | 'border'>('color');
+  const [quizPoolMode, setQuizPoolMode] = useState<'page' | 'all'>('page');
 
   const totalCards = cards.filter(c => c.type === 'ghareeb').length;
 
