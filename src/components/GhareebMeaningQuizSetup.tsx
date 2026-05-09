@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Target, Plus, Eye, X, ArrowRight } from 'lucide-react';
+import { Target, Plus, Eye, X, ArrowRight, BookOpen } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
@@ -8,10 +8,20 @@ import { GhareebWord } from '@/types/quran';
 import { SRSScopeSelector, SRSScope, scopeToPages } from './SRSScopeSelector';
 import { useSessionsStore } from '@/stores/sessionsStore';
 import { toast } from 'sonner';
+import {
+  useAllGhareebSources,
+  filterWordsByMeaningSource,
+  MEANING_SOURCE_LABELS,
+  type MeaningSource,
+} from '@/hooks/useAllGhareebSources';
 
 export type GhareebHighlightStyle = 'textColor' | 'background' | 'border' | 'none';
 
 export interface MeaningQuizConfig {
+  /** Source(s) of ghareeb meanings used to build questions. */
+  meaningSource: MeaningSource;
+  /** Show the source-book name under the meaning prompt. */
+  showMeaningSourceName: boolean;
   autoAdvance: boolean;
   correctHighlightDurationMs: number; // 500-10000
   correctHighlightColor: string;       // HSL token like "142 70% 45%"
