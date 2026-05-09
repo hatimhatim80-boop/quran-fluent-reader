@@ -106,9 +106,42 @@ export function QuranReader() {
 
   const isMeaningQuizParam = searchParams.get('meaningQuiz') === '1';
 
+  // ── Meaning Quiz state (separate from SRS) ────────────────────────────────
+  type MQMode = 'closed' | 'setup' | 'quiz';
+  const [mqMode, setMqMode] = useState<MQMode>('closed');
+  const [mqPool, setMqPool] = useState<GhareebWord[]>([]);
+  const [mqConfig, setMqConfig] = useState<MeaningQuizConfig>(DEFAULT_MEANING_QUIZ_CONFIG);
+  const [mqSessionId, setMqSessionId] = useState<string | undefined>(undefined);
+  const [mqInitialIndex, setMqInitialIndex] = useState<number>(0);
+  const sessionsApi = useSessionsStore();
+
+  // Open SRS overlay only for ghareeb-review (NOT meaning-quiz now).
   useEffect(() => {
-    if (activeSessionType === 'ghareeb-review' || activeSessionType === 'ghareeb-meaning-quiz') setShowSRS(true);
+    if (activeSessionType === 'ghareeb-review') setShowSRS(true);
   }, [activeSessionType]);
+
+  // Open meaning quiz overlay when resuming a meaning-quiz session.
+  useEffect(() => {
+    if (!isResumeParam || !isMeaningQuizParam || activeSessionType !== 'ghareeb-meaning-quiz') return;
+    if (!resolvedSessionId) return;
+    const session = sessionsApi.getSession(resolvedSessionId);
+    if (!session) return;
+    const qs = (session.quizSettings || {}) as Record<string, unknown>;
+    const pages = (qs.pages as number[]) || [];
+    const cfg = (qs.config as MeaningQuizConfig) || DEFAULT_MEANING_QUIZ_CONFIG;
+    const initIdx = Math.max(0, Number(qs.currentIndex) || 0);
+    const pool = pages.length > 0
+      ? allGhareebWords.filter(w => pages.includes(w.pageNumber))
+      : allGhareebWords;
+    if (pool.length === 0) return;
+    const limit = cfg.questionLimit;
+    const finalPool = limit && limit > 0 ? pool.slice(0, limit) : pool;
+    setMqPool(finalPool);
+    setMqConfig(cfg);
+    setMqSessionId(resolvedSessionId);
+    setMqInitialIndex(initIdx);
+    setMqMode('quiz');
+  }, [isResumeParam, isMeaningQuizParam, activeSessionType, resolvedSessionId, allGhareebWords, sessionsApi]);
 
   const pageData = getCurrentPageData();
   const pageWords = getPageGhareebWords;
