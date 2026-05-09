@@ -165,16 +165,132 @@ export function GhareebSRSPanel({
     );
   }
 
+  const meaningScopePages = useMemo(
+    () => scopeToPages({ ...meaningScope, from: meaningScope.type === 'current-page' ? currentPage : meaningScope.from }),
+    [meaningScope, currentPage],
+  );
+
+  const meaningPoolPreview = useMemo(() => {
+    if (!meaningScopePages || meaningScopePages.length === 0) return allWords;
+    const set = new Set(meaningScopePages);
+    return allWords.filter(w => set.has(w.pageNumber));
+  }, [meaningScopePages, allWords]);
+
+  const startMeaningQuiz = useCallback((pool: GhareebWord[], name: string, saveAsSession: boolean, scopeLabel: string, pages: number[] | null) => {
+    if (!pool.length) { toast.info('لا توجد كلمات في النطاق المحدد'); return; }
+    setMeaningPool(pool);
+    if (saveAsSession) {
+      const firstPage = pool[0]?.pageNumber || currentPage;
+      const lastPage = pool.reduce((max, w) => Math.max(max, w.pageNumber), firstPage);
+      const id = sessionsStore.createSession(
+        name || `المعنى ← الكلمة (${scopeLabel})`,
+        'ghareeb-meaning-quiz',
+        firstPage,
+        lastPage,
+      );
+      sessionsStore.updateSession(id, {
+        quizSettings: { scopeLabel, pages: pages || [], wordCount: pool.length },
+      });
+      sessionsStore.setActiveSession(id);
+      toast.success('تم إنشاء الجلسة وحفظها');
+    }
+    setSessionMode('meaning-quiz');
+  }, [currentPage, sessionsStore]);
+
+  // Auto-resume meaning quiz from URL param
+  useEffect(() => {
+    if (!resumeMeaningQuizSessionId) return;
+    const session = sessionsStore.getSession(resumeMeaningQuizSessionId);
+    if (!session) return;
+    const pages = (session.quizSettings?.pages as number[]) || [];
+    const pool = pages.length > 0
+      ? allWords.filter(w => pages.includes(w.pageNumber))
+      : allWords;
+    if (pool.length > 0) {
+      setMeaningPool(pool);
+      setSessionMode('meaning-quiz');
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [resumeMeaningQuizSessionId, allWords.length]);
+
   if (sessionMode === 'meaning-quiz') {
-    const pool = quizPoolMode === 'all' ? allWords : pageWords;
     return (
       <GhareebMeaningQuiz
-        pool={pool}
+        pool={meaningPool}
         allWords={allWords}
         onClose={() => setSessionMode('setup')}
         onNavigateToPage={onNavigateToPage}
         renderPage={(pg) => renderPageWithHighlight(pg, null, highlightStyle)}
       />
+    );
+  }
+
+  if (sessionMode === 'meaning-setup') {
+    return (
+      <div className="p-4 space-y-3 font-arabic" dir="rtl">
+        <div className="flex items-center justify-between gap-2">
+          <button onClick={() => setSessionMode('setup')} className="text-sm text-muted-foreground hover:text-foreground flex items-center gap-1">
+            <ArrowRight className="w-4 h-4" /> رجوع
+          </button>
+          <h2 className="font-bold text-base text-primary flex items-center gap-1.5">
+            <Target className="w-4 h-4" />
+            المعنى ← الكلمة في المصحف
+          </h2>
+        </div>
+        <p className="text-xs text-muted-foreground leading-relaxed">
+          اختر النطاق (السورة أو الصفحة أو الحزب أو الجزء) ثم ابدأ التدريب أو احفظه كجلسة.
+        </p>
+
+        <div className="bg-card border border-border rounded-lg p-3">
+          <SRSScopeSelector
+            scope={meaningScope}
+            onChange={setMeaningScope}
+            currentPage={currentPage}
+            showAllDue={false}
+          />
+        </div>
+
+        <div className="bg-card border border-border rounded-lg p-3 space-y-2">
+          <div className="flex items-center justify-between text-xs">
+            <span className="text-muted-foreground">عدد الكلمات في النطاق</span>
+            <span className="font-bold text-primary">{meaningPoolPreview.length}</span>
+          </div>
+          <div className="space-y-1">
+            <span className="text-xs text-muted-foreground">اسم الجلسة (اختياري)</span>
+            <Input
+              value={meaningSessionName}
+              onChange={(e) => setMeaningSessionName(e.target.value)}
+              placeholder="جلسة المعنى ← الكلمة..."
+              className="h-9 text-sm font-arabic"
+            />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-2">
+          <Button
+            variant="outline"
+            className="font-arabic"
+            onClick={() => startMeaningQuiz(meaningPoolPreview, meaningSessionName.trim(), false, '', meaningScopePages)}
+          >
+            <Target className="w-4 h-4 ml-1" />
+            تدريب سريع
+          </Button>
+          <Button
+            className="font-arabic"
+            onClick={() => {
+              const label = meaningScope.type === 'current-page' ? `صفحة ${currentPage}` :
+                meaningScope.type === 'surah' ? `سور ${meaningScope.from}-${meaningScope.to}` :
+                meaningScope.type === 'juz' ? `جزء ${meaningScope.from}-${meaningScope.to}` :
+                meaningScope.type === 'hizb' ? `حزب ${meaningScope.from}-${meaningScope.to}` :
+                meaningScope.type === 'page-range' ? `ص${meaningScope.from}-${meaningScope.to}` : 'الكل';
+              startMeaningQuiz(meaningPoolPreview, meaningSessionName.trim(), true, label, meaningScopePages);
+            }}
+          >
+            <Plus className="w-4 h-4 ml-1" />
+            حفظ كجلسة وبدء
+          </Button>
+        </div>
+      </div>
     );
   }
 
