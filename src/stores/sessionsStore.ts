@@ -44,7 +44,7 @@ const idbStorage: StateStorage = {
   },
 };
 
-export type SessionType = 'ghareeb' | 'tahfeez' | 'ghareeb-review' | 'ghareeb-read' | 'tahfeez-test' | 'tahfeez-auto' | 'tahfeez-review';
+export type SessionType = 'ghareeb' | 'tahfeez' | 'ghareeb-review' | 'ghareeb-read' | 'ghareeb-meaning-quiz' | 'tahfeez-test' | 'tahfeez-auto' | 'tahfeez-review';
 
 export const TAHFEEZ_COMPLETABLE_SESSION_TYPES: SessionType[] = ['tahfeez', 'tahfeez-test', 'tahfeez-auto', 'tahfeez-review'];
 
