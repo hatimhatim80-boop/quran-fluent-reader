@@ -157,7 +157,7 @@ export function GhareebMeaningQuizSetup({
 
   const handleStart = (saveAsSession: boolean) => {
     if (!fullPool.length) {
-      toast.info('لا توجد كلمات في النطاق المحدد');
+      toast.info('لا توجد كلمات غريب من هذا المصدر في النطاق المختار');
       return;
     }
     let sessionId: string | undefined;
@@ -181,18 +181,18 @@ export function GhareebMeaningQuizSetup({
       sessionsStore.setActiveSession(sessionId);
       toast.success('تم إنشاء الجلسة وحفظها');
     }
-    onStart({ pool: limitedPool, config, sessionId, scopeLabel, pages: pages, isPreview: false });
+    onStart({ pool: limitedPool, quizAllWords: sourceFilteredAll, config, sessionId, scopeLabel, pages: pages, isPreview: false });
   };
 
   const handlePreview = () => {
     if (!fullPool.length) {
-      toast.info('لا توجد كلمات في النطاق المحدد');
+      toast.info('لا توجد كلمات غريب من هذا المصدر في النطاق المختار');
       return;
     }
     // Preview: single random question with same config
     const idx = Math.floor(Math.random() * fullPool.length);
     const previewPool = [fullPool[idx]];
-    onStart({ pool: previewPool, config, scopeLabel: scopeLabel + ' • معاينة', pages, isPreview: true });
+    onStart({ pool: previewPool, quizAllWords: sourceFilteredAll, config, scopeLabel: scopeLabel + ' • معاينة', pages, isPreview: true });
   };
 
   return (
