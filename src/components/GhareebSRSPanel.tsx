@@ -4,19 +4,23 @@ import { useSRSStore, SRSCard } from '@/stores/srsStore';
 import { SRSReviewSession } from './SRSReviewSession';
 import { ReviewSessionSetup } from './ReviewSessionSetup';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { GhareebWord } from '@/types/quran';
-import { Plus, Download, Upload, Trash2, Target } from 'lucide-react';
+import { Plus, Download, Upload, Trash2, Target, ArrowRight } from 'lucide-react';
 import { toast } from 'sonner';
 import { useSettingsStore } from '@/stores/settingsStore';
 import { canonicalize, canonicalFormsCompatible } from '@/utils/canonicalMatch';
 import { GhareebSourceSettings } from './GhareebSourceSettings';
 import { GhareebMeaningQuiz } from './GhareebMeaningQuiz';
+import { SRSScopeSelector, SRSScope, scopeToPages } from './SRSScopeSelector';
+import { useSessionsStore } from '@/stores/sessionsStore';
 
 interface GhareebSRSPanelProps {
   pageWords: GhareebWord[];
   allWords: GhareebWord[];
   currentPage: number;
   resumeSessionId?: string | null;
+  resumeMeaningQuizSessionId?: string | null;
   onNavigateToPage: (page: number) => void;
   renderPageWithHighlight: (page: number, wordKey: string | null, highlightStyle: 'color' | 'bg' | 'border') => React.ReactNode;
 }
@@ -26,16 +30,20 @@ export function GhareebSRSPanel({
   allWords,
   currentPage,
   resumeSessionId,
+  resumeMeaningQuizSessionId,
   onNavigateToPage,
   renderPageWithHighlight,
 }: GhareebSRSPanelProps) {
   const { addCard, hasCard, cards, exportData, importData, clearAll } = useSRSStore();
-  const [sessionMode, setSessionMode] = useState<'setup' | 'review' | 'meaning-quiz'>('setup');
+  const sessionsStore = useSessionsStore();
+  const [sessionMode, setSessionMode] = useState<'setup' | 'review' | 'meaning-quiz' | 'meaning-setup'>('setup');
   const [sessionCards, setSessionCards] = useState<SRSCard[]>([]);
   const [sessionId, setSessionId] = useState<string | undefined>();
   const [sessionName, setSessionName] = useState<string>('');
   const [highlightStyle] = useState<'color' | 'bg' | 'border'>('color');
-  const [quizPoolMode, setQuizPoolMode] = useState<'page' | 'all'>('page');
+  const [meaningScope, setMeaningScope] = useState<SRSScope>({ type: 'current-page', from: currentPage, to: currentPage });
+  const [meaningSessionName, setMeaningSessionName] = useState('');
+  const [meaningPool, setMeaningPool] = useState<GhareebWord[]>([]);
 
   const totalCards = cards.filter(c => c.type === 'ghareeb').length;
 
