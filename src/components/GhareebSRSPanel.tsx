@@ -5,11 +5,12 @@ import { SRSReviewSession } from './SRSReviewSession';
 import { ReviewSessionSetup } from './ReviewSessionSetup';
 import { Button } from '@/components/ui/button';
 import { GhareebWord } from '@/types/quran';
-import { Plus, Download, Upload, Trash2 } from 'lucide-react';
+import { Plus, Download, Upload, Trash2, Target } from 'lucide-react';
 import { toast } from 'sonner';
 import { useSettingsStore } from '@/stores/settingsStore';
 import { canonicalize, canonicalFormsCompatible } from '@/utils/canonicalMatch';
 import { GhareebSourceSettings } from './GhareebSourceSettings';
+import { GhareebMeaningQuiz } from './GhareebMeaningQuiz';
 
 interface GhareebSRSPanelProps {
   pageWords: GhareebWord[];
@@ -29,11 +30,12 @@ export function GhareebSRSPanel({
   renderPageWithHighlight,
 }: GhareebSRSPanelProps) {
   const { addCard, hasCard, cards, exportData, importData, clearAll } = useSRSStore();
-  const [sessionMode, setSessionMode] = useState<'setup' | 'review'>('setup');
+  const [sessionMode, setSessionMode] = useState<'setup' | 'review' | 'meaning-quiz'>('setup');
   const [sessionCards, setSessionCards] = useState<SRSCard[]>([]);
   const [sessionId, setSessionId] = useState<string | undefined>();
   const [sessionName, setSessionName] = useState<string>('');
   const [highlightStyle] = useState<'color' | 'bg' | 'border'>('color');
+  const [quizPoolMode, setQuizPoolMode] = useState<'page' | 'all'>('page');
 
   const totalCards = cards.filter(c => c.type === 'ghareeb').length;
 
@@ -155,6 +157,19 @@ export function GhareebSRSPanel({
     );
   }
 
+  if (sessionMode === 'meaning-quiz') {
+    const pool = quizPoolMode === 'all' ? allWords : pageWords;
+    return (
+      <GhareebMeaningQuiz
+        pool={pool}
+        allWords={allWords}
+        onClose={() => setSessionMode('setup')}
+        onNavigateToPage={onNavigateToPage}
+        renderPage={(pg) => renderPageWithHighlight(pg, null, highlightStyle)}
+      />
+    );
+  }
+
   return (
     <ReviewSessionSetup
       portal="ghareeb"
@@ -182,6 +197,48 @@ export function GhareebSRSPanel({
             <Plus className="w-4 h-4" />
             إضافة كلمات الصفحة الحالية ({pageWords.length} كلمة)
           </Button>
+
+          {/* New training mode launcher */}
+          <div className="border border-primary/30 bg-primary/5 rounded-lg p-3 space-y-2">
+            <div className="flex items-center gap-2">
+              <Target className="w-4 h-4 text-primary" />
+              <span className="font-arabic text-sm font-bold text-primary">
+                نمط جديد: المعنى ← الكلمة في المصحف
+              </span>
+            </div>
+            <p className="font-arabic text-xs text-muted-foreground leading-relaxed">
+              يُعرض لك معنى كلمة، ثم تختار الكلمة القرآنية المقابلة على الصفحة بالنقر عليها.
+            </p>
+            <div className="flex items-center gap-1.5">
+              <Button
+                size="sm"
+                variant={quizPoolMode === 'page' ? 'default' : 'outline'}
+                className="flex-1 font-arabic text-xs"
+                onClick={() => setQuizPoolMode('page')}
+              >
+                كلمات الصفحة ({pageWords.length})
+              </Button>
+              <Button
+                size="sm"
+                variant={quizPoolMode === 'all' ? 'default' : 'outline'}
+                className="flex-1 font-arabic text-xs"
+                onClick={() => setQuizPoolMode('all')}
+              >
+                جميع الكلمات
+              </Button>
+            </div>
+            <Button
+              onClick={() => {
+                const pool = quizPoolMode === 'all' ? allWords : pageWords;
+                if (!pool.length) { toast.info('لا توجد كلمات متاحة'); return; }
+                setSessionMode('meaning-quiz');
+              }}
+              className="w-full gap-2 font-arabic"
+            >
+              <Target className="w-4 h-4" />
+              ابدأ التدريب
+            </Button>
+          </div>
 
           {/* Import/Export */}
           <div className="flex gap-2">
