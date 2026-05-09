@@ -126,17 +126,23 @@ export function GhareebMeaningQuiz({
   // Persist progress to session (if any).
   useEffect(() => {
     if (!sessionId) return;
+    const total = Math.max(1, questions.length);
+    const pct = Math.min(100, Math.round(((idx + (solved ? 1 : 0)) / total) * 100));
+    const session = useSessionsStore.getState().getSession(sessionId);
+    const existing = (session?.quizSettings || {}) as Record<string, unknown>;
     updateSession(sessionId, {
       currentPage: current?.target.pageNumber || 1,
       lastOpenedAt: Date.now(),
-      progress: {
+      progress: pct,
+      quizSettings: {
+        ...existing,
         currentIndex: idx,
         total: questions.length,
         correct: score.correct,
         wrong: score.wrong,
-      } as unknown as Record<string, unknown>,
-    } as Parameters<typeof updateSession>[1]);
-  }, [idx, score, sessionId, current, questions.length, updateSession]);
+      },
+    });
+  }, [idx, score, solved, sessionId, current, questions.length, updateSession]);
 
   // Cleanup pending timers on unmount.
   useEffect(() => () => {
