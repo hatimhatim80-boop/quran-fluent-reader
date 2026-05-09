@@ -215,6 +215,40 @@ export function GhareebMeaningQuizSetup({
 
       {/* Body */}
       <div className="flex-1 min-h-0 overflow-auto p-3 space-y-3">
+        {/* Meaning source */}
+        <section className="bg-card border border-border rounded-lg p-3 space-y-2">
+          <div className="flex items-center gap-2">
+            <BookOpen className="w-3.5 h-3.5 text-primary" />
+            <Label className="text-xs font-bold">مصدر معاني الغريب</Label>
+          </div>
+          <div className="grid grid-cols-3 gap-1.5">
+            {(['muyassar', 'duroobi', 'both'] as const).map((s) => {
+              const active = config.meaningSource === s;
+              return (
+                <button
+                  key={s}
+                  onClick={() => setCfg('meaningSource', s)}
+                  className={`h-10 rounded-md text-[11px] leading-tight px-1 transition-colors ${
+                    active ? 'bg-primary text-primary-foreground font-bold' : 'bg-muted hover:bg-accent text-foreground'
+                  }`}
+                >
+                  {MEANING_SOURCE_LABELS[s]}
+                </button>
+              );
+            })}
+          </div>
+          <div className="flex items-center justify-between gap-2 pt-1 border-t border-border">
+            <Label className="text-[11px] text-muted-foreground">إظهار اسم المصدر مع المعنى</Label>
+            <Switch
+              checked={config.showMeaningSourceName}
+              onCheckedChange={(v) => setCfg('showMeaningSourceName', v)}
+            />
+          </div>
+          {sourcesLoading && (
+            <p className="text-[10px] text-muted-foreground">…جاري تحميل المصادر</p>
+          )}
+        </section>
+
         {/* Scope */}
         <section className="bg-card border border-border rounded-lg p-3 space-y-2">
           <Label className="text-xs text-muted-foreground">النطاق (سورة / صفحة / حزب / جزء)</Label>
@@ -228,6 +262,16 @@ export function GhareebMeaningQuizSetup({
             <span className="text-muted-foreground">الكلمات في النطاق</span>
             <span className="font-bold text-primary">{fullPool.length}</span>
           </div>
+          {!sourcesLoading && fullPool.length === 0 && (
+            <div className="rounded-md bg-destructive/10 border border-destructive/30 p-2 text-[11px] text-destructive space-y-1">
+              <p className="font-bold">لا توجد كلمات غريب من هذا المصدر في النطاق المختار.</p>
+              <ul className="list-disc pr-4 space-y-0.5 text-foreground/80">
+                <li>جرّب اختيار مصدر آخر.</li>
+                <li>أو وسّع النطاق (سورة / حزب / جزء).</li>
+                <li>أو اختر "كلا المصدرين".</li>
+              </ul>
+            </div>
+          )}
         </section>
 
         {/* Question count */}
