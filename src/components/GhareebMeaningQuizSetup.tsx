@@ -82,12 +82,19 @@ function saveConfig(cfg: MeaningQuizConfig) {
 }
 
 interface GhareebMeaningQuizSetupProps {
+  /** Legacy: pool of words from the user's globally configured source.
+   *  Kept for backward-compat but no longer used to build the pool — the
+   *  Meaning-Quiz now loads both sources independently so the user can pick
+   *  one per quiz. */
   allWords: GhareebWord[];
   currentPage: number;
   onClose: () => void;
   /** Start the quiz with the resolved pool & config. */
   onStart: (params: {
     pool: GhareebWord[];
+    /** Source-of-truth list used for multi-position acceptance — already
+     *  filtered to the chosen meaning source. */
+    quizAllWords: GhareebWord[];
     config: MeaningQuizConfig;
     sessionId?: string;
     scopeLabel: string;
@@ -97,7 +104,7 @@ interface GhareebMeaningQuizSetupProps {
 }
 
 export function GhareebMeaningQuizSetup({
-  allWords,
+  allWords: _legacyAllWords,
   currentPage,
   onClose,
   onStart,
@@ -108,7 +115,17 @@ export function GhareebMeaningQuizSetup({
   const [sessionName, setSessionName] = useState('');
   const [customDurationOpen, setCustomDurationOpen] = useState(false);
 
+  // Load BOTH source books independently of the user's global preference so the
+  // Meaning-Quiz source selector works on its own.
+  const { allWords: bothSourcesWords, isLoading: sourcesLoading } = useAllGhareebSources();
+
   useEffect(() => { saveConfig(config); }, [config]);
+
+  // Words filtered by the chosen meaning source.
+  const sourceFilteredAll = useMemo(
+    () => filterWordsByMeaningSource(bothSourcesWords, config.meaningSource),
+    [bothSourcesWords, config.meaningSource],
+  );
 
   const pages = useMemo(
     () => scopeToPages({ ...scope, from: scope.type === 'current-page' ? currentPage : scope.from }),
@@ -116,10 +133,10 @@ export function GhareebMeaningQuizSetup({
   );
 
   const fullPool = useMemo(() => {
-    if (!pages || pages.length === 0) return allWords;
+    if (!pages || pages.length === 0) return sourceFilteredAll;
     const set = new Set(pages);
-    return allWords.filter(w => set.has(w.pageNumber));
-  }, [pages, allWords]);
+    return sourceFilteredAll.filter(w => set.has(w.pageNumber));
+  }, [pages, sourceFilteredAll]);
 
   const scopeLabel = useMemo(() => {
     if (scope.type === 'current-page') return `صفحة ${currentPage}`;
