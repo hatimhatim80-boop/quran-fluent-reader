@@ -233,6 +233,22 @@ export function GhareebMeaningQuiz({
       setScore((s) => ({ ...s, correct: s.correct + 1 }));
       toast.success('أحسنت', { duration: Math.min(1500, config.correctHighlightDurationMs) });
 
+      // Re-queue this question N more times (spec: correctWordReviewRepeatCount).
+      const repeat = Math.max(0, config.correctWordReviewRepeatCount || 0);
+      if (repeat > 0) {
+        setQuestions((qs) => {
+          const next = [...qs];
+          const startInsert = idx + 1;
+          const stamp = Date.now();
+          for (let i = 0; i < repeat; i++) {
+            const remaining = next.length - startInsert;
+            const offset = Math.floor(Math.random() * Math.max(1, remaining + 1));
+            next.splice(startInsert + offset, 0, { ...current, id: `${current.id}_rpt_${stamp}_${i}` });
+          }
+          return next;
+        });
+      }
+
       if (advanceTimerRef.current) window.clearTimeout(advanceTimerRef.current);
       if (clearHighlightTimerRef.current) window.clearTimeout(clearHighlightTimerRef.current);
 
@@ -240,7 +256,7 @@ export function GhareebMeaningQuiz({
       if (config.autoAdvance) {
         // Advance ONLY after the highlight hold duration completes.
         advanceTimerRef.current = window.setTimeout(() => {
-          if (idx + 1 < questions.length) {
+          if (idx + 1 < questions.length + repeat) {
             goNext();
           }
         }, hold);
