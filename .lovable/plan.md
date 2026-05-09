@@ -1,147 +1,106 @@
+# خطة: نمط "التدريب على المعنى" في بوابة الغريب
 
+النمط (`meaning_to_mushaf_word`) موجود فعليًا داخل `GhareebSRSPanel` كزر صغير ضمن لوحة المراجعة الذكية. الخطة تجعله **زرًا مستقلًا بارزًا** له شاشة إعداد كاملة، مع إعدادات جديدة (مدة بقاء التلوين، لون التمييز، عدد الأسئلة، التلميح، ...) وضمان ثبات صفحة المصحف.
 
-# خطة التنفيذ الشاملة: نظام إعدادات المراجعة المتكامل لبوابة التحفيظ
+## 1) نقطة الدخول — زر بارز في بوابة الغريب
 
-## ملخص
+داخل `src/components/QuranReader.tsx` في شريط أدوات بوابة الغريب (بجوار زر "المراجعة الذكية") نضيف زرًا منفصلًا:
 
-تنفيذ 9 محاور: إعدادات جديدة في المتجر، تطوير محرك التوزيع، تحديث الواجهة مع Preview، إضافة زر إعدادات أثناء الجلسة، إصلاح ربط المحرك، وإصلاح أخطاء الحزب/الجزء.
+- العنوان: **"التدريب على المعنى"**
+- الوصف تحت العنوان: *"يعرض لك المعنى، ثم تختار الكلمة المناسبة من صفحة المصحف"*
+- أيقونة `Target` بنفس نمط بقية الأزرار.
 
----
+عند الضغط يُفتح مكوّن جديد `GhareebMeaningQuizSetup` كـ overlay داخل القارئ (نفس آلية فتح لوحة SRS عبر `setShowMeaningQuiz`).
+نفصل الحالة عن SRS لتجنّب أي تداخل: `showSRS` يبقى للمراجعة الذكية فقط، ونضيف `showMeaningQuiz`.
 
-## الملفات المتأثرة
+كذلك في `src/pages/Sessions.tsx` يبقى نوع الجلسة `ghareeb-meaning-quiz` كما هو، لكن الاستئناف الآن يفتح مباشرة شاشة التدريب (لا شاشة SRS).
 
-1. `src/stores/tahfeezStore.ts`
-2. `src/utils/distributedBlanking.ts`
-3. `src/components/TahfeezAutoQuizSettings.tsx`
-4. `src/components/TahfeezQuizView.tsx`
-5. `src/pages/Tahfeez.tsx`
+## 2) شاشة الإعداد — `GhareebMeaningQuizSetup.tsx` (ملف جديد)
 
----
+محتوى الشاشة:
 
-## المرحلة 1: توسيع المتجر (`tahfeezStore.ts`)
+| الحقل | النوع |
+|---|---|
+| النطاق (سورة / صفحة / حزب / جزء) | `SRSScopeSelector` (مُعاد الاستخدام) |
+| عدد الأسئلة | إدخال رقمي + خيارات سريعة (10/20/50/الكل) |
+| الانتقال التلقائي | `Switch` (`autoAdvance`) |
+| مدة بقاء تلوين الكلمة الصحيحة | شرائح: 1s / 2s / 3s / 5s + إدخال يدوي بالـ ms (`correctHighlightDurationMs`) |
+| لون تمييز الكلمة الصحيحة | 5 ألوان جاهزة + تخصيص (`correctHighlightColor` بصيغة HSL token) |
+| التلميح عند الخطأ | `Switch` + عدّاد "بعد عدد المحاولات الخاطئة" (`hintAfterWrong`) |
+| اسم الجلسة (اختياري) | إدخال نصي |
+| زر "معاينة" | يفتح سؤالًا تجريبيًا واحدًا بنفس الإعدادات دون حفظ |
+| زر "ابدأ التدريب" | يبدأ الجلسة |
+| زر "حفظ كجلسة وبدء" | ينشئ جلسة في `sessionsStore` نوعها `ghareeb-meaning-quiz` |
 
-إضافة 4 حالات جديدة مع setters و partialize:
+تُحفظ الإعدادات الافتراضية في `localStorage` تحت مفتاح `ghareeb_meaning_quiz_settings` (مستخدم واحد، بدون أي بيانات طلاب).
 
-- `hiddenWordsMode: 'fixed-count' | 'percentage'` (افتراضي: `'fixed-count'`)
-- `hiddenWordsPercentage: number` (افتراضي: 25)
-- `percentageScope: 'per-ayah' | 'per-visible-block'` (افتراضي: `'per-ayah'`)
-- `wordSequenceMode: 'same-ayah-only' | 'allow-cross-ayah'` (افتراضي: `'same-ayah-only'`)
+## 3) واجهة التدريب — تحديث `GhareebMeaningQuiz.tsx`
 
----
+التعديلات على المكوّن القائم:
 
-## المرحلة 2: تطوير محرك التوزيع (`distributedBlanking.ts`)
+- استقبال `config: MeaningQuizConfig` يحوي:
+  ```ts
+  {
+    autoAdvance: boolean;
+    correctHighlightDurationMs: number; // 500–10000
+    correctHighlightColor: string;      // HSL: "142 70% 45%"
+    hintEnabled: boolean;
+    hintAfterWrong: number;             // عدد المحاولات قبل ظهور التلميح
+    questionLimit: number | null;
+  }
+  ```
+- استبدال class الثابت `mq-correct` بأنماط محقونة من `correctHighlightColor` عبر `<style>` ديناميكي.
+- على الإجابة الصحيحة:
+  1. تطبيق التلوين على الكلمة.
+  2. تثبيت التلوين لمدة `correctHighlightDurationMs` كاملة.
+  3. **لا يبدأ مؤقت الانتقال** إلا بعد انتهاء هذه المدة، وفقط إذا `autoAdvance === true`.
+  4. إذا كان `autoAdvance === false` يبقى التلوين ويظهر زر "السؤال التالي" البارز الموجود حاليًا في الفوتر (نوسّعه ليبقى ظاهرًا فور الحل).
+- على الخطأ:
+  - إذا `hintEnabled` و`wrongCount >= hintAfterWrong` نعرض تلميحًا (وميض خفيف على الموضع الصحيح أو إظهار أول حرف فقط بدون كشف الكلمة كلها).
+  - وإلا: نفس السلوك الحالي (وميض أحمر + رسالة "حاول مرة أخرى").
+- **قبول مواضع متعددة لنفس المعنى**: عند بناء `current.target` نحسب مجموعة `acceptableKeys` تشمل كل `uniqueKey` من `allWords` يطابق `canonicalize(meaning)` لنفس النص القرآني (`canonicalFormsCompatible(wordText)`). في `handleSurfaceClick` نتحقق من النص العربي للكلمة المنقورة مقابل أي كلمة مقبولة، ويُعتبر صحيحًا إذا تطابق مع أي منها.
 
-### تغييرات Interface:
-إضافة `hiddenWordsMode`, `hiddenWordsPercentage`, `percentageScope`, `wordSequenceMode` إلى `DistributedBlankingParams`.
+## 4) ثبات صفحة المصحف
 
-### منطق النسبة المئوية:
-- دالة `isActualWord(text)`: تستثني علامات الوقف والأرقام والزخارف
-- إذا `percentageScope = 'per-ayah'`: لكل مجموعة آيات يُحسب `Math.max(1, Math.round(percentage/100 * wordCount))`
-- إذا `percentageScope = 'per-visible-block'`: يُحسب من إجمالي `allWordTokens`
+التلوين الحالي يستخدم `background` + `box-shadow` فقط، وهذا لا يغيّر التخطيط. سنُلزم نفسه:
+- لا تغيير لـ `padding`/`margin`/`font-size`/`display` لعنصر `.quran-word`.
+- لا إدراج DOM إضافي داخل سطر المصحف؛ التلوين CSS فقط على نفس العنصر.
+- التأكد من استبعاد الكلاسات `verse-number`, `waqf-mark`, `hizb-mark`, وأي زخارف بإضافة فحص:
+  ```ts
+  const blocked = ['verse-number','waqf-mark','hizb-mark','sajda-mark'];
+  if (blocked.some(c => wordEl.classList.contains(c))) return;
+  ```
 
-### منطق التتابع المحسّن:
-- إذا `wordSequenceMode = 'same-ayah-only'`: اختيار آية عشوائية ثم كلمات متتابعة داخلها فقط
-- إذا `wordSequenceMode = 'allow-cross-ayah'`: نقطة بداية عشوائية مع امتداد للآية التالية
+## 5) الاستئناف وحفظ الجلسة
 
----
+- نوع الجلسة في `sessionsStore` يبقى `ghareeb-meaning-quiz`.
+- بدلًا من تمرير الاستئناف عبر `GhareebSRSPanel`، نمرّره مباشرة من `QuranReader` إلى مكوّن `GhareebMeaningQuiz` عبر برّوب `resumeSessionId`.
+- نخزّن في `session.settings`:
+  ```
+  { scopeLabel, pages, config: MeaningQuizConfig, currentIndex, score }
+  ```
+  ونحدّث `currentIndex` و`score` بعد كل سؤال (نفس آلية SRS الحالية في `SRSReviewSession`).
+- عند الاستئناف من `Sessions.tsx` تُفتح `/mushaf?session=<id>&meaningQuiz=1` (موجود)، و`QuranReader` يفتح المكوّن مع `resumeSessionId`.
 
-## المرحلة 3: تحديث واجهة الإعدادات (`TahfeezAutoQuizSettings.tsx`)
+## 6) ما لن يتم إضافته (حسب الطلب)
 
-### إضافات في قسم "نمط المراجعة والتوزيع":
+- لا تقارير طلاب، لا تتبّع متعدد المستخدمين.
+- لا جداول جديدة في IndexedDB.
+- لا تغيير في منطق المراجعة الذكية أو القراءة العادية.
 
-1. **وضع إخفاء الكلمات** (عند word/mixed): زران `عدد ثابت` / `نسبة مئوية`
+## ملفات سيتم تعديلها / إنشاؤها
 
-2. **إذا نسبة مئوية**: أزرار سريعة (10% / 20% / 25% / 30% / 40% / 50% / 60% / 70% / 80%) + slider + عرض النسبة
+- جديد: `src/components/GhareebMeaningQuizSetup.tsx`
+- تعديل: `src/components/GhareebMeaningQuiz.tsx` — إضافة `config`، تثبيت التلوين، التلميح، قبول مواضع متعددة، استئناف.
+- تعديل: `src/components/QuranReader.tsx` — حالة `showMeaningQuiz` وزر بارز جديد، فصل الاستئناف عن SRS.
+- تعديل: `src/components/GhareebSRSPanel.tsx` — إزالة زر/شاشة "meaning-setup" من داخل لوحة SRS (تنظيف فقط).
+- تعديل بسيط: `src/pages/Sessions.tsx` — توجيه الاستئناف إلى المكوّن الجديد (نفس URL).
 
-3. **نطاق النسبة** (عند percentage): زران `لكل آية` / `للمقطع الظاهر`
+## القبول
 
-4. **تتابع الكلمات** (عند sequential + word/mixed): زران `داخل الآية فقط` / `يمتد للآية التالية`
-
-### Preview قبل زر "ابدأ":
-صندوق ملخص يعرض:
-- نوع المراجعة (آيات/كلمات/مختلط)
-- العدد أو النسبة
-- طريقة التوزيع
-- النطاق (صفحة/سورة/جزء/حزب)
-
----
-
-## المرحلة 4: إصلاح ربط المحرك (`TahfeezQuizView.tsx`)
-
-### المشكلة الحالية:
-السطر 343: `if (quizSource === 'auto' && distributionMode !== 'sequential')` — يعني أن وضع sequential لا يستخدم المحرك إلا في word/mixed. لكن في وضع `ayah-count` مع sequential، يبدأ دائمًا من أول الآيات (السطر 244-248: `for (let a = 0; a < count; a++)`).
-
-### الإصلاح:
-- توحيد المنطق: في وضع `ayah-count`، يمر دائمًا عبر `computeDistributedBlanks` بدلاً من الحلقة البسيطة
-- تمرير الإعدادات الجديدة (`hiddenWordsMode`, `hiddenWordsPercentage`, `percentageScope`, `wordSequenceMode`) إلى المحرك
-- إضافة المتغيرات الجديدة إلى dependency array
-
----
-
-## المرحلة 5: زر إعدادات أثناء الجلسة (`Tahfeez.tsx`)
-
-### إضافة Sheet في شريط التحكم:
-- زر "⚙️" بجانب أزرار إيقاف/كشف الكل (السطر 1655)
-- يفتح Sheet يحتوي على المكوّن `TahfeezAutoQuizSettings` (بدون زر ابدأ)
-- تغيير الإعدادات ينعكس فوريًا على الجولة التالية
-
-### إضافة prop `compact` لـ `TahfeezAutoQuizSettings`:
-- عند `compact=true`: يخفي زر "ابدأ" ويعرض الإعدادات فقط
-
----
-
-## المرحلة 6: إصلاح أول آية في الحزب/الجزء
-
-### المشكلة:
-في `ayah-count` mode (سطر 244-248 من TahfeezQuizView):
-```
-for (let a = 0; a < count; a++) {
-  ayahGroups[a].forEach(t => keys.add(t.key));
-}
-```
-هذا يبدأ دائمًا من أول آية. لكن المشكلة الحقيقية ليست هنا — بل أن المحرك الموزع لا يُستدعى في وضع sequential + ayah. بعد التوحيد في المرحلة 4، سيعمل المحرك بشكل صحيح ويبدأ من فهرس عشوائي باستخدام الـ seed.
-
----
-
-## التفاصيل التقنية
-
-```text
-tahfeezStore (جديد)
-├── hiddenWordsMode: 'fixed-count' | 'percentage'
-├── hiddenWordsPercentage: number (10-80)
-├── percentageScope: 'per-ayah' | 'per-visible-block'
-└── wordSequenceMode: 'same-ayah-only' | 'allow-cross-ayah'
-
-distributedBlanking.ts
-├── isActualWord(text) → boolean (يستثني الوقف/أرقام/زخارف)
-├── blankWords() → يدعم percentage mode
-├── blankWordsPerAyah() → جديد: حساب لكل آية
-├── sequential + same-ayah-only → كلمات متتابعة داخل آية واحدة
-└── sequential + allow-cross-ayah → كلمات متتابعة عبر حدود الآيات
-
-TahfeezAutoQuizSettings.tsx
-├── وضع الكلمات: fixed-count / percentage (أزرار)
-├── أزرار النسبة: 10-80% + slider
-├── نطاق النسبة: per-ayah / per-visible-block
-├── تتابع الكلمات: same-ayah / cross-ayah
-├── Preview ملخص قبل زر ابدأ
-└── prop compact لاستخدام أثناء الجلسة
-
-TahfeezQuizView.tsx blankedKeys
-└── يمر دائمًا عبر computeDistributedBlanks
-    (يزيل الشرط distributionMode !== 'sequential')
-
-Tahfeez.tsx
-├── Sheet مع زر ⚙️ أثناء الجلسة
-└── يحتوي TahfeezAutoQuizSettings compact
-```
-
----
-
-## ما لن يتأثر
-- نظام SRS (يستخدم `forceBlankedKeys`)
-- نظام الغريب (مكوّنات منفصلة)
-- أنماط MCQ (next-ayah-mcq / next-waqf-mcq — لها مسار منفصل)
-- نظام الصفحات والفهرس
-- أنماط الإخفاء الحالية (beginning/middle/end/waqf) — تبقى كما هي، المحرك يضيف عليها
-
+- زر "التدريب على المعنى" ظاهر بوضوح في شريط أدوات بوابة الغريب وليس داخل المراجعة الذكية.
+- شاشة الإعداد تحوي كل الحقول المطلوبة وتعمل مع كل النطاقات.
+- الكلمة الصحيحة تبقى ملوّنة كامل المدة المُعدّة قبل الانتقال.
+- صفحة المصحف لا تتزحزح أثناء التلوين.
+- أرقام الآيات وعلامات الوقف والحزب غير قابلة للضغط.
+- نفس المعنى في مواضع متعددة يقبل كل المواضع الصحيحة.
