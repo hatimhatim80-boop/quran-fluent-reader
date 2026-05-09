@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Target, Plus, Eye, X, ArrowRight } from 'lucide-react';
+import { Target, Plus, Eye, X, ArrowRight, BookOpen } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
@@ -8,10 +8,20 @@ import { GhareebWord } from '@/types/quran';
 import { SRSScopeSelector, SRSScope, scopeToPages } from './SRSScopeSelector';
 import { useSessionsStore } from '@/stores/sessionsStore';
 import { toast } from 'sonner';
+import {
+  useAllGhareebSources,
+  filterWordsByMeaningSource,
+  MEANING_SOURCE_LABELS,
+  type MeaningSource,
+} from '@/hooks/useAllGhareebSources';
 
 export type GhareebHighlightStyle = 'textColor' | 'background' | 'border' | 'none';
 
 export interface MeaningQuizConfig {
+  /** Source(s) of ghareeb meanings used to build questions. */
+  meaningSource: MeaningSource;
+  /** Show the source-book name under the meaning prompt. */
+  showMeaningSourceName: boolean;
   autoAdvance: boolean;
   correctHighlightDurationMs: number; // 500-10000
   correctHighlightColor: string;       // HSL token like "142 70% 45%"
@@ -29,6 +39,8 @@ export interface MeaningQuizConfig {
 }
 
 const DEFAULT_CONFIG: MeaningQuizConfig = {
+  meaningSource: 'muyassar',
+  showMeaningSourceName: false,
   autoAdvance: true,
   correctHighlightDurationMs: 2000,
   correctHighlightColor: '142 70% 45%',
@@ -70,12 +82,19 @@ function saveConfig(cfg: MeaningQuizConfig) {
 }
 
 interface GhareebMeaningQuizSetupProps {
+  /** Legacy: pool of words from the user's globally configured source.
+   *  Kept for backward-compat but no longer used to build the pool — the
+   *  Meaning-Quiz now loads both sources independently so the user can pick
+   *  one per quiz. */
   allWords: GhareebWord[];
   currentPage: number;
   onClose: () => void;
   /** Start the quiz with the resolved pool & config. */
   onStart: (params: {
     pool: GhareebWord[];
+    /** Source-of-truth list used for multi-position acceptance — already
+     *  filtered to the chosen meaning source. */
+    quizAllWords: GhareebWord[];
     config: MeaningQuizConfig;
     sessionId?: string;
     scopeLabel: string;
@@ -85,7 +104,7 @@ interface GhareebMeaningQuizSetupProps {
 }
 
 export function GhareebMeaningQuizSetup({
-  allWords,
+  allWords: _legacyAllWords,
   currentPage,
   onClose,
   onStart,
@@ -96,7 +115,17 @@ export function GhareebMeaningQuizSetup({
   const [sessionName, setSessionName] = useState('');
   const [customDurationOpen, setCustomDurationOpen] = useState(false);
 
+  // Load BOTH source books independently of the user's global preference so the
+  // Meaning-Quiz source selector works on its own.
+  const { allWords: bothSourcesWords, isLoading: sourcesLoading } = useAllGhareebSources();
+
   useEffect(() => { saveConfig(config); }, [config]);
+
+  // Words filtered by the chosen meaning source.
+  const sourceFilteredAll = useMemo(
+    () => filterWordsByMeaningSource(bothSourcesWords, config.meaningSource),
+    [bothSourcesWords, config.meaningSource],
+  );
 
   const pages = useMemo(
     () => scopeToPages({ ...scope, from: scope.type === 'current-page' ? currentPage : scope.from }),
@@ -104,10 +133,10 @@ export function GhareebMeaningQuizSetup({
   );
 
   const fullPool = useMemo(() => {
-    if (!pages || pages.length === 0) return allWords;
+    if (!pages || pages.length === 0) return sourceFilteredAll;
     const set = new Set(pages);
-    return allWords.filter(w => set.has(w.pageNumber));
-  }, [pages, allWords]);
+    return sourceFilteredAll.filter(w => set.has(w.pageNumber));
+  }, [pages, sourceFilteredAll]);
 
   const scopeLabel = useMemo(() => {
     if (scope.type === 'current-page') return `صفحة ${currentPage}`;
@@ -128,7 +157,7 @@ export function GhareebMeaningQuizSetup({
 
   const handleStart = (saveAsSession: boolean) => {
     if (!fullPool.length) {
-      toast.info('لا توجد كلمات في النطاق المحدد');
+      toast.info('لا توجد كلمات غريب من هذا المصدر في النطاق المختار');
       return;
     }
     let sessionId: string | undefined;
@@ -152,18 +181,18 @@ export function GhareebMeaningQuizSetup({
       sessionsStore.setActiveSession(sessionId);
       toast.success('تم إنشاء الجلسة وحفظها');
     }
-    onStart({ pool: limitedPool, config, sessionId, scopeLabel, pages: pages, isPreview: false });
+    onStart({ pool: limitedPool, quizAllWords: sourceFilteredAll, config, sessionId, scopeLabel, pages: pages, isPreview: false });
   };
 
   const handlePreview = () => {
     if (!fullPool.length) {
-      toast.info('لا توجد كلمات في النطاق المحدد');
+      toast.info('لا توجد كلمات غريب من هذا المصدر في النطاق المختار');
       return;
     }
     // Preview: single random question with same config
     const idx = Math.floor(Math.random() * fullPool.length);
     const previewPool = [fullPool[idx]];
-    onStart({ pool: previewPool, config, scopeLabel: scopeLabel + ' • معاينة', pages, isPreview: true });
+    onStart({ pool: previewPool, quizAllWords: sourceFilteredAll, config, scopeLabel: scopeLabel + ' • معاينة', pages, isPreview: true });
   };
 
   return (
@@ -186,6 +215,40 @@ export function GhareebMeaningQuizSetup({
 
       {/* Body */}
       <div className="flex-1 min-h-0 overflow-auto p-3 space-y-3">
+        {/* Meaning source */}
+        <section className="bg-card border border-border rounded-lg p-3 space-y-2">
+          <div className="flex items-center gap-2">
+            <BookOpen className="w-3.5 h-3.5 text-primary" />
+            <Label className="text-xs font-bold">مصدر معاني الغريب</Label>
+          </div>
+          <div className="grid grid-cols-3 gap-1.5">
+            {(['muyassar', 'duroobi', 'both'] as const).map((s) => {
+              const active = config.meaningSource === s;
+              return (
+                <button
+                  key={s}
+                  onClick={() => setCfg('meaningSource', s)}
+                  className={`h-10 rounded-md text-[11px] leading-tight px-1 transition-colors ${
+                    active ? 'bg-primary text-primary-foreground font-bold' : 'bg-muted hover:bg-accent text-foreground'
+                  }`}
+                >
+                  {MEANING_SOURCE_LABELS[s]}
+                </button>
+              );
+            })}
+          </div>
+          <div className="flex items-center justify-between gap-2 pt-1 border-t border-border">
+            <Label className="text-[11px] text-muted-foreground">إظهار اسم المصدر مع المعنى</Label>
+            <Switch
+              checked={config.showMeaningSourceName}
+              onCheckedChange={(v) => setCfg('showMeaningSourceName', v)}
+            />
+          </div>
+          {sourcesLoading && (
+            <p className="text-[10px] text-muted-foreground">…جاري تحميل المصادر</p>
+          )}
+        </section>
+
         {/* Scope */}
         <section className="bg-card border border-border rounded-lg p-3 space-y-2">
           <Label className="text-xs text-muted-foreground">النطاق (سورة / صفحة / حزب / جزء)</Label>
@@ -199,6 +262,16 @@ export function GhareebMeaningQuizSetup({
             <span className="text-muted-foreground">الكلمات في النطاق</span>
             <span className="font-bold text-primary">{fullPool.length}</span>
           </div>
+          {!sourcesLoading && fullPool.length === 0 && (
+            <div className="rounded-md bg-destructive/10 border border-destructive/30 p-2 text-[11px] text-destructive space-y-1">
+              <p className="font-bold">لا توجد كلمات غريب من هذا المصدر في النطاق المختار.</p>
+              <ul className="list-disc pr-4 space-y-0.5 text-foreground/80">
+                <li>جرّب اختيار مصدر آخر.</li>
+                <li>أو وسّع النطاق (سورة / حزب / جزء).</li>
+                <li>أو اختر "كلا المصدرين".</li>
+              </ul>
+            </div>
+          )}
         </section>
 
         {/* Question count */}
