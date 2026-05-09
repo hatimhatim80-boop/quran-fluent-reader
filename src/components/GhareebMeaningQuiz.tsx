@@ -397,6 +397,18 @@ export function GhareebMeaningQuiz({
         <p className="font-arabic text-2xl sm:text-3xl font-bold text-foreground leading-relaxed">
           {current.target.meaning}
         </p>
+        {config.showMeaningSourceName && (() => {
+          const av = current.target.availableSources || [];
+          let label = '';
+          if (av.length === 1) {
+            label = av[0] === 'muyassar' ? 'الميسّر في غريب القرآن' : 'كتاب دروبي';
+          } else if (av.length > 1) {
+            label = 'الميسّر + كتاب دروبي';
+          }
+          return label ? (
+            <p className="font-arabic text-[11px] text-primary/80 mt-1">المصدر: {label}</p>
+          ) : null;
+        })()}
         <p className="font-arabic text-xs text-muted-foreground mt-1">
           {current.target.surahName} — صفحة {current.target.pageNumber}
         </p>
