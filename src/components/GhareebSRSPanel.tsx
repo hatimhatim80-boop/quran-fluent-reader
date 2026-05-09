@@ -322,22 +322,7 @@ export function GhareebSRSPanel({
             إضافة كلمات الصفحة الحالية ({pageWords.length} كلمة)
           </Button>
 
-          {/* New training mode launcher — opens dedicated setup with scope selection */}
-          <Button
-            onClick={() => {
-              setMeaningScope({ type: 'current-page', from: currentPage, to: currentPage });
-              setMeaningSessionName('');
-              setSessionMode('meaning-setup');
-            }}
-            className="w-full gap-2 font-arabic"
-            variant="default"
-          >
-            <Target className="w-4 h-4" />
-            المعنى ← الكلمة في المصحف
-          </Button>
-          <p className="text-[10px] text-muted-foreground text-center -mt-1">
-            اختر النطاق (سورة/صفحة/حزب/جزء) وابدأ التدريب أو احفظه كجلسة.
-          </p>
+          {/* Note: "التدريب على المعنى" مكوّن مستقل — يُفتح من زر بارز في شريط أدوات بوابة الغريب. */}
 
           {/* Import/Export */}
           <div className="flex gap-2">

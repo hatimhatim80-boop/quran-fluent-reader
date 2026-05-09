@@ -1,0 +1,356 @@
+import React, { useEffect, useMemo, useState } from 'react';
+import { Target, Plus, Eye, X, ArrowRight } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
+import { GhareebWord } from '@/types/quran';
+import { SRSScopeSelector, SRSScope, scopeToPages } from './SRSScopeSelector';
+import { useSessionsStore } from '@/stores/sessionsStore';
+import { toast } from 'sonner';
+
+export interface MeaningQuizConfig {
+  autoAdvance: boolean;
+  correctHighlightDurationMs: number; // 500-10000
+  correctHighlightColor: string;       // HSL token like "142 70% 45%"
+  hintEnabled: boolean;
+  hintAfterWrong: number;              // 1..5
+  questionLimit: number | null;        // null = all
+}
+
+const DEFAULT_CONFIG: MeaningQuizConfig = {
+  autoAdvance: true,
+  correctHighlightDurationMs: 2000,
+  correctHighlightColor: '142 70% 45%',
+  hintEnabled: true,
+  hintAfterWrong: 2,
+  questionLimit: 20,
+};
+
+const STORAGE_KEY = 'ghareeb_meaning_quiz_settings';
+
+const COLOR_PRESETS: { label: string; value: string }[] = [
+  { label: 'أخضر', value: '142 70% 45%' },
+  { label: 'ذهبي', value: '42 90% 50%' },
+  { label: 'أزرق', value: '210 80% 50%' },
+  { label: 'بنفسجي', value: '270 70% 55%' },
+  { label: 'وردي', value: '330 75% 55%' },
+];
+
+const DURATION_PRESETS = [1000, 2000, 3000, 5000];
+const QUESTION_PRESETS = [10, 20, 50, 0]; // 0 = all
+
+function loadConfig(): MeaningQuizConfig {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return { ...DEFAULT_CONFIG };
+    const parsed = JSON.parse(raw);
+    return { ...DEFAULT_CONFIG, ...parsed };
+  } catch {
+    return { ...DEFAULT_CONFIG };
+  }
+}
+
+function saveConfig(cfg: MeaningQuizConfig) {
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(cfg)); } catch { /* noop */ }
+}
+
+interface GhareebMeaningQuizSetupProps {
+  allWords: GhareebWord[];
+  currentPage: number;
+  onClose: () => void;
+  /** Start the quiz with the resolved pool & config. */
+  onStart: (params: {
+    pool: GhareebWord[];
+    config: MeaningQuizConfig;
+    sessionId?: string;
+    scopeLabel: string;
+    pages: number[] | null;
+    isPreview?: boolean;
+  }) => void;
+}
+
+export function GhareebMeaningQuizSetup({
+  allWords,
+  currentPage,
+  onClose,
+  onStart,
+}: GhareebMeaningQuizSetupProps) {
+  const sessionsStore = useSessionsStore();
+  const [config, setConfig] = useState<MeaningQuizConfig>(() => loadConfig());
+  const [scope, setScope] = useState<SRSScope>({ type: 'current-page', from: currentPage, to: currentPage });
+  const [sessionName, setSessionName] = useState('');
+  const [customDurationOpen, setCustomDurationOpen] = useState(false);
+
+  useEffect(() => { saveConfig(config); }, [config]);
+
+  const pages = useMemo(
+    () => scopeToPages({ ...scope, from: scope.type === 'current-page' ? currentPage : scope.from }),
+    [scope, currentPage],
+  );
+
+  const fullPool = useMemo(() => {
+    if (!pages || pages.length === 0) return allWords;
+    const set = new Set(pages);
+    return allWords.filter(w => set.has(w.pageNumber));
+  }, [pages, allWords]);
+
+  const scopeLabel = useMemo(() => {
+    if (scope.type === 'current-page') return `صفحة ${currentPage}`;
+    if (scope.type === 'page-range') return `ص${scope.from}-${scope.to}`;
+    if (scope.type === 'surah') return `سور ${scope.from}-${scope.to}`;
+    if (scope.type === 'juz') return `جزء ${scope.from}-${scope.to}`;
+    if (scope.type === 'hizb') return `حزب ${scope.from}-${scope.to}`;
+    return 'الكل';
+  }, [scope, currentPage]);
+
+  const limitedPool = useMemo(() => {
+    if (!config.questionLimit || config.questionLimit <= 0) return fullPool;
+    return fullPool.slice(0, config.questionLimit);
+  }, [fullPool, config.questionLimit]);
+
+  const setCfg = <K extends keyof MeaningQuizConfig>(key: K, value: MeaningQuizConfig[K]) =>
+    setConfig((c) => ({ ...c, [key]: value }));
+
+  const handleStart = (saveAsSession: boolean) => {
+    if (!fullPool.length) {
+      toast.info('لا توجد كلمات في النطاق المحدد');
+      return;
+    }
+    let sessionId: string | undefined;
+    if (saveAsSession) {
+      const firstPage = limitedPool[0]?.pageNumber || currentPage;
+      const lastPage = limitedPool.reduce((max, w) => Math.max(max, w.pageNumber), firstPage);
+      sessionId = sessionsStore.createSession(
+        sessionName.trim() || `التدريب على المعنى (${scopeLabel})`,
+        'ghareeb-meaning-quiz',
+        firstPage,
+        lastPage,
+      );
+      sessionsStore.updateSession(sessionId, {
+        quizSettings: {
+          scopeLabel,
+          pages: pages || [],
+          wordCount: limitedPool.length,
+          config,
+        },
+      });
+      sessionsStore.setActiveSession(sessionId);
+      toast.success('تم إنشاء الجلسة وحفظها');
+    }
+    onStart({ pool: limitedPool, config, sessionId, scopeLabel, pages: pages, isPreview: false });
+  };
+
+  const handlePreview = () => {
+    if (!fullPool.length) {
+      toast.info('لا توجد كلمات في النطاق المحدد');
+      return;
+    }
+    // Preview: single random question with same config
+    const idx = Math.floor(Math.random() * fullPool.length);
+    const previewPool = [fullPool[idx]];
+    onStart({ pool: previewPool, config, scopeLabel: scopeLabel + ' • معاينة', pages, isPreview: true });
+  };
+
+  return (
+    <div className="flex h-full min-h-0 flex-col font-arabic" dir="rtl">
+      {/* Header */}
+      <div className="flex items-center justify-between gap-2 border-b border-border bg-card/80 backdrop-blur-sm px-3 py-2.5 shrink-0">
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 rounded-lg bg-primary/15 flex items-center justify-center">
+            <Target className="w-4 h-4 text-primary" />
+          </div>
+          <div>
+            <h2 className="font-bold text-sm text-foreground">التدريب على المعنى</h2>
+            <p className="text-[10px] text-muted-foreground">يعرض المعنى ثم تختار الكلمة من المصحف</p>
+          </div>
+        </div>
+        <button onClick={onClose} className="nav-button w-8 h-8 rounded-full">
+          <X className="w-4 h-4" />
+        </button>
+      </div>
+
+      {/* Body */}
+      <div className="flex-1 min-h-0 overflow-auto p-3 space-y-3">
+        {/* Scope */}
+        <section className="bg-card border border-border rounded-lg p-3 space-y-2">
+          <Label className="text-xs text-muted-foreground">النطاق (سورة / صفحة / حزب / جزء)</Label>
+          <SRSScopeSelector
+            scope={scope}
+            onChange={setScope}
+            currentPage={currentPage}
+            showAllDue={false}
+          />
+          <div className="flex items-center justify-between text-xs pt-1 border-t border-border">
+            <span className="text-muted-foreground">الكلمات في النطاق</span>
+            <span className="font-bold text-primary">{fullPool.length}</span>
+          </div>
+        </section>
+
+        {/* Question count */}
+        <section className="bg-card border border-border rounded-lg p-3 space-y-2">
+          <Label className="text-xs text-muted-foreground">عدد الأسئلة</Label>
+          <div className="grid grid-cols-4 gap-1.5">
+            {QUESTION_PRESETS.map((n) => {
+              const active = (n === 0 && !config.questionLimit) || config.questionLimit === n;
+              return (
+                <button
+                  key={n}
+                  onClick={() => setCfg('questionLimit', n === 0 ? null : n)}
+                  className={`h-9 rounded-md text-xs transition-colors ${
+                    active ? 'bg-primary text-primary-foreground font-bold' : 'bg-muted hover:bg-accent text-foreground'
+                  }`}
+                >
+                  {n === 0 ? 'الكل' : n}
+                </button>
+              );
+            })}
+          </div>
+          <Input
+            type="number"
+            min={1}
+            max={500}
+            value={config.questionLimit ?? ''}
+            onChange={(e) => {
+              const v = e.target.value.trim();
+              setCfg('questionLimit', v === '' ? null : Math.max(1, Math.min(500, Number(v))));
+            }}
+            placeholder="مخصص..."
+            className="h-9 text-sm"
+            dir="ltr"
+          />
+        </section>
+
+        {/* Auto advance */}
+        <section className="bg-card border border-border rounded-lg p-3 flex items-center justify-between gap-2">
+          <div>
+            <Label className="text-xs font-bold">الانتقال التلقائي للسؤال التالي</Label>
+            <p className="text-[10px] text-muted-foreground mt-0.5">ينتقل بعد انتهاء مدة بقاء التلوين</p>
+          </div>
+          <Switch
+            checked={config.autoAdvance}
+            onCheckedChange={(v) => setCfg('autoAdvance', v)}
+          />
+        </section>
+
+        {/* Highlight duration */}
+        <section className="bg-card border border-border rounded-lg p-3 space-y-2">
+          <Label className="text-xs text-muted-foreground">مدة بقاء تلوين الكلمة الصحيحة</Label>
+          <div className="grid grid-cols-4 gap-1.5">
+            {DURATION_PRESETS.map((ms) => (
+              <button
+                key={ms}
+                onClick={() => { setCfg('correctHighlightDurationMs', ms); setCustomDurationOpen(false); }}
+                className={`h-9 rounded-md text-xs transition-colors ${
+                  config.correctHighlightDurationMs === ms && !customDurationOpen
+                    ? 'bg-primary text-primary-foreground font-bold'
+                    : 'bg-muted hover:bg-accent text-foreground'
+                }`}
+              >
+                {ms / 1000} ث
+              </button>
+            ))}
+          </div>
+          <button
+            onClick={() => setCustomDurationOpen((v) => !v)}
+            className="text-[11px] text-primary hover:underline"
+          >
+            {customDurationOpen ? 'إخفاء الإدخال اليدوي' : 'إدخال يدوي بالمللي ثانية'}
+          </button>
+          {customDurationOpen && (
+            <Input
+              type="number"
+              min={300}
+              max={20000}
+              step={100}
+              value={config.correctHighlightDurationMs}
+              onChange={(e) => setCfg('correctHighlightDurationMs', Math.max(300, Math.min(20000, Number(e.target.value) || 2000)))}
+              className="h-9 text-sm"
+              dir="ltr"
+            />
+          )}
+        </section>
+
+        {/* Highlight color */}
+        <section className="bg-card border border-border rounded-lg p-3 space-y-2">
+          <Label className="text-xs text-muted-foreground">لون تمييز الكلمة الصحيحة</Label>
+          <div className="grid grid-cols-5 gap-1.5">
+            {COLOR_PRESETS.map((c) => {
+              const active = c.value === config.correctHighlightColor;
+              return (
+                <button
+                  key={c.value}
+                  onClick={() => setCfg('correctHighlightColor', c.value)}
+                  className={`h-10 rounded-md text-[10px] flex flex-col items-center justify-center gap-1 border-2 transition-all ${
+                    active ? 'border-foreground' : 'border-transparent hover:border-border'
+                  }`}
+                  style={{ backgroundColor: `hsl(${c.value} / 0.25)`, color: `hsl(${c.value})` }}
+                >
+                  <span className="w-3 h-3 rounded-full" style={{ backgroundColor: `hsl(${c.value})` }} />
+                  <span>{c.label}</span>
+                </button>
+              );
+            })}
+          </div>
+        </section>
+
+        {/* Hint */}
+        <section className="bg-card border border-border rounded-lg p-3 space-y-2">
+          <div className="flex items-center justify-between gap-2">
+            <div>
+              <Label className="text-xs font-bold">تفعيل التلميح عند الخطأ</Label>
+              <p className="text-[10px] text-muted-foreground mt-0.5">إبراز خفيف على الموضع الصحيح بعد عدد محاولات</p>
+            </div>
+            <Switch
+              checked={config.hintEnabled}
+              onCheckedChange={(v) => setCfg('hintEnabled', v)}
+            />
+          </div>
+          {config.hintEnabled && (
+            <div className="flex items-center gap-2">
+              <Label className="text-[11px] text-muted-foreground shrink-0">بعد عدد محاولات خاطئة:</Label>
+              <Input
+                type="number"
+                min={1}
+                max={10}
+                value={config.hintAfterWrong}
+                onChange={(e) => setCfg('hintAfterWrong', Math.max(1, Math.min(10, Number(e.target.value) || 2)))}
+                className="h-8 w-16 text-sm"
+                dir="ltr"
+              />
+            </div>
+          )}
+        </section>
+
+        {/* Session name */}
+        <section className="bg-card border border-border rounded-lg p-3 space-y-2">
+          <Label className="text-xs text-muted-foreground">اسم الجلسة (اختياري)</Label>
+          <Input
+            value={sessionName}
+            onChange={(e) => setSessionName(e.target.value)}
+            placeholder="مثال: مراجعة المعنى - الجزء 30"
+            className="h-9 text-sm"
+          />
+        </section>
+      </div>
+
+      {/* Footer actions */}
+      <div className="border-t border-border bg-card/60 p-3 shrink-0 grid grid-cols-3 gap-2">
+        <Button variant="outline" className="font-arabic gap-1" onClick={handlePreview}>
+          <Eye className="w-4 h-4" />
+          معاينة
+        </Button>
+        <Button variant="outline" className="font-arabic gap-1" onClick={() => handleStart(false)}>
+          <Target className="w-4 h-4" />
+          ابدأ التدريب
+        </Button>
+        <Button className="font-arabic gap-1" onClick={() => handleStart(true)}>
+          <Plus className="w-4 h-4" />
+          حفظ كجلسة وبدء
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+export { DEFAULT_CONFIG as DEFAULT_MEANING_QUIZ_CONFIG };
