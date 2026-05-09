@@ -301,18 +301,37 @@ export function GhareebMeaningQuiz({
   const ghStyle = config.ghareebWordsHighlightStyle;
   const ghEnabled = config.ghareebWordsHighlightEnabled && ghStyle !== 'none';
 
-  // Build CSS for highlighting ALL ghareeb words uniformly (does NOT change layout:
-  // only color/background/box-shadow are touched — no padding/margin/font-size shifts).
-  let ghareebCss = '';
+  // Selector targets ghareeb words on the quiz surface that are NOT in answer states.
+  // Covers both `.quran-word[data-ghareeb-key]` and the global `.ghareeb-word` class
+  // (which has default backgrounds/colors defined in index.css and must be neutralized).
+  const baseSel =
+    '[data-meaning-quiz-surface] .quran-word[data-ghareeb-key]:not(.mq-correct):not(.mq-wrong):not(.mq-hint),' +
+    '[data-meaning-quiz-surface] .ghareeb-word:not(.mq-correct):not(.mq-wrong):not(.mq-hint)';
+
+  // Full reset — strips ALL pre-answer visual treatments coming from global Ghareeb CSS.
+  const ghareebReset = `${baseSel} {
+    color: inherit !important;
+    background: transparent !important;
+    background-color: transparent !important;
+    box-shadow: none !important;
+    border-color: transparent !important;
+    outline: none !important;
+    text-decoration: none !important;
+    text-shadow: none !important;
+    filter: none !important;
+  }`;
+
+  let ghareebCss = ghareebReset;
   if (ghEnabled) {
-    const sel = '[data-meaning-quiz-surface] .quran-word[data-ghareeb-key]:not(.mq-correct):not(.mq-wrong):not(.mq-hint)';
     if (ghStyle === 'textColor') {
-      ghareebCss = `${sel} { color: hsl(${ghareebColor}) !important; background: transparent !important; box-shadow: none !important; }`;
+      // ONLY text color — no border/background/shadow.
+      ghareebCss += `\n${baseSel} { color: hsl(${ghareebColor}) !important; }`;
     } else if (ghStyle === 'background') {
-      ghareebCss = `${sel} { background: hsl(${ghareebColor} / 0.22) !important; border-radius: 4px; box-shadow: none !important; }`;
+      // ONLY background — no border/shadow.
+      ghareebCss += `\n${baseSel} { background-color: hsl(${ghareebColor} / 0.22) !important; border-radius: 4px; }`;
     } else if (ghStyle === 'border') {
-      // Use box-shadow as a non-layout-shifting "border" so the page never reflows.
-      ghareebCss = `${sel} { background: transparent !important; box-shadow: inset 0 0 0 1.5px hsl(${ghareebColor} / 0.85) !important; border-radius: 4px; }`;
+      // ONLY a non-layout-shifting border via inset box-shadow.
+      ghareebCss += `\n${baseSel} { box-shadow: inset 0 0 0 1.5px hsl(${ghareebColor} / 0.85) !important; border-radius: 4px; }`;
     }
   }
 
