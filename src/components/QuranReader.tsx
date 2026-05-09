@@ -110,6 +110,7 @@ export function QuranReader() {
   type MQMode = 'closed' | 'setup' | 'quiz';
   const [mqMode, setMqMode] = useState<MQMode>('closed');
   const [mqPool, setMqPool] = useState<GhareebWord[]>([]);
+  const [mqAllWords, setMqAllWords] = useState<GhareebWord[]>([]);
   const [mqConfig, setMqConfig] = useState<MeaningQuizConfig>(DEFAULT_MEANING_QUIZ_CONFIG);
   const [mqSessionId, setMqSessionId] = useState<string | undefined>(undefined);
   const [mqInitialIndex, setMqInitialIndex] = useState<number>(0);
