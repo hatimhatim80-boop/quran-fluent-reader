@@ -157,6 +157,19 @@ export function GhareebSRSPanel({
     );
   }
 
+  if (sessionMode === 'meaning-quiz') {
+    const pool = quizPoolMode === 'all' ? allWords : pageWords;
+    return (
+      <GhareebMeaningQuiz
+        pool={pool}
+        allWords={allWords}
+        onClose={() => setSessionMode('setup')}
+        onNavigateToPage={onNavigateToPage}
+        renderPage={(pg) => renderPageWithHighlight(pg, null, highlightStyle)}
+      />
+    );
+  }
+
   return (
     <ReviewSessionSetup
       portal="ghareeb"
