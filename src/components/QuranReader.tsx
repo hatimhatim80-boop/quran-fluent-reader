@@ -102,8 +102,10 @@ export function QuranReader() {
   const clearTahfeezSelection = useTahfeezStore((s) => s.clearSelection);
   const srsDueCount = useSRSStore((s) => s.getDueCount('ghareeb'));
 
+  const isMeaningQuizParam = searchParams.get('meaningQuiz') === '1';
+
   useEffect(() => {
-    if (activeSessionType === 'ghareeb-review') setShowSRS(true);
+    if (activeSessionType === 'ghareeb-review' || activeSessionType === 'ghareeb-meaning-quiz') setShowSRS(true);
   }, [activeSessionType]);
 
   const pageData = getCurrentPageData();
