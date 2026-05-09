@@ -404,6 +404,7 @@ export function QuranReader() {
               allWords={allGhareebWords}
               currentPage={currentPage}
               resumeSessionId={isResumeParam && activeSessionType === 'ghareeb-review' ? resolvedSessionId : null}
+              resumeMeaningQuizSessionId={isResumeParam && isMeaningQuizParam && activeSessionType === 'ghareeb-meaning-quiz' ? resolvedSessionId : null}
               onNavigateToPage={goToPage}
               renderPageWithHighlight={(pg, wordKey, highlightStyle) => {
                 const pgData = pages.find(p => p.pageNumber === pg);
