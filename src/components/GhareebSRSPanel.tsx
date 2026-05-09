@@ -5,11 +5,12 @@ import { SRSReviewSession } from './SRSReviewSession';
 import { ReviewSessionSetup } from './ReviewSessionSetup';
 import { Button } from '@/components/ui/button';
 import { GhareebWord } from '@/types/quran';
-import { Plus, Download, Upload, Trash2 } from 'lucide-react';
+import { Plus, Download, Upload, Trash2, Target } from 'lucide-react';
 import { toast } from 'sonner';
 import { useSettingsStore } from '@/stores/settingsStore';
 import { canonicalize, canonicalFormsCompatible } from '@/utils/canonicalMatch';
 import { GhareebSourceSettings } from './GhareebSourceSettings';
+import { GhareebMeaningQuiz } from './GhareebMeaningQuiz';
 
 interface GhareebSRSPanelProps {
   pageWords: GhareebWord[];
