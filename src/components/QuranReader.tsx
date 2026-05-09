@@ -122,27 +122,41 @@ export function QuranReader() {
   }, [activeSessionType]);
 
   // Open meaning quiz overlay when resuming a meaning-quiz session.
+  // Loads BOTH source books independently of the global ghareeb source so the
+  // saved per-quiz `meaningSource` is honored on resume.
   useEffect(() => {
     if (!isResumeParam || !isMeaningQuizParam || activeSessionType !== 'ghareeb-meaning-quiz') return;
     if (!resolvedSessionId) return;
     const session = sessionsApi.getSession(resolvedSessionId);
     if (!session) return;
     const qs = (session.quizSettings || {}) as Record<string, unknown>;
-    const pages = (qs.pages as number[]) || [];
+    const pagesScope = (qs.pages as number[]) || [];
     const cfg = (qs.config as MeaningQuizConfig) || DEFAULT_MEANING_QUIZ_CONFIG;
     const initIdx = Math.max(0, Number(qs.currentIndex) || 0);
-    const pool = pages.length > 0
-      ? allGhareebWords.filter(w => pages.includes(w.pageNumber))
-      : allGhareebWords;
-    if (pool.length === 0) return;
-    const limit = cfg.questionLimit;
-    const finalPool = limit && limit > 0 ? pool.slice(0, limit) : pool;
-    setMqPool(finalPool);
-    setMqConfig(cfg);
-    setMqSessionId(resolvedSessionId);
-    setMqInitialIndex(initIdx);
-    setMqMode('quiz');
-  }, [isResumeParam, isMeaningQuizParam, activeSessionType, resolvedSessionId, allGhareebWords, sessionsApi]);
+    let cancelled = false;
+    (async () => {
+      const { loadGhareebData } = await import('@/utils/ghareebLoader');
+      const { filterWordsByMeaningSource } = await import('@/hooks/useAllGhareebSources');
+      const map = await loadGhareebData({ sourceMode: 'both', sharedMeaningMode: 'both' });
+      if (cancelled) return;
+      const flat: GhareebWord[] = [];
+      map.forEach((words) => words.forEach((w) => flat.push(w)));
+      const filteredAll = filterWordsByMeaningSource(flat, cfg.meaningSource || 'muyassar');
+      const pool = pagesScope.length > 0
+        ? filteredAll.filter((w) => pagesScope.includes(w.pageNumber))
+        : filteredAll;
+      if (pool.length === 0) return;
+      const limit = cfg.questionLimit;
+      const finalPool = limit && limit > 0 ? pool.slice(0, limit) : pool;
+      setMqPool(finalPool);
+      setMqAllWords(filteredAll);
+      setMqConfig(cfg);
+      setMqSessionId(resolvedSessionId);
+      setMqInitialIndex(initIdx);
+      setMqMode('quiz');
+    })();
+    return () => { cancelled = true; };
+  }, [isResumeParam, isMeaningQuizParam, activeSessionType, resolvedSessionId, sessionsApi]);
 
   const pageData = getCurrentPageData();
   const pageWords = getPageGhareebWords;
