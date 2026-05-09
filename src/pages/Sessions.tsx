@@ -49,6 +49,7 @@ const SESSION_TYPE_META: Record<SessionType, { label: string; icon: React.ReactN
   'ghareeb': { label: 'غريب', icon: <BookOpen className="w-5 h-5" />, color: 'bg-primary/10 text-primary', portal: '/mushaf' },
   'ghareeb-review': { label: 'مراجعة غريب ذكية', icon: <Brain className="w-5 h-5" />, color: 'bg-primary/10 text-primary', portal: '/mushaf' },
   'ghareeb-read': { label: 'قراءة الغريب', icon: <BookOpen className="w-5 h-5" />, color: 'bg-primary/10 text-primary', portal: '/mushaf' },
+  'ghareeb-meaning-quiz': { label: 'المعنى ← الكلمة', icon: <BookOpen className="w-5 h-5" />, color: 'bg-primary/10 text-primary', portal: '/mushaf' },
   'tahfeez': { label: 'تحفيظ', icon: <GraduationCap className="w-5 h-5" />, color: 'bg-accent/60 text-primary', portal: '/tahfeez' },
   'tahfeez-test': { label: 'اختبار تخزين', icon: <FileText className="w-5 h-5" />, color: 'bg-accent/60 text-primary', portal: '/tahfeez' },
   'tahfeez-auto': { label: 'اختبار تلقائي', icon: <Zap className="w-5 h-5" />, color: 'bg-accent/60 text-primary', portal: '/tahfeez' },
@@ -332,6 +333,7 @@ export default function Sessions() {
       'ghareeb': 'جلسة غريب',
       'ghareeb-review': 'مراجعة غريب ذكية',
       'ghareeb-read': 'قراءة الغريب',
+      'ghareeb-meaning-quiz': 'المعنى ← الكلمة في المصحف',
       'tahfeez': 'جلسة تحفيظ',
       'tahfeez-test': 'اختبار تخزين',
       'tahfeez-auto': 'اختبار تلقائي',
@@ -365,7 +367,8 @@ export default function Sessions() {
       String(session.currentPage)
     );
     // Navigate with sessionId and resume flag in search params
-    navigate(`${portal}?sessionId=${session.id}&resume=1${session.type === 'ghareeb-review' ? '&srs=1' : ''}`);
+    const extra = session.type === 'ghareeb-review' ? '&srs=1' : session.type === 'ghareeb-meaning-quiz' ? '&meaningQuiz=1' : '';
+    navigate(`${portal}?sessionId=${session.id}&resume=1${extra}`);
   };
 
   const handleRename = () => {
