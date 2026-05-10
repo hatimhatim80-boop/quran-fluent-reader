@@ -199,11 +199,34 @@ export function GhareebMeaningQuiz({
 
   // Event delegation for clicks on Quranic words.
   const handleSurfaceClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
-    if (!current || solved) return;
+    if (!current) return;
     const t = e.target as HTMLElement | null;
     if (!t) return;
     const wordEl = t.closest<HTMLElement>('.quran-word');
-    if (!wordEl) return;
+
+    // Empty-area click: after solved, advance to next question if enabled.
+    if (!wordEl) {
+      if (solved && config.advanceOnEmptyClick) {
+        e.preventDefault();
+        e.stopPropagation();
+        if (advanceTimerRef.current) window.clearTimeout(advanceTimerRef.current);
+        clearAllHighlights();
+        goNext();
+      }
+      return;
+    }
+
+    // After solved, ignore clicks on other words (locked state).
+    if (solved) {
+      if (config.advanceOnEmptyClick) {
+        e.preventDefault();
+        e.stopPropagation();
+        if (advanceTimerRef.current) window.clearTimeout(advanceTimerRef.current);
+        clearAllHighlights();
+        goNext();
+      }
+      return;
+    }
 
     // Exclude verse numbers, waqf marks, hizb marks, sajda marks, ornaments.
     const blocked = ['verse-number', 'waqf-mark', 'hizb-mark', 'sajda-mark', 'page-decoration'];
@@ -282,7 +305,7 @@ export function GhareebMeaningQuiz({
       }
     }
   }, [
-    current, solved, config, idx, questions.length, goNext, wrongCount, findTargetEl,
+    current, solved, config, idx, questions.length, goNext, wrongCount, findTargetEl, clearAllHighlights,
   ]);
 
   if (questions.length === 0) {
@@ -391,9 +414,11 @@ export function GhareebMeaningQuiz({
 
       {/* Meaning prompt */}
       <div className="px-4 py-3 border-b border-border bg-card/40 shrink-0 text-center">
-        <p className="font-arabic text-xs text-muted-foreground mb-1">
-          ابحث عن الكلمة القرآنية التي يدل عليها هذا المعنى
-        </p>
+        {config.showPromptText !== false && (
+          <p className="font-arabic text-xs text-muted-foreground mb-1">
+            ابحث عن الكلمة القرآنية التي يدل عليها هذا المعنى
+          </p>
+        )}
         <p className="font-arabic text-2xl sm:text-3xl font-bold text-foreground leading-relaxed">
           {current.target.meaning}
         </p>
@@ -409,9 +434,16 @@ export function GhareebMeaningQuiz({
             <p className="font-arabic text-[11px] text-primary/80 mt-1">المصدر: {label}</p>
           ) : null;
         })()}
-        <p className="font-arabic text-xs text-muted-foreground mt-1">
-          {current.target.surahName} — صفحة {current.target.pageNumber}
-        </p>
+        {config.showPageNumber !== false && (
+          <p className="font-arabic text-xs text-muted-foreground mt-1">
+            {current.target.surahName} — صفحة {current.target.pageNumber}
+          </p>
+        )}
+        {config.showPageNumber === false && (
+          <p className="font-arabic text-xs text-muted-foreground mt-1">
+            {current.target.surahName}
+          </p>
+        )}
       </div>
 
       {/* Mushaf surface */}

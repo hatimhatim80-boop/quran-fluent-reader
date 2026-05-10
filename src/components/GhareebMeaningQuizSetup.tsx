@@ -36,6 +36,12 @@ export interface MeaningQuizConfig {
   ghareebWordsHighlightColor: string;
   /** How many extra times a correctly answered word is re-queued for additional review. */
   correctWordReviewRepeatCount: number;
+  /** Show "صفحة N" indicator in the quiz UI. */
+  showPageNumber: boolean;
+  /** Show the prompt sentence above the meaning. */
+  showPromptText: boolean;
+  /** After a correct answer, allow clicking anywhere (empty area) to advance. */
+  advanceOnEmptyClick: boolean;
 }
 
 const DEFAULT_CONFIG: MeaningQuizConfig = {
@@ -51,6 +57,9 @@ const DEFAULT_CONFIG: MeaningQuizConfig = {
   ghareebWordsHighlightStyle: 'background',
   ghareebWordsHighlightColor: '42 90% 50%',
   correctWordReviewRepeatCount: 0,
+  showPageNumber: true,
+  showPromptText: true,
+  advanceOnEmptyClick: true,
 };
 
 const STORAGE_KEY = 'ghareeb_meaning_quiz_settings';
@@ -509,6 +518,41 @@ export function GhareebMeaningQuizSetup({
               />
             </div>
           )}
+        </section>
+
+        {/* Display options */}
+        <section className="bg-card border border-border rounded-lg p-3 space-y-2">
+          <Label className="text-xs font-bold">خيارات العرض في التدريب</Label>
+          <div className="flex items-center justify-between gap-2 pt-1 border-t border-border">
+            <div>
+              <Label className="text-[11px]">إظهار رقم الصفحة</Label>
+              <p className="text-[10px] text-muted-foreground mt-0.5">يعرض "صفحة N" في واجهة التدريب</p>
+            </div>
+            <Switch
+              checked={config.showPageNumber}
+              onCheckedChange={(v) => setCfg('showPageNumber', v)}
+            />
+          </div>
+          <div className="flex items-center justify-between gap-2 pt-1 border-t border-border">
+            <div>
+              <Label className="text-[11px]">إظهار عبارة التوجيه</Label>
+              <p className="text-[10px] text-muted-foreground mt-0.5">"ابحث عن الكلمة القرآنية التي يدل عليها هذا المعنى"</p>
+            </div>
+            <Switch
+              checked={config.showPromptText}
+              onCheckedChange={(v) => setCfg('showPromptText', v)}
+            />
+          </div>
+          <div className="flex items-center justify-between gap-2 pt-1 border-t border-border">
+            <div>
+              <Label className="text-[11px]">الانتقال بالضغط على أي مكان بعد الإجابة</Label>
+              <p className="text-[10px] text-muted-foreground mt-0.5">يعمل فقط بعد ظهور الجواب الصحيح</p>
+            </div>
+            <Switch
+              checked={config.advanceOnEmptyClick}
+              onCheckedChange={(v) => setCfg('advanceOnEmptyClick', v)}
+            />
+          </div>
         </section>
 
         {/* Session name */}
