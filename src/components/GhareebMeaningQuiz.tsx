@@ -305,7 +305,7 @@ export function GhareebMeaningQuiz({
       }
     }
   }, [
-    current, solved, config, idx, questions.length, goNext, wrongCount, findTargetEl,
+    current, solved, config, idx, questions.length, goNext, wrongCount, findTargetEl, clearAllHighlights,
   ]);
 
   if (questions.length === 0) {
