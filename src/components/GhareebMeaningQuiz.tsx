@@ -414,9 +414,11 @@ export function GhareebMeaningQuiz({
 
       {/* Meaning prompt */}
       <div className="px-4 py-3 border-b border-border bg-card/40 shrink-0 text-center">
-        <p className="font-arabic text-xs text-muted-foreground mb-1">
-          ابحث عن الكلمة القرآنية التي يدل عليها هذا المعنى
-        </p>
+        {config.showPromptText !== false && (
+          <p className="font-arabic text-xs text-muted-foreground mb-1">
+            ابحث عن الكلمة القرآنية التي يدل عليها هذا المعنى
+          </p>
+        )}
         <p className="font-arabic text-2xl sm:text-3xl font-bold text-foreground leading-relaxed">
           {current.target.meaning}
         </p>
@@ -432,9 +434,16 @@ export function GhareebMeaningQuiz({
             <p className="font-arabic text-[11px] text-primary/80 mt-1">المصدر: {label}</p>
           ) : null;
         })()}
-        <p className="font-arabic text-xs text-muted-foreground mt-1">
-          {current.target.surahName} — صفحة {current.target.pageNumber}
-        </p>
+        {config.showPageNumber !== false && (
+          <p className="font-arabic text-xs text-muted-foreground mt-1">
+            {current.target.surahName} — صفحة {current.target.pageNumber}
+          </p>
+        )}
+        {config.showPageNumber === false && (
+          <p className="font-arabic text-xs text-muted-foreground mt-1">
+            {current.target.surahName}
+          </p>
+        )}
       </div>
 
       {/* Mushaf surface */}
