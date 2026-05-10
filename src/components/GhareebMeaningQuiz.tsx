@@ -199,11 +199,34 @@ export function GhareebMeaningQuiz({
 
   // Event delegation for clicks on Quranic words.
   const handleSurfaceClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
-    if (!current || solved) return;
+    if (!current) return;
     const t = e.target as HTMLElement | null;
     if (!t) return;
     const wordEl = t.closest<HTMLElement>('.quran-word');
-    if (!wordEl) return;
+
+    // Empty-area click: after solved, advance to next question if enabled.
+    if (!wordEl) {
+      if (solved && config.advanceOnEmptyClick) {
+        e.preventDefault();
+        e.stopPropagation();
+        if (advanceTimerRef.current) window.clearTimeout(advanceTimerRef.current);
+        clearAllHighlights();
+        goNext();
+      }
+      return;
+    }
+
+    // After solved, ignore clicks on other words (locked state).
+    if (solved) {
+      if (config.advanceOnEmptyClick) {
+        e.preventDefault();
+        e.stopPropagation();
+        if (advanceTimerRef.current) window.clearTimeout(advanceTimerRef.current);
+        clearAllHighlights();
+        goNext();
+      }
+      return;
+    }
 
     // Exclude verse numbers, waqf marks, hizb marks, sajda marks, ornaments.
     const blocked = ['verse-number', 'waqf-mark', 'hizb-mark', 'sajda-mark', 'page-decoration'];
