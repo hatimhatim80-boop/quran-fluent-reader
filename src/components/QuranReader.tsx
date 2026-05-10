@@ -156,7 +156,7 @@ export function QuranReader() {
       setMqMode('quiz');
     })();
     return () => { cancelled = true; };
-  }, [isResumeParam, isMeaningQuizParam, activeSessionType, resolvedSessionId, sessionsApi]);
+  }, [isResumeParam, isMeaningQuizParam, activeSessionType, resolvedSessionId]);
 
   const pageData = getCurrentPageData();
   const pageWords = getPageGhareebWords;
