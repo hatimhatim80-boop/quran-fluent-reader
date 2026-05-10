@@ -36,6 +36,12 @@ export interface MeaningQuizConfig {
   ghareebWordsHighlightColor: string;
   /** How many extra times a correctly answered word is re-queued for additional review. */
   correctWordReviewRepeatCount: number;
+  /** Show "صفحة N" indicator in the quiz UI. */
+  showPageNumber: boolean;
+  /** Show the prompt sentence above the meaning. */
+  showPromptText: boolean;
+  /** After a correct answer, allow clicking anywhere (empty area) to advance. */
+  advanceOnEmptyClick: boolean;
 }
 
 const DEFAULT_CONFIG: MeaningQuizConfig = {
@@ -51,6 +57,9 @@ const DEFAULT_CONFIG: MeaningQuizConfig = {
   ghareebWordsHighlightStyle: 'background',
   ghareebWordsHighlightColor: '42 90% 50%',
   correctWordReviewRepeatCount: 0,
+  showPageNumber: true,
+  showPromptText: true,
+  advanceOnEmptyClick: true,
 };
 
 const STORAGE_KEY = 'ghareeb_meaning_quiz_settings';
