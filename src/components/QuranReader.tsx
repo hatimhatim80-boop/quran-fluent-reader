@@ -127,7 +127,7 @@ export function QuranReader() {
   useEffect(() => {
     if (!isResumeParam || !isMeaningQuizParam || activeSessionType !== 'ghareeb-meaning-quiz') return;
     if (!resolvedSessionId) return;
-    const session = sessionsApi.getSession(resolvedSessionId);
+    const session = useSessionsStore.getState().getSession(resolvedSessionId);
     if (!session) return;
     const qs = (session.quizSettings || {}) as Record<string, unknown>;
     const pagesScope = (qs.pages as number[]) || [];
@@ -156,7 +156,7 @@ export function QuranReader() {
       setMqMode('quiz');
     })();
     return () => { cancelled = true; };
-  }, [isResumeParam, isMeaningQuizParam, activeSessionType, resolvedSessionId, sessionsApi]);
+  }, [isResumeParam, isMeaningQuizParam, activeSessionType, resolvedSessionId]);
 
   const pageData = getCurrentPageData();
   const pageWords = getPageGhareebWords;
