@@ -467,7 +467,7 @@ export default function Sessions() {
         onContinue={handleContinue}
         onRename={(s) => { setShowRename(s); setRenameValue(s.name); }}
         onDuplicate={handleDuplicate}
-        onMove={(s) => { setShowMove(s); setMoveTargetGroup(s.groupId || ''); }}
+        onMove={(s) => { setShowMove(s); setMoveTargetGroup(s.groupId || 'none'); }}
         onDelete={(s) => setShowDelete(s)}
         onStats={(s) => setShowStats(s)}
         onArchive={(s) => { store.archiveSession(s.id); toast.success('تم الأرشفة'); }}
