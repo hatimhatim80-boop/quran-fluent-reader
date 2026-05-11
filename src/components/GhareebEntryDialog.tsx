@@ -370,7 +370,26 @@ export function GhareebEntryDialog({ open, onClose }: GhareebEntryDialogProps) {
                 </div>
               )}
 
-              {/* Remember */}
+              {/* Quarter */}
+              {rangeType === 'quarter' && (
+                <div className="space-y-2">
+                  <Label className="font-arabic text-xs text-muted-foreground">اختر الربع للانتقال إلى موضعه</Label>
+                  <div className="rounded-lg border border-border overflow-hidden">
+                    <JuzQuartersAccordion
+                      compact
+                      className="max-h-64 overflow-auto"
+                      onSelectQuarter={(q) => {
+                        setQuarterPage(q.page);
+                        setQuarterLabel(`الربع ${q.quarter_in_juz} (ج${q.juz}) — ${q.surah_name} ${q.ayah} — ص${q.page}`);
+                      }}
+                    />
+                  </div>
+                  {quarterLabel && (
+                    <p className="text-[11px] font-arabic text-primary text-center">{quarterLabel}</p>
+                  )}
+                </div>
+              )}
+
               <label className="flex items-center gap-3 px-1 py-1 cursor-pointer select-none group">
                 <div
                   onClick={() => setRemember(!remember)}
