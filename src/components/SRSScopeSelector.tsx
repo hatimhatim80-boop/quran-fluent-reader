@@ -293,7 +293,7 @@ export function SRSScopeSelector({ scope, onChange, currentPage, showFlagged, sh
               </ScrollArea>
             </TabsContent>
 
-            {/* Juz Tab */}
+            {/* Juz Tab — Accordion with Quarters */}
             <TabsContent value="juz" className="m-0">
               <div className="p-2 border-b border-border flex items-center justify-between">
                 <Button
@@ -303,7 +303,7 @@ export function SRSScopeSelector({ scope, onChange, currentPage, showFlagged, sh
                   onClick={() => setSelectingEnd(selectingEnd === 'from' ? 'to' : 'from')}
                 >
                   <ArrowLeftRight className="w-3 h-3" />
-                  {selectingEnd === 'from' ? 'اختر البداية' : 'اختر النهاية'}
+                  {selectingEnd === 'from' ? 'اختر بداية الجزء' : 'اختر نهاية الجزء'}
                 </Button>
                 {scope.type === 'juz' && (
                   <p className="text-[10px] text-primary">
@@ -311,31 +311,20 @@ export function SRSScopeSelector({ scope, onChange, currentPage, showFlagged, sh
                   </p>
                 )}
               </div>
-              <ScrollArea className="h-60">
-                <div className="p-1.5 space-y-0.5">
-                  {JUZ_DATA.map(j => (
-                    <button
-                      key={j.number}
-                      onClick={() => handleSelectItem('juz', j.number)}
-                      className={`w-full flex items-center justify-between px-2.5 py-2 rounded-lg text-xs transition-colors ${
-                        isEndpoint('juz', j.number) ? 'bg-primary text-primary-foreground font-bold' :
-                        isInRange('juz', j.number) ? 'bg-primary/10 text-primary' :
-                        'hover:bg-muted/60 text-foreground'
-                      }`}
-                    >
-                      <div className="flex items-center gap-2">
-                        <span className="w-6 h-6 rounded-full bg-muted/80 flex items-center justify-center text-[10px] text-muted-foreground shrink-0">{j.number}</span>
-                        <span>الجزء {j.number}</span>
-                        <span className="text-muted-foreground text-[10px]">({j.name})</span>
-                      </div>
-                      <span className="text-[10px] text-muted-foreground">ص {j.page}</span>
-                    </button>
-                  ))}
-                </div>
+              <ScrollArea className="h-72">
+                <JuzQuartersAccordion
+                  activeJuz={scope.type === 'juz' ? scope.from : undefined}
+                  onSelectJuz={(num) => handleSelectItem('juz', num)}
+                  onSelectQuarter={(q) => {
+                    // Picking a quarter = jump to that page (single-page scope).
+                    onChange({ type: 'page-range', from: q.page, to: q.page });
+                    setSelectingEnd('to');
+                  }}
+                  className="px-1 pb-2"
+                />
               </ScrollArea>
             </TabsContent>
 
-            {/* Hizb Tab */}
             <TabsContent value="hizb" className="m-0">
               <div className="p-2 border-b border-border flex items-center justify-between">
                 <Button
