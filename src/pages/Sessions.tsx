@@ -289,7 +289,15 @@ export default function Sessions() {
 
     // Folder filter
     if (selectedFolder !== null) {
+      const before = list.length;
       list = list.filter(s => (s.groupId || '') === selectedFolder);
+      // eslint-disable-next-line no-console
+      console.log('[FolderFilter]', {
+        selectedFolderId: selectedFolder || null,
+        totalSessions: before,
+        matchedSessions: list.length,
+        sampleSessionFolderIds: sessions.slice(0, 5).map(s => ({ id: s.id, groupId: s.groupId ?? null })),
+      });
     }
 
     // Search
