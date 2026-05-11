@@ -418,6 +418,13 @@ export function GhareebMeaningQuiz({
           </span>
         </div>
         <div className="flex items-center gap-1">
+          <button
+            onClick={() => setShowLiveSettings(true)}
+            title="إعدادات الجلسة"
+            className="nav-button w-7 h-7 rounded-full"
+          >
+            <Settings className="w-3.5 h-3.5" />
+          </button>
           <button onClick={reshuffle} title="إعادة الخلط" className="nav-button w-7 h-7 rounded-full">
             <Shuffle className="w-3.5 h-3.5" />
           </button>
