@@ -1,10 +1,12 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { GhareebWord } from '@/types/quran';
 import { canonicalize, canonicalFormsCompatible } from '@/utils/canonicalMatch';
-import { ChevronLeft, ChevronRight, RotateCcw, X, Shuffle } from 'lucide-react';
+import { ChevronLeft, ChevronRight, RotateCcw, X, Shuffle, Settings } from 'lucide-react';
 import { toast } from 'sonner';
-import { MeaningQuizConfig, DEFAULT_MEANING_QUIZ_CONFIG } from './GhareebMeaningQuizSetup';
+import { MeaningQuizConfig, DEFAULT_MEANING_QUIZ_CONFIG, STORAGE_KEY as MQ_SETTINGS_STORAGE_KEY } from './GhareebMeaningQuizSetup';
+import { MeaningQuizLiveSettings } from './MeaningQuizLiveSettings';
+import { MeaningSource } from '@/hooks/useAllGhareebSources';
 import { useSessionsStore } from '@/stores/sessionsStore';
 
 /** Question type identifier (per spec): meaning_to_mushaf_word */
@@ -25,6 +27,8 @@ interface GhareebMeaningQuizProps {
   onNavigateToPage: (page: number) => void;
   /** Render a Mushaf page (no highlight passed by us — the target must be hidden). */
   renderPage: (page: number) => React.ReactNode;
+  /** Optional: parent rebuilds pool/allWords when the user changes the meaning source live. */
+  onSourceChange?: (src: MeaningSource) => Promise<void> | void;
 }
 
 interface QuizQuestion {
@@ -92,9 +96,26 @@ export function GhareebMeaningQuiz({
   onClose,
   onNavigateToPage,
   renderPage,
+  onSourceChange,
 }: GhareebMeaningQuizProps) {
-  const config = providedConfig ?? DEFAULT_MEANING_QUIZ_CONFIG;
   const updateSession = useSessionsStore((s) => s.updateSession);
+  // Live config: editable mid-session via the gear button.
+  const [config, setConfig] = useState<MeaningQuizConfig>(providedConfig ?? DEFAULT_MEANING_QUIZ_CONFIG);
+  // Sync when parent provides a new config (e.g., after source change).
+  useEffect(() => {
+    if (providedConfig) setConfig(providedConfig);
+  }, [providedConfig]);
+  const [showLiveSettings, setShowLiveSettings] = useState(false);
+
+  const persistConfig = useCallback((next: MeaningQuizConfig) => {
+    setConfig(next);
+    try { localStorage.setItem(MQ_SETTINGS_STORAGE_KEY, JSON.stringify(next)); } catch { /* noop */ }
+    if (sessionId) {
+      const session = useSessionsStore.getState().getSession(sessionId);
+      const existing = (session?.quizSettings || {}) as Record<string, unknown>;
+      updateSession(sessionId, { quizSettings: { ...existing, config: next } });
+    }
+  }, [sessionId, updateSession]);
 
   const [questions, setQuestions] = useState<QuizQuestion[]>(() => buildQuestions(pool, allWords));
   const [idx, setIdx] = useState(initialIndex ?? 0);
@@ -385,7 +406,7 @@ export function GhareebMeaningQuiz({
   `;
 
   return (
-    <div className="flex h-full min-h-0 flex-col" dir="rtl">
+    <div className="relative flex h-full min-h-0 flex-col" dir="rtl">
       <style>{dynamicCss}</style>
 
       {/* Header */}
@@ -397,6 +418,13 @@ export function GhareebMeaningQuiz({
           </span>
         </div>
         <div className="flex items-center gap-1">
+          <button
+            onClick={() => setShowLiveSettings(true)}
+            title="إعدادات الجلسة"
+            className="nav-button w-7 h-7 rounded-full"
+          >
+            <Settings className="w-3.5 h-3.5" />
+          </button>
           <button onClick={reshuffle} title="إعادة الخلط" className="nav-button w-7 h-7 rounded-full">
             <Shuffle className="w-3.5 h-3.5" />
           </button>
@@ -486,6 +514,19 @@ export function GhareebMeaningQuiz({
             </div>
           )}
         </div>
+      )}
+
+      {/* Live in-session settings overlay */}
+      {showLiveSettings && (
+        <MeaningQuizLiveSettings
+          config={config}
+          onChange={persistConfig}
+          onSourceChange={onSourceChange ? async (src) => {
+            await onSourceChange(src);
+            persistConfig({ ...config, meaningSource: src });
+          } : undefined}
+          onClose={() => setShowLiveSettings(false)}
+        />
       )}
     </div>
   );

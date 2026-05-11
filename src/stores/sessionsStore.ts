@@ -425,10 +425,33 @@ export const useSessionsStore = create<SessionsState>()(
       },
 
       moveSessionToGroup: (sessionId, groupId) => {
+        const before = get().sessions.find(s => s.id === sessionId);
+        const normalized = groupId && groupId.trim() ? groupId : undefined;
+        // eslint-disable-next-line no-console
+        console.log('[MoveSession] start', {
+          sessionId,
+          oldFolderId: before?.groupId ?? null,
+          selectedFolderId: normalized ?? null,
+          sessionBefore: before ? { id: before.id, name: before.name, groupId: before.groupId } : null,
+        });
+        if (!before) {
+          // eslint-disable-next-line no-console
+          console.warn('[MoveSession] session not found, abort', sessionId);
+          return;
+        }
         set({
           sessions: get().sessions.map(s =>
-            s.id === sessionId ? { ...s, groupId, updatedAt: Date.now() } : s
+            s.id === sessionId
+              ? { ...s, groupId: normalized, updatedAt: Date.now() }
+              : s
           ),
+        });
+        const after = get().sessions.find(s => s.id === sessionId);
+        // eslint-disable-next-line no-console
+        console.log('[MoveSession] saved', {
+          sessionId,
+          newFolderId: after?.groupId ?? null,
+          ok: (after?.groupId ?? null) === (normalized ?? null),
         });
       },
     }),

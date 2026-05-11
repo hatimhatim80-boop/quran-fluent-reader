@@ -531,6 +531,32 @@ export function QuranReader() {
                 initialIndex={mqInitialIndex}
                 onClose={() => setMqMode('closed')}
                 onNavigateToPage={goToPage}
+                onSourceChange={async (src) => {
+                  // Re-load both source books and re-filter pool/allWords for new source.
+                  const { loadGhareebData } = await import('@/utils/ghareebLoader');
+                  const { filterWordsByMeaningSource } = await import('@/hooks/useAllGhareebSources');
+                  const map = await loadGhareebData({ sourceMode: 'both', sharedMeaningMode: 'both' });
+                  const flat: GhareebWord[] = [];
+                  map.forEach((words) => words.forEach((w) => flat.push(w)));
+                  const filteredAll = filterWordsByMeaningSource(flat, src);
+                  // Keep the same page scope from the current pool (or session).
+                  const sess = mqSessionId ? useSessionsStore.getState().getSession(mqSessionId) : undefined;
+                  const sessPages = (sess?.quizSettings as Record<string, unknown> | undefined)?.pages as number[] | undefined;
+                  const scopePages = sessPages && sessPages.length > 0
+                    ? sessPages
+                    : Array.from(new Set(mqPool.map((w) => w.pageNumber)));
+                  const newPool = scopePages.length > 0
+                    ? filteredAll.filter((w) => scopePages.includes(w.pageNumber))
+                    : filteredAll;
+                  if (newPool.length === 0) {
+                    throw new Error('لا توجد كلمات من هذا المصدر في النطاق المختار');
+                  }
+                  const limit = mqConfig.questionLimit;
+                  const finalPool = limit && limit > 0 ? newPool.slice(0, limit) : newPool;
+                  setMqAllWords(filteredAll);
+                  setMqPool(finalPool);
+                  setMqConfig({ ...mqConfig, meaningSource: src });
+                }}
                 renderPage={(pg) => {
                   const pgData = pages.find((p) => p.pageNumber === pg);
                   if (!pgData) return null;

@@ -289,7 +289,15 @@ export default function Sessions() {
 
     // Folder filter
     if (selectedFolder !== null) {
+      const before = list.length;
       list = list.filter(s => (s.groupId || '') === selectedFolder);
+      // eslint-disable-next-line no-console
+      console.log('[FolderFilter]', {
+        selectedFolderId: selectedFolder || null,
+        totalSessions: before,
+        matchedSessions: list.length,
+        sampleSessionFolderIds: sessions.slice(0, 5).map(s => ({ id: s.id, groupId: s.groupId ?? null })),
+      });
     }
 
     // Search
@@ -380,9 +388,41 @@ export default function Sessions() {
 
   const handleMove = () => {
     if (!showMove) return;
-    store.moveSessionToGroup(showMove.id, moveTargetGroup && moveTargetGroup !== 'none' ? moveTargetGroup : undefined);
+    const sessionId = showMove.id;
+    const target = moveTargetGroup && moveTargetGroup !== 'none' ? moveTargetGroup : undefined;
+    store.moveSessionToGroup(sessionId, target);
+    // Verify after store update (zustand set is sync)
+    setTimeout(() => {
+      const after = useSessionsStore.getState().getSession(sessionId);
+      const ok = (after?.groupId ?? undefined) === target;
+      // eslint-disable-next-line no-console
+      console.log('[MoveSession] after reload', {
+        sessionId,
+        folderIdAfterReload: after?.groupId ?? null,
+        selectedFolderId: target ?? null,
+        foundInTargetFolder: ok,
+      });
+      if (ok) {
+        toast.success(target ? 'تم نقل الجلسة إلى المجلد بنجاح' : 'تمت إزالة الجلسة من المجلد');
+      } else {
+        toast.error('لم يتم نقل الجلسة، حدث خطأ في الحفظ');
+      }
+    }, 0);
     setShowMove(null);
-    toast.success('تم نقل الجلسة');
+  };
+
+  const handleRemoveFromFolder = () => {
+    if (!showMove) return;
+    setMoveTargetGroup('none');
+    const sessionId = showMove.id;
+    store.moveSessionToGroup(sessionId, undefined);
+    setTimeout(() => {
+      const after = useSessionsStore.getState().getSession(sessionId);
+      // eslint-disable-next-line no-console
+      console.log('[MoveSession] remove from folder', { sessionId, after: after?.groupId ?? null });
+      toast.success('تمت إزالة الجلسة من المجلد');
+    }, 0);
+    setShowMove(null);
   };
 
   const handleDuplicate = (session: Session) => {
@@ -435,7 +475,7 @@ export default function Sessions() {
         onContinue={handleContinue}
         onRename={(s) => { setShowRename(s); setRenameValue(s.name); }}
         onDuplicate={handleDuplicate}
-        onMove={(s) => { setShowMove(s); setMoveTargetGroup(s.groupId || ''); }}
+        onMove={(s) => { setShowMove(s); setMoveTargetGroup(s.groupId || 'none'); }}
         onDelete={(s) => setShowDelete(s)}
         onStats={(s) => setShowStats(s)}
         onArchive={(s) => { store.archiveSession(s.id); toast.success('تم الأرشفة'); }}
@@ -753,8 +793,13 @@ export default function Sessions() {
         <DialogContent className="max-w-sm" dir="rtl">
           <DialogHeader>
             <DialogTitle className="font-arabic text-center">نقل إلى مجلد</DialogTitle>
+            {showMove && (
+              <DialogDescription className="font-arabic text-center text-xs">
+                المجلد الحالي: {groups.find(g => g.id === showMove.groupId)?.name || 'بدون مجلد'}
+              </DialogDescription>
+            )}
           </DialogHeader>
-          <Select value={moveTargetGroup} onValueChange={setMoveTargetGroup}>
+          <Select value={moveTargetGroup || 'none'} onValueChange={setMoveTargetGroup}>
             <SelectTrigger className="font-arabic">
               <SelectValue placeholder="اختر المجلد" />
             </SelectTrigger>
@@ -765,8 +810,13 @@ export default function Sessions() {
               ))}
             </SelectContent>
           </Select>
-          <DialogFooter>
+          <DialogFooter className="flex-col gap-2 sm:flex-col">
             <Button onClick={handleMove} className="w-full font-arabic">نقل</Button>
+            {showMove?.groupId && (
+              <Button variant="outline" onClick={handleRemoveFromFolder} className="w-full font-arabic">
+                إزالة من المجلد
+              </Button>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>
