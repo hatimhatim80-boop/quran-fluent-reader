@@ -1,8 +1,9 @@
 import React, { useState, useMemo } from 'react';
-import { Book, Layers, Hash, Search, X, ChevronLeft } from 'lucide-react';
+import { Book, Layers, Hash, Search, X, ChevronLeft, ChevronDown } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { SURAH_INFO, SURAH_NAMES } from '@/utils/quranPageIndex';
+import { getQuartersForJuz } from '@/utils/quranQuarters';
 
 interface QuranIndexProps {
   currentPage: number;
