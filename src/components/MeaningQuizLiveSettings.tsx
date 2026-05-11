@@ -144,6 +144,17 @@ export function MeaningQuizLiveSettings({ config, onChange, onSourceChange, onCl
           </div>
         </section>
 
+        {/* Show surah name */}
+        <section className="space-y-2">
+          <div className="flex items-center justify-between">
+            <Label className="text-sm">إظهار اسم السورة</Label>
+            <Switch
+              checked={config.showSurahName !== false}
+              onCheckedChange={(v) => set('showSurahName', v)}
+            />
+          </div>
+        </section>
+
         {/* Auto-advance on empty click */}
         <section className="space-y-2">
           <div className="flex items-center justify-between">
