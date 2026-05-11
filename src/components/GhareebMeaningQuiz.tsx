@@ -27,6 +27,8 @@ interface GhareebMeaningQuizProps {
   onNavigateToPage: (page: number) => void;
   /** Render a Mushaf page (no highlight passed by us — the target must be hidden). */
   renderPage: (page: number) => React.ReactNode;
+  /** Optional: parent rebuilds pool/allWords when the user changes the meaning source live. */
+  onSourceChange?: (src: MeaningSource) => Promise<void> | void;
 }
 
 interface QuizQuestion {
