@@ -6,6 +6,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { SURAH_INFO, SURAH_NAMES } from '@/utils/quranPageIndex';
 import { Book, Layers, Hash, FileText, Search, CheckCircle2, ArrowLeftRight } from 'lucide-react';
 import { JuzQuartersAccordion } from './JuzQuartersAccordion';
+import { getQuarterPageRange } from '@/utils/quranQuarters';
 
 export type SRSScopeType = 'current-page' | 'page-range' | 'surah' | 'juz' | 'hizb' | 'all-due' | 'flagged';
 
