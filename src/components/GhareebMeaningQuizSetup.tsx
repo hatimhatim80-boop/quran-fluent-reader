@@ -42,6 +42,8 @@ export interface MeaningQuizConfig {
   showPromptText: boolean;
   /** After a correct answer, allow clicking anywhere (empty area) to advance. */
   advanceOnEmptyClick: boolean;
+  /** Show the surah name in the prompt header. */
+  showSurahName: boolean;
 }
 
 const DEFAULT_CONFIG: MeaningQuizConfig = {
@@ -60,6 +62,7 @@ const DEFAULT_CONFIG: MeaningQuizConfig = {
   showPageNumber: true,
   showPromptText: true,
   advanceOnEmptyClick: true,
+  showSurahName: true,
 };
 
 export const STORAGE_KEY = 'ghareeb_meaning_quiz_settings';
@@ -541,6 +544,16 @@ export function GhareebMeaningQuizSetup({
             <Switch
               checked={config.showPromptText}
               onCheckedChange={(v) => setCfg('showPromptText', v)}
+            />
+          </div>
+          <div className="flex items-center justify-between gap-2 pt-1 border-t border-border">
+            <div>
+              <Label className="text-[11px]">إظهار اسم السورة</Label>
+              <p className="text-[10px] text-muted-foreground mt-0.5">يعرض اسم السورة بجانب رقم الصفحة</p>
+            </div>
+            <Switch
+              checked={config.showSurahName !== false}
+              onCheckedChange={(v) => setCfg('showSurahName', v)}
             />
           </div>
           <div className="flex items-center justify-between gap-2 pt-1 border-t border-border">
