@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { SURAH_INFO, SURAH_NAMES } from '@/utils/quranPageIndex';
 import { Book, Layers, Hash, FileText, Search, CheckCircle2, ArrowLeftRight } from 'lucide-react';
+import { JuzQuartersAccordion } from './JuzQuartersAccordion';
 
 export type SRSScopeType = 'current-page' | 'page-range' | 'surah' | 'juz' | 'hizb' | 'all-due' | 'flagged';
 
