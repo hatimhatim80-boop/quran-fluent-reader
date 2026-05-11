@@ -62,7 +62,8 @@ const DEFAULT_CONFIG: MeaningQuizConfig = {
   advanceOnEmptyClick: true,
 };
 
-const STORAGE_KEY = 'ghareeb_meaning_quiz_settings';
+export const STORAGE_KEY = 'ghareeb_meaning_quiz_settings';
+export const DEFAULT_MEANING_QUIZ_CONFIG: MeaningQuizConfig = DEFAULT_CONFIG;
 
 const COLOR_PRESETS: { label: string; value: string }[] = [
   { label: 'أخضر', value: '142 70% 45%' },
