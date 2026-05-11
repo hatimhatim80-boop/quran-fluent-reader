@@ -91,6 +91,7 @@ function IndexItem({ active, onClick, number, label, subtitle, page }: {
 export function QuranIndex({ currentPage, onNavigateToPage, onClose }: QuranIndexProps) {
   const [search, setSearch] = useState('');
   const [activeTab, setActiveTab] = useState('surahs');
+  const [expandedJuz, setExpandedJuz] = useState<number | null>(null);
 
   const filteredSurahs = useMemo(() => {
     if (!search.trim()) return SURAHS;
