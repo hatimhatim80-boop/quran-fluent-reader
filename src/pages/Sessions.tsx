@@ -380,9 +380,41 @@ export default function Sessions() {
 
   const handleMove = () => {
     if (!showMove) return;
-    store.moveSessionToGroup(showMove.id, moveTargetGroup && moveTargetGroup !== 'none' ? moveTargetGroup : undefined);
+    const sessionId = showMove.id;
+    const target = moveTargetGroup && moveTargetGroup !== 'none' ? moveTargetGroup : undefined;
+    store.moveSessionToGroup(sessionId, target);
+    // Verify after store update (zustand set is sync)
+    setTimeout(() => {
+      const after = useSessionsStore.getState().getSession(sessionId);
+      const ok = (after?.groupId ?? undefined) === target;
+      // eslint-disable-next-line no-console
+      console.log('[MoveSession] after reload', {
+        sessionId,
+        folderIdAfterReload: after?.groupId ?? null,
+        selectedFolderId: target ?? null,
+        foundInTargetFolder: ok,
+      });
+      if (ok) {
+        toast.success(target ? 'تم نقل الجلسة إلى المجلد بنجاح' : 'تمت إزالة الجلسة من المجلد');
+      } else {
+        toast.error('لم يتم نقل الجلسة، حدث خطأ في الحفظ');
+      }
+    }, 0);
     setShowMove(null);
-    toast.success('تم نقل الجلسة');
+  };
+
+  const handleRemoveFromFolder = () => {
+    if (!showMove) return;
+    setMoveTargetGroup('none');
+    const sessionId = showMove.id;
+    store.moveSessionToGroup(sessionId, undefined);
+    setTimeout(() => {
+      const after = useSessionsStore.getState().getSession(sessionId);
+      // eslint-disable-next-line no-console
+      console.log('[MoveSession] remove from folder', { sessionId, after: after?.groupId ?? null });
+      toast.success('تمت إزالة الجلسة من المجلد');
+    }, 0);
+    setShowMove(null);
   };
 
   const handleDuplicate = (session: Session) => {
