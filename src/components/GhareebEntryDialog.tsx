@@ -146,7 +146,11 @@ export function GhareebEntryDialog({ open, onClose }: GhareebEntryDialogProps) {
     { id: 'pages', label: 'صفحات' },
     { id: 'juz', label: 'جزء' },
     { id: 'hizb', label: 'حزب' },
+    { id: 'quarter', label: 'ربع' },
   ];
+
+  const [quarterPage, setQuarterPage] = useState<number | null>(null);
+  const [quarterLabel, setQuarterLabel] = useState<string>('');
 
   return (
       <Dialog open={open} onOpenChange={(open) => { if (!open) onClose(); }}>
