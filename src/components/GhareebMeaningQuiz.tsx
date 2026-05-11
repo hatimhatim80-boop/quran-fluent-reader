@@ -515,6 +515,19 @@ export function GhareebMeaningQuiz({
           )}
         </div>
       )}
+
+      {/* Live in-session settings overlay */}
+      {showLiveSettings && (
+        <MeaningQuizLiveSettings
+          config={config}
+          onChange={persistConfig}
+          onSourceChange={onSourceChange ? async (src) => {
+            await onSourceChange(src);
+            persistConfig({ ...config, meaningSource: src });
+          } : undefined}
+          onClose={() => setShowLiveSettings(false)}
+        />
+      )}
     </div>
   );
 }
