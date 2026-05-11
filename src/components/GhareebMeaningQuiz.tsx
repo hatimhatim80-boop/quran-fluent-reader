@@ -406,7 +406,7 @@ export function GhareebMeaningQuiz({
   `;
 
   return (
-    <div className="flex h-full min-h-0 flex-col" dir="rtl">
+    <div className="relative flex h-full min-h-0 flex-col" dir="rtl">
       <style>{dynamicCss}</style>
 
       {/* Header */}
