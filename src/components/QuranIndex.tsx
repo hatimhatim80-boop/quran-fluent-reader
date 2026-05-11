@@ -175,20 +175,70 @@ export function QuranIndex({ currentPage, onNavigateToPage, onClose }: QuranInde
           </div>
         </TabsContent>
 
-        {/* Juz Tab */}
+        {/* Juz Tab — accordion: tap a juz to reveal its 8 quarters */}
         <TabsContent value="juz" className="mt-0 flex-1 flex flex-col overflow-hidden px-3 pt-3 pb-3">
-          <div className="flex-1 min-h-0 overflow-y-auto pb-2 space-y-0.5">
-            {JUZ_DATA.map(juz => (
-              <IndexItem
-                key={juz.number}
-                active={currentJuz === juz.number}
-                onClick={() => handleNavigate(juz.page)}
-                number={juz.number}
-                label={`الجزء ${juz.number}`}
-                subtitle={juz.name}
-                page={juz.page}
-              />
-            ))}
+          <div className="flex-1 min-h-0 overflow-y-auto pb-2 space-y-1">
+            {JUZ_DATA.map((juz) => {
+              const isActive = currentJuz === juz.number;
+              const isExpanded = expandedJuz === juz.number;
+              const quarters = isExpanded ? getQuartersForJuz(juz.number) : [];
+              return (
+                <div key={juz.number} className="rounded-lg overflow-hidden border border-transparent data-[exp=true]:border-border" data-exp={isExpanded}>
+                  <button
+                    onClick={() => setExpandedJuz(isExpanded ? null : juz.number)}
+                    className={`w-full flex items-center justify-between px-3 py-2.5 text-xs font-arabic transition-colors ${
+                      isActive ? 'bg-primary/15 text-primary font-bold' : 'hover:bg-muted/60 text-foreground'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="w-7 h-7 rounded-full bg-muted/80 flex items-center justify-center text-[10px] text-muted-foreground font-mono shrink-0">
+                        {juz.number}
+                      </span>
+                      <span>الجزء {juz.number}</span>
+                      <span className="text-muted-foreground text-[10px]">({juz.name})</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                      <button
+                        onClick={(e) => { e.stopPropagation(); handleNavigate(juz.page); }}
+                        className="text-[10px] px-2 py-0.5 rounded bg-muted/60 hover:bg-muted"
+                      >
+                        ص {juz.page}
+                      </button>
+                      <ChevronDown className={`w-3.5 h-3.5 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+                    </div>
+                  </button>
+                  {isExpanded && (
+                    <div className="bg-muted/20 border-t border-border/50 py-1">
+                      {quarters.map((q) => (
+                        <button
+                          key={q.quarter_global}
+                          onClick={() => handleNavigate(q.page)}
+                          className="w-full flex items-center justify-between px-3 py-2 text-[11px] font-arabic hover:bg-muted/60 text-foreground/90"
+                        >
+                          <div className="flex items-center gap-2 min-w-0">
+                            <span className="w-6 h-6 rounded-full bg-primary/10 text-primary flex items-center justify-center text-[9px] font-mono shrink-0">
+                              {q.quarter_in_juz}
+                            </span>
+                            <div className="text-right min-w-0">
+                              <div className="truncate">
+                                الربع {q.quarter_in_juz} <span className="text-muted-foreground">({q.quarter_global})</span> — {q.surah_name} {q.ayah}
+                              </div>
+                              <div className="text-[10px] text-muted-foreground truncate" dir="rtl">
+                                «{q.start_words}»
+                              </div>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-1 text-muted-foreground shrink-0">
+                            <span className="text-[10px]">ص {q.page}</span>
+                            <ChevronLeft className="w-3 h-3" />
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </TabsContent>
 
