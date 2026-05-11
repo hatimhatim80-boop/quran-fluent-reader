@@ -7,6 +7,7 @@ import { SURAH_INFO, SURAH_NAMES } from '@/utils/quranPageIndex';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { GhareebSourceSettings } from './GhareebSourceSettings';
+import { JuzQuartersAccordion } from './JuzQuartersAccordion';
 
 const SURAHS = Object.entries(SURAH_NAMES)
   .map(([name, number]) => ({ number, name, startPage: SURAH_INFO[number]?.[0] || 1 }))
