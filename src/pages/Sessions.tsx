@@ -785,8 +785,13 @@ export default function Sessions() {
         <DialogContent className="max-w-sm" dir="rtl">
           <DialogHeader>
             <DialogTitle className="font-arabic text-center">نقل إلى مجلد</DialogTitle>
+            {showMove && (
+              <DialogDescription className="font-arabic text-center text-xs">
+                المجلد الحالي: {groups.find(g => g.id === showMove.groupId)?.name || 'بدون مجلد'}
+              </DialogDescription>
+            )}
           </DialogHeader>
-          <Select value={moveTargetGroup} onValueChange={setMoveTargetGroup}>
+          <Select value={moveTargetGroup || 'none'} onValueChange={setMoveTargetGroup}>
             <SelectTrigger className="font-arabic">
               <SelectValue placeholder="اختر المجلد" />
             </SelectTrigger>
@@ -797,8 +802,13 @@ export default function Sessions() {
               ))}
             </SelectContent>
           </Select>
-          <DialogFooter>
+          <DialogFooter className="flex-col gap-2 sm:flex-col">
             <Button onClick={handleMove} className="w-full font-arabic">نقل</Button>
+            {showMove?.groupId && (
+              <Button variant="outline" onClick={handleRemoveFromFolder} className="w-full font-arabic">
+                إزالة من المجلد
+              </Button>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>
