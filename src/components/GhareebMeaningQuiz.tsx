@@ -96,9 +96,26 @@ export function GhareebMeaningQuiz({
   onClose,
   onNavigateToPage,
   renderPage,
+  onSourceChange,
 }: GhareebMeaningQuizProps) {
-  const config = providedConfig ?? DEFAULT_MEANING_QUIZ_CONFIG;
   const updateSession = useSessionsStore((s) => s.updateSession);
+  // Live config: editable mid-session via the gear button.
+  const [config, setConfig] = useState<MeaningQuizConfig>(providedConfig ?? DEFAULT_MEANING_QUIZ_CONFIG);
+  // Sync when parent provides a new config (e.g., after source change).
+  useEffect(() => {
+    if (providedConfig) setConfig(providedConfig);
+  }, [providedConfig]);
+  const [showLiveSettings, setShowLiveSettings] = useState(false);
+
+  const persistConfig = useCallback((next: MeaningQuizConfig) => {
+    setConfig(next);
+    try { localStorage.setItem(MQ_SETTINGS_STORAGE_KEY, JSON.stringify(next)); } catch { /* noop */ }
+    if (sessionId) {
+      const session = useSessionsStore.getState().getSession(sessionId);
+      const existing = (session?.quizSettings || {}) as Record<string, unknown>;
+      updateSession(sessionId, { quizSettings: { ...existing, config: next } });
+    }
+  }, [sessionId, updateSession]);
 
   const [questions, setQuestions] = useState<QuizQuestion[]>(() => buildQuestions(pool, allWords));
   const [idx, setIdx] = useState(initialIndex ?? 0);
