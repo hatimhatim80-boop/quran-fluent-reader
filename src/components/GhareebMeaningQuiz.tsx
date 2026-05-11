@@ -462,16 +462,19 @@ export function GhareebMeaningQuiz({
             <p className="font-arabic text-[11px] text-primary/80 mt-1">المصدر: {label}</p>
           ) : null;
         })()}
-        {config.showPageNumber !== false && (
-          <p className="font-arabic text-xs text-muted-foreground mt-1">
-            {current.target.surahName} — صفحة {current.target.pageNumber}
-          </p>
-        )}
-        {config.showPageNumber === false && (
-          <p className="font-arabic text-xs text-muted-foreground mt-1">
-            {current.target.surahName}
-          </p>
-        )}
+        {(() => {
+          const showSurah = config.showSurahName !== false;
+          const showPage = config.showPageNumber !== false;
+          if (!showSurah && !showPage) return null;
+          const parts: string[] = [];
+          if (showSurah) parts.push(current.target.surahName);
+          if (showPage) parts.push(`صفحة ${current.target.pageNumber}`);
+          return (
+            <p className="font-arabic text-xs text-muted-foreground mt-1">
+              {parts.join(' — ')}
+            </p>
+          );
+        })()}
       </div>
 
       {/* Mushaf surface */}
