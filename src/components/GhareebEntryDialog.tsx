@@ -7,6 +7,7 @@ import { SURAH_INFO, SURAH_NAMES } from '@/utils/quranPageIndex';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { GhareebSourceSettings } from './GhareebSourceSettings';
+import { JuzQuartersAccordion } from './JuzQuartersAccordion';
 
 const SURAHS = Object.entries(SURAH_NAMES)
   .map(([name, number]) => ({ number, name, startPage: SURAH_INFO[number]?.[0] || 1 }))
@@ -57,7 +58,7 @@ const STORAGE_KEY_CHOICE = 'ghareeb_entry_choice';
 const STORAGE_KEY_REMEMBER = 'ghareeb_entry_remember';
 
 type EntryChoice = 'range' | 'direct';
-type RangeTabType = 'surah' | 'pages' | 'juz' | 'hizb';
+type RangeTabType = 'surah' | 'pages' | 'juz' | 'hizb' | 'quarter';
 
 interface GhareebEntryDialogProps {
   open: boolean;
@@ -105,6 +106,11 @@ export function GhareebEntryDialog({ open, onClose }: GhareebEntryDialogProps) {
     } else if (rangeType === 'juz') {
       rangeTypeVal = 'juz';
       from = juzFrom; to = juzTo;
+    } else if (rangeType === 'quarter') {
+      // Quarter selection → single page jump.
+      if (!quarterPage) return;
+      rangeTypeVal = 'page-range';
+      from = quarterPage; to = quarterPage;
     } else {
       rangeTypeVal = 'hizb';
       from = hizbFrom; to = hizbTo;
@@ -145,7 +151,11 @@ export function GhareebEntryDialog({ open, onClose }: GhareebEntryDialogProps) {
     { id: 'pages', label: 'صفحات' },
     { id: 'juz', label: 'جزء' },
     { id: 'hizb', label: 'حزب' },
+    { id: 'quarter', label: 'ربع' },
   ];
+
+  const [quarterPage, setQuarterPage] = useState<number | null>(null);
+  const [quarterLabel, setQuarterLabel] = useState<string>('');
 
   return (
       <Dialog open={open} onOpenChange={(open) => { if (!open) onClose(); }}>
@@ -360,7 +370,26 @@ export function GhareebEntryDialog({ open, onClose }: GhareebEntryDialogProps) {
                 </div>
               )}
 
-              {/* Remember */}
+              {/* Quarter */}
+              {rangeType === 'quarter' && (
+                <div className="space-y-2">
+                  <Label className="font-arabic text-xs text-muted-foreground">اختر الربع للانتقال إلى موضعه</Label>
+                  <div className="rounded-lg border border-border overflow-hidden">
+                    <JuzQuartersAccordion
+                      compact
+                      className="max-h-64 overflow-auto"
+                      onSelectQuarter={(q) => {
+                        setQuarterPage(q.page);
+                        setQuarterLabel(`الربع ${q.quarter_in_juz} (ج${q.juz}) — ${q.surah_name} ${q.ayah} — ص${q.page}`);
+                      }}
+                    />
+                  </div>
+                  {quarterLabel && (
+                    <p className="text-[11px] font-arabic text-primary text-center">{quarterLabel}</p>
+                  )}
+                </div>
+              )}
+
               <label className="flex items-center gap-3 px-1 py-1 cursor-pointer select-none group">
                 <div
                   onClick={() => setRemember(!remember)}
