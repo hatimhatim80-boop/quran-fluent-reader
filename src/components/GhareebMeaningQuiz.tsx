@@ -2,9 +2,11 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button';
 import { GhareebWord } from '@/types/quran';
 import { canonicalize, canonicalFormsCompatible } from '@/utils/canonicalMatch';
-import { ChevronLeft, ChevronRight, RotateCcw, X, Shuffle } from 'lucide-react';
+import { ChevronLeft, ChevronRight, RotateCcw, X, Shuffle, Settings } from 'lucide-react';
 import { toast } from 'sonner';
-import { MeaningQuizConfig, DEFAULT_MEANING_QUIZ_CONFIG } from './GhareebMeaningQuizSetup';
+import { MeaningQuizConfig, DEFAULT_MEANING_QUIZ_CONFIG, STORAGE_KEY as MQ_SETTINGS_STORAGE_KEY } from './GhareebMeaningQuizSetup';
+import { MeaningQuizLiveSettings } from './MeaningQuizLiveSettings';
+import { MeaningSource } from '@/hooks/useAllGhareebSources';
 import { useSessionsStore } from '@/stores/sessionsStore';
 
 /** Question type identifier (per spec): meaning_to_mushaf_word */
