@@ -317,9 +317,18 @@ export function SRSScopeSelector({ scope, onChange, currentPage, showFlagged, sh
                   activeJuz={scope.type === 'juz' ? scope.from : undefined}
                   onSelectJuz={(num) => handleSelectItem('juz', num)}
                   onSelectQuarter={(q) => {
-                    // Picking a quarter = jump to that page (single-page scope).
-                    onChange({ type: 'page-range', from: q.page, to: q.page });
-                    setSelectingEnd('to');
+                    // Picking a quarter selects the FULL page-range it covers.
+                    // Tapping a second quarter extends the range to include it.
+                    const { start, end } = getQuarterPageRange(q);
+                    if (scope.type !== 'page-range' || selectingEnd === 'from') {
+                      onChange({ type: 'page-range', from: start, to: end });
+                      setSelectingEnd('to');
+                    } else {
+                      const newFrom = Math.min(scope.from, scope.to, start);
+                      const newTo = Math.max(scope.from, scope.to, end);
+                      onChange({ type: 'page-range', from: newFrom, to: newTo });
+                      setSelectingEnd('from');
+                    }
                   }}
                   className="px-1 pb-2"
                 />
