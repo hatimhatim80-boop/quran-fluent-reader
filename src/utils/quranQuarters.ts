@@ -3,7 +3,7 @@
  * Source: pre-generated from tanzil-metadata.xml + quran-tanzil.txt at build time.
  * See public/data/quarters.json
  */
-import quartersData from '../../public/data/quarters.json';
+import quartersData from '@/data/quarters.json';
 
 export interface QuranQuarter {
   quarter_global: number;     // 1..240
