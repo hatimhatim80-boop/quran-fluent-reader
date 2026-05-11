@@ -58,7 +58,7 @@ const STORAGE_KEY_CHOICE = 'ghareeb_entry_choice';
 const STORAGE_KEY_REMEMBER = 'ghareeb_entry_remember';
 
 type EntryChoice = 'range' | 'direct';
-type RangeTabType = 'surah' | 'pages' | 'juz' | 'hizb';
+type RangeTabType = 'surah' | 'pages' | 'juz' | 'hizb' | 'quarter';
 
 interface GhareebEntryDialogProps {
   open: boolean;
