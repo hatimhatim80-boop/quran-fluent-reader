@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { GhareebWord } from '@/types/quran';
 import { canonicalize, canonicalFormsCompatible } from '@/utils/canonicalMatch';
