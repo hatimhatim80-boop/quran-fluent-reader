@@ -106,6 +106,11 @@ export function GhareebEntryDialog({ open, onClose }: GhareebEntryDialogProps) {
     } else if (rangeType === 'juz') {
       rangeTypeVal = 'juz';
       from = juzFrom; to = juzTo;
+    } else if (rangeType === 'quarter') {
+      // Quarter selection → single page jump.
+      if (!quarterPage) return;
+      rangeTypeVal = 'page-range';
+      from = quarterPage; to = quarterPage;
     } else {
       rangeTypeVal = 'hizb';
       from = hizbFrom; to = hizbTo;
