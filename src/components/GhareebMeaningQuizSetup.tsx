@@ -212,9 +212,126 @@ export function GhareebMeaningQuizSetup({
     onStart({ pool: previewPool, quizAllWords: sourceFilteredAll, config, scopeLabel: scopeLabel + ' • معاينة', pages, isPreview: true });
   };
 
+  // ── Smart Review handlers ────────────────────────────────────────────────
+  const handleAutoGenerateForSmart = (pgs: number[]) => {
+    const pageSet = new Set(pgs);
+    const words = sourceFilteredAll.filter(w => pageSet.has(w.pageNumber));
+    let added = 0;
+    words.forEach((w) => {
+      const id = `ghareeb_${w.uniqueKey}`;
+      if (!hasCard(id)) {
+        addCard({
+          id,
+          type: 'ghareeb',
+          page: w.pageNumber,
+          contentKey: w.uniqueKey,
+          label: `${w.wordText} — ${w.meaning}`,
+          meta: {
+            wordText: w.wordText,
+            meaning: w.meaning,
+            surahName: w.surahName,
+            surahNumber: w.surahNumber,
+            verseNumber: w.verseNumber,
+          },
+        });
+        added += 1;
+      }
+    });
+    return added;
+  };
+
+  const handleStartSmart = (selectedCards: SRSCard[], sid: string, name: string) => {
+    if (sourcesLoading) {
+      toast.info('…جاري تحميل مصادر الغريب');
+      return;
+    }
+    const byKey = new Map(sourceFilteredAll.map(w => [w.uniqueKey, w]));
+    const pool: GhareebWord[] = [];
+    const seen = new Set<string>();
+    for (const c of selectedCards) {
+      const direct = byKey.get(c.contentKey);
+      if (direct && !seen.has(direct.uniqueKey)) {
+        pool.push(direct); seen.add(direct.uniqueKey); continue;
+      }
+      const sn = Number(c.meta?.surahNumber || 0);
+      const vn = Number(c.meta?.verseNumber || 0);
+      const wt = canonicalize(String(c.meta?.wordText || ''));
+      const cand = sourceFilteredAll.find(w =>
+        w.pageNumber === c.page &&
+        (!sn || w.surahNumber === sn) &&
+        (!vn || w.verseNumber === vn) &&
+        (canonicalize(w.wordText) === wt || canonicalFormsCompatible(w.wordText, String(c.meta?.wordText || '')))
+      );
+      if (cand && !seen.has(cand.uniqueKey)) {
+        pool.push(cand); seen.add(cand.uniqueKey);
+      }
+    }
+    if (!pool.length) {
+      toast.info('تعذر بناء كلمات التدريب من البطاقات المختارة (جرّب مصدر معاني آخر)');
+      return;
+    }
+    const firstPage = pool[0].pageNumber;
+    const lastPage = pool.reduce((m, w) => Math.max(m, w.pageNumber), firstPage);
+    const generalId = sessionsStore.createSession(
+      name || `المعنى — مراجعة ذكية`,
+      'ghareeb-meaning-quiz',
+      firstPage,
+      lastPage,
+    );
+    sessionsStore.updateSession(generalId, {
+      quizSettings: {
+        scopeLabel: 'مراجعة ذكية',
+        pages: Array.from(new Set(pool.map(w => w.pageNumber))),
+        wordCount: pool.length,
+        config,
+        smartReview: true,
+        reviewSessionId: sid,
+      },
+    });
+    sessionsStore.setActiveSession(generalId);
+    onStart({
+      pool,
+      quizAllWords: sourceFilteredAll,
+      config,
+      sessionId: generalId,
+      scopeLabel: 'مراجعة ذكية',
+      pages: Array.from(new Set(pool.map(w => w.pageNumber))),
+      isPreview: false,
+    });
+  };
+
+  if (smartMode) {
+    return (
+      <div className="flex h-full min-h-0 flex-col font-arabic" dir="rtl">
+        <div className="flex items-center justify-between gap-2 border-b border-border bg-card/80 backdrop-blur-sm px-3 py-2.5 shrink-0">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-lg bg-primary/15 flex items-center justify-center">
+              <Brain className="w-4 h-4 text-primary" />
+            </div>
+            <div>
+              <h2 className="font-bold text-sm text-foreground">تدريب المعنى — مراجعة ذكية</h2>
+              <p className="text-[10px] text-muted-foreground">اختر البطاقات (مستحقة/جديدة/معلّمة…) لبناء التدريب</p>
+            </div>
+          </div>
+          <button onClick={() => setSmartMode(false)} className="nav-button h-8 px-2 rounded-md text-xs flex items-center gap-1">
+            <ArrowRight className="w-4 h-4" /> رجوع
+          </button>
+        </div>
+        <div className="flex-1 min-h-0 overflow-auto">
+          <ReviewSessionSetup
+            portal="ghareeb"
+            currentPage={currentPage}
+            onStartSession={handleStartSmart}
+            cardTypeFilter="ghareeb"
+            onAutoGenerateCards={handleAutoGenerateForSmart}
+            allowInlineResume={false}
+          />
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="flex h-full min-h-0 flex-col font-arabic" dir="rtl">
-      {/* Header */}
       <div className="flex items-center justify-between gap-2 border-b border-border bg-card/80 backdrop-blur-sm px-3 py-2.5 shrink-0">
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 rounded-lg bg-primary/15 flex items-center justify-center">
