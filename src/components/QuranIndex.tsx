@@ -3,7 +3,8 @@ import { Book, Layers, Hash, Search, X, ChevronLeft, ChevronDown } from 'lucide-
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { SURAH_INFO, SURAH_NAMES } from '@/utils/quranPageIndex';
-import { getQuartersForJuz } from '@/utils/quranQuarters';
+import { getQuartersForJuz, computeQuarterMastery, computeJuzMastery } from '@/utils/quranQuarters';
+import { useSRSStore } from '@/stores/srsStore';
 
 interface QuranIndexProps {
   currentPage: number;
