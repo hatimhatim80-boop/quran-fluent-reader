@@ -413,23 +413,22 @@ export function GhareebMeaningQuiz({
       wordEl.classList.add('mq-correct');
       setSolved(true);
       setScore((s) => ({ ...s, correct: s.correct + 1 }));
+
+      // Smart-stats: record correct + speed bucket.
+      const elapsed = performance.now() - shownAtRef.current;
+      const bucket = speedBucket(elapsed);
+      const k = current.target.uniqueKey;
+      const st = statsRef.current.get(k) || { ...EMPTY_STATS };
+      st.correctCount += 1;
+      st.lastAnswerTimeMs = Math.round(elapsed);
+      if (bucket === 'fast') st.fastCorrectCount += 1;
+      else if (bucket === 'slow') st.slowCorrectCount += 1;
+      statsRef.current.set(k, st);
+
       toast.success('أحسنت', { duration: Math.min(1500, config.correctHighlightDurationMs) });
 
       // Re-queue this question N more times (spec: correctWordReviewRepeatCount).
       const repeat = Math.max(0, config.correctWordReviewRepeatCount || 0);
-      if (repeat > 0) {
-        setQuestions((qs) => {
-          const next = [...qs];
-          const startInsert = idx + 1;
-          const stamp = Date.now();
-          for (let i = 0; i < repeat; i++) {
-            const remaining = next.length - startInsert;
-            const offset = Math.floor(Math.random() * Math.max(1, remaining + 1));
-            next.splice(startInsert + offset, 0, { ...current, id: `${current.id}_rpt_${stamp}_${i}` });
-          }
-          return next;
-        });
-      }
 
       if (advanceTimerRef.current) window.clearTimeout(advanceTimerRef.current);
       if (clearHighlightTimerRef.current) window.clearTimeout(clearHighlightTimerRef.current);
@@ -438,12 +437,21 @@ export function GhareebMeaningQuiz({
       if (config.autoAdvance) {
         // Advance ONLY after the highlight hold duration completes.
         advanceTimerRef.current = window.setTimeout(() => {
-          if (isUnlimited || idx + 1 < questions.length + repeat) {
-            goNext();
+          // Re-queue (insert same question index ahead) if requested.
+          if (repeat > 0) {
+            setHistory((h) => {
+              const next = [...h];
+              const startInsert = histPos + 1;
+              for (let i = 0; i < repeat; i++) {
+                const remaining = next.length - startInsert;
+                const offset = Math.floor(Math.random() * Math.max(1, remaining + 1));
+                next.splice(startInsert + offset, 0, idx);
+              }
+              return next;
+            });
           }
+          goNext();
         }, hold);
-      } else {
-        // Manual: keep highlight visible until user clicks "next" (which clears via useEffect).
       }
     } else {
       // Wrong answer.
@@ -452,6 +460,13 @@ export function GhareebMeaningQuiz({
       setScore((s) => ({ ...s, wrong: s.wrong + 1 }));
       const newWrongCount = wrongCount + 1;
       setWrongCount(newWrongCount);
+
+      // Smart-stats: record wrong attempt.
+      const k = current.target.uniqueKey;
+      const st = statsRef.current.get(k) || { ...EMPTY_STATS };
+      st.wrongCount += 1;
+      statsRef.current.set(k, st);
+
       toast.error('حاول مرة أخرى', { duration: 900 });
 
       // Hint: pulse the correct location subtly (NOT a full reveal).
@@ -464,7 +479,7 @@ export function GhareebMeaningQuiz({
       }
     }
   }, [
-    current, solved, config, idx, questions.length, goNext, wrongCount, findTargetEl, clearAllHighlights, isUnlimited,
+    current, solved, config, idx, histPos, goNext, wrongCount, findTargetEl, clearAllHighlights,
   ]);
 
   if (questions.length === 0) {
