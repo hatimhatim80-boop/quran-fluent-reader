@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { ChevronDown, ChevronLeft, Layers } from 'lucide-react';
-import { getQuartersForJuz, type QuranQuarter } from '@/utils/quranQuarters';
+import { getQuartersForJuz, computeQuarterMastery, computeJuzMastery, type QuranQuarter } from '@/utils/quranQuarters';
+import { useSRSStore } from '@/stores/srsStore';
 
 const JUZ_DATA = [
   { number: 1, name: 'الم', page: 1 }, { number: 2, name: 'سيقول', page: 22 },
