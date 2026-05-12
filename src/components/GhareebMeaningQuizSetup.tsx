@@ -76,7 +76,7 @@ const COLOR_PRESETS: { label: string; value: string }[] = [
 ];
 
 const DURATION_PRESETS = [1000, 2000, 3000, 5000];
-const QUESTION_PRESETS = [10, 20, 50, 0]; // 0 = all
+const QUESTION_PRESETS = [5, 10, 20, 50, 0]; // 0 = unlimited (all)
 
 function loadConfig(): MeaningQuizConfig {
   try {
