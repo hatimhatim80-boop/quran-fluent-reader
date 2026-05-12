@@ -171,9 +171,21 @@ export function GhareebMeaningQuiz({
     if (clearHighlightTimerRef.current) window.clearTimeout(clearHighlightTimerRef.current);
   }, []);
 
+  const isUnlimited = !config.questionLimit || config.questionLimit <= 0;
+
   const goNext = useCallback(() => {
-    setIdx((prev) => (prev + 1 < questions.length ? prev + 1 : prev));
-  }, [questions.length]);
+    setIdx((prev) => {
+      if (prev + 1 < questions.length) return prev + 1;
+      // Unlimited: recycle by re-shuffling questions and starting over.
+      if (isUnlimited && questions.length > 0) {
+        setQuestions((qs) => shuffle(qs));
+        setSolved(false);
+        setWrongCount(0);
+        return 0;
+      }
+      return prev;
+    });
+  }, [questions.length, isUnlimited]);
 
   const goPrev = useCallback(() => {
     setIdx((prev) => (prev > 0 ? prev - 1 : prev));
@@ -300,7 +312,7 @@ export function GhareebMeaningQuiz({
       if (config.autoAdvance) {
         // Advance ONLY after the highlight hold duration completes.
         advanceTimerRef.current = window.setTimeout(() => {
-          if (idx + 1 < questions.length + repeat) {
+          if (isUnlimited || idx + 1 < questions.length + repeat) {
             goNext();
           }
         }, hold);
@@ -326,7 +338,7 @@ export function GhareebMeaningQuiz({
       }
     }
   }, [
-    current, solved, config, idx, questions.length, goNext, wrongCount, findTargetEl, clearAllHighlights,
+    current, solved, config, idx, questions.length, goNext, wrongCount, findTargetEl, clearAllHighlights, isUnlimited,
   ]);
 
   if (questions.length === 0) {
