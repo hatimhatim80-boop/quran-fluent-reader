@@ -93,6 +93,7 @@ export function QuranIndex({ currentPage, onNavigateToPage, onClose }: QuranInde
   const [search, setSearch] = useState('');
   const [activeTab, setActiveTab] = useState('surahs');
   const [expandedJuz, setExpandedJuz] = useState<number | null>(null);
+  const cards = useSRSStore((s) => s.cards);
 
   const filteredSurahs = useMemo(() => {
     if (!search.trim()) return SURAHS;
