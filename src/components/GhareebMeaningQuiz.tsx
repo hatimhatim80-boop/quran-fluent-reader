@@ -648,7 +648,7 @@ export function GhareebMeaningQuiz({
               size="sm"
               variant="default"
               onClick={() => { clearAllHighlights(); goNext(); }}
-              disabled={idx >= questions.length - 1}
+              disabled={!isUnlimited && history.length >= limit && histPos >= history.length - 1}
               className="font-arabic"
             >
               السؤال التالي
@@ -658,7 +658,7 @@ export function GhareebMeaningQuiz({
               ينتقل تلقائياً بعد {(config.correctHighlightDurationMs / 1000).toFixed(1)} ث...
             </p>
           )}
-          {idx >= questions.length - 1 && (
+          {!isUnlimited && history.length >= limit && histPos >= history.length - 1 && (
             <div className="mt-2 flex items-center justify-center gap-2">
               <Button size="sm" variant="outline" className="font-arabic gap-1" onClick={reshuffle}>
                 <RotateCcw className="w-3.5 h-3.5" />
