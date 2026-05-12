@@ -129,6 +129,8 @@ export function GhareebMeaningQuizSetup({
   const [scope, setScope] = useState<SRSScope>({ type: 'current-page', from: currentPage, to: currentPage });
   const [sessionName, setSessionName] = useState('');
   const [customDurationOpen, setCustomDurationOpen] = useState(false);
+  const [smartMode, setSmartMode] = useState(false);
+  const { addCard, hasCard } = useSRSStore();
 
   // Load BOTH source books independently of the user's global preference so the
   // Meaning-Quiz source selector works on its own.
