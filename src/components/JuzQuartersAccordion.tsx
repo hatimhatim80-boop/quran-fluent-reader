@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { ChevronDown, ChevronLeft, Layers } from 'lucide-react';
-import { getQuartersForJuz, type QuranQuarter } from '@/utils/quranQuarters';
+import { getQuartersForJuz, computeQuarterMastery, computeJuzMastery, type QuranQuarter } from '@/utils/quranQuarters';
+import { useSRSStore } from '@/stores/srsStore';
 
 const JUZ_DATA = [
   { number: 1, name: 'الم', page: 1 }, { number: 2, name: 'سيقول', page: 22 },
@@ -45,6 +46,7 @@ export function JuzQuartersAccordion({
 }: Props) {
   const [expanded, setExpanded] = useState<number | null>(activeJuz ?? null);
   const pad = compact ? 'px-2 py-1.5' : 'px-3 py-2';
+  const cards = useSRSStore((s) => s.cards);
 
   return (
     <div className={className ?? 'max-h-72 overflow-auto'} dir="rtl">
@@ -53,9 +55,10 @@ export function JuzQuartersAccordion({
           const isExp = expanded === juz.number;
           const isAct = activeJuz === juz.number;
           const quarters = isExp ? getQuartersForJuz(juz.number) : [];
+          const juzMastery = computeJuzMastery(juz.number, cards, 'ghareeb');
           return (
             <div key={juz.number} className={`rounded-lg border ${isExp ? 'border-border' : 'border-transparent'} overflow-hidden`}>
-              <div className={`flex items-stretch ${isAct ? 'bg-primary/15 text-primary font-bold' : 'hover:bg-muted/60'}`}>
+              <div className={`flex items-stretch ${isAct ? 'bg-primary/15 text-primary font-bold' : `hover:bg-muted/60 ${juzMastery.bgClass}`}`}>
                 <button
                   onClick={() => setExpanded(isExp ? null : juz.number)}
                   className={`flex-1 flex items-center gap-2 ${pad} text-xs font-arabic transition-colors`}
@@ -67,6 +70,15 @@ export function JuzQuartersAccordion({
                   <Layers className="w-3 h-3 text-muted-foreground" />
                   <span>الجزء {juz.number}</span>
                   <span className="text-muted-foreground text-[10px]">({juz.name})</span>
+                  {juzMastery.level > 0 && (
+                    <span
+                      className={`inline-flex items-center gap-1 text-[9px] ${juzMastery.textClass}`}
+                      title={`${juzMastery.label} — ${juzMastery.reviewed}/${juzMastery.total}`}
+                    >
+                      <span className={`w-2 h-2 rounded-full ${juzMastery.dotClass}`} />
+                      {juzMastery.label}
+                    </span>
+                  )}
                   <ChevronDown className={`w-3.5 h-3.5 mr-auto transition-transform ${isExp ? 'rotate-180' : ''}`} />
                 </button>
                 {onSelectJuz && (
@@ -82,16 +94,17 @@ export function JuzQuartersAccordion({
                 <div className="bg-muted/20 border-t border-border/50 py-1">
                   {quarters.map((q) => {
                     const isQActive = activeQuarterGlobal === q.quarter_global;
+                    const m = computeQuarterMastery(q, cards, 'ghareeb');
                     return (
                       <button
                         key={q.quarter_global}
                         onClick={() => onSelectQuarter?.(q)}
                         className={`w-full flex items-center justify-between px-3 py-1.5 text-[11px] font-arabic transition-colors ${
-                          isQActive ? 'bg-primary/15 text-primary font-bold' : 'hover:bg-muted/60 text-foreground/90'
+                          isQActive ? 'bg-primary/15 text-primary font-bold' : `hover:bg-muted/60 text-foreground/90 ${m.bgClass}`
                         }`}
                       >
                         <div className="flex items-center gap-2 min-w-0">
-                          <span className="w-5 h-5 rounded-full bg-primary/10 text-primary flex items-center justify-center text-[9px] font-mono shrink-0">
+                          <span className={`w-5 h-5 rounded-full ${m.level >= 2 ? m.dotClass + ' text-white' : 'bg-primary/10 text-primary'} flex items-center justify-center text-[9px] font-mono shrink-0`}>
                             {q.quarter_in_juz}
                           </span>
                           <div className="text-right min-w-0">
@@ -101,9 +114,14 @@ export function JuzQuartersAccordion({
                             <div className="text-[10px] text-muted-foreground truncate" dir="rtl">«{q.start_words}»</div>
                           </div>
                         </div>
-                        <div className="flex items-center gap-1 text-muted-foreground shrink-0">
-                          <span className="text-[10px]">ص {q.page}</span>
-                          <ChevronLeft className="w-3 h-3" />
+                        <div className="flex items-center gap-2 shrink-0">
+                          {m.level > 0 && (
+                            <span className={`text-[9px] ${m.textClass}`} title={`${m.reviewed}/${m.total} — متوسط ${Math.round(m.avgIntervalDays)} يوم`}>
+                              {m.label}
+                            </span>
+                          )}
+                          <span className="text-[10px] text-muted-foreground">ص {q.page}</span>
+                          <ChevronLeft className="w-3 h-3 text-muted-foreground" />
                         </div>
                       </button>
                     );
