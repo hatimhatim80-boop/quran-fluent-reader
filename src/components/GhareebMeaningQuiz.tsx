@@ -567,7 +567,7 @@ export function GhareebMeaningQuiz({
         <div className="flex items-center gap-2">
           <span className="font-arabic text-sm font-bold text-primary">المعنى ← الكلمة في المصحف</span>
           <span className="text-xs text-muted-foreground font-arabic">
-            {idx + 1} / {questions.length} · ✓{score.correct} · ✗{score.wrong}
+            {histPos + 1} / {isUnlimited ? '∞' : Math.min(limit, questions.length)} · ✓{score.correct} · ✗{score.wrong}
           </span>
         </div>
         <div className="flex items-center gap-1">
@@ -581,10 +581,10 @@ export function GhareebMeaningQuiz({
           <button onClick={reshuffle} title="إعادة الخلط" className="nav-button w-7 h-7 rounded-full">
             <Shuffle className="w-3.5 h-3.5" />
           </button>
-          <button onClick={goPrev} disabled={idx <= 0} className="nav-button w-7 h-7 rounded-full disabled:opacity-30">
+          <button onClick={goPrev} disabled={histPos <= 0} className="nav-button w-7 h-7 rounded-full disabled:opacity-30">
             <ChevronRight className="w-4 h-4" />
           </button>
-          <button onClick={goNext} disabled={idx >= questions.length - 1} className="nav-button w-7 h-7 rounded-full disabled:opacity-30">
+          <button onClick={goNext} disabled={!isUnlimited && history.length >= limit && histPos >= history.length - 1} className="nav-button w-7 h-7 rounded-full disabled:opacity-30">
             <ChevronLeft className="w-4 h-4" />
           </button>
           <button onClick={onClose} className="nav-button w-7 h-7 rounded-full mr-2">
