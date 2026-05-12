@@ -36,7 +36,7 @@ export function GhareebSRSPanel({
 }: GhareebSRSPanelProps) {
   const { addCard, hasCard, cards, exportData, importData, clearAll } = useSRSStore();
   const sessionsStore = useSessionsStore();
-  const [sessionMode, setSessionMode] = useState<'setup' | 'review' | 'meaning-quiz' | 'meaning-setup'>('setup');
+  const [sessionMode, setSessionMode] = useState<'setup' | 'review' | 'meaning-quiz' | 'meaning-setup' | 'meaning-smart-setup'>('setup');
   const [sessionCards, setSessionCards] = useState<SRSCard[]>([]);
   const [sessionId, setSessionId] = useState<string | undefined>();
   const [sessionName, setSessionName] = useState<string>('');
