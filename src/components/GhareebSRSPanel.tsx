@@ -292,6 +292,93 @@ export function GhareebSRSPanel({
             حفظ كجلسة وبدء
           </Button>
         </div>
+
+        <Button
+          variant="secondary"
+          className="w-full font-arabic gap-2"
+          onClick={() => setSessionMode('meaning-smart-setup')}
+        >
+          <Target className="w-4 h-4" />
+          تدريب على المعنى بطريقة المراجعة الذكية
+        </Button>
+      </div>
+    );
+  }
+
+  if (sessionMode === 'meaning-smart-setup') {
+    const handleStartSmartMeaning = (selectedCards: SRSCard[], _sid: string, name: string) => {
+      // Convert SRS cards back to GhareebWord pool for the meaning quiz
+      const byKey = new Map(allWords.map(w => [w.uniqueKey, w]));
+      const pool: GhareebWord[] = [];
+      const seen = new Set<string>();
+      for (const c of selectedCards) {
+        const direct = byKey.get(c.contentKey);
+        if (direct && !seen.has(direct.uniqueKey)) {
+          pool.push(direct);
+          seen.add(direct.uniqueKey);
+          continue;
+        }
+        // Fallback: match by surah/verse/wordText
+        const sn = Number(c.meta?.surahNumber || 0);
+        const vn = Number(c.meta?.verseNumber || 0);
+        const wt = canonicalize(String(c.meta?.wordText || ''));
+        const candidate = allWords.find(w =>
+          w.pageNumber === c.page &&
+          (!sn || w.surahNumber === sn) &&
+          (!vn || w.verseNumber === vn) &&
+          (canonicalize(w.wordText) === wt || canonicalFormsCompatible(w.wordText, String(c.meta?.wordText || '')))
+        );
+        if (candidate && !seen.has(candidate.uniqueKey)) {
+          pool.push(candidate);
+          seen.add(candidate.uniqueKey);
+        }
+      }
+      if (!pool.length) {
+        toast.info('تعذر بناء كلمات التدريب من البطاقات المختارة');
+        return;
+      }
+      setMeaningPool(pool);
+      // Save general session for resume support
+      const firstPage = pool[0].pageNumber;
+      const lastPage = pool.reduce((m, w) => Math.max(m, w.pageNumber), firstPage);
+      const id = sessionsStore.createSession(
+        name || `المعنى — مراجعة ذكية`,
+        'ghareeb-meaning-quiz',
+        firstPage,
+        lastPage,
+      );
+      sessionsStore.updateSession(id, {
+        quizSettings: { scopeLabel: 'مراجعة ذكية', pages: Array.from(new Set(pool.map(w => w.pageNumber))), wordCount: pool.length, smartReview: true },
+      });
+      sessionsStore.setActiveSession(id);
+      setSessionMode('meaning-quiz');
+    };
+
+    return (
+      <div className="p-2 space-y-2 font-arabic" dir="rtl">
+        <div className="flex items-center justify-between gap-2 px-2">
+          <button onClick={() => setSessionMode('meaning-setup')} className="text-sm text-muted-foreground hover:text-foreground flex items-center gap-1">
+            <ArrowRight className="w-4 h-4" /> رجوع
+          </button>
+          <h2 className="font-bold text-base text-primary flex items-center gap-1.5">
+            <Target className="w-4 h-4" />
+            مراجعة ذكية — تدريب على المعنى
+          </h2>
+        </div>
+        <p className="text-xs text-muted-foreground leading-relaxed px-2">
+          اختر البطاقات بطريقة المراجعة الذكية (مستحقة، جديدة، معلّمة، …) ثم سيُبنى تدريب المعنى ← الكلمة من تلك البطاقات.
+        </p>
+        <ReviewSessionSetup
+          portal="ghareeb"
+          currentPage={currentPage}
+          onStartSession={handleStartSmartMeaning}
+          cardTypeFilter="ghareeb"
+          onAutoGenerateCards={handleAutoGenerate}
+          allowInlineResume={false}
+        />
+      </div>
+    );
+  }
       </div>
     );
   }
