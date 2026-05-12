@@ -47,6 +47,12 @@ export function GhareebSRSPanel({
 
   const totalCards = cards.filter(c => c.type === 'ghareeb').length;
 
+  // ── All hooks MUST be declared before any conditional return below ──
+  const meaningScopePages = useMemo(
+    () => scopeToPages({ ...meaningScope, from: meaningScope.type === 'current-page' ? currentPage : meaningScope.from }),
+    [meaningScope, currentPage],
+  );
+
   const addWordsAsCards = useCallback((words: GhareebWord[]) => {
     let added = 0;
     words.forEach((w) => {
