@@ -312,7 +312,7 @@ export function GhareebMeaningQuiz({
       if (config.autoAdvance) {
         // Advance ONLY after the highlight hold duration completes.
         advanceTimerRef.current = window.setTimeout(() => {
-          if (idx + 1 < questions.length + repeat) {
+          if (isUnlimited || idx + 1 < questions.length + repeat) {
             goNext();
           }
         }, hold);
