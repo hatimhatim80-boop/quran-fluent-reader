@@ -1,5 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Target, Plus, Eye, X, ArrowRight, BookOpen } from 'lucide-react';
+import { Target, Plus, Eye, X, ArrowRight, BookOpen, Brain } from 'lucide-react';
+import { ReviewSessionSetup } from './ReviewSessionSetup';
+import { SRSCard, useSRSStore } from '@/stores/srsStore';
+import { canonicalize, canonicalFormsCompatible } from '@/utils/canonicalMatch';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
