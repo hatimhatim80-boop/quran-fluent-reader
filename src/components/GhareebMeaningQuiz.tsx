@@ -40,6 +40,22 @@ interface QuizQuestion {
   acceptableCanon: Set<string>;
 }
 
+interface WordStats {
+  shownCount: number;
+  correctCount: number;
+  wrongCount: number;
+  fastCorrectCount: number;
+  slowCorrectCount: number;
+  lastAnswerTimeMs: number; // 0 if none
+  lastShownAt: number;      // 0 if none
+}
+
+const EMPTY_STATS: WordStats = {
+  shownCount: 0, correctCount: 0, wrongCount: 0,
+  fastCorrectCount: 0, slowCorrectCount: 0,
+  lastAnswerTimeMs: 0, lastShownAt: 0,
+};
+
 function shuffle<T>(arr: T[]): T[] {
   const a = [...arr];
   for (let i = a.length - 1; i > 0; i--) {
@@ -84,7 +100,95 @@ function buildQuestions(pool: GhareebWord[], allWords: GhareebWord[]): QuizQuest
       acceptableCanon,
     });
   }
-  return shuffle(list);
+  return list;
+}
+
+/** Speed bucket from answer time in ms. */
+function speedBucket(ms: number): 'fast' | 'medium' | 'slow' {
+  if (ms <= 3000) return 'fast';
+  if (ms <= 8000) return 'medium';
+  return 'slow';
+}
+
+/** Compute priority weight for a question per the smart-random spec. */
+function computePriority(s: WordStats): number {
+  // Base 100, boost wrongs/slow, dampen fast/shown. Floor at 5 so nothing dies.
+  const p = 100
+    + s.wrongCount * 30
+    + s.slowCorrectCount * 15
+    - s.fastCorrectCount * 10
+    - s.shownCount * 5;
+  return Math.max(5, p);
+}
+
+/** Weighted random pick. */
+function weightedPick<T>(items: T[], weights: number[]): number {
+  const total = weights.reduce((a, b) => a + b, 0);
+  if (total <= 0) return Math.floor(Math.random() * items.length);
+  let r = Math.random() * total;
+  for (let i = 0; i < items.length; i++) {
+    r -= weights[i];
+    if (r <= 0) return i;
+  }
+  return items.length - 1;
+}
+
+/** Pick the next question index based on the configured strategy. */
+function pickNextIndex(
+  questions: QuizQuestion[],
+  stats: Map<string, WordStats>,
+  mode: 'fair' | 'smart' | 'mushaf' | 'leastShown',
+  avoidId?: string,
+): number {
+  if (questions.length === 0) return 0;
+  if (questions.length === 1) return 0;
+
+  const candIdx = questions.map((_, i) => i)
+    .filter((i) => questions[i].id !== avoidId);
+  const pool = candIdx.length ? candIdx : questions.map((_, i) => i);
+
+  if (mode === 'mushaf') {
+    // Stable mushaf order: surah, verse, wordIndex, page.
+    const sorted = [...pool].sort((a, b) => {
+      const A = questions[a].target, B = questions[b].target;
+      return (A.surahNumber - B.surahNumber)
+        || (A.verseNumber - B.verseNumber)
+        || (A.wordIndex - B.wordIndex)
+        || (A.pageNumber - B.pageNumber);
+    });
+    // Among unseen first, otherwise least-recently shown.
+    const unseen = sorted.filter(i => (stats.get(questions[i].target.uniqueKey)?.shownCount || 0) === 0);
+    if (unseen.length) return unseen[0];
+    return sorted.sort((a, b) =>
+      (stats.get(questions[a].target.uniqueKey)?.lastShownAt || 0)
+      - (stats.get(questions[b].target.uniqueKey)?.lastShownAt || 0)
+    )[0];
+  }
+
+  if (mode === 'leastShown') {
+    return [...pool].sort((a, b) => {
+      const sa = stats.get(questions[a].target.uniqueKey)?.shownCount || 0;
+      const sb = stats.get(questions[b].target.uniqueKey)?.shownCount || 0;
+      if (sa !== sb) return sa - sb;
+      const la = stats.get(questions[a].target.uniqueKey)?.lastShownAt || 0;
+      const lb = stats.get(questions[b].target.uniqueKey)?.lastShownAt || 0;
+      return la - lb;
+    })[0];
+  }
+
+  if (mode === 'fair') {
+    return pool[Math.floor(Math.random() * pool.length)];
+  }
+
+  // smart: priority-weighted random; never-shown gets a strong boost so all words rotate in.
+  const weights = pool.map((i) => {
+    const s = stats.get(questions[i].target.uniqueKey) || EMPTY_STATS;
+    let w = computePriority(s);
+    if (s.shownCount === 0) w += 120; // ensure new words appear early
+    return w;
+  });
+  const idx = weightedPick(pool, weights);
+  return pool[idx];
 }
 
 export function GhareebMeaningQuiz({
