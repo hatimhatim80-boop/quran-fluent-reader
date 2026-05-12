@@ -184,12 +184,13 @@ export function QuranIndex({ currentPage, onNavigateToPage, onClose }: QuranInde
               const isActive = currentJuz === juz.number;
               const isExpanded = expandedJuz === juz.number;
               const quarters = isExpanded ? getQuartersForJuz(juz.number) : [];
+              const juzMastery = computeJuzMastery(juz.number, cards, 'ghareeb');
               return (
                 <div key={juz.number} className="rounded-lg overflow-hidden border border-transparent data-[exp=true]:border-border" data-exp={isExpanded}>
                   <button
                     onClick={() => setExpandedJuz(isExpanded ? null : juz.number)}
                     className={`w-full flex items-center justify-between px-3 py-2.5 text-xs font-arabic transition-colors ${
-                      isActive ? 'bg-primary/15 text-primary font-bold' : 'hover:bg-muted/60 text-foreground'
+                      isActive ? 'bg-primary/15 text-primary font-bold' : `hover:bg-muted/60 text-foreground ${juzMastery.bgClass}`
                     }`}
                   >
                     <div className="flex items-center gap-2">
@@ -198,6 +199,15 @@ export function QuranIndex({ currentPage, onNavigateToPage, onClose }: QuranInde
                       </span>
                       <span>الجزء {juz.number}</span>
                       <span className="text-muted-foreground text-[10px]">({juz.name})</span>
+                      {juzMastery.level > 0 && (
+                        <span
+                          className={`inline-flex items-center gap-1 text-[9px] ${juzMastery.textClass}`}
+                          title={`${juzMastery.label} — ${juzMastery.reviewed}/${juzMastery.total}`}
+                        >
+                          <span className={`w-2 h-2 rounded-full ${juzMastery.dotClass}`} />
+                          {juzMastery.label}
+                        </span>
+                      )}
                     </div>
                     <div className="flex items-center gap-2 text-muted-foreground">
                       <button
@@ -211,31 +221,39 @@ export function QuranIndex({ currentPage, onNavigateToPage, onClose }: QuranInde
                   </button>
                   {isExpanded && (
                     <div className="bg-muted/20 border-t border-border/50 py-1">
-                      {quarters.map((q) => (
-                        <button
-                          key={q.quarter_global}
-                          onClick={() => handleNavigate(q.page)}
-                          className="w-full flex items-center justify-between px-3 py-2 text-[11px] font-arabic hover:bg-muted/60 text-foreground/90"
-                        >
-                          <div className="flex items-center gap-2 min-w-0">
-                            <span className="w-6 h-6 rounded-full bg-primary/10 text-primary flex items-center justify-center text-[9px] font-mono shrink-0">
-                              {q.quarter_in_juz}
-                            </span>
-                            <div className="text-right min-w-0">
-                              <div className="truncate">
-                                الربع {q.quarter_in_juz} <span className="text-muted-foreground">({q.quarter_global})</span> — {q.surah_name} {q.ayah}
-                              </div>
-                              <div className="text-[10px] text-muted-foreground truncate" dir="rtl">
-                                «{q.start_words}»
+                      {quarters.map((q) => {
+                        const m = computeQuarterMastery(q, cards, 'ghareeb');
+                        return (
+                          <button
+                            key={q.quarter_global}
+                            onClick={() => handleNavigate(q.page)}
+                            className={`w-full flex items-center justify-between px-3 py-2 text-[11px] font-arabic hover:bg-muted/60 text-foreground/90 ${m.bgClass}`}
+                          >
+                            <div className="flex items-center gap-2 min-w-0">
+                              <span className={`w-6 h-6 rounded-full ${m.level >= 2 ? `${m.dotClass} text-white` : 'bg-primary/10 text-primary'} flex items-center justify-center text-[9px] font-mono shrink-0`}>
+                                {q.quarter_in_juz}
+                              </span>
+                              <div className="text-right min-w-0">
+                                <div className="truncate">
+                                  الربع {q.quarter_in_juz} <span className="text-muted-foreground">({q.quarter_global})</span> — {q.surah_name} {q.ayah}
+                                </div>
+                                <div className="text-[10px] text-muted-foreground truncate" dir="rtl">
+                                  «{q.start_words}»
+                                </div>
                               </div>
                             </div>
-                          </div>
-                          <div className="flex items-center gap-1 text-muted-foreground shrink-0">
-                            <span className="text-[10px]">ص {q.page}</span>
-                            <ChevronLeft className="w-3 h-3" />
-                          </div>
-                        </button>
-                      ))}
+                            <div className="flex items-center gap-2 text-muted-foreground shrink-0">
+                              {m.level > 0 && (
+                                <span className={`text-[9px] ${m.textClass}`} title={`${m.reviewed}/${m.total} — متوسط ${Math.round(m.avgIntervalDays)} يوم`}>
+                                  {m.label}
+                                </span>
+                              )}
+                              <span className="text-[10px]">ص {q.page}</span>
+                              <ChevronLeft className="w-3 h-3" />
+                            </div>
+                          </button>
+                        );
+                      })}
                     </div>
                   )}
                 </div>
