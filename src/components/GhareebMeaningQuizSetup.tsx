@@ -47,6 +47,8 @@ export interface MeaningQuizConfig {
   advanceOnEmptyClick: boolean;
   /** Show the surah name in the prompt header. */
   showSurahName: boolean;
+  /** Question selection strategy. */
+  randomMode: 'fair' | 'smart' | 'mushaf' | 'leastShown';
 }
 
 const DEFAULT_CONFIG: MeaningQuizConfig = {
@@ -66,6 +68,7 @@ const DEFAULT_CONFIG: MeaningQuizConfig = {
   showPromptText: true,
   advanceOnEmptyClick: true,
   showSurahName: true,
+  randomMode: 'smart',
 };
 
 export const STORAGE_KEY = 'ghareeb_meaning_quiz_settings';
