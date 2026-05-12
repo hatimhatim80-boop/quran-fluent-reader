@@ -289,7 +289,7 @@ export function GhareebMeaningQuizSetup({
         {/* Question count */}
         <section className="bg-card border border-border rounded-lg p-3 space-y-2">
           <Label className="text-xs text-muted-foreground">عدد الأسئلة</Label>
-          <div className="grid grid-cols-4 gap-1.5">
+          <div className="grid grid-cols-5 gap-1.5">
             {QUESTION_PRESETS.map((n) => {
               const active = (n === 0 && !config.questionLimit) || config.questionLimit === n;
               return (
@@ -300,11 +300,16 @@ export function GhareebMeaningQuizSetup({
                     active ? 'bg-primary text-primary-foreground font-bold' : 'bg-muted hover:bg-accent text-foreground'
                   }`}
                 >
-                  {n === 0 ? 'الكل' : n}
+                  {n === 0 ? 'غير محدود' : n}
                 </button>
               );
             })}
           </div>
+          {(!config.questionLimit || config.questionLimit <= 0) && (
+            <p className="text-[10px] text-muted-foreground">
+              في وضع "غير محدود" تستمر الجلسة بإعادة خلط الأسئلة بلا توقف؛ استخدم زر الإغلاق لإنهائها يدويًا.
+            </p>
+          )}
           <Input
             type="number"
             min={1}
