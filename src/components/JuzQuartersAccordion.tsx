@@ -46,6 +46,7 @@ export function JuzQuartersAccordion({
 }: Props) {
   const [expanded, setExpanded] = useState<number | null>(activeJuz ?? null);
   const pad = compact ? 'px-2 py-1.5' : 'px-3 py-2';
+  const cards = useSRSStore((s) => s.cards);
 
   return (
     <div className={className ?? 'max-h-72 overflow-auto'} dir="rtl">
