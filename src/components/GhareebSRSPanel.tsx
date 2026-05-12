@@ -379,9 +379,6 @@ export function GhareebSRSPanel({
       </div>
     );
   }
-      </div>
-    );
-  }
 
   return (
     <ReviewSessionSetup
