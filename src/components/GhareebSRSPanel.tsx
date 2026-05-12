@@ -144,38 +144,6 @@ export function GhareebSRSPanel({
     input.click();
   }, [importData]);
 
-  if (sessionMode === 'review') {
-    return (
-      <SRSReviewSession
-        cards={sessionCards}
-        sessionId={sessionId}
-        sessionName={sessionName}
-        onFinish={() => setSessionMode('setup')}
-        onNavigateToPage={onNavigateToPage}
-        portalName="الغريب"
-        defaultAnswerMode="tooltip"
-        answerModeOptions={['tooltip', 'inline']}
-        headerExtra={<GhareebSourceSettings compact />}
-        focusMode
-        renderCard={(card, answerRevealed, answerDisplayMode) => (
-          <GhareebReviewCardContent
-            card={card}
-            answerRevealed={answerRevealed}
-            answerDisplayMode={answerDisplayMode}
-            highlightStyle={highlightStyle}
-            activeContentKey={resolveHighlightKey(card)}
-            renderPageWithHighlight={renderPageWithHighlight}
-          />
-        )}
-      />
-    );
-  }
-
-  const meaningScopePages = useMemo(
-    () => scopeToPages({ ...meaningScope, from: meaningScope.type === 'current-page' ? currentPage : meaningScope.from }),
-    [meaningScope, currentPage],
-  );
-
   const meaningPoolPreview = useMemo(() => {
     if (!meaningScopePages || meaningScopePages.length === 0) return allWords;
     const set = new Set(meaningScopePages);
@@ -218,6 +186,34 @@ export function GhareebSRSPanel({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [resumeMeaningQuizSessionId, allWords.length]);
+
+  // ── Conditional renders (after all hooks) ──
+  if (sessionMode === 'review') {
+    return (
+      <SRSReviewSession
+        cards={sessionCards}
+        sessionId={sessionId}
+        sessionName={sessionName}
+        onFinish={() => setSessionMode('setup')}
+        onNavigateToPage={onNavigateToPage}
+        portalName="الغريب"
+        defaultAnswerMode="tooltip"
+        answerModeOptions={['tooltip', 'inline']}
+        headerExtra={<GhareebSourceSettings compact />}
+        focusMode
+        renderCard={(card, answerRevealed, answerDisplayMode) => (
+          <GhareebReviewCardContent
+            card={card}
+            answerRevealed={answerRevealed}
+            answerDisplayMode={answerDisplayMode}
+            highlightStyle={highlightStyle}
+            activeContentKey={resolveHighlightKey(card)}
+            renderPageWithHighlight={renderPageWithHighlight}
+          />
+        )}
+      />
+    );
+  }
 
   if (sessionMode === 'meaning-quiz') {
     return (
