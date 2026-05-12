@@ -222,7 +222,14 @@ export function GhareebMeaningQuiz({
   }, [sessionId, updateSession]);
 
   const [questions, setQuestions] = useState<QuizQuestion[]>(() => buildQuestions(pool, allWords));
-  const [idx, setIdx] = useState(initialIndex ?? 0);
+  // Per-word stats keyed by target.uniqueKey (kept in a ref so updates don't re-render).
+  const statsRef = useRef<Map<string, WordStats>>(new Map());
+  // History of shown question indices (into `questions`). Allows back-navigation.
+  const [history, setHistory] = useState<number[]>(() => (questions.length ? [Math.min(initialIndex ?? 0, questions.length - 1)] : []));
+  const [histPos, setHistPos] = useState<number>(0);
+  // Timestamp when current question became visible (for speed measurement).
+  const shownAtRef = useRef<number>(performance.now());
+
   const [score, setScore] = useState({ correct: 0, wrong: 0 });
   const [solved, setSolved] = useState(false);
   const [wrongCount, setWrongCount] = useState(0);
@@ -230,29 +237,42 @@ export function GhareebMeaningQuiz({
   const advanceTimerRef = useRef<number | null>(null);
   const clearHighlightTimerRef = useRef<number | null>(null);
 
+  const idx = history[histPos] ?? 0;
   const current = questions[idx];
+  const isUnlimited = !config.questionLimit || config.questionLimit <= 0;
+  const limit = config.questionLimit && config.questionLimit > 0 ? config.questionLimit : Infinity;
 
   // Re-build questions when pool/allWords change.
   useEffect(() => {
     const next = buildQuestions(pool, allWords);
     setQuestions(next);
-    setIdx((prev) => Math.min(prev, Math.max(0, next.length - 1)));
+    statsRef.current = new Map();
+    setHistory(next.length ? [0] : []);
+    setHistPos(0);
     setSolved(false);
     setWrongCount(0);
   }, [pool, allWords]);
 
-  // Navigate to the target's page when question changes.
+  // On question change: navigate page, record "shown" stat, reset shown timer.
   useEffect(() => {
-    if (current) onNavigateToPage(current.target.pageNumber);
+    if (!current) return;
+    onNavigateToPage(current.target.pageNumber);
     setSolved(false);
     setWrongCount(0);
+    const k = current.target.uniqueKey;
+    const s = statsRef.current.get(k) || { ...EMPTY_STATS };
+    s.shownCount += 1;
+    s.lastShownAt = Date.now();
+    statsRef.current.set(k, s);
+    shownAtRef.current = performance.now();
   }, [current, onNavigateToPage]);
 
   // Persist progress to session (if any).
   useEffect(() => {
     if (!sessionId) return;
-    const total = Math.max(1, questions.length);
-    const pct = Math.min(100, Math.round(((idx + (solved ? 1 : 0)) / total) * 100));
+    const total = isUnlimited ? Math.max(history.length, 1) : Math.max(1, Math.min(limit, questions.length));
+    const done = history.length - (solved ? 0 : 1);
+    const pct = isUnlimited ? 0 : Math.min(100, Math.round((Math.max(0, done) / total) * 100));
     const session = useSessionsStore.getState().getSession(sessionId);
     const existing = (session?.quizSettings || {}) as Record<string, unknown>;
     updateSession(sessionId, {
@@ -261,13 +281,13 @@ export function GhareebMeaningQuiz({
       progress: pct,
       quizSettings: {
         ...existing,
-        currentIndex: idx,
-        total: questions.length,
+        currentIndex: histPos,
+        total: isUnlimited ? history.length : Math.min(limit, questions.length),
         correct: score.correct,
         wrong: score.wrong,
       },
     });
-  }, [idx, score, solved, sessionId, current, questions.length, updateSession]);
+  }, [histPos, history.length, score, solved, sessionId, current, questions.length, updateSession, isUnlimited, limit]);
 
   // Cleanup pending timers on unmount.
   useEffect(() => () => {
@@ -275,29 +295,31 @@ export function GhareebMeaningQuiz({
     if (clearHighlightTimerRef.current) window.clearTimeout(clearHighlightTimerRef.current);
   }, []);
 
-  const isUnlimited = !config.questionLimit || config.questionLimit <= 0;
-
   const goNext = useCallback(() => {
-    setIdx((prev) => {
-      if (prev + 1 < questions.length) return prev + 1;
-      // Unlimited: recycle by re-shuffling questions and starting over.
-      if (isUnlimited && questions.length > 0) {
-        setQuestions((qs) => shuffle(qs));
-        setSolved(false);
-        setWrongCount(0);
-        return 0;
-      }
-      return prev;
+    setHistPos((prev) => {
+      // Forward through existing history first.
+      if (prev + 1 < history.length) return prev + 1;
+      if (questions.length === 0) return prev;
+      // Respect question limit (unlimited keeps appending forever).
+      if (!isUnlimited && history.length >= limit) return prev;
+      const mode = (config.randomMode || 'smart') as 'fair' | 'smart' | 'mushaf' | 'leastShown';
+      const avoidId = current?.id;
+      const nextIdx = pickNextIndex(questions, statsRef.current, mode, avoidId);
+      setHistory((h) => [...h, nextIdx]);
+      return prev + 1;
     });
-  }, [questions.length, isUnlimited]);
+  }, [history.length, questions, isUnlimited, limit, config.randomMode, current]);
 
   const goPrev = useCallback(() => {
-    setIdx((prev) => (prev > 0 ? prev - 1 : prev));
+    setHistPos((prev) => (prev > 0 ? prev - 1 : prev));
   }, []);
 
   const reshuffle = useCallback(() => {
-    setQuestions(buildQuestions(pool, allWords));
-    setIdx(0);
+    const next = buildQuestions(pool, allWords);
+    setQuestions(next);
+    statsRef.current = new Map();
+    setHistory(next.length ? [Math.floor(Math.random() * next.length)] : []);
+    setHistPos(0);
     setScore({ correct: 0, wrong: 0 });
     setSolved(false);
     setWrongCount(0);
@@ -314,7 +336,7 @@ export function GhareebMeaningQuiz({
   // Clear highlights when moving between questions.
   useEffect(() => {
     clearAllHighlights();
-  }, [idx, clearAllHighlights]);
+  }, [histPos, clearAllHighlights]);
 
   // Find the target word element on the surface (for hint).
   const findTargetEl = useCallback((): HTMLElement | null => {
