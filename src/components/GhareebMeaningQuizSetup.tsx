@@ -47,6 +47,8 @@ export interface MeaningQuizConfig {
   advanceOnEmptyClick: boolean;
   /** Show the surah name in the prompt header. */
   showSurahName: boolean;
+  /** Question selection strategy. */
+  randomMode: 'fair' | 'smart' | 'mushaf' | 'leastShown';
 }
 
 const DEFAULT_CONFIG: MeaningQuizConfig = {
@@ -66,6 +68,7 @@ const DEFAULT_CONFIG: MeaningQuizConfig = {
   showPromptText: true,
   advanceOnEmptyClick: true,
   showSurahName: true,
+  randomMode: 'smart',
 };
 
 export const STORAGE_KEY = 'ghareeb_meaning_quiz_settings';
@@ -694,6 +697,35 @@ export function GhareebMeaningQuizSetup({
               checked={config.advanceOnEmptyClick}
               onCheckedChange={(v) => setCfg('advanceOnEmptyClick', v)}
             />
+          </div>
+        </section>
+
+        {/* Random selection mode */}
+        <section className="bg-card border border-border rounded-lg p-3 space-y-2">
+          <Label className="text-xs font-bold">طريقة العشوائية</Label>
+          <p className="text-[10px] text-muted-foreground">
+            تحدد كيفية اختيار السؤال التالي خلال التدريب.
+          </p>
+          <div className="grid grid-cols-2 gap-1.5">
+            {([
+              { v: 'fair',        l: 'عشوائي عادل' },
+              { v: 'smart',       l: 'ذكي (خطأ/سرعة)' },
+              { v: 'mushaf',      l: 'ترتيب المصحف' },
+              { v: 'leastShown',  l: 'الأقل ظهورًا' },
+            ] as const).map((opt) => {
+              const active = (config.randomMode || 'smart') === opt.v;
+              return (
+                <button
+                  key={opt.v}
+                  onClick={() => setCfg('randomMode', opt.v)}
+                  className={`h-10 rounded-md text-xs transition-colors ${
+                    active ? 'bg-primary text-primary-foreground font-bold' : 'bg-muted hover:bg-accent text-foreground'
+                  }`}
+                >
+                  {opt.l}
+                </button>
+              );
+            })}
           </div>
         </section>
 
