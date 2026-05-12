@@ -332,6 +332,8 @@ export function GhareebMeaningQuizSetup({
   }
 
   return (
+    <div className="flex h-full min-h-0 flex-col font-arabic" dir="rtl">
+      {/* Header */}
       <div className="flex items-center justify-between gap-2 border-b border-border bg-card/80 backdrop-blur-sm px-3 py-2.5 shrink-0">
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 rounded-lg bg-primary/15 flex items-center justify-center">
