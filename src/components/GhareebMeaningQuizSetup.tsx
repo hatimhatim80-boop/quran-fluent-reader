@@ -710,19 +710,29 @@ export function GhareebMeaningQuizSetup({
       </div>
 
       {/* Footer actions */}
-      <div className="border-t border-border bg-card/60 p-3 shrink-0 grid grid-cols-3 gap-2">
-        <Button variant="outline" className="font-arabic gap-1" onClick={handlePreview}>
-          <Eye className="w-4 h-4" />
-          معاينة
+      <div className="border-t border-border bg-card/60 p-3 shrink-0 space-y-2">
+        <Button
+          variant="secondary"
+          className="w-full font-arabic gap-2"
+          onClick={() => setSmartMode(true)}
+        >
+          <Brain className="w-4 h-4" />
+          تدريب على المعنى بطريقة المراجعة الذكية
         </Button>
-        <Button variant="outline" className="font-arabic gap-1" onClick={() => handleStart(false)}>
-          <Target className="w-4 h-4" />
-          ابدأ التدريب
-        </Button>
-        <Button className="font-arabic gap-1" onClick={() => handleStart(true)}>
-          <Plus className="w-4 h-4" />
-          حفظ كجلسة وبدء
-        </Button>
+        <div className="grid grid-cols-3 gap-2">
+          <Button variant="outline" className="font-arabic gap-1" onClick={handlePreview}>
+            <Eye className="w-4 h-4" />
+            معاينة
+          </Button>
+          <Button variant="outline" className="font-arabic gap-1" onClick={() => handleStart(false)}>
+            <Target className="w-4 h-4" />
+            ابدأ التدريب
+          </Button>
+          <Button className="font-arabic gap-1" onClick={() => handleStart(true)}>
+            <Plus className="w-4 h-4" />
+            حفظ كجلسة وبدء
+          </Button>
+        </div>
       </div>
     </div>
   );
