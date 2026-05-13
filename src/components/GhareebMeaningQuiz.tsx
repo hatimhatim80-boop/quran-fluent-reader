@@ -304,27 +304,46 @@ export function GhareebMeaningQuiz({
   const [wrongCount, setWrongCount] = useState(0);
   /** When set, the SRS rating buttons are shown and auto-advance is blocked until the user picks a rating. */
   const [pendingRateCardId, setPendingRateCardId] = useState<string | null>(null);
+  const [activeReviewQueue, setActiveReviewQueue] = useState<MeaningReviewQueueEntry[]>([]);
+  const [delayedReviewQueue, setDelayedReviewQueue] = useState<MeaningReviewQueueEntry[]>([]);
+  const [nextDueCountdown, setNextDueCountdown] = useState<string | null>(null);
   const requiresReviewDurationSelection = !!config.rescheduleCorrectAsSRS;
   const shouldShowReviewDurationButtons = solved && requiresReviewDurationSelection;
   const surfaceRef = useRef<HTMLDivElement>(null);
   const advanceTimerRef = useRef<number | null>(null);
   const clearHighlightTimerRef = useRef<number | null>(null);
+  const nextQueueOrderRef = useRef(0);
+  const questionNextReviewRef = useRef<Map<number, number>>(new Map());
 
-  const idx = history[histPos] ?? 0;
-  const current = questions[idx];
+  const idx = history[histPos];
+  const current = typeof idx === 'number' ? questions[idx] : undefined;
   const isUnlimited = !config.questionLimit || config.questionLimit <= 0;
   const limit = config.questionLimit && config.questionLimit > 0 ? config.questionLimit : Infinity;
 
   // Re-build questions when pool/allWords change.
   useEffect(() => {
     const next = buildQuestions(pool, allWords);
+    const startIdx = next.length ? Math.min(initialIndex ?? 0, next.length - 1) : undefined;
     setQuestions(next);
     statsRef.current = new Map();
-    setHistory(next.length ? [0] : []);
+    questionNextReviewRef.current = new Map();
+    setHistory(typeof startIdx === 'number' ? [startIdx] : []);
     setHistPos(0);
     setSolved(false);
     setWrongCount(0);
-  }, [pool, allWords]);
+    if (config.rescheduleCorrectAsSRS && typeof startIdx === 'number') {
+      const queues = buildMeaningReviewQueues(next.length, startIdx);
+      setActiveReviewQueue(queues.activeQueue);
+      setDelayedReviewQueue(queues.delayedQueue);
+      nextQueueOrderRef.current = queues.nextOrder;
+      setNextDueCountdown(null);
+    } else {
+      setActiveReviewQueue([]);
+      setDelayedReviewQueue([]);
+      nextQueueOrderRef.current = 0;
+      setNextDueCountdown(null);
+    }
+  }, [pool, allWords, initialIndex, config.rescheduleCorrectAsSRS]);
 
   // On every navigation step: navigate page, record "shown" stat, reset shown timer.
   // Important: depend on histPos as well, not only `current`, because the same
@@ -373,20 +392,97 @@ export function GhareebMeaningQuiz({
     if (clearHighlightTimerRef.current) window.clearTimeout(clearHighlightTimerRef.current);
   }, []);
 
-  const goNext = useCallback(() => {
-    setHistPos((prev) => {
-      // Forward through existing history first.
-      if (prev + 1 < history.length) return prev + 1;
-      if (questions.length === 0) return prev;
-      // Respect question limit (unlimited keeps appending forever).
-      if (!isUnlimited && history.length >= limit) return prev;
-      const mode = (config.randomMode || 'smart') as 'fair' | 'smart' | 'mushaf' | 'leastShown';
-      const avoidId = current?.id;
-      const nextIdx = pickNextIndex(questions, statsRef.current, mode, avoidId);
-      setHistory((h) => [...h, nextIdx]);
-      return prev + 1;
+  const goNext = useCallback((reason = 'manual_next', queueOverride?: {
+    activeQueue?: MeaningReviewQueueEntry[];
+    delayedQueue?: MeaningReviewQueueEntry[];
+  }) => {
+    if (histPos + 1 < history.length) {
+      const nextIdx = history[histPos + 1];
+      console.log('[MeaningQuiz] next question selection', {
+        totalWords: questions.length,
+        dueWordsCount: activeReviewQueue.length,
+        futureWordsCount: delayedReviewQueue.length,
+        nextWordKey: typeof nextIdx === 'number' ? questions[nextIdx]?.target.uniqueKey ?? null : null,
+        nextWordNextReviewAt: typeof nextIdx === 'number' ? questionNextReviewRef.current.get(nextIdx) ?? null : null,
+        reason: 'history_forward',
+      });
+      setHistPos(histPos + 1);
+      return;
+    }
+
+    if (questions.length === 0) return;
+
+    if (config.rescheduleCorrectAsSRS) {
+      const now = Date.now();
+      const baseActive = queueOverride?.activeQueue ?? activeReviewQueue;
+      const baseDelayed = queueOverride?.delayedQueue ?? delayedReviewQueue;
+      const { readyQueue, delayedQueue: nextDelayed } = promoteMeaningReviewQueue(baseDelayed, now);
+      const promotedActive = sortMeaningReviewQueue([...baseActive, ...readyQueue]);
+      const futureWordsCount = nextDelayed.length;
+      const dueWordsCount = promotedActive.length;
+
+      setDelayedReviewQueue(nextDelayed);
+      setNextDueCountdown(getMeaningNextDueCountdownLabel(nextDelayed, now));
+
+      if (promotedActive.length === 0) {
+        setActiveReviewQueue([]);
+        console.log('[MeaningQuiz] next question selection', {
+          totalWords: questions.length,
+          dueWordsCount,
+          futureWordsCount,
+          nextWordKey: null,
+          nextWordNextReviewAt: null,
+          reason: futureWordsCount > 0 ? `${reason}:waiting_for_delayed` : `${reason}:queue_exhausted`,
+        });
+        setHistPos(history.length);
+        return;
+      }
+
+      const [nextEntry, ...remainingActive] = promotedActive;
+      const nextIdx = nextEntry.questionIndex;
+      setActiveReviewQueue(remainingActive);
+      console.log('[MeaningQuiz] next question selection', {
+        totalWords: questions.length,
+        dueWordsCount,
+        futureWordsCount,
+        nextWordKey: questions[nextIdx]?.target.uniqueKey ?? null,
+        nextWordNextReviewAt: nextEntry.kind === 'scheduled'
+          ? questionNextReviewRef.current.get(nextIdx) ?? nextEntry.dueAt
+          : null,
+        reason: `${reason}:${nextEntry.kind === 'scheduled' ? 'scheduled_due' : 'new_unreviewed'}`,
+      });
+      setHistory((prev) => [...prev, nextIdx]);
+      setHistPos(history.length);
+      return;
+    }
+
+    if (!isUnlimited && history.length >= limit) return;
+    const mode = (config.randomMode || 'smart') as 'fair' | 'smart' | 'mushaf' | 'leastShown';
+    const avoidId = current?.id;
+    const candidateIndices = questions.map((_, questionIndex) => questionIndex);
+    const nextIdx = pickNextIndex(candidateIndices, questions, statsRef.current, mode, avoidId);
+    console.log('[MeaningQuiz] next question selection', {
+      totalWords: questions.length,
+      dueWordsCount: questions.length,
+      futureWordsCount: 0,
+      nextWordKey: questions[nextIdx]?.target.uniqueKey ?? null,
+      nextWordNextReviewAt: null,
+      reason: `${reason}:random_mode_${mode}`,
     });
-  }, [history.length, questions, isUnlimited, limit, config.randomMode, current]);
+    setHistory((prev) => [...prev, nextIdx]);
+    setHistPos(history.length);
+  }, [
+    histPos,
+    history,
+    questions,
+    config.rescheduleCorrectAsSRS,
+    config.randomMode,
+    activeReviewQueue,
+    delayedReviewQueue,
+    isUnlimited,
+    limit,
+    current,
+  ]);
 
   const goPrev = useCallback(() => {
     setHistPos((prev) => (prev > 0 ? prev - 1 : prev));
@@ -394,14 +490,28 @@ export function GhareebMeaningQuiz({
 
   const reshuffle = useCallback(() => {
     const next = buildQuestions(pool, allWords);
+    const startIdx = next.length ? Math.floor(Math.random() * next.length) : undefined;
     setQuestions(next);
     statsRef.current = new Map();
-    setHistory(next.length ? [Math.floor(Math.random() * next.length)] : []);
+    questionNextReviewRef.current = new Map();
+    setHistory(typeof startIdx === 'number' ? [startIdx] : []);
     setHistPos(0);
     setScore({ correct: 0, wrong: 0 });
     setSolved(false);
     setWrongCount(0);
-  }, [pool, allWords]);
+    if (config.rescheduleCorrectAsSRS && typeof startIdx === 'number') {
+      const queues = buildMeaningReviewQueues(next.length, startIdx);
+      setActiveReviewQueue(queues.activeQueue);
+      setDelayedReviewQueue(queues.delayedQueue);
+      nextQueueOrderRef.current = queues.nextOrder;
+      setNextDueCountdown(null);
+    } else {
+      setActiveReviewQueue([]);
+      setDelayedReviewQueue([]);
+      nextQueueOrderRef.current = 0;
+      setNextDueCountdown(null);
+    }
+  }, [pool, allWords, config.rescheduleCorrectAsSRS]);
 
   // Clear all .mq-correct from the surface (between questions).
   const clearAllHighlights = useCallback(() => {
