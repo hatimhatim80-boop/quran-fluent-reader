@@ -737,34 +737,47 @@ export function GhareebMeaningQuiz({
       </div>
 
       {/* Footer: SRS rating buttons (when pending) OR manual next button */}
-      {shouldShowReviewDurationButtons && (() => {
-        const card = useSRSStore.getState().cards.find(c => c.id === pendingRateCardId);
-        const previews = card ? previewIntervals(card) : [];
-        return (
-          <div className="border-t border-border bg-card/70 px-3 py-2 shrink-0">
-            <p className="text-[11px] text-muted-foreground font-arabic text-center mb-1.5">
-              اختر مدة الإعادة (المراجعة الذكية)
-            </p>
-            <div className="flex items-stretch justify-center gap-1.5 flex-wrap">
-              {RATING_OPTIONS.map((opt) => {
-                const intv = previews.find(p => p.rating === opt.rating)?.interval ?? 0;
-                return (
-                  <button
-                    key={opt.rating}
-                    onClick={() => handleRateAndAdvance(opt.rating)}
-                    className={`flex flex-col items-center gap-0.5 px-2.5 py-1.5 rounded-md border border-border bg-background hover:bg-accent transition-colors ${opt.color}`}
-                  >
-                    <span className="text-sm font-arabic font-bold leading-none">{opt.label}</span>
-                    <span className="text-[10px] text-muted-foreground font-arabic leading-none">
-                      {formatInterval(intv)}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
+      {shouldShowReviewDurationButtons && (
+        <div className="border-t border-border bg-card/70 px-3 py-2 shrink-0 space-y-1.5">
+          <p className="text-[11px] text-muted-foreground font-arabic text-center font-bold">
+            ⏱ مدة الإعادة الذكية
+          </p>
+          <div className="grid grid-cols-5 gap-1.5">
+            {[
+              { label: 'فوري', days: 0 },
+              { label: '١ دقيقة', days: 1 / 1440 },
+              { label: '٥ دقائق', days: 5 / 1440 },
+              { label: '١٠ دقائق', days: 10 / 1440 },
+              { label: 'ساعة', days: 1 / 24 },
+            ].map(({ label, days }) => (
+              <button
+                key={label}
+                onClick={() => handleRateAndAdvance(3, days)}
+                className="py-1.5 px-1 rounded-md border border-primary/30 bg-primary/5 text-[11px] font-arabic font-bold hover:bg-primary/15 hover:border-primary/50 transition-colors"
+              >
+                {label}
+              </button>
+            ))}
           </div>
-        );
-      })()}
+          <div className="grid grid-cols-5 gap-1.5">
+            {[
+              { label: 'يوم', days: 1 },
+              { label: '٣ أيام', days: 3 },
+              { label: 'أسبوع', days: 7 },
+              { label: 'أسبوعان', days: 14 },
+              { label: 'شهر', days: 30 },
+            ].map(({ label, days }) => (
+              <button
+                key={label}
+                onClick={() => handleRateAndAdvance(3, days)}
+                className="py-1.5 px-1 rounded-md border border-border text-[11px] font-arabic hover:bg-accent transition-colors"
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
       {solved && !shouldShowReviewDurationButtons && (
         <div className="border-t border-border bg-card/60 px-4 py-2 text-center shrink-0">
           {!config.autoAdvance ? (
