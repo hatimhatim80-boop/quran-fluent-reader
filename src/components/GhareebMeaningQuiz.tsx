@@ -8,7 +8,7 @@ import { MeaningQuizConfig, DEFAULT_MEANING_QUIZ_CONFIG, STORAGE_KEY as MQ_SETTI
 import { MeaningQuizLiveSettings } from './MeaningQuizLiveSettings';
 import { MeaningSource } from '@/hooks/useAllGhareebSources';
 import { useSessionsStore } from '@/stores/sessionsStore';
-import { useSRSStore } from '@/stores/srsStore';
+import { useSRSStore, RATING_OPTIONS, previewIntervals, formatInterval, type SRSRating } from '@/stores/srsStore';
 
 /** Question type identifier (per spec): meaning_to_mushaf_word */
 export const QUIZ_TYPE_MEANING_TO_MUSHAF_WORD = 'meaning_to_mushaf_word' as const;
@@ -234,6 +234,8 @@ export function GhareebMeaningQuiz({
   const [score, setScore] = useState({ correct: 0, wrong: 0 });
   const [solved, setSolved] = useState(false);
   const [wrongCount, setWrongCount] = useState(0);
+  /** When set, the SRS rating buttons are shown and auto-advance is blocked until the user picks a rating. */
+  const [pendingRateCardId, setPendingRateCardId] = useState<string | null>(null);
   const surfaceRef = useRef<HTMLDivElement>(null);
   const advanceTimerRef = useRef<number | null>(null);
   const clearHighlightTimerRef = useRef<number | null>(null);
@@ -260,6 +262,7 @@ export function GhareebMeaningQuiz({
     onNavigateToPage(current.target.pageNumber);
     setSolved(false);
     setWrongCount(0);
+    setPendingRateCardId(null);
     const k = current.target.uniqueKey;
     const s = statsRef.current.get(k) || { ...EMPTY_STATS };
     s.shownCount += 1;
@@ -366,7 +369,7 @@ export function GhareebMeaningQuiz({
 
     // Empty-area click: after solved, advance to next question if enabled.
     if (!wordEl) {
-      if (solved && config.advanceOnEmptyClick) {
+      if (solved && config.advanceOnEmptyClick && !pendingRateCardId) {
         e.preventDefault();
         e.stopPropagation();
         if (advanceTimerRef.current) window.clearTimeout(advanceTimerRef.current);
@@ -378,7 +381,7 @@ export function GhareebMeaningQuiz({
 
     // After solved, ignore clicks on other words (locked state).
     if (solved) {
-      if (config.advanceOnEmptyClick) {
+      if (config.advanceOnEmptyClick && !pendingRateCardId) {
         e.preventDefault();
         e.stopPropagation();
         if (advanceTimerRef.current) window.clearTimeout(advanceTimerRef.current);
@@ -426,25 +429,39 @@ export function GhareebMeaningQuiz({
       else if (bucket === 'slow') st.slowCorrectCount += 1;
       statsRef.current.set(k, st);
 
-      // Optional: reschedule the correctly answered word as an SRS card using
-      // the existing SM-2 intervals (only inside the smart-review meaning mode).
-      if (config.rescheduleCorrectAsSRS && sessionId) {
+      // Optional: enable rating-based scheduling using the existing SRS intervals.
+      // When the toggle is on, ALWAYS show the rating buttons after a correct answer
+      // (regardless of source/state/speed) and ensure a card exists for this word.
+      let pendingId: string | null = null;
+      if (config.rescheduleCorrectAsSRS) {
         try {
-          const sess = useSessionsStore.getState().getSession(sessionId);
-          const isSmart = !!(sess?.quizSettings as Record<string, unknown> | undefined)?.smartReview;
-          if (isSmart) {
-            const srs = useSRSStore.getState();
-            const uk = current.target.uniqueKey;
-            const cardId = srs.hasCard(`ghareeb_${uk}`)
-              ? `ghareeb_${uk}`
-              : srs.cards.find(c => c.type === 'ghareeb' && c.contentKey === uk)?.id;
-            if (cardId) {
-              // Rating 3 = "جيد" → uses standard SM-2 progression (instant → 1d → 3d → ef×prev …)
-              srs.rateCard(cardId, 3);
-            }
+          const srs = useSRSStore.getState();
+          const uk = current.target.uniqueKey;
+          const fixedId = `ghareeb_${uk}`;
+          let cardId: string | undefined = srs.hasCard(fixedId)
+            ? fixedId
+            : srs.cards.find(c => c.type === 'ghareeb' && c.contentKey === uk)?.id;
+          if (!cardId) {
+            // Create a card on the fly so the user can always rate it.
+            srs.addCard({
+              id: fixedId,
+              type: 'ghareeb',
+              page: current.target.pageNumber,
+              contentKey: uk,
+              label: current.target.wordText || uk,
+              meta: {
+                surahNumber: current.target.surahNumber,
+                verseNumber: current.target.verseNumber,
+                wordIndex: current.target.wordIndex,
+                meaning: current.target.meaning,
+              },
+            });
+            cardId = fixedId;
           }
+          pendingId = cardId;
         } catch { /* noop */ }
       }
+      setPendingRateCardId(pendingId);
 
       toast.success('أحسنت', { duration: Math.min(1500, config.correctHighlightDurationMs) });
 
@@ -455,7 +472,8 @@ export function GhareebMeaningQuiz({
       if (clearHighlightTimerRef.current) window.clearTimeout(clearHighlightTimerRef.current);
 
       const hold = Math.max(300, config.correctHighlightDurationMs);
-      if (config.autoAdvance) {
+      // If rating buttons are pending, BLOCK auto-advance until the user picks a rating.
+      if (config.autoAdvance && !pendingId) {
         // Advance ONLY after the highlight hold duration completes.
         advanceTimerRef.current = window.setTimeout(() => {
           // Re-queue (insert same question index ahead) if requested.
@@ -500,8 +518,34 @@ export function GhareebMeaningQuiz({
       }
     }
   }, [
-    current, solved, config, idx, histPos, goNext, wrongCount, findTargetEl, clearAllHighlights,
+    current, solved, config, idx, histPos, goNext, wrongCount, findTargetEl, clearAllHighlights, pendingRateCardId,
   ]);
+
+  /** Apply a rating to the pending card and advance to the next question. */
+  const handleRateAndAdvance = useCallback((rating: SRSRating) => {
+    if (!pendingRateCardId) return;
+    try {
+      useSRSStore.getState().rateCard(pendingRateCardId, rating);
+    } catch { /* noop */ }
+    setPendingRateCardId(null);
+    // Honor the configured re-queue behavior.
+    const repeat = Math.max(0, config.correctWordReviewRepeatCount || 0);
+    if (repeat > 0) {
+      setHistory((h) => {
+        const next = [...h];
+        const startInsert = histPos + 1;
+        for (let i = 0; i < repeat; i++) {
+          const remaining = next.length - startInsert;
+          const offset = Math.floor(Math.random() * Math.max(1, remaining + 1));
+          next.splice(startInsert + offset, 0, idx);
+        }
+        return next;
+      });
+    }
+    if (advanceTimerRef.current) window.clearTimeout(advanceTimerRef.current);
+    clearAllHighlights();
+    goNext();
+  }, [pendingRateCardId, config.correctWordReviewRepeatCount, histPos, idx, clearAllHighlights, goNext]);
 
   if (questions.length === 0) {
     return (
@@ -661,8 +705,36 @@ export function GhareebMeaningQuiz({
         {renderPage(current.target.pageNumber)}
       </div>
 
-      {/* Footer: shows manual next button when not auto-advancing OR after solving last */}
-      {solved && (
+      {/* Footer: SRS rating buttons (when pending) OR manual next button */}
+      {solved && pendingRateCardId && (() => {
+        const card = useSRSStore.getState().cards.find(c => c.id === pendingRateCardId);
+        const previews = card ? previewIntervals(card) : [];
+        return (
+          <div className="border-t border-border bg-card/70 px-3 py-2 shrink-0">
+            <p className="text-[11px] text-muted-foreground font-arabic text-center mb-1.5">
+              اختر مدة الإعادة (المراجعة الذكية)
+            </p>
+            <div className="flex items-stretch justify-center gap-1.5 flex-wrap">
+              {RATING_OPTIONS.map((opt) => {
+                const intv = previews.find(p => p.rating === opt.rating)?.interval ?? 0;
+                return (
+                  <button
+                    key={opt.rating}
+                    onClick={() => handleRateAndAdvance(opt.rating)}
+                    className={`flex flex-col items-center gap-0.5 px-2.5 py-1.5 rounded-md border border-border bg-background hover:bg-accent transition-colors ${opt.color}`}
+                  >
+                    <span className="text-sm font-arabic font-bold leading-none">{opt.label}</span>
+                    <span className="text-[10px] text-muted-foreground font-arabic leading-none">
+                      {formatInterval(intv)}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })()}
+      {solved && !pendingRateCardId && (
         <div className="border-t border-border bg-card/60 px-4 py-2 text-center shrink-0">
           {!config.autoAdvance ? (
             <Button
