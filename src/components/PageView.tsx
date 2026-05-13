@@ -303,11 +303,11 @@ export function PageView({
         continue;
       }
 
-      // Bismillah - always independent block line
+      // Bismillah - always independent block line; words clickable for the quiz.
       if (isBismillah(line)) {
         allElements.push(
           <div key={`bismillah-${lineIdx}`} className="bismillah font-arabic" style={{ display: 'block', textAlign: 'center', textAlignLast: 'center' }}>
-            {formatBismillah(line)}
+            {renderBismillahClickable(line)}
           </div>
         );
         continue;
