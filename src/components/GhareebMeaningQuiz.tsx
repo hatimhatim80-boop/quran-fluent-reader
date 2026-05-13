@@ -8,7 +8,7 @@ import { MeaningQuizConfig, DEFAULT_MEANING_QUIZ_CONFIG, STORAGE_KEY as MQ_SETTI
 import { MeaningQuizLiveSettings } from './MeaningQuizLiveSettings';
 import { MeaningSource } from '@/hooks/useAllGhareebSources';
 import { useSessionsStore } from '@/stores/sessionsStore';
-import { useSRSStore } from '@/stores/srsStore';
+import { useSRSStore, RATING_OPTIONS, previewIntervals, formatInterval, type SRSRating, type SRSCard } from '@/stores/srsStore';
 
 /** Question type identifier (per spec): meaning_to_mushaf_word */
 export const QUIZ_TYPE_MEANING_TO_MUSHAF_WORD = 'meaning_to_mushaf_word' as const;
