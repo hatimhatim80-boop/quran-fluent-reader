@@ -434,20 +434,21 @@ export function GhareebMeaningQuiz({
       else if (bucket === 'slow') st.slowCorrectCount += 1;
       statsRef.current.set(k, st);
 
-      // Optional: enable rating-based scheduling using the existing SRS intervals.
-      // When the toggle is on, ALWAYS show the rating buttons after a correct answer
-      // (regardless of source/state/speed) and ensure a card exists for this word.
+      // Reschedule-as-SRS toggle: ALWAYS show rating buttons after a correct answer
+      // when the toggle is on. Independence from source/state/speed/repetition is
+      // explicit per spec. We never silently drop the buttons — if card creation
+      // fails for any reason we still show them and log the reason.
       let pendingId: string | null = null;
+      const reasonsBlocked: string[] = [];
       if (config.rescheduleCorrectAsSRS) {
+        const srs = useSRSStore.getState();
+        const uk = current.target.uniqueKey;
+        const fixedId = `ghareeb_${uk}`;
         try {
-          const srs = useSRSStore.getState();
-          const uk = current.target.uniqueKey;
-          const fixedId = `ghareeb_${uk}`;
           let cardId: string | undefined = srs.hasCard(fixedId)
             ? fixedId
             : srs.cards.find(c => c.type === 'ghareeb' && c.contentKey === uk)?.id;
           if (!cardId) {
-            // Create a card on the fly so the user can always rate it.
             srs.addCard({
               id: fixedId,
               type: 'ghareeb',
@@ -464,8 +465,27 @@ export function GhareebMeaningQuiz({
             cardId = fixedId;
           }
           pendingId = cardId;
-        } catch { /* noop */ }
+        } catch (e) {
+          reasonsBlocked.push(`srs_error:${(e as Error)?.message || 'unknown'}`);
+          // Fallback: use a synthetic id so buttons still render; rating call is no-op.
+          pendingId = fixedId;
+        }
+      } else {
+        reasonsBlocked.push('rescheduleCorrectAsSRS=false');
       }
+
+      const shouldShow = !!pendingId && config.rescheduleCorrectAsSRS;
+      console.log('[MeaningQuiz] correct answer', {
+        selectedWord: clickedRaw,
+        targetWord: current.target.wordText,
+        isCorrect: true,
+        answerStatus: 'correct',
+        reviewDurationSelectionEnabled: !!config.rescheduleCorrectAsSRS,
+        shouldShowReviewDurationButtons: shouldShow,
+        pendingRateCardId: pendingId,
+        blockedReasons: reasonsBlocked,
+      });
+
       setPendingRateCardId(pendingId);
 
       toast.success('أحسنت', { duration: Math.min(1500, config.correctHighlightDurationMs) });
@@ -477,7 +497,7 @@ export function GhareebMeaningQuiz({
       if (clearHighlightTimerRef.current) window.clearTimeout(clearHighlightTimerRef.current);
 
       const hold = Math.max(300, config.correctHighlightDurationMs);
-      // If rating buttons are pending, BLOCK auto-advance until the user picks a rating.
+      // BLOCK auto-advance whenever rating buttons are pending.
       if (config.autoAdvance && !pendingId) {
         // Advance ONLY after the highlight hold duration completes.
         advanceTimerRef.current = window.setTimeout(() => {
