@@ -3,12 +3,11 @@ import { Button } from '@/components/ui/button';
 import { GhareebWord } from '@/types/quran';
 import { canonicalize, canonicalFormsCompatible } from '@/utils/canonicalMatch';
 import { ChevronLeft, ChevronRight, RotateCcw, X, Shuffle, Settings } from 'lucide-react';
-import { toast } from 'sonner';
 import { MeaningQuizConfig, DEFAULT_MEANING_QUIZ_CONFIG, STORAGE_KEY as MQ_SETTINGS_STORAGE_KEY } from './GhareebMeaningQuizSetup';
 import { MeaningQuizLiveSettings } from './MeaningQuizLiveSettings';
 import { MeaningSource } from '@/hooks/useAllGhareebSources';
 import { useSessionsStore } from '@/stores/sessionsStore';
-import { useSRSStore, RATING_OPTIONS, previewIntervals, formatInterval, type SRSRating } from '@/stores/srsStore';
+import { useSRSStore, type SRSRating } from '@/stores/srsStore';
 
 /** Question type identifier (per spec): meaning_to_mushaf_word */
 export const QUIZ_TYPE_MEANING_TO_MUSHAF_WORD = 'meaning_to_mushaf_word' as const;
@@ -49,6 +48,13 @@ interface WordStats {
   slowCorrectCount: number;
   lastAnswerTimeMs: number; // 0 if none
   lastShownAt: number;      // 0 if none
+}
+
+interface MeaningReviewQueueEntry {
+  questionIndex: number;
+  dueAt: number;
+  order: number;
+  kind: 'new' | 'scheduled';
 }
 
 const EMPTY_STATS: WordStats = {
@@ -141,17 +147,17 @@ function weightedPick<T>(items: T[], weights: number[]): number {
 
 /** Pick the next question index based on the configured strategy. */
 function pickNextIndex(
+  candidateIndices: number[],
   questions: QuizQuestion[],
   stats: Map<string, WordStats>,
   mode: 'fair' | 'smart' | 'mushaf' | 'leastShown',
   avoidId?: string,
 ): number {
-  if (questions.length === 0) return 0;
-  if (questions.length === 1) return 0;
+  if (candidateIndices.length === 0) return 0;
+  if (candidateIndices.length === 1) return candidateIndices[0];
 
-  const candIdx = questions.map((_, i) => i)
-    .filter((i) => questions[i].id !== avoidId);
-  const pool = candIdx.length ? candIdx : questions.map((_, i) => i);
+  const filtered = candidateIndices.filter((i) => questions[i]?.id !== avoidId);
+  const pool = filtered.length ? filtered : candidateIndices;
 
   if (mode === 'mushaf') {
     // Stable mushaf order: surah, verse, wordIndex, page.
@@ -195,6 +201,63 @@ function pickNextIndex(
   });
   const idx = weightedPick(pool, weights);
   return pool[idx];
+}
+
+function buildMeaningReviewQueues(questionCount: number, currentQuestionIndex: number) {
+  const activeQueue: MeaningReviewQueueEntry[] = [];
+  let order = 0;
+
+  for (let i = 0; i < questionCount; i += 1) {
+    if (i === currentQuestionIndex) continue;
+    activeQueue.push({
+      questionIndex: i,
+      dueAt: 0,
+      order: order++,
+      kind: 'new',
+    });
+  }
+
+  return {
+    activeQueue,
+    delayedQueue: [] as MeaningReviewQueueEntry[],
+    nextOrder: order,
+  };
+}
+
+function sortMeaningReviewQueue(queue: MeaningReviewQueueEntry[]) {
+  return [...queue].sort((a, b) => {
+    if (a.kind !== b.kind) return a.kind === 'scheduled' ? -1 : 1;
+    if (a.kind === 'scheduled' && a.dueAt !== b.dueAt) return a.dueAt - b.dueAt;
+    return a.order - b.order;
+  });
+}
+
+function promoteMeaningReviewQueue(queue: MeaningReviewQueueEntry[], now = Date.now()) {
+  const readyQueue: MeaningReviewQueueEntry[] = [];
+  const delayedQueue: MeaningReviewQueueEntry[] = [];
+
+  queue.forEach((entry) => {
+    if (entry.dueAt <= now) readyQueue.push(entry);
+    else delayedQueue.push(entry);
+  });
+
+  return {
+    readyQueue: sortMeaningReviewQueue(readyQueue),
+    delayedQueue: sortMeaningReviewQueue(delayedQueue),
+  };
+}
+
+function getMeaningNextDueCountdownLabel(queue: MeaningReviewQueueEntry[], now = Date.now()) {
+  if (queue.length === 0) return null;
+  const nearestDueAt = queue.reduce(
+    (nearest, entry) => Math.min(nearest, entry.dueAt),
+    Number.POSITIVE_INFINITY,
+  );
+  const remainingSeconds = Math.max(0, Math.ceil((nearestDueAt - now) / 1000));
+  const formatter = new Intl.NumberFormat('ar-SA');
+
+  if (remainingSeconds < 60) return `${formatter.format(remainingSeconds)} ث`;
+  return `${formatter.format(Math.ceil(remainingSeconds / 60))} د`;
 }
 
 export function GhareebMeaningQuiz({
