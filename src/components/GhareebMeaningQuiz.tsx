@@ -619,9 +619,13 @@ export function GhareebMeaningQuiz({
     // Match by uniqueKey (most accurate) OR canonical text in acceptable set.
     const clickedKey = wordEl.getAttribute('data-ghareeb-key') || '';
     const clickedCanon = canonicalize(clickedRaw);
+    const clickedFlat = hamzaFlatten(clickedRaw);
+    const acceptableFlat = new Set<string>();
+    current.acceptableCanon.forEach((c) => acceptableFlat.add(hamzaFlatten(c)));
     const isMatch =
       (clickedKey && current.acceptableKeys.has(clickedKey)) ||
       current.acceptableCanon.has(clickedCanon) ||
+      acceptableFlat.has(clickedFlat) ||
       Array.from(current.acceptableCanon).some((c) =>
         canonicalFormsCompatible(c, clickedRaw),
       );
