@@ -133,6 +133,20 @@ export function MeaningQuizLiveSettings({ config, onChange, onSourceChange, onCl
           </div>
         </section>
 
+        {/* Reschedule correct word using SRS intervals */}
+        <section className="space-y-2">
+          <div className="flex items-center justify-between gap-2">
+            <div>
+              <Label className="text-sm">إعادة الكلمة الصحيحة بمدد المراجعة الذكية</Label>
+              <p className="text-[10px] text-muted-foreground mt-0.5">يعمل فقط داخل تدريب المعنى بالمراجعة الذكية</p>
+            </div>
+            <Switch
+              checked={!!config.rescheduleCorrectAsSRS}
+              onCheckedChange={(v) => set('rescheduleCorrectAsSRS', v)}
+            />
+          </div>
+        </section>
+
         {/* Show correct on wrong (hint) */}
         <section className="space-y-2">
           <div className="flex items-center justify-between">
