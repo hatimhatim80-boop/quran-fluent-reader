@@ -234,6 +234,8 @@ export function GhareebMeaningQuiz({
   const [score, setScore] = useState({ correct: 0, wrong: 0 });
   const [solved, setSolved] = useState(false);
   const [wrongCount, setWrongCount] = useState(0);
+  /** When set, the SRS rating buttons are shown and auto-advance is blocked until the user picks a rating. */
+  const [pendingRateCardId, setPendingRateCardId] = useState<string | null>(null);
   const surfaceRef = useRef<HTMLDivElement>(null);
   const advanceTimerRef = useRef<number | null>(null);
   const clearHighlightTimerRef = useRef<number | null>(null);
