@@ -787,17 +787,17 @@ export function GhareebMeaningQuizSetup({
           تدريب على المعنى بطريقة المراجعة الذكية
         </Button>
         <div className="grid grid-cols-3 gap-2">
-          <Button variant="outline" className="font-arabic gap-1" onClick={handlePreview}>
+          <Button variant="outline" className="font-arabic gap-1" onClick={handlePreview} disabled={isStarting || sourcesLoading}>
             <Eye className="w-4 h-4" />
             معاينة
           </Button>
-          <Button variant="outline" className="font-arabic gap-1" onClick={() => handleStart(false)}>
+          <Button variant="outline" className="font-arabic gap-1" onClick={() => handleStart(false)} disabled={isStarting || sourcesLoading}>
             <Target className="w-4 h-4" />
-            ابدأ التدريب
+            {isStarting ? '...جارٍ' : 'ابدأ التدريب'}
           </Button>
-          <Button className="font-arabic gap-1" onClick={() => handleStart(true)}>
+          <Button className="font-arabic gap-1" onClick={() => handleStart(true)} disabled={isStarting || sourcesLoading}>
             <Plus className="w-4 h-4" />
-            حفظ كجلسة وبدء
+            {isStarting ? '...جارٍ' : 'حفظ كجلسة وبدء'}
           </Button>
         </div>
       </div>
