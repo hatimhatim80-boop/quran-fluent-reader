@@ -72,6 +72,7 @@ const DEFAULT_CONFIG: MeaningQuizConfig = {
   advanceOnEmptyClick: true,
   showSurahName: true,
   randomMode: 'smart',
+  rescheduleCorrectAsSRS: false,
 };
 
 export const STORAGE_KEY = 'ghareeb_meaning_quiz_settings';
