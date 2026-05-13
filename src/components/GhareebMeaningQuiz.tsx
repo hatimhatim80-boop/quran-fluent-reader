@@ -518,8 +518,34 @@ export function GhareebMeaningQuiz({
       }
     }
   }, [
-    current, solved, config, idx, histPos, goNext, wrongCount, findTargetEl, clearAllHighlights,
+    current, solved, config, idx, histPos, goNext, wrongCount, findTargetEl, clearAllHighlights, pendingRateCardId,
   ]);
+
+  /** Apply a rating to the pending card and advance to the next question. */
+  const handleRateAndAdvance = useCallback((rating: SRSRating) => {
+    if (!pendingRateCardId) return;
+    try {
+      useSRSStore.getState().rateCard(pendingRateCardId, rating);
+    } catch { /* noop */ }
+    setPendingRateCardId(null);
+    // Honor the configured re-queue behavior.
+    const repeat = Math.max(0, config.correctWordReviewRepeatCount || 0);
+    if (repeat > 0) {
+      setHistory((h) => {
+        const next = [...h];
+        const startInsert = histPos + 1;
+        for (let i = 0; i < repeat; i++) {
+          const remaining = next.length - startInsert;
+          const offset = Math.floor(Math.random() * Math.max(1, remaining + 1));
+          next.splice(startInsert + offset, 0, idx);
+        }
+        return next;
+      });
+    }
+    if (advanceTimerRef.current) window.clearTimeout(advanceTimerRef.current);
+    clearAllHighlights();
+    goNext();
+  }, [pendingRateCardId, config.correctWordReviewRepeatCount, histPos, idx, clearAllHighlights, goNext]);
 
   if (questions.length === 0) {
     return (
