@@ -705,8 +705,36 @@ export function GhareebMeaningQuiz({
         {renderPage(current.target.pageNumber)}
       </div>
 
-      {/* Footer: shows manual next button when not auto-advancing OR after solving last */}
-      {solved && (
+      {/* Footer: SRS rating buttons (when pending) OR manual next button */}
+      {solved && pendingRateCardId && (() => {
+        const card = useSRSStore.getState().cards.find(c => c.id === pendingRateCardId);
+        const previews = card ? previewIntervals(card) : [];
+        return (
+          <div className="border-t border-border bg-card/70 px-3 py-2 shrink-0">
+            <p className="text-[11px] text-muted-foreground font-arabic text-center mb-1.5">
+              اختر مدة الإعادة (المراجعة الذكية)
+            </p>
+            <div className="flex items-stretch justify-center gap-1.5 flex-wrap">
+              {RATING_OPTIONS.map((opt) => {
+                const intv = previews.find(p => p.rating === opt.rating)?.interval ?? 0;
+                return (
+                  <button
+                    key={opt.rating}
+                    onClick={() => handleRateAndAdvance(opt.rating)}
+                    className={`flex flex-col items-center gap-0.5 px-2.5 py-1.5 rounded-md border border-border bg-background hover:bg-accent transition-colors ${opt.color}`}
+                  >
+                    <span className="text-sm font-arabic font-bold leading-none">{opt.label}</span>
+                    <span className="text-[10px] text-muted-foreground font-arabic leading-none">
+                      {formatInterval(intv)}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })()}
+      {solved && !pendingRateCardId && (
         <div className="border-t border-border bg-card/60 px-4 py-2 text-center shrink-0">
           {!config.autoAdvance ? (
             <Button
