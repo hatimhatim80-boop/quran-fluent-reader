@@ -179,41 +179,58 @@ export function GhareebMeaningQuizSetup({
   const setCfg = <K extends keyof MeaningQuizConfig>(key: K, value: MeaningQuizConfig[K]) =>
     setConfig((c) => ({ ...c, [key]: value }));
 
+  const [isStarting, setIsStarting] = useState(false);
+
   const handleStart = (saveAsSession: boolean) => {
+    if (isStarting) return;
+    const tStart = performance.now();
     if (!fullPool.length) {
       toast.info('لا توجد كلمات غريب من هذا المصدر في النطاق المختار');
       return;
     }
-    let sessionId: string | undefined;
-    if (saveAsSession) {
-      const firstPage = limitedPool[0]?.pageNumber || currentPage;
-      const lastPage = limitedPool.reduce((max, w) => Math.max(max, w.pageNumber), firstPage);
-      sessionId = sessionsStore.createSession(
-        sessionName.trim() || `التدريب على المعنى (${scopeLabel})`,
-        'ghareeb-meaning-quiz',
-        firstPage,
-        lastPage,
-      );
-      sessionsStore.updateSession(sessionId, {
-        quizSettings: {
-          scopeLabel,
-          pages: pages || [],
-          wordCount: limitedPool.length,
-          config,
-        },
-      });
-      sessionsStore.setActiveSession(sessionId);
-      toast.success('تم إنشاء الجلسة وحفظها');
-    }
-    onStart({ pool: limitedPool, quizAllWords: sourceFilteredAll, config, sessionId, scopeLabel, pages: pages, isPreview: false });
+    setIsStarting(true);
+    // Yield to the browser so the spinner paints before the heavy work.
+    setTimeout(() => {
+      try {
+        let sessionId: string | undefined;
+        const tFilter = performance.now();
+        if (saveAsSession) {
+          const firstPage = limitedPool[0]?.pageNumber || currentPage;
+          const lastPage = limitedPool.reduce((max, w) => Math.max(max, w.pageNumber), firstPage);
+          sessionId = sessionsStore.createSession(
+            sessionName.trim() || `التدريب على المعنى (${scopeLabel})`,
+            'ghareeb-meaning-quiz',
+            firstPage,
+            lastPage,
+          );
+          sessionsStore.updateSession(sessionId, {
+            quizSettings: { scopeLabel, pages: pages || [], wordCount: limitedPool.length, config },
+          });
+          sessionsStore.setActiveSession(sessionId);
+          toast.success('تم إنشاء الجلسة وحفظها');
+        }
+        const tCallback = performance.now();
+        onStart({ pool: limitedPool, quizAllWords: sourceFilteredAll, config, sessionId, scopeLabel, pages, isPreview: false });
+        console.log('[MeaningQuiz] start training timings (ms)', {
+          loadGhareebEntriesTime: 0, // already loaded by useAllGhareebSources
+          filterSessionWordsTime: +(tFilter - tStart).toFixed(1),
+          createSessionTime: +(tCallback - tFilter).toFixed(1),
+          totalStartTrainingTime: +(performance.now() - tStart).toFixed(1),
+          poolSize: limitedPool.length,
+          allWordsSize: sourceFilteredAll.length,
+        });
+      } finally {
+        setIsStarting(false);
+      }
+    }, 0);
   };
 
   const handlePreview = () => {
+    if (isStarting) return;
     if (!fullPool.length) {
       toast.info('لا توجد كلمات غريب من هذا المصدر في النطاق المختار');
       return;
     }
-    // Preview: single random question with same config
     const idx = Math.floor(Math.random() * fullPool.length);
     const previewPool = [fullPool[idx]];
     onStart({ pool: previewPool, quizAllWords: sourceFilteredAll, config, scopeLabel: scopeLabel + ' • معاينة', pages, isPreview: true });
