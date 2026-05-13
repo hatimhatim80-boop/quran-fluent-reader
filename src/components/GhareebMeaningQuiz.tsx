@@ -426,6 +426,26 @@ export function GhareebMeaningQuiz({
       else if (bucket === 'slow') st.slowCorrectCount += 1;
       statsRef.current.set(k, st);
 
+      // Optional: reschedule the correctly answered word as an SRS card using
+      // the existing SM-2 intervals (only inside the smart-review meaning mode).
+      if (config.rescheduleCorrectAsSRS && sessionId) {
+        try {
+          const sess = useSessionsStore.getState().getSession(sessionId);
+          const isSmart = !!(sess?.quizSettings as Record<string, unknown> | undefined)?.smartReview;
+          if (isSmart) {
+            const srs = useSRSStore.getState();
+            const uk = current.target.uniqueKey;
+            const cardId = srs.hasCard(`ghareeb_${uk}`)
+              ? `ghareeb_${uk}`
+              : srs.cards.find(c => c.type === 'ghareeb' && c.contentKey === uk)?.id;
+            if (cardId) {
+              // Rating 3 = "جيد" → uses standard SM-2 progression (instant → 1d → 3d → ef×prev …)
+              srs.rateCard(cardId, 3);
+            }
+          }
+        } catch { /* noop */ }
+      }
+
       toast.success('أحسنت', { duration: Math.min(1500, config.correctHighlightDurationMs) });
 
       // Re-queue this question N more times (spec: correctWordReviewRepeatCount).
