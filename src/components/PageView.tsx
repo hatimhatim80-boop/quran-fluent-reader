@@ -226,10 +226,11 @@ export function PageView({
             </div>
           );
         } else if (isBismillah(line)) {
-          // Bismillah always as independent block line (even in auto-containment)
+          // Bismillah — independent block line; words wrapped as `.quran-word`
+          // so they're clickable in the meaning quiz.
           elements.push(
             <div key={`bismillah-${idx}`} className="bismillah font-arabic" style={{ display: 'block', textAlign: 'center', textAlignLast: 'center' }}>
-              {formatBismillah(line)}
+              {renderBismillahClickable(line)}
             </div>
           );
         } else if (isLines15) {
