@@ -392,6 +392,36 @@ export function GhareebMeaningQuiz({
     if (clearHighlightTimerRef.current) window.clearTimeout(clearHighlightTimerRef.current);
   }, []);
 
+  useEffect(() => {
+    if (!config.rescheduleCorrectAsSRS) return;
+
+    const tick = () => {
+      const now = Date.now();
+      setDelayedReviewQueue((prev) => {
+        if (prev.length === 0) {
+          setNextDueCountdown(null);
+          return prev;
+        }
+        const { readyQueue, delayedQueue: nextDelayed } = promoteMeaningReviewQueue(prev, now);
+        setNextDueCountdown(getMeaningNextDueCountdownLabel(nextDelayed, now));
+        if (readyQueue.length > 0) {
+          setActiveReviewQueue((prevActive) => sortMeaningReviewQueue([...readyQueue, ...prevActive]));
+        }
+        return nextDelayed;
+      });
+    };
+
+    tick();
+    const interval = window.setInterval(tick, 10000);
+    return () => window.clearInterval(interval);
+  }, [config.rescheduleCorrectAsSRS]);
+
+  useEffect(() => {
+    if (!config.rescheduleCorrectAsSRS) return;
+    if (current || solved || pendingRateCardId || activeReviewQueue.length === 0) return;
+    goNext('auto_promote_ready', { activeQueue: activeReviewQueue, delayedQueue: delayedReviewQueue });
+  }, [config.rescheduleCorrectAsSRS, current, solved, pendingRateCardId, activeReviewQueue, delayedReviewQueue, goNext]);
+
   const goNext = useCallback((reason = 'manual_next', queueOverride?: {
     activeQueue?: MeaningReviewQueueEntry[];
     delayedQueue?: MeaningReviewQueueEntry[];
@@ -667,8 +697,6 @@ export function GhareebMeaningQuiz({
 
       setPendingRateCardId(config.rescheduleCorrectAsSRS ? (pendingId || `ghareeb_${current.target.uniqueKey}`) : null);
 
-      toast.success('أحسنت', { duration: Math.min(1500, config.correctHighlightDurationMs) });
-
       // Re-queue this question N more times (spec: correctWordReviewRepeatCount).
       const repeat = Math.max(0, config.correctWordReviewRepeatCount || 0);
 
@@ -710,8 +738,6 @@ export function GhareebMeaningQuiz({
       st.wrongCount += 1;
       statsRef.current.set(k, st);
 
-      toast.error('حاول مرة أخرى', { duration: 900 });
-
       // Hint: pulse the correct location subtly (NOT a full reveal).
       if (config.hintEnabled && newWrongCount >= config.hintAfterWrong) {
         const hintEl = findTargetEl();
@@ -727,29 +753,64 @@ export function GhareebMeaningQuiz({
 
   /** Apply a rating to the pending card and advance to the next question. */
   const handleRateAndAdvance = useCallback((rating: SRSRating, manualInterval?: number) => {
-    if (!pendingRateCardId) return;
+    if (!pendingRateCardId || typeof idx !== 'number' || !current) return;
+    const now = Date.now();
+    const selectedDurationMs = Math.max(0, (manualInterval || 0) * 24 * 60 * 60 * 1000);
+    const newNextReviewAt = now + selectedDurationMs;
+    const previousNextReviewAt = questionNextReviewRef.current.get(idx) ?? null;
+
     try {
       useSRSStore.getState().rateCard(pendingRateCardId, rating, manualInterval);
     } catch { /* noop */ }
+
+    questionNextReviewRef.current.set(idx, newNextReviewAt);
+
+    const baseActiveQueue = activeReviewQueue.filter((entry) => entry.questionIndex !== idx);
+    const baseDelayedQueue = delayedReviewQueue.filter((entry) => entry.questionIndex !== idx);
+    const nextEntry: MeaningReviewQueueEntry = {
+      questionIndex: idx,
+      dueAt: newNextReviewAt,
+      order: nextQueueOrderRef.current++,
+      kind: 'scheduled',
+    };
+
+    const nextActiveQueue = selectedDurationMs === 0
+      ? sortMeaningReviewQueue([nextEntry, ...baseActiveQueue])
+      : sortMeaningReviewQueue(baseActiveQueue);
+    const nextDelayedQueue = selectedDurationMs === 0
+      ? sortMeaningReviewQueue(baseDelayedQueue)
+      : sortMeaningReviewQueue([...baseDelayedQueue, nextEntry]);
+
+    console.log('[MeaningQuiz] review duration selected', {
+      selectedWordKey: current.target.uniqueKey,
+      selectedDurationLabel: selectedDurationMs === 0
+        ? 'فوري'
+        : manualInterval === 1 / 1440
+          ? 'بعد دقيقة'
+          : manualInterval === 1 / 24
+            ? 'بعد ساعة'
+            : manualInterval === 1
+              ? 'بعد يوم'
+              : manualInterval === 3
+                ? 'بعد 3 أيام'
+                : manualInterval === 7
+                  ? 'بعد أسبوع'
+                  : 'مدة مخصصة',
+      selectedDurationMs,
+      previousNextReviewAt,
+      newNextReviewAt,
+      now,
+      isDueNow: newNextReviewAt <= now,
+    });
+
     setPendingRateCardId(null);
-    // Honor the configured re-queue behavior.
-    const repeat = Math.max(0, config.correctWordReviewRepeatCount || 0);
-    if (repeat > 0) {
-      setHistory((h) => {
-        const next = [...h];
-        const startInsert = histPos + 1;
-        for (let i = 0; i < repeat; i++) {
-          const remaining = next.length - startInsert;
-          const offset = Math.floor(Math.random() * Math.max(1, remaining + 1));
-          next.splice(startInsert + offset, 0, idx);
-        }
-        return next;
-      });
-    }
+    setActiveReviewQueue(nextActiveQueue);
+    setDelayedReviewQueue(nextDelayedQueue);
+    setNextDueCountdown(getMeaningNextDueCountdownLabel(nextDelayedQueue, now));
     if (advanceTimerRef.current) window.clearTimeout(advanceTimerRef.current);
     clearAllHighlights();
-    goNext();
-  }, [pendingRateCardId, config.correctWordReviewRepeatCount, histPos, idx, clearAllHighlights, goNext]);
+    goNext('review_duration_selected', { activeQueue: nextActiveQueue, delayedQueue: nextDelayedQueue });
+  }, [pendingRateCardId, idx, current, activeReviewQueue, delayedReviewQueue, clearAllHighlights, goNext]);
 
   if (questions.length === 0) {
     return (
