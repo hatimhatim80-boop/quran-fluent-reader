@@ -416,12 +416,6 @@ export function GhareebMeaningQuiz({
     return () => window.clearInterval(interval);
   }, [config.rescheduleCorrectAsSRS]);
 
-  useEffect(() => {
-    if (!config.rescheduleCorrectAsSRS) return;
-    if (current || solved || pendingRateCardId || activeReviewQueue.length === 0) return;
-    goNext('auto_promote_ready', { activeQueue: activeReviewQueue, delayedQueue: delayedReviewQueue });
-  }, [config.rescheduleCorrectAsSRS, current, solved, pendingRateCardId, activeReviewQueue, delayedReviewQueue, goNext]);
-
   const goNext = useCallback((reason = 'manual_next', queueOverride?: {
     activeQueue?: MeaningReviewQueueEntry[];
     delayedQueue?: MeaningReviewQueueEntry[];
@@ -513,6 +507,12 @@ export function GhareebMeaningQuiz({
     limit,
     current,
   ]);
+
+  useEffect(() => {
+    if (!config.rescheduleCorrectAsSRS) return;
+    if (current || solved || pendingRateCardId || activeReviewQueue.length === 0) return;
+    goNext('auto_promote_ready', { activeQueue: activeReviewQueue, delayedQueue: delayedReviewQueue });
+  }, [config.rescheduleCorrectAsSRS, current, solved, pendingRateCardId, activeReviewQueue, delayedReviewQueue, goNext]);
 
   const goPrev = useCallback(() => {
     setHistPos((prev) => (prev > 0 ? prev - 1 : prev));
