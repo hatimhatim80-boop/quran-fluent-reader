@@ -49,6 +49,9 @@ export interface MeaningQuizConfig {
   showSurahName: boolean;
   /** Question selection strategy. */
   randomMode: 'fair' | 'smart' | 'mushaf' | 'leastShown';
+  /** (Smart-Review meaning mode only) After a correct answer, also reschedule the
+   *  word as an SRS card using the existing SM-2 intervals (immediate, 1m, 1h, …). */
+  rescheduleCorrectAsSRS?: boolean;
 }
 
 const DEFAULT_CONFIG: MeaningQuizConfig = {
