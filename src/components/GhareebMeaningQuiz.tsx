@@ -8,6 +8,7 @@ import { MeaningQuizConfig, DEFAULT_MEANING_QUIZ_CONFIG, STORAGE_KEY as MQ_SETTI
 import { MeaningQuizLiveSettings } from './MeaningQuizLiveSettings';
 import { MeaningSource } from '@/hooks/useAllGhareebSources';
 import { useSessionsStore } from '@/stores/sessionsStore';
+import { useSRSStore } from '@/stores/srsStore';
 
 /** Question type identifier (per spec): meaning_to_mushaf_word */
 export const QUIZ_TYPE_MEANING_TO_MUSHAF_WORD = 'meaning_to_mushaf_word' as const;
@@ -424,6 +425,26 @@ export function GhareebMeaningQuiz({
       if (bucket === 'fast') st.fastCorrectCount += 1;
       else if (bucket === 'slow') st.slowCorrectCount += 1;
       statsRef.current.set(k, st);
+
+      // Optional: reschedule the correctly answered word as an SRS card using
+      // the existing SM-2 intervals (only inside the smart-review meaning mode).
+      if (config.rescheduleCorrectAsSRS && sessionId) {
+        try {
+          const sess = useSessionsStore.getState().getSession(sessionId);
+          const isSmart = !!(sess?.quizSettings as Record<string, unknown> | undefined)?.smartReview;
+          if (isSmart) {
+            const srs = useSRSStore.getState();
+            const uk = current.target.uniqueKey;
+            const cardId = srs.hasCard(`ghareeb_${uk}`)
+              ? `ghareeb_${uk}`
+              : srs.cards.find(c => c.type === 'ghareeb' && c.contentKey === uk)?.id;
+            if (cardId) {
+              // Rating 3 = "جيد" → uses standard SM-2 progression (instant → 1d → 3d → ef×prev …)
+              srs.rateCard(cardId, 3);
+            }
+          }
+        } catch { /* noop */ }
+      }
 
       toast.success('أحسنت', { duration: Math.min(1500, config.correctHighlightDurationMs) });
 

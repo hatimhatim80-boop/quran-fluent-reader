@@ -49,6 +49,9 @@ export interface MeaningQuizConfig {
   showSurahName: boolean;
   /** Question selection strategy. */
   randomMode: 'fair' | 'smart' | 'mushaf' | 'leastShown';
+  /** (Smart-Review meaning mode only) After a correct answer, also reschedule the
+   *  word as an SRS card using the existing SM-2 intervals (immediate, 1m, 1h, …). */
+  rescheduleCorrectAsSRS?: boolean;
 }
 
 const DEFAULT_CONFIG: MeaningQuizConfig = {
@@ -69,6 +72,7 @@ const DEFAULT_CONFIG: MeaningQuizConfig = {
   advanceOnEmptyClick: true,
   showSurahName: true,
   randomMode: 'smart',
+  rescheduleCorrectAsSRS: false,
 };
 
 export const STORAGE_KEY = 'ghareeb_meaning_quiz_settings';
@@ -627,7 +631,21 @@ export function GhareebMeaningQuizSetup({
           />
         </section>
 
-        {/* Hint */}
+        {/* Reschedule correct word using SRS intervals (smart-review meaning mode only) */}
+        <section className="bg-card border border-border rounded-lg p-3 space-y-2">
+          <div className="flex items-center justify-between gap-2">
+            <div>
+              <Label className="text-xs font-bold">إعادة الكلمة الصحيحة بمدد المراجعة الذكية</Label>
+              <p className="text-[10px] text-muted-foreground mt-0.5">
+                يعمل فقط داخل "تدريب المعنى بالمراجعة الذكية". عند الإجابة الصحيحة تُجدول الكلمة لإعادتها وفق نفس مدد وخصائص المراجعة الذكية (فورًا، دقيقة، ساعة…).
+              </p>
+            </div>
+            <Switch
+              checked={!!config.rescheduleCorrectAsSRS}
+              onCheckedChange={(v) => setCfg('rescheduleCorrectAsSRS', v)}
+            />
+          </div>
+        </section>
         <section className="bg-card border border-border rounded-lg p-3 space-y-2">
           <div className="flex items-center justify-between gap-2">
             <div>
