@@ -369,7 +369,7 @@ export function GhareebMeaningQuiz({
 
     // Empty-area click: after solved, advance to next question if enabled.
     if (!wordEl) {
-      if (solved && config.advanceOnEmptyClick) {
+      if (solved && config.advanceOnEmptyClick && !pendingRateCardId) {
         e.preventDefault();
         e.stopPropagation();
         if (advanceTimerRef.current) window.clearTimeout(advanceTimerRef.current);
@@ -381,7 +381,7 @@ export function GhareebMeaningQuiz({
 
     // After solved, ignore clicks on other words (locked state).
     if (solved) {
-      if (config.advanceOnEmptyClick) {
+      if (config.advanceOnEmptyClick && !pendingRateCardId) {
         e.preventDefault();
         e.stopPropagation();
         if (advanceTimerRef.current) window.clearTimeout(advanceTimerRef.current);
