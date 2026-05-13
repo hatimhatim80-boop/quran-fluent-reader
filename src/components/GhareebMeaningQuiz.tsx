@@ -914,7 +914,7 @@ export function GhareebMeaningQuiz({
           <button onClick={goPrev} disabled={histPos <= 0} className="nav-button w-7 h-7 rounded-full disabled:opacity-30">
             <ChevronRight className="w-4 h-4" />
           </button>
-          <button onClick={goNext} disabled={!isUnlimited && history.length >= limit && histPos >= history.length - 1} className="nav-button w-7 h-7 rounded-full disabled:opacity-30">
+          <button onClick={() => goNext()} disabled={!isUnlimited && history.length >= limit && histPos >= history.length - 1} className="nav-button w-7 h-7 rounded-full disabled:opacity-30">
             <ChevronLeft className="w-4 h-4" />
           </button>
           <button onClick={onClose} className="nav-button w-7 h-7 rounded-full mr-2">
