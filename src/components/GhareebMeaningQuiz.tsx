@@ -3,12 +3,11 @@ import { Button } from '@/components/ui/button';
 import { GhareebWord } from '@/types/quran';
 import { canonicalize, canonicalFormsCompatible } from '@/utils/canonicalMatch';
 import { ChevronLeft, ChevronRight, RotateCcw, X, Shuffle, Settings } from 'lucide-react';
-import { toast } from 'sonner';
 import { MeaningQuizConfig, DEFAULT_MEANING_QUIZ_CONFIG, STORAGE_KEY as MQ_SETTINGS_STORAGE_KEY } from './GhareebMeaningQuizSetup';
 import { MeaningQuizLiveSettings } from './MeaningQuizLiveSettings';
 import { MeaningSource } from '@/hooks/useAllGhareebSources';
 import { useSessionsStore } from '@/stores/sessionsStore';
-import { useSRSStore, RATING_OPTIONS, previewIntervals, formatInterval, type SRSRating } from '@/stores/srsStore';
+import { useSRSStore, type SRSRating } from '@/stores/srsStore';
 
 /** Question type identifier (per spec): meaning_to_mushaf_word */
 export const QUIZ_TYPE_MEANING_TO_MUSHAF_WORD = 'meaning_to_mushaf_word' as const;
@@ -49,6 +48,13 @@ interface WordStats {
   slowCorrectCount: number;
   lastAnswerTimeMs: number; // 0 if none
   lastShownAt: number;      // 0 if none
+}
+
+interface MeaningReviewQueueEntry {
+  questionIndex: number;
+  dueAt: number;
+  order: number;
+  kind: 'new' | 'scheduled';
 }
 
 const EMPTY_STATS: WordStats = {
@@ -141,17 +147,17 @@ function weightedPick<T>(items: T[], weights: number[]): number {
 
 /** Pick the next question index based on the configured strategy. */
 function pickNextIndex(
+  candidateIndices: number[],
   questions: QuizQuestion[],
   stats: Map<string, WordStats>,
   mode: 'fair' | 'smart' | 'mushaf' | 'leastShown',
   avoidId?: string,
 ): number {
-  if (questions.length === 0) return 0;
-  if (questions.length === 1) return 0;
+  if (candidateIndices.length === 0) return 0;
+  if (candidateIndices.length === 1) return candidateIndices[0];
 
-  const candIdx = questions.map((_, i) => i)
-    .filter((i) => questions[i].id !== avoidId);
-  const pool = candIdx.length ? candIdx : questions.map((_, i) => i);
+  const filtered = candidateIndices.filter((i) => questions[i]?.id !== avoidId);
+  const pool = filtered.length ? filtered : candidateIndices;
 
   if (mode === 'mushaf') {
     // Stable mushaf order: surah, verse, wordIndex, page.
@@ -195,6 +201,63 @@ function pickNextIndex(
   });
   const idx = weightedPick(pool, weights);
   return pool[idx];
+}
+
+function buildMeaningReviewQueues(questionCount: number, currentQuestionIndex: number) {
+  const activeQueue: MeaningReviewQueueEntry[] = [];
+  let order = 0;
+
+  for (let i = 0; i < questionCount; i += 1) {
+    if (i === currentQuestionIndex) continue;
+    activeQueue.push({
+      questionIndex: i,
+      dueAt: 0,
+      order: order++,
+      kind: 'new',
+    });
+  }
+
+  return {
+    activeQueue,
+    delayedQueue: [] as MeaningReviewQueueEntry[],
+    nextOrder: order,
+  };
+}
+
+function sortMeaningReviewQueue(queue: MeaningReviewQueueEntry[]) {
+  return [...queue].sort((a, b) => {
+    if (a.kind !== b.kind) return a.kind === 'scheduled' ? -1 : 1;
+    if (a.kind === 'scheduled' && a.dueAt !== b.dueAt) return a.dueAt - b.dueAt;
+    return a.order - b.order;
+  });
+}
+
+function promoteMeaningReviewQueue(queue: MeaningReviewQueueEntry[], now = Date.now()) {
+  const readyQueue: MeaningReviewQueueEntry[] = [];
+  const delayedQueue: MeaningReviewQueueEntry[] = [];
+
+  queue.forEach((entry) => {
+    if (entry.dueAt <= now) readyQueue.push(entry);
+    else delayedQueue.push(entry);
+  });
+
+  return {
+    readyQueue: sortMeaningReviewQueue(readyQueue),
+    delayedQueue: sortMeaningReviewQueue(delayedQueue),
+  };
+}
+
+function getMeaningNextDueCountdownLabel(queue: MeaningReviewQueueEntry[], now = Date.now()) {
+  if (queue.length === 0) return null;
+  const nearestDueAt = queue.reduce(
+    (nearest, entry) => Math.min(nearest, entry.dueAt),
+    Number.POSITIVE_INFINITY,
+  );
+  const remainingSeconds = Math.max(0, Math.ceil((nearestDueAt - now) / 1000));
+  const formatter = new Intl.NumberFormat('ar-SA');
+
+  if (remainingSeconds < 60) return `${formatter.format(remainingSeconds)} ث`;
+  return `${formatter.format(Math.ceil(remainingSeconds / 60))} د`;
 }
 
 export function GhareebMeaningQuiz({
@@ -241,27 +304,46 @@ export function GhareebMeaningQuiz({
   const [wrongCount, setWrongCount] = useState(0);
   /** When set, the SRS rating buttons are shown and auto-advance is blocked until the user picks a rating. */
   const [pendingRateCardId, setPendingRateCardId] = useState<string | null>(null);
+  const [activeReviewQueue, setActiveReviewQueue] = useState<MeaningReviewQueueEntry[]>([]);
+  const [delayedReviewQueue, setDelayedReviewQueue] = useState<MeaningReviewQueueEntry[]>([]);
+  const [nextDueCountdown, setNextDueCountdown] = useState<string | null>(null);
   const requiresReviewDurationSelection = !!config.rescheduleCorrectAsSRS;
   const shouldShowReviewDurationButtons = solved && requiresReviewDurationSelection;
   const surfaceRef = useRef<HTMLDivElement>(null);
   const advanceTimerRef = useRef<number | null>(null);
   const clearHighlightTimerRef = useRef<number | null>(null);
+  const nextQueueOrderRef = useRef(0);
+  const questionNextReviewRef = useRef<Map<number, number>>(new Map());
 
-  const idx = history[histPos] ?? 0;
-  const current = questions[idx];
+  const idx = history[histPos];
+  const current = typeof idx === 'number' ? questions[idx] : undefined;
   const isUnlimited = !config.questionLimit || config.questionLimit <= 0;
   const limit = config.questionLimit && config.questionLimit > 0 ? config.questionLimit : Infinity;
 
   // Re-build questions when pool/allWords change.
   useEffect(() => {
     const next = buildQuestions(pool, allWords);
+    const startIdx = next.length ? Math.min(initialIndex ?? 0, next.length - 1) : undefined;
     setQuestions(next);
     statsRef.current = new Map();
-    setHistory(next.length ? [0] : []);
+    questionNextReviewRef.current = new Map();
+    setHistory(typeof startIdx === 'number' ? [startIdx] : []);
     setHistPos(0);
     setSolved(false);
     setWrongCount(0);
-  }, [pool, allWords]);
+    if (config.rescheduleCorrectAsSRS && typeof startIdx === 'number') {
+      const queues = buildMeaningReviewQueues(next.length, startIdx);
+      setActiveReviewQueue(queues.activeQueue);
+      setDelayedReviewQueue(queues.delayedQueue);
+      nextQueueOrderRef.current = queues.nextOrder;
+      setNextDueCountdown(null);
+    } else {
+      setActiveReviewQueue([]);
+      setDelayedReviewQueue([]);
+      nextQueueOrderRef.current = 0;
+      setNextDueCountdown(null);
+    }
+  }, [pool, allWords, initialIndex, config.rescheduleCorrectAsSRS]);
 
   // On every navigation step: navigate page, record "shown" stat, reset shown timer.
   // Important: depend on histPos as well, not only `current`, because the same
@@ -310,20 +392,127 @@ export function GhareebMeaningQuiz({
     if (clearHighlightTimerRef.current) window.clearTimeout(clearHighlightTimerRef.current);
   }, []);
 
-  const goNext = useCallback(() => {
-    setHistPos((prev) => {
-      // Forward through existing history first.
-      if (prev + 1 < history.length) return prev + 1;
-      if (questions.length === 0) return prev;
-      // Respect question limit (unlimited keeps appending forever).
-      if (!isUnlimited && history.length >= limit) return prev;
-      const mode = (config.randomMode || 'smart') as 'fair' | 'smart' | 'mushaf' | 'leastShown';
-      const avoidId = current?.id;
-      const nextIdx = pickNextIndex(questions, statsRef.current, mode, avoidId);
-      setHistory((h) => [...h, nextIdx]);
-      return prev + 1;
+  useEffect(() => {
+    if (!config.rescheduleCorrectAsSRS) return;
+
+    const tick = () => {
+      const now = Date.now();
+      setDelayedReviewQueue((prev) => {
+        if (prev.length === 0) {
+          setNextDueCountdown(null);
+          return prev;
+        }
+        const { readyQueue, delayedQueue: nextDelayed } = promoteMeaningReviewQueue(prev, now);
+        setNextDueCountdown(getMeaningNextDueCountdownLabel(nextDelayed, now));
+        if (readyQueue.length > 0) {
+          setActiveReviewQueue((prevActive) => sortMeaningReviewQueue([...readyQueue, ...prevActive]));
+        }
+        return nextDelayed;
+      });
+    };
+
+    tick();
+    const interval = window.setInterval(tick, 10000);
+    return () => window.clearInterval(interval);
+  }, [config.rescheduleCorrectAsSRS]);
+
+  const goNext = useCallback((reason = 'manual_next', queueOverride?: {
+    activeQueue?: MeaningReviewQueueEntry[];
+    delayedQueue?: MeaningReviewQueueEntry[];
+  }) => {
+    if (histPos + 1 < history.length) {
+      const nextIdx = history[histPos + 1];
+      console.log('[MeaningQuiz] next question selection', {
+        totalWords: questions.length,
+        dueWordsCount: activeReviewQueue.length,
+        futureWordsCount: delayedReviewQueue.length,
+        nextWordKey: typeof nextIdx === 'number' ? questions[nextIdx]?.target.uniqueKey ?? null : null,
+        nextWordNextReviewAt: typeof nextIdx === 'number' ? questionNextReviewRef.current.get(nextIdx) ?? null : null,
+        reason: 'history_forward',
+      });
+      setHistPos(histPos + 1);
+      return;
+    }
+
+    if (questions.length === 0) return;
+
+    if (config.rescheduleCorrectAsSRS) {
+      const now = Date.now();
+      const baseActive = queueOverride?.activeQueue ?? activeReviewQueue;
+      const baseDelayed = queueOverride?.delayedQueue ?? delayedReviewQueue;
+      const { readyQueue, delayedQueue: nextDelayed } = promoteMeaningReviewQueue(baseDelayed, now);
+      const promotedActive = sortMeaningReviewQueue([...baseActive, ...readyQueue]);
+      const futureWordsCount = nextDelayed.length;
+      const dueWordsCount = promotedActive.length;
+
+      setDelayedReviewQueue(nextDelayed);
+      setNextDueCountdown(getMeaningNextDueCountdownLabel(nextDelayed, now));
+
+      if (promotedActive.length === 0) {
+        setActiveReviewQueue([]);
+        console.log('[MeaningQuiz] next question selection', {
+          totalWords: questions.length,
+          dueWordsCount,
+          futureWordsCount,
+          nextWordKey: null,
+          nextWordNextReviewAt: null,
+          reason: futureWordsCount > 0 ? `${reason}:waiting_for_delayed` : `${reason}:queue_exhausted`,
+        });
+        setHistPos(history.length);
+        return;
+      }
+
+      const [nextEntry, ...remainingActive] = promotedActive;
+      const nextIdx = nextEntry.questionIndex;
+      setActiveReviewQueue(remainingActive);
+      console.log('[MeaningQuiz] next question selection', {
+        totalWords: questions.length,
+        dueWordsCount,
+        futureWordsCount,
+        nextWordKey: questions[nextIdx]?.target.uniqueKey ?? null,
+        nextWordNextReviewAt: nextEntry.kind === 'scheduled'
+          ? questionNextReviewRef.current.get(nextIdx) ?? nextEntry.dueAt
+          : null,
+        reason: `${reason}:${nextEntry.kind === 'scheduled' ? 'scheduled_due' : 'new_unreviewed'}`,
+      });
+      setHistory((prev) => [...prev, nextIdx]);
+      setHistPos(history.length);
+      return;
+    }
+
+    if (!isUnlimited && history.length >= limit) return;
+    const mode = (config.randomMode || 'smart') as 'fair' | 'smart' | 'mushaf' | 'leastShown';
+    const avoidId = current?.id;
+    const candidateIndices = questions.map((_, questionIndex) => questionIndex);
+    const nextIdx = pickNextIndex(candidateIndices, questions, statsRef.current, mode, avoidId);
+    console.log('[MeaningQuiz] next question selection', {
+      totalWords: questions.length,
+      dueWordsCount: questions.length,
+      futureWordsCount: 0,
+      nextWordKey: questions[nextIdx]?.target.uniqueKey ?? null,
+      nextWordNextReviewAt: null,
+      reason: `${reason}:random_mode_${mode}`,
     });
-  }, [history.length, questions, isUnlimited, limit, config.randomMode, current]);
+    setHistory((prev) => [...prev, nextIdx]);
+    setHistPos(history.length);
+  }, [
+    histPos,
+    history,
+    questions,
+    config.rescheduleCorrectAsSRS,
+    config.randomMode,
+    activeReviewQueue,
+    delayedReviewQueue,
+    isUnlimited,
+    limit,
+    current,
+  ]);
+
+  useEffect(() => {
+    if (!config.rescheduleCorrectAsSRS) return;
+    if (current || solved || pendingRateCardId || activeReviewQueue.length === 0) return;
+    goNext('auto_promote_ready', { activeQueue: activeReviewQueue, delayedQueue: delayedReviewQueue });
+  }, [config.rescheduleCorrectAsSRS, current, solved, pendingRateCardId, activeReviewQueue, delayedReviewQueue, goNext]);
 
   const goPrev = useCallback(() => {
     setHistPos((prev) => (prev > 0 ? prev - 1 : prev));
@@ -331,14 +520,28 @@ export function GhareebMeaningQuiz({
 
   const reshuffle = useCallback(() => {
     const next = buildQuestions(pool, allWords);
+    const startIdx = next.length ? Math.floor(Math.random() * next.length) : undefined;
     setQuestions(next);
     statsRef.current = new Map();
-    setHistory(next.length ? [Math.floor(Math.random() * next.length)] : []);
+    questionNextReviewRef.current = new Map();
+    setHistory(typeof startIdx === 'number' ? [startIdx] : []);
     setHistPos(0);
     setScore({ correct: 0, wrong: 0 });
     setSolved(false);
     setWrongCount(0);
-  }, [pool, allWords]);
+    if (config.rescheduleCorrectAsSRS && typeof startIdx === 'number') {
+      const queues = buildMeaningReviewQueues(next.length, startIdx);
+      setActiveReviewQueue(queues.activeQueue);
+      setDelayedReviewQueue(queues.delayedQueue);
+      nextQueueOrderRef.current = queues.nextOrder;
+      setNextDueCountdown(null);
+    } else {
+      setActiveReviewQueue([]);
+      setDelayedReviewQueue([]);
+      nextQueueOrderRef.current = 0;
+      setNextDueCountdown(null);
+    }
+  }, [pool, allWords, config.rescheduleCorrectAsSRS]);
 
   // Clear all .mq-correct from the surface (between questions).
   const clearAllHighlights = useCallback(() => {
@@ -494,8 +697,6 @@ export function GhareebMeaningQuiz({
 
       setPendingRateCardId(config.rescheduleCorrectAsSRS ? (pendingId || `ghareeb_${current.target.uniqueKey}`) : null);
 
-      toast.success('أحسنت', { duration: Math.min(1500, config.correctHighlightDurationMs) });
-
       // Re-queue this question N more times (spec: correctWordReviewRepeatCount).
       const repeat = Math.max(0, config.correctWordReviewRepeatCount || 0);
 
@@ -537,8 +738,6 @@ export function GhareebMeaningQuiz({
       st.wrongCount += 1;
       statsRef.current.set(k, st);
 
-      toast.error('حاول مرة أخرى', { duration: 900 });
-
       // Hint: pulse the correct location subtly (NOT a full reveal).
       if (config.hintEnabled && newWrongCount >= config.hintAfterWrong) {
         const hintEl = findTargetEl();
@@ -554,29 +753,64 @@ export function GhareebMeaningQuiz({
 
   /** Apply a rating to the pending card and advance to the next question. */
   const handleRateAndAdvance = useCallback((rating: SRSRating, manualInterval?: number) => {
-    if (!pendingRateCardId) return;
+    if (!pendingRateCardId || typeof idx !== 'number' || !current) return;
+    const now = Date.now();
+    const selectedDurationMs = Math.max(0, (manualInterval || 0) * 24 * 60 * 60 * 1000);
+    const newNextReviewAt = now + selectedDurationMs;
+    const previousNextReviewAt = questionNextReviewRef.current.get(idx) ?? null;
+
     try {
       useSRSStore.getState().rateCard(pendingRateCardId, rating, manualInterval);
     } catch { /* noop */ }
+
+    questionNextReviewRef.current.set(idx, newNextReviewAt);
+
+    const baseActiveQueue = activeReviewQueue.filter((entry) => entry.questionIndex !== idx);
+    const baseDelayedQueue = delayedReviewQueue.filter((entry) => entry.questionIndex !== idx);
+    const nextEntry: MeaningReviewQueueEntry = {
+      questionIndex: idx,
+      dueAt: newNextReviewAt,
+      order: nextQueueOrderRef.current++,
+      kind: 'scheduled',
+    };
+
+    const nextActiveQueue = selectedDurationMs === 0
+      ? sortMeaningReviewQueue([nextEntry, ...baseActiveQueue])
+      : sortMeaningReviewQueue(baseActiveQueue);
+    const nextDelayedQueue = selectedDurationMs === 0
+      ? sortMeaningReviewQueue(baseDelayedQueue)
+      : sortMeaningReviewQueue([...baseDelayedQueue, nextEntry]);
+
+    console.log('[MeaningQuiz] review duration selected', {
+      selectedWordKey: current.target.uniqueKey,
+      selectedDurationLabel: selectedDurationMs === 0
+        ? 'فوري'
+        : manualInterval === 1 / 1440
+          ? 'بعد دقيقة'
+          : manualInterval === 1 / 24
+            ? 'بعد ساعة'
+            : manualInterval === 1
+              ? 'بعد يوم'
+              : manualInterval === 3
+                ? 'بعد 3 أيام'
+                : manualInterval === 7
+                  ? 'بعد أسبوع'
+                  : 'مدة مخصصة',
+      selectedDurationMs,
+      previousNextReviewAt,
+      newNextReviewAt,
+      now,
+      isDueNow: newNextReviewAt <= now,
+    });
+
     setPendingRateCardId(null);
-    // Honor the configured re-queue behavior.
-    const repeat = Math.max(0, config.correctWordReviewRepeatCount || 0);
-    if (repeat > 0) {
-      setHistory((h) => {
-        const next = [...h];
-        const startInsert = histPos + 1;
-        for (let i = 0; i < repeat; i++) {
-          const remaining = next.length - startInsert;
-          const offset = Math.floor(Math.random() * Math.max(1, remaining + 1));
-          next.splice(startInsert + offset, 0, idx);
-        }
-        return next;
-      });
-    }
+    setActiveReviewQueue(nextActiveQueue);
+    setDelayedReviewQueue(nextDelayedQueue);
+    setNextDueCountdown(getMeaningNextDueCountdownLabel(nextDelayedQueue, now));
     if (advanceTimerRef.current) window.clearTimeout(advanceTimerRef.current);
     clearAllHighlights();
-    goNext();
-  }, [pendingRateCardId, config.correctWordReviewRepeatCount, histPos, idx, clearAllHighlights, goNext]);
+    goNext('review_duration_selected', { activeQueue: nextActiveQueue, delayedQueue: nextDelayedQueue });
+  }, [pendingRateCardId, idx, current, activeReviewQueue, delayedReviewQueue, clearAllHighlights, goNext]);
 
   if (questions.length === 0) {
     return (
@@ -586,7 +820,19 @@ export function GhareebMeaningQuiz({
       </div>
     );
   }
-  if (!current) return null;
+  if (!current) {
+    if (config.rescheduleCorrectAsSRS && delayedReviewQueue.length > 0) {
+      return (
+        <div className="p-6 text-center font-arabic text-muted-foreground space-y-3" dir="rtl">
+          <p className="text-lg">⏳ في انتظار الكلمات المؤجلة...</p>
+          {nextDueCountdown && <p className="text-2xl font-bold text-primary animate-pulse">{nextDueCountdown}</p>}
+          <p className="text-sm">ستعود الكلمات تلقائيًا عند حلول موعدها</p>
+          <Button variant="outline" onClick={onClose}>إنهاء الجلسة</Button>
+        </div>
+      );
+    }
+    return null;
+  }
 
   // Dynamic correct color based on config.
   const correctColor = config.correctHighlightColor;
@@ -680,7 +926,7 @@ export function GhareebMeaningQuiz({
           <button onClick={goPrev} disabled={histPos <= 0} className="nav-button w-7 h-7 rounded-full disabled:opacity-30">
             <ChevronRight className="w-4 h-4" />
           </button>
-          <button onClick={goNext} disabled={!isUnlimited && history.length >= limit && histPos >= history.length - 1} className="nav-button w-7 h-7 rounded-full disabled:opacity-30">
+          <button onClick={() => goNext()} disabled={!isUnlimited && history.length >= limit && histPos >= history.length - 1} className="nav-button w-7 h-7 rounded-full disabled:opacity-30">
             <ChevronLeft className="w-4 h-4" />
           </button>
           <button onClick={onClose} className="nav-button w-7 h-7 rounded-full mr-2">
