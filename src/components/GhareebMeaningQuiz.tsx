@@ -429,25 +429,39 @@ export function GhareebMeaningQuiz({
       else if (bucket === 'slow') st.slowCorrectCount += 1;
       statsRef.current.set(k, st);
 
-      // Optional: reschedule the correctly answered word as an SRS card using
-      // the existing SM-2 intervals (only inside the smart-review meaning mode).
-      if (config.rescheduleCorrectAsSRS && sessionId) {
+      // Optional: enable rating-based scheduling using the existing SRS intervals.
+      // When the toggle is on, ALWAYS show the rating buttons after a correct answer
+      // (regardless of source/state/speed) and ensure a card exists for this word.
+      let pendingId: string | null = null;
+      if (config.rescheduleCorrectAsSRS) {
         try {
-          const sess = useSessionsStore.getState().getSession(sessionId);
-          const isSmart = !!(sess?.quizSettings as Record<string, unknown> | undefined)?.smartReview;
-          if (isSmart) {
-            const srs = useSRSStore.getState();
-            const uk = current.target.uniqueKey;
-            const cardId = srs.hasCard(`ghareeb_${uk}`)
-              ? `ghareeb_${uk}`
-              : srs.cards.find(c => c.type === 'ghareeb' && c.contentKey === uk)?.id;
-            if (cardId) {
-              // Rating 3 = "جيد" → uses standard SM-2 progression (instant → 1d → 3d → ef×prev …)
-              srs.rateCard(cardId, 3);
-            }
+          const srs = useSRSStore.getState();
+          const uk = current.target.uniqueKey;
+          const fixedId = `ghareeb_${uk}`;
+          let cardId: string | undefined = srs.hasCard(fixedId)
+            ? fixedId
+            : srs.cards.find(c => c.type === 'ghareeb' && c.contentKey === uk)?.id;
+          if (!cardId) {
+            // Create a card on the fly so the user can always rate it.
+            srs.addCard({
+              id: fixedId,
+              type: 'ghareeb',
+              page: current.target.pageNumber,
+              contentKey: uk,
+              label: current.target.wordText || uk,
+              meta: {
+                surahNumber: current.target.surahNumber,
+                verseNumber: current.target.verseNumber,
+                wordIndex: current.target.wordIndex,
+                meaning: current.target.meaning,
+              },
+            });
+            cardId = fixedId;
           }
+          pendingId = cardId;
         } catch { /* noop */ }
       }
+      setPendingRateCardId(pendingId);
 
       toast.success('أحسنت', { duration: Math.min(1500, config.correctHighlightDurationMs) });
 
@@ -458,7 +472,8 @@ export function GhareebMeaningQuiz({
       if (clearHighlightTimerRef.current) window.clearTimeout(clearHighlightTimerRef.current);
 
       const hold = Math.max(300, config.correctHighlightDurationMs);
-      if (config.autoAdvance) {
+      // If rating buttons are pending, BLOCK auto-advance until the user picks a rating.
+      if (config.autoAdvance && !pendingId) {
         // Advance ONLY after the highlight hold duration completes.
         advanceTimerRef.current = window.setTimeout(() => {
           // Re-queue (insert same question index ahead) if requested.
