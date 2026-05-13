@@ -241,6 +241,8 @@ export function GhareebMeaningQuiz({
   const [wrongCount, setWrongCount] = useState(0);
   /** When set, the SRS rating buttons are shown and auto-advance is blocked until the user picks a rating. */
   const [pendingRateCardId, setPendingRateCardId] = useState<string | null>(null);
+  const requiresReviewDurationSelection = !!config.rescheduleCorrectAsSRS;
+  const shouldShowReviewDurationButtons = solved && requiresReviewDurationSelection;
   const surfaceRef = useRef<HTMLDivElement>(null);
   const advanceTimerRef = useRef<number | null>(null);
   const clearHighlightTimerRef = useRef<number | null>(null);
@@ -478,7 +480,7 @@ export function GhareebMeaningQuiz({
         reasonsBlocked.push('rescheduleCorrectAsSRS=false');
       }
 
-      const shouldShow = !!pendingId && config.rescheduleCorrectAsSRS;
+      const shouldShow = !!config.rescheduleCorrectAsSRS;
       console.log('[MeaningQuiz] correct answer', {
         selectedWord: clickedRaw,
         targetWord: current.target.wordText,
@@ -490,7 +492,7 @@ export function GhareebMeaningQuiz({
         blockedReasons: reasonsBlocked,
       });
 
-      setPendingRateCardId(pendingId);
+      setPendingRateCardId(config.rescheduleCorrectAsSRS ? (pendingId || `ghareeb_${current.target.uniqueKey}`) : null);
 
       toast.success('أحسنت', { duration: Math.min(1500, config.correctHighlightDurationMs) });
 
@@ -502,7 +504,7 @@ export function GhareebMeaningQuiz({
 
       const hold = Math.max(300, config.correctHighlightDurationMs);
       // BLOCK auto-advance whenever rating buttons are pending.
-      if (config.autoAdvance && !pendingId) {
+      if (config.autoAdvance && !config.rescheduleCorrectAsSRS) {
         // Advance ONLY after the highlight hold duration completes.
         advanceTimerRef.current = window.setTimeout(() => {
           // Re-queue (insert same question index ahead) if requested.
@@ -735,7 +737,7 @@ export function GhareebMeaningQuiz({
       </div>
 
       {/* Footer: SRS rating buttons (when pending) OR manual next button */}
-      {solved && pendingRateCardId && (() => {
+      {shouldShowReviewDurationButtons && (() => {
         const card = useSRSStore.getState().cards.find(c => c.id === pendingRateCardId);
         const previews = card ? previewIntervals(card) : [];
         return (
@@ -763,7 +765,7 @@ export function GhareebMeaningQuiz({
           </div>
         );
       })()}
-      {solved && !pendingRateCardId && (
+      {solved && !shouldShowReviewDurationButtons && (
         <div className="border-t border-border bg-card/60 px-4 py-2 text-center shrink-0">
           {!config.autoAdvance ? (
             <Button
