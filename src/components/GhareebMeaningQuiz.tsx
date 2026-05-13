@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { GhareebWord } from '@/types/quran';
-import { canonicalize, canonicalFormsCompatible } from '@/utils/canonicalMatch';
+import { canonicalize, canonicalFormsCompatible, hamzaFlatten } from '@/utils/canonicalMatch';
 import { ChevronLeft, ChevronRight, RotateCcw, X, Shuffle, Settings } from 'lucide-react';
 import { MeaningQuizConfig, DEFAULT_MEANING_QUIZ_CONFIG, STORAGE_KEY as MQ_SETTINGS_STORAGE_KEY } from './GhareebMeaningQuizSetup';
 import { MeaningQuizLiveSettings } from './MeaningQuizLiveSettings';
@@ -619,9 +619,13 @@ export function GhareebMeaningQuiz({
     // Match by uniqueKey (most accurate) OR canonical text in acceptable set.
     const clickedKey = wordEl.getAttribute('data-ghareeb-key') || '';
     const clickedCanon = canonicalize(clickedRaw);
+    const clickedFlat = hamzaFlatten(clickedRaw);
+    const acceptableFlat = new Set<string>();
+    current.acceptableCanon.forEach((c) => acceptableFlat.add(hamzaFlatten(c)));
     const isMatch =
       (clickedKey && current.acceptableKeys.has(clickedKey)) ||
       current.acceptableCanon.has(clickedCanon) ||
+      acceptableFlat.has(clickedFlat) ||
       Array.from(current.acceptableCanon).some((c) =>
         canonicalFormsCompatible(c, clickedRaw),
       );
