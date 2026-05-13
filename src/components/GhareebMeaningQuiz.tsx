@@ -820,7 +820,19 @@ export function GhareebMeaningQuiz({
       </div>
     );
   }
-  if (!current) return null;
+  if (!current) {
+    if (config.rescheduleCorrectAsSRS && delayedReviewQueue.length > 0) {
+      return (
+        <div className="p-6 text-center font-arabic text-muted-foreground space-y-3" dir="rtl">
+          <p className="text-lg">⏳ في انتظار الكلمات المؤجلة...</p>
+          {nextDueCountdown && <p className="text-2xl font-bold text-primary animate-pulse">{nextDueCountdown}</p>}
+          <p className="text-sm">ستعود الكلمات تلقائيًا عند حلول موعدها</p>
+          <Button variant="outline" onClick={onClose}>إنهاء الجلسة</Button>
+        </div>
+      );
+    }
+    return null;
+  }
 
   // Dynamic correct color based on config.
   const correctColor = config.correctHighlightColor;
