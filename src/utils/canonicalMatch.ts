@@ -43,6 +43,24 @@ export function canonicalize(text: string): string {
   return s;
 }
 
+/**
+ * Aggressive hamza/seat flattener for tolerant matching.
+ * Collapses all hamza-bearing variants (أ إ آ ٱ ئ ؤ ء) and the
+ * yaa/alef-maqsura/taa-marbuta seats to a single neutral form so that
+ * orthographic variants like "أَئِفْكًا" vs "أَإفكا" or "ٱلۡأٓخِرِين" vs
+ * "الآخرين" compare equal at the matching layer.
+ */
+export function hamzaFlatten(text: string): string {
+  let s = canonicalize(text);
+  // After canonicalize, ئ→ي and ؤ→و; flatten any leftover yaa/waw that
+  // originated from a hamza-seat by also dropping these distinctions on
+  // top of the alef family. We collapse ي and ا to a common slot ONLY
+  // when adjacent to an alef in the other string — keep this simple by
+  // mapping ي→ا as a fallback canonical (used only as a secondary check).
+  s = s.replace(/ي/g, 'ا');
+  return s;
+}
+
 // ─── Token Data ─────────────────────────────────────────────────────────────
 
 const PAGE_TOKEN_CLEAN_RE = /[﴿﴾()[\]{}۝۞٭؟،۔ۣۖۗۘۙۚۛۜ۟۠ۡۢۤۥۦۧۨ۩۪ۭ۫۬]/g;
