@@ -8,6 +8,24 @@ export function formatBismillah(text: string): string {
 }
 
 /**
+ * Tokenized bismillah: each word becomes a clickable `.quran-word` span,
+ * separated by hair-space spans so the look matches `formatBismillah` but
+ * words become click targets (needed by the meaning quiz so كلمات البسملة
+ * تكون قابلة للنقر مثل باقي كلمات الصفحة).
+ */
+export function renderBismillahClickable(text: string): React.ReactNode[] {
+  const words = text.split(/\s+/).filter(Boolean);
+  const out: React.ReactNode[] = [];
+  words.forEach((w, i) => {
+    out.push(
+      <span key={`b-w-${i}`} className="quran-word" data-bismillah="true">{w}</span>
+    );
+    if (i < words.length - 1) out.push(<span key={`b-s-${i}`}>{'\u200A'}</span>);
+  });
+  return out;
+}
+
+/**
  * Check if we should use no-justify mode (mobile with redistribution)
  * Only applies when user hasn't explicitly set text alignment to justify
  */

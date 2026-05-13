@@ -12,7 +12,7 @@ import { useSettingsStore } from '@/stores/settingsStore';
 import { useTahfeezStore } from '@/stores/tahfeezStore';
 import { getPageMetadata } from '@/utils/juzHizbInfo';
 import { redistributeLines, shouldRedistribute } from '@/utils/lineRedistributor';
-import { formatBismillah, shouldNoJustify, bindVerseNumbers } from '@/utils/lineTokenUtils';
+import { formatBismillah, renderBismillahClickable, shouldNoJustify, bindVerseNumbers } from '@/utils/lineTokenUtils';
 
 interface PageViewProps {
   page: QuranPage;
@@ -226,10 +226,11 @@ export function PageView({
             </div>
           );
         } else if (isBismillah(line)) {
-          // Bismillah always as independent block line (even in auto-containment)
+          // Bismillah — independent block line; words wrapped as `.quran-word`
+          // so they're clickable in the meaning quiz.
           elements.push(
             <div key={`bismillah-${idx}`} className="bismillah font-arabic" style={{ display: 'block', textAlign: 'center', textAlignLast: 'center' }}>
-              {formatBismillah(line)}
+              {renderBismillahClickable(line)}
             </div>
           );
         } else if (isLines15) {
@@ -302,11 +303,11 @@ export function PageView({
         continue;
       }
 
-      // Bismillah - always independent block line
+      // Bismillah - always independent block line; words clickable for the quiz.
       if (isBismillah(line)) {
         allElements.push(
           <div key={`bismillah-${lineIdx}`} className="bismillah font-arabic" style={{ display: 'block', textAlign: 'center', textAlignLast: 'center' }}>
-            {formatBismillah(line)}
+            {renderBismillahClickable(line)}
           </div>
         );
         continue;

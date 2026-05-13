@@ -67,32 +67,36 @@ function shuffle<T>(arr: T[]): T[] {
 }
 
 function buildQuestions(pool: GhareebWord[], allWords: GhareebWord[]): QuizQuestion[] {
+  const t0 = performance.now();
+  // Pre-index allWords by canonical meaning to avoid O(pool * allWords) scans.
+  const byMeaning = new Map<string, Array<{ canonWord: string; word: GhareebWord }>>();
+  for (const cand of allWords) {
+    if (!cand.meaning || !cand.wordText) continue;
+    const m = canonicalize(cand.meaning);
+    let bucket = byMeaning.get(m);
+    if (!bucket) { bucket = []; byMeaning.set(m, bucket); }
+    bucket.push({ canonWord: canonicalize(cand.wordText), word: cand });
+  }
+
   const seenMeaningWord = new Set<string>();
   const list: QuizQuestion[] = [];
   for (const w of pool) {
     if (!w.meaning || !w.wordText) continue;
-    const sig = `${canonicalize(w.wordText)}__${canonicalize(w.meaning)}`;
+    const targetCanonWord = canonicalize(w.wordText);
+    const targetCanonMeaning = canonicalize(w.meaning);
+    const sig = `${targetCanonWord}__${targetCanonMeaning}`;
     if (seenMeaningWord.has(sig)) continue;
     seenMeaningWord.add(sig);
 
-    // Multi-position acceptance: any word in `allWords` with same canonical word
-    // AND same meaning is a valid answer.
-    const targetCanonWord = canonicalize(w.wordText);
-    const targetCanonMeaning = canonicalize(w.meaning);
-    const acceptableKeys = new Set<string>();
+    const acceptableKeys = new Set<string>([w.uniqueKey]);
     const acceptableCanon = new Set<string>([targetCanonWord]);
-    for (const cand of allWords) {
-      if (!cand.meaning || !cand.wordText) continue;
-      if (canonicalize(cand.meaning) !== targetCanonMeaning) continue;
-      if (
-        canonicalize(cand.wordText) === targetCanonWord ||
-        canonicalFormsCompatible(cand.wordText, w.wordText)
-      ) {
+    const bucket = byMeaning.get(targetCanonMeaning) || [];
+    for (const { canonWord, word: cand } of bucket) {
+      if (canonWord === targetCanonWord || canonicalFormsCompatible(cand.wordText, w.wordText)) {
         acceptableKeys.add(cand.uniqueKey);
-        acceptableCanon.add(canonicalize(cand.wordText));
+        acceptableCanon.add(canonWord);
       }
     }
-    acceptableKeys.add(w.uniqueKey);
 
     list.push({
       id: `${w.uniqueKey}_${list.length}`,
@@ -101,6 +105,7 @@ function buildQuestions(pool: GhareebWord[], allWords: GhareebWord[]): QuizQuest
       acceptableCanon,
     });
   }
+  console.log(`[MeaningQuiz] buildQuestions: pool=${pool.length} allWords=${allWords.length} → ${list.length} questions in ${(performance.now() - t0).toFixed(1)}ms`);
   return list;
 }
 
@@ -429,20 +434,21 @@ export function GhareebMeaningQuiz({
       else if (bucket === 'slow') st.slowCorrectCount += 1;
       statsRef.current.set(k, st);
 
-      // Optional: enable rating-based scheduling using the existing SRS intervals.
-      // When the toggle is on, ALWAYS show the rating buttons after a correct answer
-      // (regardless of source/state/speed) and ensure a card exists for this word.
+      // Reschedule-as-SRS toggle: ALWAYS show rating buttons after a correct answer
+      // when the toggle is on. Independence from source/state/speed/repetition is
+      // explicit per spec. We never silently drop the buttons — if card creation
+      // fails for any reason we still show them and log the reason.
       let pendingId: string | null = null;
+      const reasonsBlocked: string[] = [];
       if (config.rescheduleCorrectAsSRS) {
+        const srs = useSRSStore.getState();
+        const uk = current.target.uniqueKey;
+        const fixedId = `ghareeb_${uk}`;
         try {
-          const srs = useSRSStore.getState();
-          const uk = current.target.uniqueKey;
-          const fixedId = `ghareeb_${uk}`;
           let cardId: string | undefined = srs.hasCard(fixedId)
             ? fixedId
             : srs.cards.find(c => c.type === 'ghareeb' && c.contentKey === uk)?.id;
           if (!cardId) {
-            // Create a card on the fly so the user can always rate it.
             srs.addCard({
               id: fixedId,
               type: 'ghareeb',
@@ -459,8 +465,27 @@ export function GhareebMeaningQuiz({
             cardId = fixedId;
           }
           pendingId = cardId;
-        } catch { /* noop */ }
+        } catch (e) {
+          reasonsBlocked.push(`srs_error:${(e as Error)?.message || 'unknown'}`);
+          // Fallback: use a synthetic id so buttons still render; rating call is no-op.
+          pendingId = fixedId;
+        }
+      } else {
+        reasonsBlocked.push('rescheduleCorrectAsSRS=false');
       }
+
+      const shouldShow = !!pendingId && config.rescheduleCorrectAsSRS;
+      console.log('[MeaningQuiz] correct answer', {
+        selectedWord: clickedRaw,
+        targetWord: current.target.wordText,
+        isCorrect: true,
+        answerStatus: 'correct',
+        reviewDurationSelectionEnabled: !!config.rescheduleCorrectAsSRS,
+        shouldShowReviewDurationButtons: shouldShow,
+        pendingRateCardId: pendingId,
+        blockedReasons: reasonsBlocked,
+      });
+
       setPendingRateCardId(pendingId);
 
       toast.success('أحسنت', { duration: Math.min(1500, config.correctHighlightDurationMs) });
@@ -472,7 +497,7 @@ export function GhareebMeaningQuiz({
       if (clearHighlightTimerRef.current) window.clearTimeout(clearHighlightTimerRef.current);
 
       const hold = Math.max(300, config.correctHighlightDurationMs);
-      // If rating buttons are pending, BLOCK auto-advance until the user picks a rating.
+      // BLOCK auto-advance whenever rating buttons are pending.
       if (config.autoAdvance && !pendingId) {
         // Advance ONLY after the highlight hold duration completes.
         advanceTimerRef.current = window.setTimeout(() => {
