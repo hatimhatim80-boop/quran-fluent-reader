@@ -261,7 +261,11 @@ export function GhareebMeaningQuiz({
     setWrongCount(0);
   }, [pool, allWords]);
 
-  // On question change: navigate page, record "shown" stat, reset shown timer.
+  // On every navigation step: navigate page, record "shown" stat, reset shown timer.
+  // Important: depend on histPos as well, not only `current`, because the same
+  // question index can be intentionally re-queued. In that case React keeps the
+  // same object reference and we still must reset `solved` / `pendingRateCardId`
+  // so the review-duration buttons appear again after the next correct answer.
   useEffect(() => {
     if (!current) return;
     onNavigateToPage(current.target.pageNumber);
@@ -274,7 +278,7 @@ export function GhareebMeaningQuiz({
     s.lastShownAt = Date.now();
     statsRef.current.set(k, s);
     shownAtRef.current = performance.now();
-  }, [current, onNavigateToPage]);
+  }, [histPos, idx, current, onNavigateToPage]);
 
   // Persist progress to session (if any).
   useEffect(() => {
