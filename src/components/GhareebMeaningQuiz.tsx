@@ -262,6 +262,7 @@ export function GhareebMeaningQuiz({
     onNavigateToPage(current.target.pageNumber);
     setSolved(false);
     setWrongCount(0);
+    setPendingRateCardId(null);
     const k = current.target.uniqueKey;
     const s = statsRef.current.get(k) || { ...EMPTY_STATS };
     s.shownCount += 1;
