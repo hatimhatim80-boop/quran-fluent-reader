@@ -12,7 +12,7 @@ import { useSettingsStore } from '@/stores/settingsStore';
 import { useTahfeezStore } from '@/stores/tahfeezStore';
 import { getPageMetadata } from '@/utils/juzHizbInfo';
 import { redistributeLines, shouldRedistribute } from '@/utils/lineRedistributor';
-import { formatBismillah, shouldNoJustify, bindVerseNumbers } from '@/utils/lineTokenUtils';
+import { formatBismillah, renderBismillahClickable, shouldNoJustify, bindVerseNumbers } from '@/utils/lineTokenUtils';
 
 interface PageViewProps {
   page: QuranPage;
