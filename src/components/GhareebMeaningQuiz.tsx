@@ -553,10 +553,10 @@ export function GhareebMeaningQuiz({
   ]);
 
   /** Apply a rating to the pending card and advance to the next question. */
-  const handleRateAndAdvance = useCallback((rating: SRSRating) => {
+  const handleRateAndAdvance = useCallback((rating: SRSRating, manualInterval?: number) => {
     if (!pendingRateCardId) return;
     try {
-      useSRSStore.getState().rateCard(pendingRateCardId, rating);
+      useSRSStore.getState().rateCard(pendingRateCardId, rating, manualInterval);
     } catch { /* noop */ }
     setPendingRateCardId(null);
     // Honor the configured re-queue behavior.
