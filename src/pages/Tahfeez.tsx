@@ -14,7 +14,8 @@ import { useSpeech } from '@/hooks/useSpeech';
 import { normalizeArabic } from '@/utils/quranParser';
 import { computeSessionTotalItems } from '@/utils/sessionWordCount';
 import { Link, useNavigate } from 'react-router-dom';
-import { BookOpen, Play, Pause, Eye, EyeOff, ArrowRight, Save, Trash2, GraduationCap, ListChecks, Zap, Book, Layers, Hash, FileText, Search, X, ChevronLeft, Download, Upload, ChevronsRight, Undo2, Palette, Mic, MicOff, MousePointerClick, RotateCcw, Settings } from 'lucide-react';
+import { BookOpen, Play, Pause, Eye, EyeOff, ArrowRight, Save, Trash2, GraduationCap, ListChecks, Zap, Book, Layers, Hash, FileText, Search, X, ChevronLeft, Download, Upload, ChevronsRight, Undo2, Palette, Mic, MicOff, MousePointerClick, RotateCcw, Settings, Share2, FileSpreadsheet } from 'lucide-react';
+import { SURAH_NAMES as SURAH_NAMES_BY_NUM } from '@/utils/pageAssemblyModel';
 
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 
@@ -1976,7 +1977,7 @@ export default function TahfeezPage() {
       {shouldHideTopBars && (
         <FloatingSessionTimer
           sessionMs={sessionRemainingMs}
-          itemMs={remainingMs}
+          itemMs={0}
           completed={engine.phase === 'completed'}
           paused={isPaused}
         />
@@ -2043,6 +2044,69 @@ export default function TahfeezPage() {
                       <Button variant="ghost" size="sm" onClick={undo} disabled={!canUndo} className="font-arabic text-xs h-7 px-2" title="تراجع عن آخر تغيير">
                         <Undo2 className="w-3 h-3 ml-1" />
                         تراجع
+                      </Button>
+                      <Button variant="ghost" size="sm" onClick={async () => {
+                        if (storedItems.length === 0) { toast.error('لا توجد كلمات مخزنة'); return; }
+                        // Build rows: page, surah, ayah, word, meaning, source, notes
+                        const rows = storedItems.map(item => {
+                          const d = item.data as any;
+                          const text = item.type === 'word' ? d.originalWord : d.originalText;
+                          const surahName = SURAH_NAMES_BY_NUM[d.surahNumber] || '';
+                          return {
+                            page: d.page as number,
+                            surahNumber: d.surahNumber as number,
+                            surahName,
+                            ayah: d.ayahNumber as number,
+                            wordIndex: (item.type === 'word' ? d.wordIndex : d.startWordIndex) as number,
+                            text: String(text || ''),
+                            meaning: '',
+                            source: '',
+                            notes: '',
+                          };
+                        }).sort((a, b) =>
+                          a.page - b.page ||
+                          a.surahNumber - b.surahNumber ||
+                          a.ayah - b.ayah ||
+                          a.wordIndex - b.wordIndex
+                        );
+                        const headers = ['رقم الصفحة','السورة','رقم الآية','الكلمة','المعنى/الترجمة','المصدر','الملاحظات'];
+                        const escape = (v: string) => `"${String(v).replace(/"/g, '""')}"`;
+                        const csv = '\uFEFF' + [
+                          headers.map(escape).join(','),
+                          ...rows.map(r => [r.page, r.surahName, r.ayah, r.text, r.meaning, r.source, r.notes].map(v => escape(String(v))).join(','))
+                        ].join('\r\n');
+                        const fileName = `tahfeez-words-${new Date().toISOString().slice(0,10)}.csv`;
+                        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+                        const file = new File([blob], fileName, { type: 'text/csv;charset=utf-8' });
+                        // Always offer download
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url; a.download = fileName; a.click();
+                        setTimeout(() => URL.revokeObjectURL(url), 1000);
+                        // Try WhatsApp share via Web Share API with file
+                        const summary = `الكلمات المخزنة (${rows.length}) - تطبيق القارئ المُعين`;
+                        try {
+                          const nav: any = navigator;
+                          if (nav.canShare && nav.canShare({ files: [file] })) {
+                            await nav.share({ files: [file], title: 'الكلمات المخزنة', text: summary });
+                            toast.success('تمت المشاركة');
+                            return;
+                          }
+                          if (nav.share) {
+                            await nav.share({ title: 'الكلمات المخزنة', text: summary });
+                            toast.success('تم التصدير - أرفق الملف يدويًا');
+                            return;
+                          }
+                        } catch (err) {
+                          // fall through to WhatsApp link
+                        }
+                        // Fallback: open WhatsApp link
+                        const waUrl = `https://wa.me/?text=${encodeURIComponent(summary + '\n(أرفق الملف ' + fileName + ' الذي تم تنزيله)')}`;
+                        window.open(waUrl, '_blank');
+                        toast.success('تم تصدير الملف');
+                      }} className="font-arabic text-xs h-7 px-2" title="تصدير الكلمات (CSV) ومشاركتها">
+                        <FileSpreadsheet className="w-3 h-3 ml-1" />
+                        تصدير الكلمات
                       </Button>
                       <Button variant="ghost" size="sm" onClick={() => {
                         const data = JSON.stringify({ version: '1.0', exportedAt: new Date().toISOString(), items: storedItems }, null, 2);
@@ -2716,7 +2780,7 @@ export default function TahfeezPage() {
             {!shouldHideTopBars && (
               <StableSessionTimer
                 sessionMs={sessionRemainingMs}
-                itemMs={remainingMs}
+                itemMs={0}
                 completed={engine.phase === 'completed'}
                 paused={isPaused}
               />
