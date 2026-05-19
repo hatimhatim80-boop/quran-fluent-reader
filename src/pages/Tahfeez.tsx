@@ -1977,7 +1977,7 @@ export default function TahfeezPage() {
       {shouldHideTopBars && (
         <FloatingSessionTimer
           sessionMs={sessionRemainingMs}
-          itemMs={remainingMs}
+          itemMs={0}
           completed={engine.phase === 'completed'}
           paused={isPaused}
         />
