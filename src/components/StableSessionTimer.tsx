@@ -30,9 +30,9 @@ export const StableSessionTimer = memo(function StableSessionTimer({
   const itemVisible = !completed && itemMs > 0;
   return (
     <div className="flex items-center justify-center gap-2 pointer-events-none flex-nowrap h-7 overflow-hidden" dir="rtl">
-      <div className="flex items-center justify-center gap-1.5 bg-muted/40 px-3 py-1 rounded-full w-[8.75rem] h-7 shrink-0 [contain:layout_style_paint]">
+      <div className="flex items-center justify-center gap-1.5 bg-muted/40 px-3 py-1 rounded-full w-[10.5rem] h-7 shrink-0 [contain:layout_style_paint]">
         <Clock className="w-3 h-3 text-muted-foreground/70 shrink-0" />
-        <span className="text-[11px] leading-none font-mono text-muted-foreground tabular-nums whitespace-nowrap inline-block text-center w-[6.6rem] [font-variant-numeric:tabular-nums]">
+        <span className="text-[11px] leading-none font-mono text-muted-foreground tabular-nums whitespace-nowrap inline-block text-center w-[8.4rem] [font-variant-numeric:tabular-nums]">
           {sessionLabel}
         </span>
       </div>
