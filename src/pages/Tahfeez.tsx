@@ -1416,19 +1416,27 @@ export default function TahfeezPage() {
               const firstIdx = list.indexOf(firstGroupKey);
               const pauseMs = Math.max(0, (ayahRepeatDelayRef.current ?? 1.5) * 1000);
               clearAdvanceFrame();
+              repeatPauseActiveRef.current = true;
+              console.log('[tahfeez][repeat] pause before replay', { repeatKey, done, repeatTarget, pauseMs });
               if (repeatTimerRef.current) clearTimeout(repeatTimerRef.current);
               repeatTimerRef.current = setTimeout(() => {
                 repeatTimerRef.current = null;
+                repeatPauseActiveRef.current = false;
                 if (!quizStartedRef.current || isPausedRef.current || showAllRef.current) return;
                 setRevealedKeys(prev => {
                   const next = new Set(prev);
                   groupKeys.forEach(k => next.delete(k));
                   return next;
                 });
+                console.log('[tahfeez][repeat] replaying group', { repeatKey, round: done + 1 });
                 advance(firstIdx >= 0 ? firstIdx : idx);
               }, pauseMs);
               return;
             }
+            repeatPauseActiveRef.current = false;
+            // Repetitions done for this group — reset so it can repeat again if revisited
+            delete groupRepeatDoneRef.current[repeatKey];
+
 
             // Decrement session remaining for each revealed item in the group
             groupKeys.forEach(() => onSessionItemProcessedRef.current());
