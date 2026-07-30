@@ -494,6 +494,8 @@ export const useTahfeezStore = create<TahfeezState>()(
         dotScale: state.dotScale,
         revealGranularity: state.revealGranularity,
         groupDurationProportional: state.groupDurationProportional,
+        ayahRepeatCount: state.ayahRepeatCount,
+        ayahRepeatDelay: state.ayahRepeatDelay,
         segmentMcqInline: state.segmentMcqInline,
         segmentMcqChoicesAtBlank: state.segmentMcqChoicesAtBlank,
         segmentMcqCorrectDelay: state.segmentMcqCorrectDelay,
