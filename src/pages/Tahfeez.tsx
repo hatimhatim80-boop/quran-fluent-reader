@@ -1551,6 +1551,7 @@ export default function TahfeezPage() {
     return () => {
       clearAdvanceFrame();
       if (revealTimerRef.current) clearTimeout(revealTimerRef.current);
+      if (repeatTimerRef.current) { clearTimeout(repeatTimerRef.current); repeatTimerRef.current = null; }
     };
   // advanceGeneration triggers re-start of the chain. Refs used for callbacks.
   }, [advanceGeneration, clearAdvanceFrame, quizInteraction, quizStarted, isPaused, showAll]);
