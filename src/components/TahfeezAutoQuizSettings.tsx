@@ -355,7 +355,7 @@ export function TahfeezAutoQuizSettings({ currentPage, quizPagesRange, onStart, 
                 <SettingToggle label="مدة تناسبية" desc="المدة = عدد الكلمات × سرعة الكلمة" checked={groupDurationProportional} onChange={setGroupDurationProportional} />
 
                 {/* Ayah / segment repetition */}
-                <SettingRow label="تكرار الآية">
+                <SettingRow label={revealGranularity === 'word' ? 'تكرار الآية (يتطلب وحدة كشف: آية/مقطع)' : 'تكرار الآية'}>
                   <div className="flex flex-wrap gap-1">
                     {[1, 2, 3, 4, 5].map(n => (
                       <Button

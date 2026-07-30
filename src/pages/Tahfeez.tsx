@@ -582,6 +582,8 @@ export default function TahfeezPage() {
   /** How many times each group has been played (keyed by page:firstKey) */
   const groupRepeatDoneRef = useRef<Record<string, number>>({});
   const repeatTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // True while we're pausing between ayah/segment repetitions — blocks stall recovery
+  const repeatPauseActiveRef = useRef(false);
 
   // Compute pages range for multi-page quiz
   const quizPagesRange = useMemo(() => {
@@ -1414,19 +1416,27 @@ export default function TahfeezPage() {
               const firstIdx = list.indexOf(firstGroupKey);
               const pauseMs = Math.max(0, (ayahRepeatDelayRef.current ?? 1.5) * 1000);
               clearAdvanceFrame();
+              repeatPauseActiveRef.current = true;
+              console.log('[tahfeez][repeat] pause before replay', { repeatKey, done, repeatTarget, pauseMs });
               if (repeatTimerRef.current) clearTimeout(repeatTimerRef.current);
               repeatTimerRef.current = setTimeout(() => {
                 repeatTimerRef.current = null;
+                repeatPauseActiveRef.current = false;
                 if (!quizStartedRef.current || isPausedRef.current || showAllRef.current) return;
                 setRevealedKeys(prev => {
                   const next = new Set(prev);
                   groupKeys.forEach(k => next.delete(k));
                   return next;
                 });
+                console.log('[tahfeez][repeat] replaying group', { repeatKey, round: done + 1 });
                 advance(firstIdx >= 0 ? firstIdx : idx);
               }, pauseMs);
               return;
             }
+            repeatPauseActiveRef.current = false;
+            // Repetitions done for this group — reset so it can repeat again if revisited
+            delete groupRepeatDoneRef.current[repeatKey];
+
 
             // Decrement session remaining for each revealed item in the group
             groupKeys.forEach(() => onSessionItemProcessedRef.current());
@@ -1552,6 +1562,7 @@ export default function TahfeezPage() {
       clearAdvanceFrame();
       if (revealTimerRef.current) clearTimeout(revealTimerRef.current);
       if (repeatTimerRef.current) { clearTimeout(repeatTimerRef.current); repeatTimerRef.current = null; }
+      repeatPauseActiveRef.current = false;
     };
   // advanceGeneration triggers re-start of the chain. Refs used for callbacks.
   }, [advanceGeneration, clearAdvanceFrame, quizInteraction, quizStarted, isPaused, showAll]);
@@ -1562,6 +1573,11 @@ export default function TahfeezPage() {
       return;
     }
     if (quizInteraction === 'mcq' || quizInteraction === 'tap-only' || voiceModeRef.current) {
+      stalledAutoRecoverySigRef.current = null;
+      return;
+    }
+    // Don't treat the ayah/segment repetition pause as a stall
+    if (repeatPauseActiveRef.current || repeatTimerRef.current) {
       stalledAutoRecoverySigRef.current = null;
       return;
     }
@@ -1585,9 +1601,11 @@ export default function TahfeezPage() {
 
     const recoveryTimer = window.setTimeout(() => {
       if (!quizStarted || isPaused || showAll) return;
+      if (repeatPauseActiveRef.current || repeatTimerRef.current) return;
       if (currentPageRef.current !== currentPage) return;
       if (currentRevealIdxRef.current !== idx) return;
       if (engine.currentItemRemainingMs > 150) return;
+
 
       stalledAutoRecoverySigRef.current = sig;
       console.warn('[tahfeez] Recovering stalled auto-reveal', { page: currentPage, idx, key });
@@ -1619,6 +1637,8 @@ export default function TahfeezPage() {
       autoResumeQuizRef.current = false;
       rotateDistributionSeed();
       groupRepeatDoneRef.current = {};
+      repeatPauseActiveRef.current = false;
+      if (repeatTimerRef.current) { clearTimeout(repeatTimerRef.current); repeatTimerRef.current = null; }
       setQuizStarted(true);
       setSegmentMcqAccumulatedStats(null);
       setIsPaused(false);
