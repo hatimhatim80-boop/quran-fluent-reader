@@ -1459,6 +1459,41 @@ export default function TahfeezPage() {
             setActiveBlankKey(null);
             // Decrement session remaining
             onSessionItemProcessedRef.current();
+
+            // ── Word-by-word mode: repeat the whole ayah after its last word ──
+            const repeatTargetW = Math.max(1, ayahRepeatCountRef.current || 1);
+            if (repeatTargetW > 1) {
+              const ayahGroups = ayahKeyGroupsRef.current || [];
+              const g = ayahGroups.find(gr => gr.includes(key));
+              if (g && g.length > 0 && g[g.length - 1] === key) {
+                const firstGroupKey = g[0];
+                const repeatKey = `${currentPageRef.current}:w:${firstGroupKey}`;
+                const done = (groupRepeatDoneRef.current[repeatKey] || 0) + 1;
+                groupRepeatDoneRef.current[repeatKey] = done;
+                if (done < repeatTargetW) {
+                  const firstIdx = list.indexOf(firstGroupKey);
+                  const pauseMs = Math.max(0, (ayahRepeatDelayRef.current ?? 1.5) * 1000);
+                  clearAdvanceFrame();
+                  repeatPauseActiveRef.current = true;
+                  console.log('[tahfeez][repeat][word] pause before replay', { repeatKey, done, repeatTargetW, pauseMs });
+                  if (repeatTimerRef.current) clearTimeout(repeatTimerRef.current);
+                  repeatTimerRef.current = setTimeout(() => {
+                    repeatTimerRef.current = null;
+                    repeatPauseActiveRef.current = false;
+                    if (!quizStartedRef.current || isPausedRef.current || showAllRef.current) return;
+                    setRevealedKeys(prev => {
+                      const next = new Set(prev);
+                      g.forEach(k => next.delete(k));
+                      return next;
+                    });
+                    advance(firstIdx >= 0 ? firstIdx : idx);
+                  }, pauseMs);
+                  return;
+                }
+                delete groupRepeatDoneRef.current[repeatKey];
+              }
+            }
+
             // Use rAF instead of 150ms gap — engine stopwatch is the sole timekeeper
             clearAdvanceFrame();
             advanceFrameRef.current = requestAnimationFrame(() => {
