@@ -48,6 +48,8 @@ export function TahfeezAutoQuizSettings({ currentPage, quizPagesRange, onStart, 
     dotScale, setDotScale,
     revealGranularity, setRevealGranularity,
     groupDurationProportional, setGroupDurationProportional,
+    ayahRepeatCount, setAyahRepeatCount,
+    ayahRepeatDelay, setAyahRepeatDelay,
     segmentMcqInline, setSegmentMcqInline,
     segmentMcqChoicesAtBlank, setSegmentMcqChoicesAtBlank,
     segmentMcqCorrectDelay, setSegmentMcqCorrectDelay,
@@ -351,6 +353,41 @@ export function TahfeezAutoQuizSettings({ currentPage, quizPagesRange, onStart, 
                 </SettingRow>
 
                 <SettingToggle label="مدة تناسبية" desc="المدة = عدد الكلمات × سرعة الكلمة" checked={groupDurationProportional} onChange={setGroupDurationProportional} />
+
+                {/* Ayah / segment repetition */}
+                <SettingRow label="تكرار الآية">
+                  <div className="flex flex-wrap gap-1">
+                    {[1, 2, 3, 4, 5].map(n => (
+                      <Button
+                        key={n}
+                        variant={ayahRepeatCount === n ? 'default' : 'outline'}
+                        size="sm"
+                        onClick={() => setAyahRepeatCount(n)}
+                        className="font-arabic text-[10px] h-6 w-7 px-0"
+                      >
+                        {n === 1 ? 'بدون' : `×${n}`}
+                      </Button>
+                    ))}
+                  </div>
+                </SettingRow>
+                {ayahRepeatCount > 1 && (
+                  <SettingRow label="مهلة قبل التكرار (ث)">
+                    <div className="flex flex-wrap gap-1">
+                      {[0, 1, 1.5, 2, 3].map(s => (
+                        <Button
+                          key={s}
+                          variant={ayahRepeatDelay === s ? 'default' : 'outline'}
+                          size="sm"
+                          onClick={() => setAyahRepeatDelay(s)}
+                          className="font-arabic text-[10px] h-6 px-2"
+                        >
+                          {s}
+                        </Button>
+                      ))}
+                    </div>
+                  </SettingRow>
+                )}
+
 
                 <SettingToggle label="كلمة واحدة فقط" desc="تختفي بعد ظهورها" checked={singleWordMode} onChange={setSingleWordMode} />
                 

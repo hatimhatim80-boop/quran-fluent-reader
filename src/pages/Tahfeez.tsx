@@ -572,6 +572,16 @@ export default function TahfeezPage() {
   useEffect(() => { revealGranularityRef.current = revealGranularity; }, [revealGranularity]);
   const groupDurationProportionalRef = useRef(groupDurationProportional);
   useEffect(() => { groupDurationProportionalRef.current = groupDurationProportional; }, [groupDurationProportional]);
+  // Ayah/segment repetition
+  const ayahRepeatCount = useTahfeezStore(s => s.ayahRepeatCount);
+  const ayahRepeatDelay = useTahfeezStore(s => s.ayahRepeatDelay);
+  const ayahRepeatCountRef = useRef(ayahRepeatCount);
+  useEffect(() => { ayahRepeatCountRef.current = ayahRepeatCount; }, [ayahRepeatCount]);
+  const ayahRepeatDelayRef = useRef(ayahRepeatDelay);
+  useEffect(() => { ayahRepeatDelayRef.current = ayahRepeatDelay; }, [ayahRepeatDelay]);
+  /** How many times each group has been played (keyed by page:firstKey) */
+  const groupRepeatDoneRef = useRef<Record<string, number>>({});
+  const repeatTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Compute pages range for multi-page quiz
   const quizPagesRange = useMemo(() => {
@@ -1391,6 +1401,33 @@ export default function TahfeezPage() {
               });
             }
             setActiveBlankKey(null);
+
+            // ── Ayah/segment repetition ──
+            const repeatTarget = Math.max(1, ayahRepeatCountRef.current || 1);
+            const firstGroupKey = groupKeys[0];
+            const repeatKey = `${currentPageRef.current}:${firstGroupKey}`;
+            const done = (groupRepeatDoneRef.current[repeatKey] || 0) + 1;
+            groupRepeatDoneRef.current[repeatKey] = done;
+
+            if (repeatTarget > 1 && done < repeatTarget) {
+              // Show the revealed group briefly, then hide it again and replay it
+              const firstIdx = list.indexOf(firstGroupKey);
+              const pauseMs = Math.max(0, (ayahRepeatDelayRef.current ?? 1.5) * 1000);
+              clearAdvanceFrame();
+              if (repeatTimerRef.current) clearTimeout(repeatTimerRef.current);
+              repeatTimerRef.current = setTimeout(() => {
+                repeatTimerRef.current = null;
+                if (!quizStartedRef.current || isPausedRef.current || showAllRef.current) return;
+                setRevealedKeys(prev => {
+                  const next = new Set(prev);
+                  groupKeys.forEach(k => next.delete(k));
+                  return next;
+                });
+                advance(firstIdx >= 0 ? firstIdx : idx);
+              }, pauseMs);
+              return;
+            }
+
             // Decrement session remaining for each revealed item in the group
             groupKeys.forEach(() => onSessionItemProcessedRef.current());
             const lastGroupKey = groupKeys[groupKeys.length - 1];
@@ -1514,6 +1551,7 @@ export default function TahfeezPage() {
     return () => {
       clearAdvanceFrame();
       if (revealTimerRef.current) clearTimeout(revealTimerRef.current);
+      if (repeatTimerRef.current) { clearTimeout(repeatTimerRef.current); repeatTimerRef.current = null; }
     };
   // advanceGeneration triggers re-start of the chain. Refs used for callbacks.
   }, [advanceGeneration, clearAdvanceFrame, quizInteraction, quizStarted, isPaused, showAll]);
@@ -1580,6 +1618,7 @@ export default function TahfeezPage() {
       pendingAutoStartPageRef.current = null;
       autoResumeQuizRef.current = false;
       rotateDistributionSeed();
+      groupRepeatDoneRef.current = {};
       setQuizStarted(true);
       setSegmentMcqAccumulatedStats(null);
       setIsPaused(false);

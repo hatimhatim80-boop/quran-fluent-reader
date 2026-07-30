@@ -197,6 +197,13 @@ interface TahfeezState {
   groupDurationProportional: boolean;
   setGroupDurationProportional: (on: boolean) => void;
 
+  // Repeat each ayah/segment N times before moving on (1 = no repeat)
+  ayahRepeatCount: number;
+  setAyahRepeatCount: (n: number) => void;
+  // Pause (seconds) showing the revealed ayah before repeating it
+  ayahRepeatDelay: number;
+  setAyahRepeatDelay: (s: number) => void;
+
   // Segment MCQ inline mode: show choices on the Quran page
   segmentMcqInline: boolean;
   setSegmentMcqInline: (on: boolean) => void;
@@ -396,6 +403,12 @@ export const useTahfeezStore = create<TahfeezState>()(
       groupDurationProportional: false,
       setGroupDurationProportional: (on) => set({ groupDurationProportional: on }),
 
+      ayahRepeatCount: 1,
+      setAyahRepeatCount: (n) => set({ ayahRepeatCount: Math.max(1, Math.min(10, n)) }),
+      ayahRepeatDelay: 1.5,
+      setAyahRepeatDelay: (s) => set({ ayahRepeatDelay: Math.max(0, s) }),
+
+
       segmentMcqInline: false,
       setSegmentMcqInline: (on) => set({ segmentMcqInline: on }),
 
@@ -481,6 +494,8 @@ export const useTahfeezStore = create<TahfeezState>()(
         dotScale: state.dotScale,
         revealGranularity: state.revealGranularity,
         groupDurationProportional: state.groupDurationProportional,
+        ayahRepeatCount: state.ayahRepeatCount,
+        ayahRepeatDelay: state.ayahRepeatDelay,
         segmentMcqInline: state.segmentMcqInline,
         segmentMcqChoicesAtBlank: state.segmentMcqChoicesAtBlank,
         segmentMcqCorrectDelay: state.segmentMcqCorrectDelay,
