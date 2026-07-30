@@ -197,6 +197,13 @@ interface TahfeezState {
   groupDurationProportional: boolean;
   setGroupDurationProportional: (on: boolean) => void;
 
+  // Repeat each ayah/segment N times before moving on (1 = no repeat)
+  ayahRepeatCount: number;
+  setAyahRepeatCount: (n: number) => void;
+  // Pause (seconds) showing the revealed ayah before repeating it
+  ayahRepeatDelay: number;
+  setAyahRepeatDelay: (s: number) => void;
+
   // Segment MCQ inline mode: show choices on the Quran page
   segmentMcqInline: boolean;
   setSegmentMcqInline: (on: boolean) => void;
