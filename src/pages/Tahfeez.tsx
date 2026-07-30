@@ -1401,6 +1401,33 @@ export default function TahfeezPage() {
               });
             }
             setActiveBlankKey(null);
+
+            // ── Ayah/segment repetition ──
+            const repeatTarget = Math.max(1, ayahRepeatCountRef.current || 1);
+            const firstGroupKey = groupKeys[0];
+            const repeatKey = `${currentPageRef.current}:${firstGroupKey}`;
+            const done = (groupRepeatDoneRef.current[repeatKey] || 0) + 1;
+            groupRepeatDoneRef.current[repeatKey] = done;
+
+            if (repeatTarget > 1 && done < repeatTarget) {
+              // Show the revealed group briefly, then hide it again and replay it
+              const firstIdx = list.indexOf(firstGroupKey);
+              const pauseMs = Math.max(0, (ayahRepeatDelayRef.current ?? 1.5) * 1000);
+              clearAdvanceFrame();
+              if (repeatTimerRef.current) clearTimeout(repeatTimerRef.current);
+              repeatTimerRef.current = setTimeout(() => {
+                repeatTimerRef.current = null;
+                if (!quizStartedRef.current || isPausedRef.current || showAllRef.current) return;
+                setRevealedKeys(prev => {
+                  const next = new Set(prev);
+                  groupKeys.forEach(k => next.delete(k));
+                  return next;
+                });
+                advance(firstIdx >= 0 ? firstIdx : idx);
+              }, pauseMs);
+              return;
+            }
+
             // Decrement session remaining for each revealed item in the group
             groupKeys.forEach(() => onSessionItemProcessedRef.current());
             const lastGroupKey = groupKeys[groupKeys.length - 1];
