@@ -582,6 +582,8 @@ export default function TahfeezPage() {
   /** How many times each group has been played (keyed by page:firstKey) */
   const groupRepeatDoneRef = useRef<Record<string, number>>({});
   const repeatTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // True while we're pausing between ayah/segment repetitions — blocks stall recovery
+  const repeatPauseActiveRef = useRef(false);
 
   // Compute pages range for multi-page quiz
   const quizPagesRange = useMemo(() => {
