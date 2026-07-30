@@ -1575,6 +1575,11 @@ export default function TahfeezPage() {
       stalledAutoRecoverySigRef.current = null;
       return;
     }
+    // Don't treat the ayah/segment repetition pause as a stall
+    if (repeatPauseActiveRef.current || repeatTimerRef.current) {
+      stalledAutoRecoverySigRef.current = null;
+      return;
+    }
 
     const idx = currentRevealIdxRef.current;
     const list = blankedKeysListRef.current;
@@ -1595,9 +1600,11 @@ export default function TahfeezPage() {
 
     const recoveryTimer = window.setTimeout(() => {
       if (!quizStarted || isPaused || showAll) return;
+      if (repeatPauseActiveRef.current || repeatTimerRef.current) return;
       if (currentPageRef.current !== currentPage) return;
       if (currentRevealIdxRef.current !== idx) return;
       if (engine.currentItemRemainingMs > 150) return;
+
 
       stalledAutoRecoverySigRef.current = sig;
       console.warn('[tahfeez] Recovering stalled auto-reveal', { page: currentPage, idx, key });
