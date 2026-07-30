@@ -1618,6 +1618,7 @@ export default function TahfeezPage() {
       pendingAutoStartPageRef.current = null;
       autoResumeQuizRef.current = false;
       rotateDistributionSeed();
+      groupRepeatDoneRef.current = {};
       setQuizStarted(true);
       setSegmentMcqAccumulatedStats(null);
       setIsPaused(false);
