@@ -403,6 +403,12 @@ export const useTahfeezStore = create<TahfeezState>()(
       groupDurationProportional: false,
       setGroupDurationProportional: (on) => set({ groupDurationProportional: on }),
 
+      ayahRepeatCount: 1,
+      setAyahRepeatCount: (n) => set({ ayahRepeatCount: Math.max(1, Math.min(10, n)) }),
+      ayahRepeatDelay: 1.5,
+      setAyahRepeatDelay: (s) => set({ ayahRepeatDelay: Math.max(0, s) }),
+
+
       segmentMcqInline: false,
       setSegmentMcqInline: (on) => set({ segmentMcqInline: on }),
 
