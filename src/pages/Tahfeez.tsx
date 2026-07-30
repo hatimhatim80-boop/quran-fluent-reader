@@ -1562,6 +1562,7 @@ export default function TahfeezPage() {
       clearAdvanceFrame();
       if (revealTimerRef.current) clearTimeout(revealTimerRef.current);
       if (repeatTimerRef.current) { clearTimeout(repeatTimerRef.current); repeatTimerRef.current = null; }
+      repeatPauseActiveRef.current = false;
     };
   // advanceGeneration triggers re-start of the chain. Refs used for callbacks.
   }, [advanceGeneration, clearAdvanceFrame, quizInteraction, quizStarted, isPaused, showAll]);
@@ -1636,6 +1637,8 @@ export default function TahfeezPage() {
       autoResumeQuizRef.current = false;
       rotateDistributionSeed();
       groupRepeatDoneRef.current = {};
+      repeatPauseActiveRef.current = false;
+      if (repeatTimerRef.current) { clearTimeout(repeatTimerRef.current); repeatTimerRef.current = null; }
       setQuizStarted(true);
       setSegmentMcqAccumulatedStats(null);
       setIsPaused(false);
