@@ -572,6 +572,16 @@ export default function TahfeezPage() {
   useEffect(() => { revealGranularityRef.current = revealGranularity; }, [revealGranularity]);
   const groupDurationProportionalRef = useRef(groupDurationProportional);
   useEffect(() => { groupDurationProportionalRef.current = groupDurationProportional; }, [groupDurationProportional]);
+  // Ayah/segment repetition
+  const ayahRepeatCount = useTahfeezStore(s => s.ayahRepeatCount);
+  const ayahRepeatDelay = useTahfeezStore(s => s.ayahRepeatDelay);
+  const ayahRepeatCountRef = useRef(ayahRepeatCount);
+  useEffect(() => { ayahRepeatCountRef.current = ayahRepeatCount; }, [ayahRepeatCount]);
+  const ayahRepeatDelayRef = useRef(ayahRepeatDelay);
+  useEffect(() => { ayahRepeatDelayRef.current = ayahRepeatDelay; }, [ayahRepeatDelay]);
+  /** How many times each group has been played (keyed by page:firstKey) */
+  const groupRepeatDoneRef = useRef<Record<string, number>>({});
+  const repeatTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Compute pages range for multi-page quiz
   const quizPagesRange = useMemo(() => {
