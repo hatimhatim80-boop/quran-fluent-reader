@@ -197,6 +197,7 @@ export function TahfeezSRSPanel({ currentPage, totalPages, pageData, allPages, o
           onNavigateToPage={onNavigateToPage}
           portalName="التحفيظ"
           focusMode
+          settingsPanel={<TahfeezSessionReviewSettings />}
           defaultAnswerMode={showHiddenWordsPreview ? 'bottom' : 'inline'}
           answerModeOptions={showHiddenWordsPreview ? ['inline', 'bottom'] : ['inline']}
           renderAnswer={showHiddenWordsPreview ? ((card) => card.type === 'tahfeez-word' ? (
