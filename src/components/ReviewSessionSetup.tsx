@@ -66,12 +66,26 @@ export function ReviewSessionSetup({
   const { getActiveSession, getRecentSessions, createSession, deleteSession, completeSession } = useReviewSessionStore();
   const sessionsStore = useSessionsStore();
 
-  const [sessionType, setSessionType] = useState<SessionType>('due');
+  // Last-used setup preferences for THIS portal (restored on reopen)
+  const prefsKey = `review-setup-prefs.${portal}`;
+  const savedPrefs = useMemo<Partial<{ sessionType: SessionType; order: SessionOrder; archiveFilter: ArchiveFilter; sessionSize: string }>>(() => {
+    try { return JSON.parse(localStorage.getItem(prefsKey) || '{}'); } catch { return {}; }
+  }, [prefsKey]);
+
+  const [sessionType, setSessionType] = useState<SessionType>(savedPrefs.sessionType || 'due');
   const [scope, setScope] = useState<SRSScope>({ type: 'all-due', from: currentPage, to: currentPage });
-  const [sessionSize, setSessionSize] = useState<string>('all');
-  const [order, setOrder] = useState<SessionOrder>('smart');
-  const [archiveFilter, setArchiveFilter] = useState<ArchiveFilter>('exclude');
+  const [sessionSize, setSessionSize] = useState<string>(savedPrefs.sessionSize || 'all');
+  const [order, setOrder] = useState<SessionOrder>(savedPrefs.order || 'smart');
+  const [archiveFilter, setArchiveFilter] = useState<ArchiveFilter>(savedPrefs.archiveFilter || 'exclude');
   const [sessionName, setSessionName] = useState('');
+  const startingRef = React.useRef(false);
+
+  // Persist setup preferences immediately on every change.
+  React.useEffect(() => {
+    try {
+      localStorage.setItem(prefsKey, JSON.stringify({ sessionType, order, archiveFilter, sessionSize }));
+    } catch { /* ignore */ }
+  }, [prefsKey, sessionType, order, archiveFilter, sessionSize]);
 
   const typeFilters = useMemo(() => {
     if (!cardTypeFilter) return undefined;
