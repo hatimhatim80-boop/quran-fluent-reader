@@ -5,6 +5,7 @@ import { Slider } from '@/components/ui/slider';
 import { useSettingsStore, FontSettings } from '@/stores/settingsStore';
 import type { SessionType } from '@/stores/sessionsStore';
 import { getSessionFontSettings, saveSessionFontSettings } from '@/services/localSessionFontStore';
+import { useReviewSessionStore } from '@/stores/reviewSessionStore';
 
 const FONT_OPTIONS = [
   { value: 'uthmanicHafs', label: 'عثماني حفص' },
