@@ -353,7 +353,9 @@ export function SessionManager() {
                 />
               </div>
             ) : (
-              <span className="text-xs font-arabic font-bold text-foreground flex-1">{group.name}</span>
+              <button onClick={() => toggleGroup(group.id)} className="text-xs font-arabic font-bold text-foreground flex-1 text-right">
+                {group.name} <span className="text-muted-foreground font-normal">({groupSessions.length})</span>
+              </button>
             )}
             <button
               onClick={() => { setEditingGroupId(group.id); setEditGroupName(group.name); }}
@@ -370,20 +372,25 @@ export function SessionManager() {
               <Trash2 className="w-3 h-3" />
             </button>
           </div>
-          <div className="mr-4 space-y-2">
-            {groupSessions.length === 0 && (
-              <p className="text-[10px] font-arabic text-muted-foreground">لا توجد جلسات في هذه المجموعة</p>
-            )}
-            {renderSessionList(groupSessions)}
-          </div>
+          {!collapsedGroups[group.id] && (
+            <div className="mr-4 space-y-2">
+              {groupSessions.length === 0 && (
+                <p className="text-[10px] font-arabic text-muted-foreground">لا توجد جلسات في هذه المجموعة</p>
+              )}
+              {renderSessionList(groupSessions)}
+            </div>
+          )}
         </div>
       ))}
 
       {/* Ungrouped sessions */}
       {ungroupedSessions.length > 0 && groups.length > 0 && (
         <div className="space-y-2">
-          <span className="text-xs font-arabic font-bold text-muted-foreground">بدون مجموعة</span>
-          {renderSessionList(ungroupedSessions)}
+          <button onClick={toggleUngrouped} className="flex items-center gap-2 text-xs font-arabic font-bold text-muted-foreground hover:text-foreground">
+            {ungroupedCollapsed ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronUp className="w-3.5 h-3.5" />}
+            بدون مجموعة ({ungroupedSessions.length})
+          </button>
+          {!ungroupedCollapsed && renderSessionList(ungroupedSessions)}
         </div>
       )}
 
