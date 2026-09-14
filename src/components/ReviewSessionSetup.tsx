@@ -211,6 +211,9 @@ export function ReviewSessionSetup({
   const canStart = availableCount > 0 || canAutoGenerateFromScope;
 
   const handleStart = useCallback(() => {
+    if (startingRef.current) return;
+    startingRef.current = true;
+    setTimeout(() => { startingRef.current = false; }, 1500);
     let pool = orderedPool;
 
     // Auto-generate if empty
