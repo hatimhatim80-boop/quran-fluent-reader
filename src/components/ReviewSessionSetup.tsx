@@ -212,6 +212,26 @@ export function ReviewSessionSetup({
   }, [sessionType, scopePages, cards, getDueCards, getFlaggedCards, getArchivedCards, getCardsByPages, typeFilters, archiveFilter]);
 
   // Apply order
+  const applyOrder = useCallback((cardsToOrder: SRSCard[], mode: SessionOrder) => {
+    const pool = [...cardsToOrder];
+    switch (mode) {
+      case 'mushaf':
+        pool.sort((a, b) => a.page - b.page || a.id.localeCompare(b.id));
+        break;
+      case 'random':
+        for (let i = pool.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [pool[i], pool[j]] = [pool[j], pool[i]];
+        }
+        break;
+      case 'smart':
+      default:
+        pool.sort((a, b) => a.nextReview - b.nextReview);
+        break;
+    }
+    return pool;
+  }, []);
+
   const orderedPool = useMemo(() => {
     const pool = [...cardPool];
     switch (order) {
