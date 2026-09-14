@@ -116,16 +116,16 @@ function SessionCard({ session, onContinue }: { session: Session; onContinue: (s
           </p>
           <SectionsList session={session} />
         </div>
+        {groups.length > 0 && (
+          <button
+            onClick={() => setShowMove(!showMove)}
+            className={`w-7 h-7 rounded-lg flex items-center justify-center transition-colors shrink-0 ${showMove ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:text-foreground hover:bg-muted/60'}`}
+            title="نقل لمجموعة"
+          >
+            <ArrowRightLeft className="w-3.5 h-3.5" />
+          </button>
+        )}
         <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-          {groups.length > 0 && (
-            <button
-              onClick={() => setShowMove(!showMove)}
-              className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
-              title="نقل لمجموعة"
-            >
-              <ArrowRightLeft className="w-3.5 h-3.5" />
-            </button>
-          )}
           <button
             onClick={() => archiveSession(session.id)}
             className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
@@ -176,6 +176,25 @@ export function SessionManager() {
   const [newStartPage, setNewStartPage] = useState('1');
   const [newEndPage, setNewEndPage] = useState('');
   const [newGroupId, setNewGroupId] = useState<string>('');
+  const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>(() => {
+    try { return JSON.parse(localStorage.getItem('sessions-collapsed-groups') || '{}'); } catch { return {}; }
+  });
+  const [ungroupedCollapsed, setUngroupedCollapsed] = useState<boolean>(() => localStorage.getItem('sessions-ungrouped-collapsed') === '1');
+
+  const toggleGroup = (id: string) => {
+    setCollapsedGroups(prev => {
+      const next = { ...prev, [id]: !prev[id] };
+      localStorage.setItem('sessions-collapsed-groups', JSON.stringify(next));
+      return next;
+    });
+  };
+
+  const toggleUngrouped = () => {
+    setUngroupedCollapsed(prev => {
+      localStorage.setItem('sessions-ungrouped-collapsed', prev ? '0' : '1');
+      return !prev;
+    });
+  };
 
   const activeSessions = sessions.filter(s => !s.archived);
   const archivedSessions = sessions.filter(s => s.archived);
@@ -311,6 +330,13 @@ export function SessionManager() {
       {groupedSessions.map(({ group, sessions: groupSessions }) => (
         <div key={group.id} className="space-y-2">
           <div className="flex items-center gap-2">
+            <button
+              onClick={() => toggleGroup(group.id)}
+              className="text-muted-foreground hover:text-foreground"
+              title={collapsedGroups[group.id] ? 'فتح' : 'طي'}
+            >
+              {collapsedGroups[group.id] ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronUp className="w-3.5 h-3.5" />}
+            </button>
             <FolderOpen className="w-3.5 h-3.5 text-primary" />
             {editingGroupId === group.id ? (
               <div className="flex gap-1 items-center flex-1">
@@ -327,7 +353,9 @@ export function SessionManager() {
                 />
               </div>
             ) : (
-              <span className="text-xs font-arabic font-bold text-foreground flex-1">{group.name}</span>
+              <button onClick={() => toggleGroup(group.id)} className="text-xs font-arabic font-bold text-foreground flex-1 text-right">
+                {group.name} <span className="text-muted-foreground font-normal">({groupSessions.length})</span>
+              </button>
             )}
             <button
               onClick={() => { setEditingGroupId(group.id); setEditGroupName(group.name); }}
@@ -344,20 +372,25 @@ export function SessionManager() {
               <Trash2 className="w-3 h-3" />
             </button>
           </div>
-          <div className="mr-4 space-y-2">
-            {groupSessions.length === 0 && (
-              <p className="text-[10px] font-arabic text-muted-foreground">لا توجد جلسات في هذه المجموعة</p>
-            )}
-            {renderSessionList(groupSessions)}
-          </div>
+          {!collapsedGroups[group.id] && (
+            <div className="mr-4 space-y-2">
+              {groupSessions.length === 0 && (
+                <p className="text-[10px] font-arabic text-muted-foreground">لا توجد جلسات في هذه المجموعة</p>
+              )}
+              {renderSessionList(groupSessions)}
+            </div>
+          )}
         </div>
       ))}
 
       {/* Ungrouped sessions */}
       {ungroupedSessions.length > 0 && groups.length > 0 && (
         <div className="space-y-2">
-          <span className="text-xs font-arabic font-bold text-muted-foreground">بدون مجموعة</span>
-          {renderSessionList(ungroupedSessions)}
+          <button onClick={toggleUngrouped} className="flex items-center gap-2 text-xs font-arabic font-bold text-muted-foreground hover:text-foreground">
+            {ungroupedCollapsed ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronUp className="w-3.5 h-3.5" />}
+            بدون مجموعة ({ungroupedSessions.length})
+          </button>
+          {!ungroupedCollapsed && renderSessionList(ungroupedSessions)}
         </div>
       )}
 
