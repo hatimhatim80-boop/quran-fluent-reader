@@ -56,6 +56,7 @@ export function SRSReviewSession({
   const unarchiveCard = useSRSStore(s => s.unarchiveCard);
   const updateSessionMeta = useReviewSessionStore(s => s.updateSession);
   const updateGeneralSession = useSessionsStore(s => s.updateSession);
+  const markGeneralSessionPaused = useSessionsStore(s => s.markSessionPaused);
   const markTahfeezSessionCompleted = useSessionsStore(s => s.markSessionCompleted);
   const markGeneralSessionCompleted = useSessionsStore(s => s.markSessionCompleted);
 
@@ -334,12 +335,11 @@ export function SRSReviewSession({
 
   const finishReviewSession = useCallback(() => {
     persistSessionState();
-    const activeTahfeezSession = useSessionsStore.getState().getActiveSession();
-    if (activeTahfeezSession?.type === 'tahfeez-review') {
-      markTahfeezSessionCompleted(activeTahfeezSession.id);
-    }
+    const savedSession = sessionId ? useReviewSessionStore.getState().getSession(sessionId) : undefined;
+    const generalSessionId = savedSession?.settings?.generalSessionId;
+    if (generalSessionId) markGeneralSessionPaused(generalSessionId);
     onFinish();
-  }, [persistSessionState, markTahfeezSessionCompleted, onFinish]);
+  }, [persistSessionState, sessionId, markGeneralSessionPaused, onFinish]);
 
   const goToCard = useCallback((idx: number) => {
     setActiveQueue(prev => {

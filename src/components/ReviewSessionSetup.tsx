@@ -102,9 +102,42 @@ export function ReviewSessionSetup({
     [scope, currentPage],
   );
 
-  // Active incomplete session
-  const activeSession = useMemo(() => getActiveSession(portal), [portal, getActiveSession]);
+  // When opened from the sessions page, this exact general/review pair is the
+  // editing target. Never replace it with a newly-created session.
+  const hostGeneralSession = useMemo(() => {
+    if (!resumeSessionId) return undefined;
+    const candidate = sessionsStore.getSession(resumeSessionId);
+    const expectedType = portal === 'ghareeb' ? 'ghareeb-review' : 'tahfeez-review';
+    return candidate?.type === expectedType ? candidate : undefined;
+  }, [resumeSessionId, portal, sessionsStore]);
+  const linkedReviewSession = useMemo(() => {
+    const reviewId = String(hostGeneralSession?.quizSettings?.reviewSessionId || '');
+    if (!reviewId) return undefined;
+    const candidate = useReviewSessionStore.getState().getSession(reviewId);
+    return candidate?.portal === portal ? candidate : undefined;
+  }, [hostGeneralSession, portal]);
+  const activeSession = linkedReviewSession ?? getActiveSession(portal);
   const recentSessions = useMemo(() => getRecentSessions(portal, 5), [portal, getRecentSessions]);
+
+  // Show the selected session's own values when its settings screen is opened.
+  React.useEffect(() => {
+    if (!hostGeneralSession) return;
+    setSessionName(linkedReviewSession?.name ?? hostGeneralSession.name);
+    const saved = linkedReviewSession?.settings;
+    if (!saved) return;
+    if (saved.sessionType) setSessionType(saved.sessionType);
+    if (saved.order) setOrder(saved.order);
+    if (saved.archiveFilter) setArchiveFilter(saved.archiveFilter);
+    if (saved.sessionSize) setSessionSize(saved.sessionSize);
+    if (saved.scopeType) {
+      setScope({
+        type: saved.scopeType as SRSScope['type'],
+        from: saved.scopeFrom ?? currentPage,
+        to: saved.scopeTo ?? saved.scopeFrom ?? currentPage,
+      });
+    }
+    applyTahfeezSettings((saved.extra?.tahfeezSettings as never) || null);
+  }, [hostGeneralSession, linkedReviewSession, currentPage]);
 
   // Build card pool based on session type
   const cardPool = useMemo(() => {
@@ -250,12 +283,22 @@ export function ReviewSessionSetup({
       [...selected.map(c => c.id)].sort().join(','),
     ].join('|');
 
-    // Reuse an existing (not completed) session with the same identity instead
-    // of saving a new one each time the user enters and exits the session.
-    const existing = useReviewSessionStore.getState().sessions.find(
-      s => !s.completed && s.portal === portal && (s.settings?.extra as any)?.signature === signature
-    );
+    // If the setup belongs to an existing session, update that exact session.
+    // The selected general session id is the identity; names/card order are not.
+    const existing = linkedReviewSession;
     if (existing) {
+      useReviewSessionStore.getState().updateSession(existing.id, {
+        name,
+        sessionType,
+        scopeLabel: scope.type,
+        cardIds: selected.map(c => c.id),
+        reviewedIds: [],
+        archivedInSession: [],
+        suspendedIds: [],
+        currentIdx: 0,
+        ratingsMap: {},
+        completed: false,
+      });
       useReviewSessionStore.getState().updateSessionSettings(existing.id, {
         order,
         archiveFilter,
@@ -266,16 +309,28 @@ export function ReviewSessionSetup({
         sessionSize,
         extra: { tahfeezSettings: captureTahfeezSettings(), signature },
       });
-      const genId = existing.settings?.generalSessionId;
+      const genId = existing.settings?.generalSessionId ?? hostGeneralSession?.id;
       if (genId && sessionsStore.getSession(genId)) {
+        sessionsStore.updateSession(genId, {
+          name,
+          currentPage: firstPage,
+          startPage: firstPage,
+          endPage: lastPage,
+          progress: 0,
+          status: 'active',
+          resumeState: null,
+          quizSettings: { reviewSessionId: existing.id, scopeLabel: scope.type, cardCount: selected.length },
+        });
         sessionsStore.markSessionResumed(genId);
         sessionsStore.setActiveSession(genId);
       }
-      onStartSession(selected, existing.id, existing.name);
+      onStartSession(selected, existing.id, name);
       return;
     }
 
-    const generalSessionId = sessionsStore.createSession(
+    // A general session created from the sessions page is reused and linked;
+    // only a truly new setup creates a new general session.
+    const generalSessionId = hostGeneralSession?.id ?? sessionsStore.createSession(
       name,
       portal === 'ghareeb' ? 'ghareeb-review' : 'tahfeez-review',
       firstPage,
@@ -311,7 +366,7 @@ export function ReviewSessionSetup({
     }
 
     onStartSession(selected, sessionId, name);
-  }, [orderedPool, sessionName, portal, sessionType, scope, order, archiveFilter, sessionSize, createSession, onStartSession, onAutoGenerateCards, scopePages, typeFilters, getRequestedCount, currentPage, sessionsStore]);
+  }, [orderedPool, sessionName, portal, sessionType, scope, order, archiveFilter, sessionSize, createSession, onStartSession, onAutoGenerateCards, scopePages, typeFilters, getRequestedCount, currentPage, sessionsStore, linkedReviewSession, hostGeneralSession]);
 
 
   const handleResume = useCallback((session: ReviewSessionMeta) => {

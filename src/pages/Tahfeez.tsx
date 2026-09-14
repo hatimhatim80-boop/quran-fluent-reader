@@ -2554,6 +2554,7 @@ export default function TahfeezPage() {
               totalPages={totalPages}
               pageData={pageData}
               allPages={pages}
+              resumeSessionId={activeSessionType === 'tahfeez-review' ? resolvedSessionId : null}
               onNavigateToPage={goToPage}
               renderPageWithBlanks={(pg, blankedKeys, card) => {
                 const pgData = pages.find(p => p.pageNumber === pg);
