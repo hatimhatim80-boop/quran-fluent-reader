@@ -90,6 +90,27 @@ export function SRSReviewSession({
     if (sessionId) updateSessionSettings(sessionId, { answerMode: mode });
   }, [sessionId, updateSessionSettings]);
 
+  /** Reorders the remaining cards live and saves the choice on this session. */
+  const applyQueueOrder = useCallback((mode: QueueOrder) => {
+    setQueueOrder(mode);
+    if (sessionId) updateSessionSettings(sessionId, { order: mode });
+    setActiveQueue(prev => {
+      const arr = [...prev];
+      if (mode === 'mushaf') {
+        arr.sort((a, b) => a.card.page - b.card.page || a.card.id.localeCompare(b.card.id));
+      } else if (mode === 'random') {
+        for (let i = arr.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [arr[i], arr[j]] = [arr[j], arr[i]];
+        }
+      } else {
+        arr.sort((a, b) => a.card.nextReview - b.card.nextReview);
+      }
+      return arr;
+    });
+    setCurrentIdx(0);
+  }, [sessionId, updateSessionSettings]);
+
   // Dual-queue system
   const [activeQueue, setActiveQueue] = useState<ReviewQueueEntry[]>([]);
   const [delayedQueue, setDelayedQueue] = useState<ReviewQueueEntry[]>([]);
