@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { useSRSStore, SRSCard } from '@/stores/srsStore';
 import { SRSReviewSession } from './SRSReviewSession';
 import { ReviewSessionSetup } from './ReviewSessionSetup';
+import { TahfeezSessionReviewSettings } from './TahfeezSessionReviewSettings';
 import { useTahfeezStore } from '@/stores/tahfeezStore';
 import { Button } from '@/components/ui/button';
 import { Plus, Download, Upload, Trash2, BookOpen, Type } from 'lucide-react';
@@ -20,7 +21,7 @@ function isBismillah(line: string): boolean { return isBismillahStrict(line); }
 function formatArabicNumber(value: number): string { return new Intl.NumberFormat('ar-SA').format(value); }
 function buildAyahStableId(pageNumber: number, ayahIndex: number): string { return `ayah_${pageNumber}_${ayahIndex}`; }
 
-function extractPageWords(text: string, pageNumber: number): WordToken[] {
+export function extractPageWords(text: string, pageNumber: number): WordToken[] {
   const lines = text.split('\n'); const tokens: WordToken[] = []; const isFatiha = pageNumber === 1;
   for (let li = 0; li < lines.length; li++) {
     const l = lines[li];
@@ -197,6 +198,7 @@ export function TahfeezSRSPanel({ currentPage, totalPages, pageData, allPages, o
           onNavigateToPage={onNavigateToPage}
           portalName="التحفيظ"
           focusMode
+          settingsPanel={<TahfeezSessionReviewSettings />}
           defaultAnswerMode={showHiddenWordsPreview ? 'bottom' : 'inline'}
           answerModeOptions={showHiddenWordsPreview ? ['inline', 'bottom'] : ['inline']}
           renderAnswer={showHiddenWordsPreview ? ((card) => card.type === 'tahfeez-word' ? (

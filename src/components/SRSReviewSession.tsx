@@ -28,7 +28,11 @@ interface SRSReviewSessionProps {
   answerModeOptions?: AnswerDisplayMode[];
   headerExtra?: React.ReactNode;
   focusMode?: boolean;
+  /** Extra settings shown inside the in-session settings drawer. */
+  settingsPanel?: React.ReactNode;
 }
+
+type QueueOrder = 'smart' | 'mushaf' | 'random';
 
 const ANSWER_MODE_LABEL: Record<AnswerDisplayMode, string> = {
   bottom: 'أسفل',
@@ -49,6 +53,7 @@ export function SRSReviewSession({
   answerModeOptions = ['bottom', 'tooltip', 'inline'],
   headerExtra,
   focusMode = false,
+  settingsPanel,
 }: SRSReviewSessionProps) {
   const rateCard = useSRSStore(s => s.rateCard);
   const toggleFlag = useSRSStore(s => s.toggleFlag);
@@ -65,6 +70,11 @@ export function SRSReviewSession({
   const [answerRevealed, setAnswerRevealed] = useState(false);
   const [showManualInterval, setShowManualInterval] = useState(false);
   const [showIndex, setShowIndex] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
+  const [queueOrder, setQueueOrder] = useState<QueueOrder>(() => {
+    const saved = sessionId ? useReviewSessionStore.getState().getSessionSettings(sessionId)?.order : undefined;
+    return (saved as QueueOrder) || 'smart';
+  });
   // Answer mode is restored from THIS session's saved settings (never shared).
   const [answerMode, setAnswerMode] = useState<AnswerDisplayMode>(() => {
     if (sessionId) {
@@ -78,6 +88,27 @@ export function SRSReviewSession({
   const applyAnswerMode = useCallback((mode: AnswerDisplayMode) => {
     setAnswerMode(mode);
     if (sessionId) updateSessionSettings(sessionId, { answerMode: mode });
+  }, [sessionId, updateSessionSettings]);
+
+  /** Reorders the remaining cards live and saves the choice on this session. */
+  const applyQueueOrder = useCallback((mode: QueueOrder) => {
+    setQueueOrder(mode);
+    if (sessionId) updateSessionSettings(sessionId, { order: mode });
+    setActiveQueue(prev => {
+      const arr = [...prev];
+      if (mode === 'mushaf') {
+        arr.sort((a, b) => a.card.page - b.card.page || a.card.id.localeCompare(b.card.id));
+      } else if (mode === 'random') {
+        for (let i = arr.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [arr[i], arr[j]] = [arr[j], arr[i]];
+        }
+      } else {
+        arr.sort((a, b) => a.card.nextReview - b.card.nextReview);
+      }
+      return arr;
+    });
+    setCurrentIdx(0);
   }, [sessionId, updateSessionSettings]);
 
   // Dual-queue system
@@ -139,6 +170,17 @@ export function SRSReviewSession({
       (sessionCard) => !savedArchivedIds.has(sessionCard.id) && !savedSuspendedIds.has(sessionCard.id)
     );
     const queues = partitionSessionCards(availableCards);
+    // Honour this session's saved order so the chosen order really applies.
+    const savedOrder = (savedSession?.settings?.order as QueueOrder) || 'smart';
+    if (savedOrder === 'mushaf') {
+      queues.activeQueue.sort((a, b) => a.card.page - b.card.page || a.card.id.localeCompare(b.card.id));
+    } else if (savedOrder === 'random') {
+      for (let i = queues.activeQueue.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [queues.activeQueue[i], queues.activeQueue[j]] = [queues.activeQueue[j], queues.activeQueue[i]];
+      }
+    }
+    setQueueOrder(savedOrder);
     setActiveQueue(queues.activeQueue);
     setDelayedQueue(queues.delayedQueue);
     nextOrderRef.current = queues.nextOrder;
@@ -421,6 +463,9 @@ export function SRSReviewSession({
               <button onClick={() => setShowIndex(!showIndex)} className={`w-7 h-7 rounded-full flex items-center justify-center transition-colors ${showIndex ? 'bg-primary text-primary-foreground' : 'hover:bg-accent'}`}>
                 <List className="w-3.5 h-3.5" />
               </button>
+              <button onClick={() => setShowSettings(v => !v)} title="إعدادات الجلسة" className={`w-7 h-7 rounded-full flex items-center justify-center transition-colors ${showSettings ? 'bg-primary text-primary-foreground' : 'hover:bg-accent'}`}>
+                <Settings2 className="w-3.5 h-3.5" />
+              </button>
               <button onClick={() => toggleFlag(card.id)} className={`w-7 h-7 rounded-full flex items-center justify-center transition-colors ${card.flagged ? 'text-orange-500' : 'hover:bg-accent text-muted-foreground'}`}>
                 <Flag className="w-3.5 h-3.5" />
               </button>
@@ -490,6 +535,40 @@ export function SRSReviewSession({
           </div>
         )}
 
+        {/* In-session settings drawer */}
+        {showSettings && (
+          <div className="border-t border-border bg-card/95 px-3 py-3 shrink-0 max-h-[45vh] overflow-y-auto overscroll-contain space-y-3 animate-fade-in" dir="rtl">
+            <div className="space-y-1.5">
+              <p className="text-xs text-muted-foreground font-arabic">ترتيب المراجعة</p>
+              <div className="flex gap-1.5">
+                {([
+                  { value: 'smart' as const, label: 'ذكي (الأقدم)' },
+                  { value: 'mushaf' as const, label: 'ترتيب المصحف' },
+                  { value: 'random' as const, label: 'عشوائي' },
+                ]).map(opt => (
+                  <Button
+                    key={opt.value}
+                    size="sm"
+                    variant={queueOrder === opt.value ? 'default' : 'outline'}
+                    className="text-[11px] h-7 px-2.5 font-arabic"
+                    onClick={() => applyQueueOrder(opt.value)}
+                  >
+                    {opt.label}
+                  </Button>
+                ))}
+              </div>
+              {queueOrder === 'random' && (
+                <button onClick={() => applyQueueOrder('random')} className="text-[11px] text-primary font-arabic hover:underline">
+                  إعادة الخلط الآن
+                </button>
+              )}
+            </div>
+            <SessionFontSettings sessionType={activeSessionType || 'tahfeez-review'} reviewSessionId={sessionId} compact />
+            {settingsPanel}
+            {headerExtra}
+          </div>
+        )}
+
         {/* Actions — always fixed at bottom */}
         <div className="border-t border-border bg-card/80 backdrop-blur-sm px-3 py-3 space-y-2 shrink-0" style={{ paddingBottom: 'env(safe-area-inset-bottom, 8px)' }}>
           {/* Focus mode: top bar with index + exit + counter + actions */}
@@ -501,6 +580,13 @@ export function SRSReviewSession({
                   className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${showIndex ? 'bg-primary text-primary-foreground' : 'hover:bg-accent text-muted-foreground'}`}
                 >
                   <List className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={() => setShowSettings(v => !v)}
+                  title="إعدادات الجلسة"
+                  className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${showSettings ? 'bg-primary text-primary-foreground' : 'hover:bg-accent text-muted-foreground'}`}
+                >
+                  <Settings2 className="w-4 h-4" />
                 </button>
                 <span className="text-xs text-muted-foreground font-arabic">
                   {currentIdx + 1}/{total}

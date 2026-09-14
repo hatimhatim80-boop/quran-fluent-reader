@@ -212,6 +212,26 @@ export function ReviewSessionSetup({
   }, [sessionType, scopePages, cards, getDueCards, getFlaggedCards, getArchivedCards, getCardsByPages, typeFilters, archiveFilter]);
 
   // Apply order
+  const applyOrder = useCallback((cardsToOrder: SRSCard[], mode: SessionOrder) => {
+    const pool = [...cardsToOrder];
+    switch (mode) {
+      case 'mushaf':
+        pool.sort((a, b) => a.page - b.page || a.id.localeCompare(b.id));
+        break;
+      case 'random':
+        for (let i = pool.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [pool[i], pool[j]] = [pool[j], pool[i]];
+        }
+        break;
+      case 'smart':
+      default:
+        pool.sort((a, b) => a.nextReview - b.nextReview);
+        break;
+    }
+    return pool;
+  }, []);
+
   const orderedPool = useMemo(() => {
     const pool = [...cardPool];
     switch (order) {
@@ -256,9 +276,13 @@ export function ReviewSessionSetup({
         // Re-fetch
         const state = useSRSStore.getState();
         const ps = new Set(scopePages);
-        pool = typeFilters
-          ? state.cards.filter(c => typeFilters.includes(c.type) && ps.has(c.page))
-          : state.cards.filter(c => ps.has(c.page));
+        // Freshly generated cards must follow the chosen order too.
+        pool = applyOrder(
+          typeFilters
+            ? state.cards.filter(c => typeFilters.includes(c.type) && ps.has(c.page))
+            : state.cards.filter(c => ps.has(c.page)),
+          order,
+        );
       }
     }
 
@@ -366,7 +390,7 @@ export function ReviewSessionSetup({
     }
 
     onStartSession(selected, sessionId, name);
-  }, [orderedPool, sessionName, portal, sessionType, scope, order, archiveFilter, sessionSize, createSession, onStartSession, onAutoGenerateCards, scopePages, typeFilters, getRequestedCount, currentPage, sessionsStore, linkedReviewSession, hostGeneralSession]);
+  }, [orderedPool, applyOrder, sessionName, portal, sessionType, scope, order, archiveFilter, sessionSize, createSession, onStartSession, onAutoGenerateCards, scopePages, typeFilters, getRequestedCount, currentPage, sessionsStore, linkedReviewSession, hostGeneralSession]);
 
 
   const handleResume = useCallback((session: ReviewSessionMeta) => {
