@@ -21,7 +21,7 @@ function isBismillah(line: string): boolean { return isBismillahStrict(line); }
 function formatArabicNumber(value: number): string { return new Intl.NumberFormat('ar-SA').format(value); }
 function buildAyahStableId(pageNumber: number, ayahIndex: number): string { return `ayah_${pageNumber}_${ayahIndex}`; }
 
-function extractPageWords(text: string, pageNumber: number): WordToken[] {
+export function extractPageWords(text: string, pageNumber: number): WordToken[] {
   const lines = text.split('\n'); const tokens: WordToken[] = []; const isFatiha = pageNumber === 1;
   for (let li = 0; li < lines.length; li++) {
     const l = lines[li];
