@@ -176,6 +176,25 @@ export function SessionManager() {
   const [newStartPage, setNewStartPage] = useState('1');
   const [newEndPage, setNewEndPage] = useState('');
   const [newGroupId, setNewGroupId] = useState<string>('');
+  const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>(() => {
+    try { return JSON.parse(localStorage.getItem('sessions-collapsed-groups') || '{}'); } catch { return {}; }
+  });
+  const [ungroupedCollapsed, setUngroupedCollapsed] = useState<boolean>(() => localStorage.getItem('sessions-ungrouped-collapsed') === '1');
+
+  const toggleGroup = (id: string) => {
+    setCollapsedGroups(prev => {
+      const next = { ...prev, [id]: !prev[id] };
+      localStorage.setItem('sessions-collapsed-groups', JSON.stringify(next));
+      return next;
+    });
+  };
+
+  const toggleUngrouped = () => {
+    setUngroupedCollapsed(prev => {
+      localStorage.setItem('sessions-ungrouped-collapsed', prev ? '0' : '1');
+      return !prev;
+    });
+  };
 
   const activeSessions = sessions.filter(s => !s.archived);
   const archivedSessions = sessions.filter(s => s.archived);
@@ -311,6 +330,13 @@ export function SessionManager() {
       {groupedSessions.map(({ group, sessions: groupSessions }) => (
         <div key={group.id} className="space-y-2">
           <div className="flex items-center gap-2">
+            <button
+              onClick={() => toggleGroup(group.id)}
+              className="text-muted-foreground hover:text-foreground"
+              title={collapsedGroups[group.id] ? 'فتح' : 'طي'}
+            >
+              {collapsedGroups[group.id] ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronUp className="w-3.5 h-3.5" />}
+            </button>
             <FolderOpen className="w-3.5 h-3.5 text-primary" />
             {editingGroupId === group.id ? (
               <div className="flex gap-1 items-center flex-1">
