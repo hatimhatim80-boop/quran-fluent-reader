@@ -42,6 +42,41 @@ export type SessionType = 'new' | 'due' | 'mixed' | 'flagged' | 'archived-only' 
 export type SessionOrder = 'smart' | 'mushaf' | 'random';
 export type ArchiveFilter = 'exclude' | 'include' | 'only';
 
+/** Per-session font settings (never shared between sessions) */
+export interface ReviewSessionFonts {
+  fontFamily?: string;
+  quranFontSize?: number;
+  lineHeight?: number;
+  fontWeight?: number;
+}
+
+/**
+ * All settings belonging to ONE review session.
+ * Everything the user can change inside or while setting up a session lives
+ * here, keyed by the session id — never in a shared/global variable.
+ */
+export interface ReviewSessionSettings {
+  reviewLevel?: 'ayah' | 'word';
+  contentType?: string;
+  /** Session type filter chosen at setup (due/new/mixed/...) */
+  sessionType?: SessionType;
+  order?: SessionOrder;
+  archiveFilter?: ArchiveFilter;
+  /** Scope selection (type + range) */
+  scopeType?: string;
+  scopeFrom?: number;
+  scopeTo?: number;
+  /** Requested card count ('all' or a number as string) */
+  sessionSize?: string;
+  highlightStyle?: string;
+  answerMode?: string;
+  showIndex?: boolean;
+  fonts?: ReviewSessionFonts;
+  generalSessionId?: string;
+  /** Free-form extras for portal-specific options */
+  extra?: Record<string, unknown>;
+}
+
 export interface ReviewSessionMeta {
   id: string;
   portal: 'ghareeb' | 'tahfeez';
@@ -64,16 +99,8 @@ export interface ReviewSessionMeta {
   // Ratings map (cardId -> last rating)
   ratingsMap: Record<string, number>;
 
-  // Settings
-  settings: {
-    reviewLevel?: 'ayah' | 'word';
-    contentType?: string;
-    order?: SessionOrder;
-    archiveFilter?: ArchiveFilter;
-    highlightStyle?: string;
-    answerMode?: string;
-    generalSessionId?: string;
-  };
+  // Settings — strictly per-session
+  settings: ReviewSessionSettings;
 }
 
 interface ReviewSessionStoreState {
@@ -81,6 +108,9 @@ interface ReviewSessionStoreState {
 
   createSession: (meta: Omit<ReviewSessionMeta, 'id' | 'createdAt' | 'updatedAt' | 'completed' | 'reviewedIds' | 'archivedInSession' | 'suspendedIds' | 'currentIdx' | 'ratingsMap'>) => string;
   updateSession: (id: string, patch: Partial<ReviewSessionMeta>) => void;
+  /** Merge-and-save settings for ONE session. Saves immediately. */
+  updateSessionSettings: (id: string, patch: Partial<ReviewSessionSettings>) => void;
+  getSessionSettings: (id: string) => ReviewSessionSettings | undefined;
   getSession: (id: string) => ReviewSessionMeta | undefined;
   getActiveSession: (portal: 'ghareeb' | 'tahfeez') => ReviewSessionMeta | undefined;
   completeSession: (id: string) => void;
