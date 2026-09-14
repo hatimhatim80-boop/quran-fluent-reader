@@ -9,6 +9,9 @@ import { Ban, ChevronLeft, ChevronRight, X, Eye, Settings2, Flag, List, Archive,
 import { ReviewQueueEntry, partitionSessionCards, promoteDueQueue, getNextDueCountdownLabel } from '@/utils/reviewQueue';
 import { SessionFontSettings } from '@/components/SessionFontSettings';
 import { GhareebSourceSettings } from '@/components/GhareebSourceSettings';
+import { useTahfeezStore } from '@/stores/tahfeezStore';
+import { useSettingsStore } from '@/stores/settingsStore';
+import { captureTahfeezSettings, applyTahfeezSettings } from '@/utils/tahfeezSessionSettings';
 
 export type AnswerDisplayMode = 'bottom' | 'tooltip' | 'inline';
 
@@ -351,8 +354,8 @@ export function SRSReviewSession({
 
   const switchAnswerMode = useCallback(() => {
     const ci = availableAnswerModes.indexOf(answerMode);
-    setAnswerMode(availableAnswerModes[(ci + 1) % availableAnswerModes.length]);
-  }, [answerMode, availableAnswerModes]);
+    applyAnswerMode(availableAnswerModes[(ci + 1) % availableAnswerModes.length]);
+  }, [answerMode, availableAnswerModes, applyAnswerMode]);
 
   // Waiting state
   if (!card && delayedQueue.length > 0) {
@@ -444,7 +447,7 @@ export function SRSReviewSession({
               <Settings2 className="w-3 h-3" /> إعدادات خط الجلسة
             </summary>
             <div className="pt-3">
-              <SessionFontSettings sessionType={activeSessionType || 'tahfeez-review'} compact />
+              <SessionFontSettings sessionType={activeSessionType || 'tahfeez-review'} reviewSessionId={sessionId} compact />
             </div>
           </details>
         )}
