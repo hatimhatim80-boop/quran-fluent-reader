@@ -56,10 +56,25 @@ export function SRSReviewSession({
   const markTahfeezSessionCompleted = useSessionsStore(s => s.markSessionCompleted);
   const markGeneralSessionCompleted = useSessionsStore(s => s.markSessionCompleted);
 
+  const updateSessionSettings = useReviewSessionStore(s => s.updateSessionSettings);
+
   const [answerRevealed, setAnswerRevealed] = useState(false);
   const [showManualInterval, setShowManualInterval] = useState(false);
   const [showIndex, setShowIndex] = useState(false);
-  const [answerMode, setAnswerMode] = useState<AnswerDisplayMode>(defaultAnswerMode);
+  // Answer mode is restored from THIS session's saved settings (never shared).
+  const [answerMode, setAnswerMode] = useState<AnswerDisplayMode>(() => {
+    if (sessionId) {
+      const saved = useReviewSessionStore.getState().getSessionSettings(sessionId)?.answerMode;
+      if (saved) return saved as AnswerDisplayMode;
+    }
+    return defaultAnswerMode;
+  });
+
+  /** Any answer-mode change is saved immediately under this session id. */
+  const applyAnswerMode = useCallback((mode: AnswerDisplayMode) => {
+    setAnswerMode(mode);
+    if (sessionId) updateSessionSettings(sessionId, { answerMode: mode });
+  }, [sessionId, updateSessionSettings]);
 
   // Dual-queue system
   const [activeQueue, setActiveQueue] = useState<ReviewQueueEntry[]>([]);
