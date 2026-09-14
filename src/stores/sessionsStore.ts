@@ -277,6 +277,15 @@ export const useSessionsStore = create<SessionsState>()(
       activeSessionId: null,
 
       createSession: (name, type, startPage = 1, endPage, groupId) => {
+        // Guard against accidental duplicates (double-tap / double mount):
+        // an identical session created moments ago is reused instead of cloned.
+        const recentDuplicate = get().sessions.find(
+          s => s.name === name && s.type === type && !s.archived && Date.now() - s.createdAt < 15000
+        );
+        if (recentDuplicate) {
+          set({ activeSessionId: recentDuplicate.id });
+          return recentDuplicate.id;
+        }
         const id = `s_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
         const session: Session = {
           id,

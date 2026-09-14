@@ -124,6 +124,11 @@ export const useReviewSessionStore = create<ReviewSessionStoreState>()(
       sessions: [],
 
       createSession: (meta) => {
+        // Reuse an identical session created moments ago (double-tap guard).
+        const dup = get().sessions.find(
+          s => s.portal === meta.portal && s.name === meta.name && !s.completed && Date.now() - s.createdAt < 15000
+        );
+        if (dup) return dup.id;
         const id = `rs_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
         const session: ReviewSessionMeta = {
           ...meta,
