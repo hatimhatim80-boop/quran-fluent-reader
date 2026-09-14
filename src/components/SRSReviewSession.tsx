@@ -532,6 +532,40 @@ export function SRSReviewSession({
           </div>
         )}
 
+        {/* In-session settings drawer */}
+        {showSettings && (
+          <div className="border-t border-border bg-card/95 px-3 py-3 shrink-0 max-h-[45vh] overflow-y-auto overscroll-contain space-y-3 animate-fade-in" dir="rtl">
+            <div className="space-y-1.5">
+              <p className="text-xs text-muted-foreground font-arabic">ترتيب المراجعة</p>
+              <div className="flex gap-1.5">
+                {([
+                  { value: 'smart' as const, label: 'ذكي (الأقدم)' },
+                  { value: 'mushaf' as const, label: 'ترتيب المصحف' },
+                  { value: 'random' as const, label: 'عشوائي' },
+                ]).map(opt => (
+                  <Button
+                    key={opt.value}
+                    size="sm"
+                    variant={queueOrder === opt.value ? 'default' : 'outline'}
+                    className="text-[11px] h-7 px-2.5 font-arabic"
+                    onClick={() => applyQueueOrder(opt.value)}
+                  >
+                    {opt.label}
+                  </Button>
+                ))}
+              </div>
+              {queueOrder === 'random' && (
+                <button onClick={() => applyQueueOrder('random')} className="text-[11px] text-primary font-arabic hover:underline">
+                  إعادة الخلط الآن
+                </button>
+              )}
+            </div>
+            <SessionFontSettings sessionType={activeSessionType || 'tahfeez-review'} reviewSessionId={sessionId} compact />
+            {settingsPanel}
+            {headerExtra}
+          </div>
+        )}
+
         {/* Actions — always fixed at bottom */}
         <div className="border-t border-border bg-card/80 backdrop-blur-sm px-3 py-3 space-y-2 shrink-0" style={{ paddingBottom: 'env(safe-area-inset-bottom, 8px)' }}>
           {/* Focus mode: top bar with index + exit + counter + actions */}
