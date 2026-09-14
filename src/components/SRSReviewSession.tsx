@@ -195,10 +195,39 @@ export function SRSReviewSession({
   useEffect(() => { setAnswerRevealed(false); setShowManualInterval(false); }, [currentIdx, card?.id]);
 
   useEffect(() => {
-    if (!availableAnswerModes.includes(answerMode)) setAnswerMode(availableAnswerModes[0]);
-  }, [availableAnswerModes, answerMode]);
+    if (!availableAnswerModes.includes(answerMode)) applyAnswerMode(availableAnswerModes[0]);
+  }, [availableAnswerModes, answerMode, applyAnswerMode]);
 
-  useEffect(() => { setAnswerMode(defaultAnswerMode); }, [defaultAnswerMode]);
+  // When switching to another session, load THAT session's own answer mode
+  // (falling back to the portal default) instead of keeping the previous one.
+  useEffect(() => {
+    const saved = sessionId
+      ? (useReviewSessionStore.getState().getSessionSettings(sessionId)?.answerMode as AnswerDisplayMode | undefined)
+      : undefined;
+    setAnswerMode(saved ?? defaultAnswerMode);
+  }, [sessionId, defaultAnswerMode]);
+
+  // Per-session tahfeez/quiz settings: restore this session's snapshot on open,
+  // then save every later change immediately under the same session id.
+  useEffect(() => {
+    if (!sessionId) return;
+    const saved = useReviewSessionStore.getState().getSessionSettings(sessionId)?.extra?.tahfeezSettings;
+    if (saved) applyTahfeezSettings(saved as never);
+    const persist = () => {
+      useReviewSessionStore.getState().updateSessionSettings(sessionId, {
+        extra: { tahfeezSettings: captureTahfeezSettings() },
+      });
+    };
+    const unsubTahfeez = useTahfeezStore.subscribe(persist);
+    const unsubFonts = useSettingsStore.subscribe(persist);
+    window.addEventListener('beforeunload', persist);
+    return () => {
+      persist();
+      unsubTahfeez();
+      unsubFonts();
+      window.removeEventListener('beforeunload', persist);
+    };
+  }, [sessionId]);
 
   const intervals = useMemo(() => card ? previewIntervals(card) : [], [card]);
   const handleRevealAnswer = useCallback(() => setAnswerRevealed(true), []);
