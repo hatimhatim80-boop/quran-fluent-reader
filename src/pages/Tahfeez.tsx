@@ -2570,9 +2570,16 @@ export default function TahfeezPage() {
                 const answerRevealed = blankedKeys.length === 0;
 
                 if (card.type === 'tahfeez-word') {
-                  // Word-level: blank only the specific word key
+                  // Word-level: blank the card word plus the following words,
+                  // as many as the "hidden words count" setting asks for.
                   const wordKey = card.contentKey;
-                  if (import.meta.env.DEV) console.log('[tahfeez][SRS-render] word card:', card.id, 'key:', wordKey, 'revealed:', answerRevealed);
+                  const count = Math.max(1, hiddenWordsCount);
+                  let wordKeys = [wordKey];
+                  if (count > 1) {
+                    const tokens = extractPageWords(pgData.text, pg);
+                    const startIdx = tokens.findIndex(t => t.key === wordKey);
+                    if (startIdx >= 0) wordKeys = tokens.slice(startIdx, startIdx + count).map(t => t.key);
+                  }
                   return (
                     <TahfeezQuizView
                       page={pgData}
@@ -2583,9 +2590,9 @@ export default function TahfeezPage() {
                       blankCount={0}
                       ayahCount={1}
                       activeBlankKey={answerRevealed ? null : wordKey}
-                      revealedKeys={answerRevealed ? new Set([wordKey]) : new Set()}
+                      revealedKeys={answerRevealed ? new Set(wordKeys) : new Set()}
                       showAll={false}
-                      forceBlankedKeys={[wordKey]}
+                      forceBlankedKeys={wordKeys}
                     />
                   );
                 }
