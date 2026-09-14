@@ -12,6 +12,7 @@ import Tahfeez from "./pages/Tahfeez";
 import AudioDiag from "./pages/AudioDiag";
 import Sessions from "./pages/Sessions";
 import { TahfeezErrorBoundary } from "./components/TahfeezErrorBoundary";
+import { AppErrorBoundary } from "./components/AppErrorBoundary";
 import { initOTA } from "./services/otaUpdateService";
 import { UpdateBanner } from "./components/UpdateBanner";
 import { requestAllNativePermissions } from "./services/nativePermissions";
