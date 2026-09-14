@@ -239,6 +239,42 @@ export function ReviewSessionSetup({
 
     const firstPage = selected[0]?.page ?? currentPage;
     const lastPage = selected.reduce((max, c) => Math.max(max, c.page), firstPage);
+
+    // Identity of this configuration: same portal + type + scope + exact card set.
+    const signature = [
+      portal,
+      sessionType,
+      scope.type,
+      (scope as any).from ?? '',
+      (scope as any).to ?? '',
+      [...selected.map(c => c.id)].sort().join(','),
+    ].join('|');
+
+    // Reuse an existing (not completed) session with the same identity instead
+    // of saving a new one each time the user enters and exits the session.
+    const existing = useReviewSessionStore.getState().sessions.find(
+      s => !s.completed && s.portal === portal && (s.settings?.extra as any)?.signature === signature
+    );
+    if (existing) {
+      useReviewSessionStore.getState().updateSessionSettings(existing.id, {
+        order,
+        archiveFilter,
+        sessionType,
+        scopeType: scope.type,
+        scopeFrom: (scope as any).from,
+        scopeTo: (scope as any).to,
+        sessionSize,
+        extra: { tahfeezSettings: captureTahfeezSettings(), signature },
+      });
+      const genId = existing.settings?.generalSessionId;
+      if (genId && sessionsStore.getSession(genId)) {
+        sessionsStore.markSessionResumed(genId);
+        sessionsStore.setActiveSession(genId);
+      }
+      onStartSession(selected, existing.id, existing.name);
+      return;
+    }
+
     const generalSessionId = sessionsStore.createSession(
       name,
       portal === 'ghareeb' ? 'ghareeb-review' : 'tahfeez-review',
@@ -262,7 +298,7 @@ export function ReviewSessionSetup({
         scopeFrom: (scope as any).from,
         scopeTo: (scope as any).to,
         sessionSize,
-        extra: { tahfeezSettings: captureTahfeezSettings() },
+        extra: { tahfeezSettings: captureTahfeezSettings(), signature },
       },
     });
     if (generalSessionId) {
@@ -275,7 +311,8 @@ export function ReviewSessionSetup({
     }
 
     onStartSession(selected, sessionId, name);
-  }, [orderedPool, sessionName, portal, sessionType, scope, order, archiveFilter, createSession, onStartSession, onAutoGenerateCards, scopePages, typeFilters, getRequestedCount, currentPage, sessionsStore]);
+  }, [orderedPool, sessionName, portal, sessionType, scope, order, archiveFilter, sessionSize, createSession, onStartSession, onAutoGenerateCards, scopePages, typeFilters, getRequestedCount, currentPage, sessionsStore]);
+
 
   const handleResume = useCallback((session: ReviewSessionMeta) => {
     // Restore this session's own setup settings before entering it.
