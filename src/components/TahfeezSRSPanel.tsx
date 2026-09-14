@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { useSRSStore, SRSCard } from '@/stores/srsStore';
 import { SRSReviewSession } from './SRSReviewSession';
 import { ReviewSessionSetup } from './ReviewSessionSetup';
+import { TahfeezSessionReviewSettings } from './TahfeezSessionReviewSettings';
 import { useTahfeezStore } from '@/stores/tahfeezStore';
 import { Button } from '@/components/ui/button';
 import { Plus, Download, Upload, Trash2, BookOpen, Type } from 'lucide-react';
