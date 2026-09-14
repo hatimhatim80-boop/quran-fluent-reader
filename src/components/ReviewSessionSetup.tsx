@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useCallback } from 'react';
+import { captureTahfeezSettings, applyTahfeezSettings } from '@/utils/tahfeezSessionSettings';
 import { useSRSStore, SRSCard } from '@/stores/srsStore';
 import { useReviewSessionStore, SessionType, SessionOrder, ArchiveFilter, ReviewSessionMeta } from '@/stores/reviewSessionStore';
 import { useSessionsStore } from '@/stores/sessionsStore';
@@ -221,16 +222,31 @@ export function ReviewSessionSetup({
 
     const firstPage = selected[0]?.page ?? currentPage;
     const lastPage = selected.reduce((max, c) => Math.max(max, c.page), firstPage);
-    const generalSessionId = portal === 'ghareeb'
-      ? sessionsStore.createSession(name, 'ghareeb-review', firstPage, lastPage)
-      : undefined;
+    const generalSessionId = sessionsStore.createSession(
+      name,
+      portal === 'ghareeb' ? 'ghareeb-review' : 'tahfeez-review',
+      firstPage,
+      lastPage,
+    );
+    // A brand-new session stores its OWN full settings snapshot; it never
+    // inherits state from any previously opened session.
     const sessionId = createSession({
       portal,
       name,
       sessionType,
       scopeLabel: scope.type,
       cardIds: selected.map(c => c.id),
-      settings: { order, archiveFilter, generalSessionId },
+      settings: {
+        order,
+        archiveFilter,
+        generalSessionId,
+        sessionType,
+        scopeType: scope.type,
+        scopeFrom: (scope as any).from,
+        scopeTo: (scope as any).to,
+        sessionSize,
+        extra: { tahfeezSettings: captureTahfeezSettings() },
+      },
     });
     if (generalSessionId) {
       sessionsStore.updateSession(generalSessionId, {
@@ -245,6 +261,14 @@ export function ReviewSessionSetup({
   }, [orderedPool, sessionName, portal, sessionType, scope, order, archiveFilter, createSession, onStartSession, onAutoGenerateCards, scopePages, typeFilters, getRequestedCount, currentPage, sessionsStore]);
 
   const handleResume = useCallback((session: ReviewSessionMeta) => {
+    // Restore this session's own setup settings before entering it.
+    const st = session.settings || {};
+    if (st.sessionType) setSessionType(st.sessionType);
+    if (st.order) setOrder(st.order);
+    if (st.archiveFilter) setArchiveFilter(st.archiveFilter);
+    if (st.sessionSize) setSessionSize(st.sessionSize);
+    applyTahfeezSettings((st.extra?.tahfeezSettings as never) || null);
+
     const state = useSRSStore.getState();
     const sessionCards = session.cardIds
       .map(id => state.cards.find(c => c.id === id))

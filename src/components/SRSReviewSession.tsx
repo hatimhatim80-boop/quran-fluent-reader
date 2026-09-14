@@ -9,6 +9,9 @@ import { Ban, ChevronLeft, ChevronRight, X, Eye, Settings2, Flag, List, Archive,
 import { ReviewQueueEntry, partitionSessionCards, promoteDueQueue, getNextDueCountdownLabel } from '@/utils/reviewQueue';
 import { SessionFontSettings } from '@/components/SessionFontSettings';
 import { GhareebSourceSettings } from '@/components/GhareebSourceSettings';
+import { useTahfeezStore } from '@/stores/tahfeezStore';
+import { useSettingsStore } from '@/stores/settingsStore';
+import { captureTahfeezSettings, applyTahfeezSettings } from '@/utils/tahfeezSessionSettings';
 
 export type AnswerDisplayMode = 'bottom' | 'tooltip' | 'inline';
 
@@ -56,10 +59,25 @@ export function SRSReviewSession({
   const markTahfeezSessionCompleted = useSessionsStore(s => s.markSessionCompleted);
   const markGeneralSessionCompleted = useSessionsStore(s => s.markSessionCompleted);
 
+  const updateSessionSettings = useReviewSessionStore(s => s.updateSessionSettings);
+
   const [answerRevealed, setAnswerRevealed] = useState(false);
   const [showManualInterval, setShowManualInterval] = useState(false);
   const [showIndex, setShowIndex] = useState(false);
-  const [answerMode, setAnswerMode] = useState<AnswerDisplayMode>(defaultAnswerMode);
+  // Answer mode is restored from THIS session's saved settings (never shared).
+  const [answerMode, setAnswerMode] = useState<AnswerDisplayMode>(() => {
+    if (sessionId) {
+      const saved = useReviewSessionStore.getState().getSessionSettings(sessionId)?.answerMode;
+      if (saved) return saved as AnswerDisplayMode;
+    }
+    return defaultAnswerMode;
+  });
+
+  /** Any answer-mode change is saved immediately under this session id. */
+  const applyAnswerMode = useCallback((mode: AnswerDisplayMode) => {
+    setAnswerMode(mode);
+    if (sessionId) updateSessionSettings(sessionId, { answerMode: mode });
+  }, [sessionId, updateSessionSettings]);
 
   // Dual-queue system
   const [activeQueue, setActiveQueue] = useState<ReviewQueueEntry[]>([]);
@@ -180,10 +198,39 @@ export function SRSReviewSession({
   useEffect(() => { setAnswerRevealed(false); setShowManualInterval(false); }, [currentIdx, card?.id]);
 
   useEffect(() => {
-    if (!availableAnswerModes.includes(answerMode)) setAnswerMode(availableAnswerModes[0]);
-  }, [availableAnswerModes, answerMode]);
+    if (!availableAnswerModes.includes(answerMode)) applyAnswerMode(availableAnswerModes[0]);
+  }, [availableAnswerModes, answerMode, applyAnswerMode]);
 
-  useEffect(() => { setAnswerMode(defaultAnswerMode); }, [defaultAnswerMode]);
+  // When switching to another session, load THAT session's own answer mode
+  // (falling back to the portal default) instead of keeping the previous one.
+  useEffect(() => {
+    const saved = sessionId
+      ? (useReviewSessionStore.getState().getSessionSettings(sessionId)?.answerMode as AnswerDisplayMode | undefined)
+      : undefined;
+    setAnswerMode(saved ?? defaultAnswerMode);
+  }, [sessionId, defaultAnswerMode]);
+
+  // Per-session tahfeez/quiz settings: restore this session's snapshot on open,
+  // then save every later change immediately under the same session id.
+  useEffect(() => {
+    if (!sessionId) return;
+    const saved = useReviewSessionStore.getState().getSessionSettings(sessionId)?.extra?.tahfeezSettings;
+    if (saved) applyTahfeezSettings(saved as never);
+    const persist = () => {
+      useReviewSessionStore.getState().updateSessionSettings(sessionId, {
+        extra: { tahfeezSettings: captureTahfeezSettings() },
+      });
+    };
+    const unsubTahfeez = useTahfeezStore.subscribe(persist);
+    const unsubFonts = useSettingsStore.subscribe(persist);
+    window.addEventListener('beforeunload', persist);
+    return () => {
+      persist();
+      unsubTahfeez();
+      unsubFonts();
+      window.removeEventListener('beforeunload', persist);
+    };
+  }, [sessionId]);
 
   const intervals = useMemo(() => card ? previewIntervals(card) : [], [card]);
   const handleRevealAnswer = useCallback(() => setAnswerRevealed(true), []);
@@ -307,8 +354,8 @@ export function SRSReviewSession({
 
   const switchAnswerMode = useCallback(() => {
     const ci = availableAnswerModes.indexOf(answerMode);
-    setAnswerMode(availableAnswerModes[(ci + 1) % availableAnswerModes.length]);
-  }, [answerMode, availableAnswerModes]);
+    applyAnswerMode(availableAnswerModes[(ci + 1) % availableAnswerModes.length]);
+  }, [answerMode, availableAnswerModes, applyAnswerMode]);
 
   // Waiting state
   if (!card && delayedQueue.length > 0) {
@@ -400,7 +447,7 @@ export function SRSReviewSession({
               <Settings2 className="w-3 h-3" /> إعدادات خط الجلسة
             </summary>
             <div className="pt-3">
-              <SessionFontSettings sessionType={activeSessionType || 'tahfeez-review'} compact />
+              <SessionFontSettings sessionType={activeSessionType || 'tahfeez-review'} reviewSessionId={sessionId} compact />
             </div>
           </details>
         )}

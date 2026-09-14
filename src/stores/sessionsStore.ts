@@ -323,6 +323,14 @@ export const useSessionsStore = create<SessionsState>()(
       },
 
       deleteSession: (id) => {
+        // Cascade: remove the linked review-session record (settings + progress)
+        // so nothing of this session survives, and no other session is touched.
+        const linkedReviewId = String(get().sessions.find(s => s.id === id)?.quizSettings?.reviewSessionId || '');
+        if (linkedReviewId) {
+          void import('./reviewSessionStore').then(({ useReviewSessionStore }) => {
+            useReviewSessionStore.getState().deleteSession(linkedReviewId);
+          }).catch(() => {});
+        }
         set({
           sessions: get().sessions.filter(s => s.id !== id),
           activeSessionId: get().activeSessionId === id ? null : get().activeSessionId,

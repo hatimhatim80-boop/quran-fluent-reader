@@ -5,6 +5,7 @@ import { Slider } from '@/components/ui/slider';
 import { useSettingsStore, FontSettings } from '@/stores/settingsStore';
 import type { SessionType } from '@/stores/sessionsStore';
 import { getSessionFontSettings, saveSessionFontSettings } from '@/services/localSessionFontStore';
+import { useReviewSessionStore } from '@/stores/reviewSessionStore';
 
 const FONT_OPTIONS = [
   { value: 'uthmanicHafs', label: 'عثماني حفص' },
@@ -19,29 +20,52 @@ const FONT_OPTIONS = [
   { value: 'qalam', label: 'Al Qalam Quran' },
 ] as const;
 
-export function SessionFontSettings({ sessionType = 'default', compact = false }: { sessionType?: SessionType | 'default'; compact?: boolean }) {
+export function SessionFontSettings({
+  sessionType = 'default',
+  compact = false,
+  reviewSessionId,
+}: {
+  sessionType?: SessionType | 'default';
+  compact?: boolean;
+  /** When set, font settings are stored under THIS review session only. */
+  reviewSessionId?: string;
+}) {
   const fonts = useSettingsStore((s) => s.settings.fonts);
   const setFonts = useSettingsStore((s) => s.setFonts);
   const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
+    setHydrated(false);
+    // Per-review-session fonts take priority and are fully isolated per session.
+    if (reviewSessionId) {
+      const saved = useReviewSessionStore.getState().getSessionSettings(reviewSessionId)?.fonts;
+      if (saved && Object.keys(saved).length > 0) setFonts(saved as Partial<FontSettings>);
+      setHydrated(true);
+      return () => { cancelled = true; };
+    }
     getSessionFontSettings(sessionType).then((saved) => {
       if (!cancelled && saved) setFonts(saved);
       if (!cancelled) setHydrated(true);
     });
     return () => { cancelled = true; };
-  }, [sessionType, setFonts]);
+  }, [sessionType, setFonts, reviewSessionId]);
 
   const updateFonts = (patch: Partial<FontSettings>) => {
     const next = { ...fonts, ...patch };
     setFonts(patch);
-    void saveSessionFontSettings(sessionType, {
+    const value = {
       fontFamily: next.fontFamily,
       quranFontSize: next.quranFontSize,
       lineHeight: next.lineHeight,
       fontWeight: next.fontWeight,
-    });
+    };
+    if (reviewSessionId) {
+      // Saved immediately, scoped to this session id only.
+      useReviewSessionStore.getState().updateSessionSettings(reviewSessionId, { fonts: value });
+      return;
+    }
+    void saveSessionFontSettings(sessionType, value);
   };
 
   const selectedLabel = useMemo(() => FONT_OPTIONS.find((f) => f.value === fonts.fontFamily)?.label || fonts.fontFamily, [fonts.fontFamily]);
