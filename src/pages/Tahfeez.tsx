@@ -516,6 +516,14 @@ export default function TahfeezPage() {
     }
   }, [activeTab, setActiveTab]);
 
+  // A saved memorization-review session always opens its own review screen,
+  // regardless of whichever tab happened to be active on the previous visit.
+  useEffect(() => {
+    if (activeSessionType === 'tahfeez-review' && resolvedSessionId) {
+      setActiveTab('srs-review');
+    }
+  }, [activeSessionType, resolvedSessionId, setActiveTab]);
+
   // Never keep "hide bars" active outside an active quiz
   useEffect(() => {
     if (!quizStarted && hideBars) setHideBars(false);
