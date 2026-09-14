@@ -276,9 +276,13 @@ export function ReviewSessionSetup({
         // Re-fetch
         const state = useSRSStore.getState();
         const ps = new Set(scopePages);
-        pool = typeFilters
-          ? state.cards.filter(c => typeFilters.includes(c.type) && ps.has(c.page))
-          : state.cards.filter(c => ps.has(c.page));
+        // Freshly generated cards must follow the chosen order too.
+        pool = applyOrder(
+          typeFilters
+            ? state.cards.filter(c => typeFilters.includes(c.type) && ps.has(c.page))
+            : state.cards.filter(c => ps.has(c.page)),
+          order,
+        );
       }
     }
 
