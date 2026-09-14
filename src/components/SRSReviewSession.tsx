@@ -170,6 +170,17 @@ export function SRSReviewSession({
       (sessionCard) => !savedArchivedIds.has(sessionCard.id) && !savedSuspendedIds.has(sessionCard.id)
     );
     const queues = partitionSessionCards(availableCards);
+    // Honour this session's saved order so the chosen order really applies.
+    const savedOrder = (savedSession?.settings?.order as QueueOrder) || 'smart';
+    if (savedOrder === 'mushaf') {
+      queues.activeQueue.sort((a, b) => a.card.page - b.card.page || a.card.id.localeCompare(b.card.id));
+    } else if (savedOrder === 'random') {
+      for (let i = queues.activeQueue.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [queues.activeQueue[i], queues.activeQueue[j]] = [queues.activeQueue[j], queues.activeQueue[i]];
+      }
+    }
+    setQueueOrder(savedOrder);
     setActiveQueue(queues.activeQueue);
     setDelayedQueue(queues.delayedQueue);
     nextOrderRef.current = queues.nextOrder;
