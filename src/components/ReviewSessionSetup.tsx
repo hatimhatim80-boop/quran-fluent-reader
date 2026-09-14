@@ -390,7 +390,7 @@ export function ReviewSessionSetup({
     }
 
     onStartSession(selected, sessionId, name);
-  }, [orderedPool, sessionName, portal, sessionType, scope, order, archiveFilter, sessionSize, createSession, onStartSession, onAutoGenerateCards, scopePages, typeFilters, getRequestedCount, currentPage, sessionsStore, linkedReviewSession, hostGeneralSession]);
+  }, [orderedPool, applyOrder, sessionName, portal, sessionType, scope, order, archiveFilter, sessionSize, createSession, onStartSession, onAutoGenerateCards, scopePages, typeFilters, getRequestedCount, currentPage, sessionsStore, linkedReviewSession, hostGeneralSession]);
 
 
   const handleResume = useCallback((session: ReviewSessionMeta) => {
