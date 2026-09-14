@@ -189,7 +189,16 @@ export const useReviewSessionStore = create<ReviewSessionStoreState>()(
       },
 
       deleteSession: (id) => {
+        // Cascade to the linked general session record, if any.
+        const generalId = get().sessions.find(s => s.id === id)?.settings?.generalSessionId;
         set({ sessions: get().sessions.filter(s => s.id !== id) });
+        if (generalId) {
+          void import('./sessionsStore').then(({ useSessionsStore }) => {
+            if (useSessionsStore.getState().sessions.some(s => s.id === generalId)) {
+              useSessionsStore.getState().deleteSession(generalId);
+            }
+          }).catch(() => {});
+        }
       },
 
       getRecentSessions: (portal, limit = 5) => {
