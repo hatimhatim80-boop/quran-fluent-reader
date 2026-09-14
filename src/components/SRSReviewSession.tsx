@@ -463,6 +463,9 @@ export function SRSReviewSession({
               <button onClick={() => setShowIndex(!showIndex)} className={`w-7 h-7 rounded-full flex items-center justify-center transition-colors ${showIndex ? 'bg-primary text-primary-foreground' : 'hover:bg-accent'}`}>
                 <List className="w-3.5 h-3.5" />
               </button>
+              <button onClick={() => setShowSettings(v => !v)} title="إعدادات الجلسة" className={`w-7 h-7 rounded-full flex items-center justify-center transition-colors ${showSettings ? 'bg-primary text-primary-foreground' : 'hover:bg-accent'}`}>
+                <Settings2 className="w-3.5 h-3.5" />
+              </button>
               <button onClick={() => toggleFlag(card.id)} className={`w-7 h-7 rounded-full flex items-center justify-center transition-colors ${card.flagged ? 'text-orange-500' : 'hover:bg-accent text-muted-foreground'}`}>
                 <Flag className="w-3.5 h-3.5" />
               </button>
