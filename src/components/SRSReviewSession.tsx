@@ -70,6 +70,11 @@ export function SRSReviewSession({
   const [answerRevealed, setAnswerRevealed] = useState(false);
   const [showManualInterval, setShowManualInterval] = useState(false);
   const [showIndex, setShowIndex] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
+  const [queueOrder, setQueueOrder] = useState<QueueOrder>(() => {
+    const saved = sessionId ? useReviewSessionStore.getState().getSessionSettings(sessionId)?.order : undefined;
+    return (saved as QueueOrder) || 'smart';
+  });
   // Answer mode is restored from THIS session's saved settings (never shared).
   const [answerMode, setAnswerMode] = useState<AnswerDisplayMode>(() => {
     if (sessionId) {
