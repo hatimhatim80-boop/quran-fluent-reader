@@ -116,16 +116,16 @@ function SessionCard({ session, onContinue }: { session: Session; onContinue: (s
           </p>
           <SectionsList session={session} />
         </div>
+        {groups.length > 0 && (
+          <button
+            onClick={() => setShowMove(!showMove)}
+            className={`w-7 h-7 rounded-lg flex items-center justify-center transition-colors shrink-0 ${showMove ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:text-foreground hover:bg-muted/60'}`}
+            title="نقل لمجموعة"
+          >
+            <ArrowRightLeft className="w-3.5 h-3.5" />
+          </button>
+        )}
         <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-          {groups.length > 0 && (
-            <button
-              onClick={() => setShowMove(!showMove)}
-              className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
-              title="نقل لمجموعة"
-            >
-              <ArrowRightLeft className="w-3.5 h-3.5" />
-            </button>
-          )}
           <button
             onClick={() => archiveSession(session.id)}
             className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
