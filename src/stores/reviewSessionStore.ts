@@ -149,6 +149,32 @@ export const useReviewSessionStore = create<ReviewSessionStoreState>()(
         });
       },
 
+      /**
+       * Immediately persists a settings change for ONE session.
+       * Deep-merges `fonts` and `extra` so partial updates never wipe siblings,
+       * and never touches any other session.
+       */
+      updateSessionSettings: (id, patch) => {
+        set({
+          sessions: get().sessions.map(s => {
+            if (s.id !== id) return s;
+            const prev = s.settings || {};
+            return {
+              ...s,
+              settings: {
+                ...prev,
+                ...patch,
+                fonts: patch.fonts ? { ...(prev.fonts || {}), ...patch.fonts } : prev.fonts,
+                extra: patch.extra ? { ...(prev.extra || {}), ...patch.extra } : prev.extra,
+              },
+              updatedAt: Date.now(),
+            };
+          }),
+        });
+      },
+
+      getSessionSettings: (id) => get().sessions.find(s => s.id === id)?.settings,
+
       getSession: (id) => get().sessions.find(s => s.id === id),
 
       getActiveSession: (portal) =>
