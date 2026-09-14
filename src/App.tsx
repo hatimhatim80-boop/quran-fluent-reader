@@ -12,6 +12,7 @@ import Tahfeez from "./pages/Tahfeez";
 import AudioDiag from "./pages/AudioDiag";
 import Sessions from "./pages/Sessions";
 import { TahfeezErrorBoundary } from "./components/TahfeezErrorBoundary";
+import { AppErrorBoundary } from "./components/AppErrorBoundary";
 import { initOTA } from "./services/otaUpdateService";
 import { UpdateBanner } from "./components/UpdateBanner";
 import { requestAllNativePermissions } from "./services/nativePermissions";
@@ -31,15 +32,17 @@ const App = () => {
       <Toaster />
       <Sonner />
       <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Home />} />
-          <Route path="/mushaf" element={<Index />} />
-          <Route path="/validation" element={<ValidationReport />} />
-          <Route path="/tahfeez" element={<TahfeezErrorBoundary><Tahfeez /></TahfeezErrorBoundary>} />
-          <Route path="/audio-diag" element={<AudioDiag />} />
-          <Route path="/sessions" element={<Sessions />} />
-          <Route path="*" element={<NotFound />} />
-        </Routes>
+        <AppErrorBoundary>
+          <Routes>
+            <Route path="/" element={<Home />} />
+            <Route path="/mushaf" element={<AppErrorBoundary><Index /></AppErrorBoundary>} />
+            <Route path="/validation" element={<ValidationReport />} />
+            <Route path="/tahfeez" element={<TahfeezErrorBoundary><Tahfeez /></TahfeezErrorBoundary>} />
+            <Route path="/audio-diag" element={<AudioDiag />} />
+            <Route path="/sessions" element={<Sessions />} />
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </AppErrorBoundary>
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>
