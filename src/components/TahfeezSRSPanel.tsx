@@ -73,9 +73,11 @@ interface TahfeezSRSPanelProps {
   currentPage: number; totalPages: number; pageData: QuranPage | undefined;
   allPages: QuranPage[]; onNavigateToPage: (page: number) => void;
   renderPageWithBlanks: (page: number, blankedKeys: string[], card: SRSCard) => React.ReactNode;
+  /** The existing general session being opened from the sessions page. */
+  resumeSessionId?: string | null;
 }
 
-export function TahfeezSRSPanel({ currentPage, totalPages, pageData, allPages, onNavigateToPage, renderPageWithBlanks }: TahfeezSRSPanelProps) {
+export function TahfeezSRSPanel({ currentPage, totalPages, pageData, allPages, onNavigateToPage, renderPageWithBlanks, resumeSessionId }: TahfeezSRSPanelProps) {
   const showHiddenWordsPreview = useTahfeezStore((s) => s.showHiddenWordsPreview);
   const { addCard, hasCard, cards, exportData, importData, clearAll } = useSRSStore();
 
@@ -216,6 +218,8 @@ export function TahfeezSRSPanel({ currentPage, totalPages, pageData, allPages, o
       onStartSession={handleStartSession}
       cardTypeFilter={srsType}
       onAutoGenerateCards={handleAutoGenerate}
+      resumeSessionId={resumeSessionId}
+      allowInlineResume={!resumeSessionId}
       headerContent={
         <div className="space-y-2">
           <div className="flex gap-2">
