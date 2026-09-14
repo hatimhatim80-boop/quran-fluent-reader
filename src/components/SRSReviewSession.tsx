@@ -578,6 +578,13 @@ export function SRSReviewSession({
                 >
                   <List className="w-4 h-4" />
                 </button>
+                <button
+                  onClick={() => setShowSettings(v => !v)}
+                  title="إعدادات الجلسة"
+                  className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${showSettings ? 'bg-primary text-primary-foreground' : 'hover:bg-accent text-muted-foreground'}`}
+                >
+                  <Settings2 className="w-4 h-4" />
+                </button>
                 <span className="text-xs text-muted-foreground font-arabic">
                   {currentIdx + 1}/{total}
                   {delayedQueue.length > 0 && ` · ⏳${delayedQueue.length}`}
