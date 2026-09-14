@@ -53,6 +53,7 @@ export function SRSReviewSession({
   answerModeOptions = ['bottom', 'tooltip', 'inline'],
   headerExtra,
   focusMode = false,
+  settingsPanel,
 }: SRSReviewSessionProps) {
   const rateCard = useSRSStore(s => s.rateCard);
   const toggleFlag = useSRSStore(s => s.toggleFlag);
