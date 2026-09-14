@@ -28,7 +28,11 @@ interface SRSReviewSessionProps {
   answerModeOptions?: AnswerDisplayMode[];
   headerExtra?: React.ReactNode;
   focusMode?: boolean;
+  /** Extra settings shown inside the in-session settings drawer. */
+  settingsPanel?: React.ReactNode;
 }
+
+type QueueOrder = 'smart' | 'mushaf' | 'random';
 
 const ANSWER_MODE_LABEL: Record<AnswerDisplayMode, string> = {
   bottom: 'أسفل',
