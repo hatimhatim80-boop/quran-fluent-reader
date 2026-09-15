@@ -108,16 +108,14 @@ export function SRSReviewSession({
   });
 
   // ── Reveal method + recitation (saved per session, applied live) ──────────
-  const readSetting = useCallback(<T,>(pick: (s: ReturnType<typeof useReviewSessionStore.getState>['sessions'][number]['settings']) => T | undefined, fallback: T): T => {
-    if (!sessionId) return fallback;
-    const s = useReviewSessionStore.getState().getSessionSettings(sessionId);
-    return (s ? pick(s) : undefined) ?? fallback;
-  }, [sessionId]);
+  const initialRevealSettings = sessionId
+    ? useReviewSessionStore.getState().getSessionSettings(sessionId)
+    : undefined;
 
-  const [revealMode, setRevealMode] = useState<SessionRevealMode>(() => readSetting(s => s.revealMode, 'smart'));
-  const [wordRevealInterval, setWordRevealInterval] = useState<number>(() => readSetting(s => s.wordRevealInterval, 1));
-  const [audioMode, setAudioMode] = useState<SessionAudioMode>(() => readSetting(s => s.audioBeforeReveal, 'none'));
-  const [reciterId, setReciterId] = useState<string>(() => readSetting(s => s.audioReciter, DEFAULT_RECITER_ID));
+  const [revealMode, setRevealMode] = useState<SessionRevealMode>(() => initialRevealSettings?.revealMode ?? 'smart');
+  const [wordRevealInterval, setWordRevealInterval] = useState<number>(() => initialRevealSettings?.wordRevealInterval ?? 1);
+  const [audioMode, setAudioMode] = useState<SessionAudioMode>(() => initialRevealSettings?.audioBeforeReveal ?? 'none');
+  const [reciterId, setReciterId] = useState<string>(() => initialRevealSettings?.audioReciter ?? DEFAULT_RECITER_ID);
   /** Reveal method used by the card on screen (changes apply from the next card
       when the current one is already mid-reveal). */
   const [activeRevealMode, setActiveRevealMode] = useState<SessionRevealMode>(revealMode);
