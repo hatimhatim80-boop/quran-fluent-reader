@@ -200,14 +200,18 @@ export function TahfeezSRSPanel({ currentPage, totalPages, pageData, allPages, o
           portalName="التحفيظ"
           focusMode
           settingsPanel={<TahfeezSessionReviewSettings />}
+          enableRevealModes
+          getCardWordCount={getCardWordCount}
+          getCardAyahRef={getCardAyahRef}
           defaultAnswerMode={showHiddenWordsPreview ? 'bottom' : 'inline'}
           answerModeOptions={showHiddenWordsPreview ? ['inline', 'bottom'] : ['inline']}
           renderAnswer={showHiddenWordsPreview ? ((card) => card.type === 'tahfeez-word' ? (
             <div className="text-center font-arabic text-lg text-foreground">{String(card.meta.wordText || '')}</div>
           ) : null) : undefined}
-          renderCard={(card, answerRevealed) => (
-            <TahfeezReviewCardContent card={card} answerRevealed={answerRevealed} renderPageWithBlanks={renderPageWithBlanks} />
+          renderCard={(card, answerRevealed, _mode, revealState) => (
+            <TahfeezReviewCardContent card={card} answerRevealed={answerRevealed} revealState={revealState} renderPageWithBlanks={renderPageWithBlanks} />
           )}
+
         />
       </div>
     );
