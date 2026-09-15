@@ -1,19 +1,31 @@
 import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { useSRSStore, SRSCard, SRSRating, RATING_OPTIONS, formatInterval, previewIntervals } from '@/stores/srsStore';
-import { useReviewSessionStore } from '@/stores/reviewSessionStore';
+import { useReviewSessionStore, SessionRevealMode, SessionAudioMode } from '@/stores/reviewSessionStore';
 import { useSessionsStore } from '@/stores/sessionsStore';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { ReviewCardIndex } from './ReviewCardIndex';
-import { Ban, ChevronLeft, ChevronRight, X, Eye, Settings2, Flag, List, Archive, ArchiveRestore } from 'lucide-react';
+import { Ban, ChevronLeft, ChevronRight, X, Eye, Settings2, Flag, List, Archive, ArchiveRestore, Play, Pause, SkipForward, Volume2 } from 'lucide-react';
 import { ReviewQueueEntry, partitionSessionCards, promoteDueQueue, getNextDueCountdownLabel } from '@/utils/reviewQueue';
 import { SessionFontSettings } from '@/components/SessionFontSettings';
 import { GhareebSourceSettings } from '@/components/GhareebSourceSettings';
+import { SessionRevealAudioSettings } from '@/components/SessionRevealAudioSettings';
 import { useTahfeezStore } from '@/stores/tahfeezStore';
 import { useSettingsStore } from '@/stores/settingsStore';
 import { captureTahfeezSettings, applyTahfeezSettings } from '@/utils/tahfeezSessionSettings';
+import { playAyahSequence, stopAudio, DEFAULT_RECITER_ID } from '@/services/quranAudio';
+import { AyahRef, previousAyahRef } from '@/utils/pageAyahRefs';
 
 export type AnswerDisplayMode = 'bottom' | 'tooltip' | 'inline';
+
+/** Progressive reveal state handed to the card renderer. */
+export interface CardRevealState {
+  mode: SessionRevealMode;
+  /** Number of words already uncovered (word-by-word modes). */
+  revealedWords: number;
+  /** True when the whole ayah should be shown. */
+  full: boolean;
+}
 
 interface SRSReviewSessionProps {
   cards: SRSCard[];
@@ -21,7 +33,7 @@ interface SRSReviewSessionProps {
   sessionName?: string;
   onFinish: () => void;
   onNavigateToPage: (page: number) => void;
-  renderCard: (card: SRSCard, answerRevealed: boolean, answerDisplayMode: AnswerDisplayMode) => React.ReactNode;
+  renderCard: (card: SRSCard, answerRevealed: boolean, answerDisplayMode: AnswerDisplayMode, revealState?: CardRevealState) => React.ReactNode;
   portalName: string;
   renderAnswer?: (card: SRSCard) => React.ReactNode;
   defaultAnswerMode?: AnswerDisplayMode;
@@ -30,6 +42,12 @@ interface SRSReviewSessionProps {
   focusMode?: boolean;
   /** Extra settings shown inside the in-session settings drawer. */
   settingsPanel?: React.ReactNode;
+  /** Enables the reveal-method + recitation options (tahfeez review). */
+  enableRevealModes?: boolean;
+  /** Word count of the hidden ayah — needed for word-by-word reveal. */
+  getCardWordCount?: (card: SRSCard) => number;
+  /** Exact surah/ayah of the card — needed for recitation. */
+  getCardAyahRef?: (card: SRSCard) => Promise<AyahRef | null>;
 }
 
 type QueueOrder = 'smart' | 'mushaf' | 'random';
@@ -39,6 +57,7 @@ const ANSWER_MODE_LABEL: Record<AnswerDisplayMode, string> = {
   tooltip: 'عند الكلمة',
   inline: 'في السطر',
 };
+
 
 export function SRSReviewSession({
   cards,
