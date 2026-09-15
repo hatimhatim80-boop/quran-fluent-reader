@@ -333,3 +333,42 @@ export function packageAyahKey(pkg: AudioPackage, surah: number, ayah: number): 
   const pad = (n: number) => String(n).padStart(3, '0');
   return `${pkg.provider}:${pkg.reciterId}:${pkg.narration}:${pad(surah)}${pad(ayah)}`;
 }
+
+// ── Package URL registry ────────────────────────────────────────────────────
+
+/**
+ * The Complex publishes its ayah packages behind a tracked download button on
+ * each reciter page, and does not document a permanent direct file URL. We
+ * therefore never guess one: the confirmed direct link is stored per reciter
+ * the first time it is used, and the official page is opened for the user to
+ * obtain it.
+ */
+const urlKey = (reciterId: string) => `packageUrl:${reciterId}`;
+
+export async function getPackageUrl(reciterId: string): Promise<string | null> {
+  return readMeta<string>(urlKey(reciterId));
+}
+
+export async function setPackageUrl(reciterId: string, url: string): Promise<void> {
+  await writeMeta(urlKey(reciterId), url);
+}
+
+/** Builds the package descriptor for a package reciter, or null if no URL yet. */
+export function buildPackage(
+  reciter: {
+    id: string; name: string; narration: NarrationId; provider: string; sizeLabel?: string;
+  },
+  providerLabel: string,
+  url: string,
+): AudioPackage {
+  return {
+    id: `${reciter.provider}-${reciter.id}-${reciter.narration}`,
+    provider: reciter.provider,
+    providerName: providerLabel,
+    reciterId: reciter.id,
+    reciterName: reciter.name,
+    narration: reciter.narration,
+    url,
+    sizeLabel: reciter.sizeLabel,
+  };
+}
