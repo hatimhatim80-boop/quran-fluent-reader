@@ -1,7 +1,8 @@
 import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useSRSStore, SRSCard } from '@/stores/srsStore';
-import { SRSReviewSession } from './SRSReviewSession';
+import { SRSReviewSession, CardRevealState } from './SRSReviewSession';
+import { getPageAyahRefs, AyahRef } from '@/utils/pageAyahRefs';
 import { ReviewSessionSetup } from './ReviewSessionSetup';
 import { TahfeezSessionReviewSettings } from './TahfeezSessionReviewSettings';
 import { useTahfeezStore } from '@/stores/tahfeezStore';
@@ -38,7 +39,7 @@ export function extractPageWords(text: string, pageNumber: number): WordToken[] 
   return tokens;
 }
 
-function extractPageAyahGroups(text: string, pageNumber: number): WordToken[][] {
+export function extractPageAyahGroups(text: string, pageNumber: number): WordToken[][] {
   const lines = text.split('\n'); const ayahGroups: WordToken[][] = []; const isFatiha = pageNumber === 1;
   if (isFatiha) {
     for (let li = 0; li < lines.length; li++) {
@@ -73,7 +74,7 @@ function extractPageAyahGroups(text: string, pageNumber: number): WordToken[][] 
 interface TahfeezSRSPanelProps {
   currentPage: number; totalPages: number; pageData: QuranPage | undefined;
   allPages: QuranPage[]; onNavigateToPage: (page: number) => void;
-  renderPageWithBlanks: (page: number, blankedKeys: string[], card: SRSCard) => React.ReactNode;
+  renderPageWithBlanks: (page: number, blankedKeys: string[], card: SRSCard, revealState?: CardRevealState) => React.ReactNode;
   /** The existing general session being opened from the sessions page. */
   resumeSessionId?: string | null;
 }
@@ -187,6 +188,26 @@ export function TahfeezSRSPanel({ currentPage, totalPages, pageData, allPages, o
     input.click();
   }, [importData]);
 
+  /** Word count of the hidden ayah — drives word-by-word reveal. */
+  const getCardWordCount = useCallback((card: SRSCard): number => {
+    const pd = allPages.find(p => p.pageNumber === card.page);
+    if (!pd) return 0;
+    if (card.type === 'tahfeez-word') return 1;
+    const idx = typeof card.meta?.ayahIndex === 'number' ? Number(card.meta.ayahIndex) : -1;
+    if (idx < 0) return 0;
+    const groups = extractPageAyahGroups(pd.text, card.page);
+    return groups[idx]?.length ?? 0;
+  }, [allPages]);
+
+  /** Exact surah/ayah of the card — keeps recitation matched to the text. */
+  const getCardAyahRef = useCallback(async (card: SRSCard): Promise<AyahRef | null> => {
+    const idx = typeof card.meta?.ayahIndex === 'number' ? Number(card.meta.ayahIndex) : -1;
+    if (card.type !== 'tahfeez-ayah' || idx < 0) return null;
+    const refs = await getPageAyahRefs(card.page);
+    return refs[idx] ?? null;
+  }, []);
+
+
   if (sessionMode === 'review') {
     const reviewOverlay = (
       <div className="fixed inset-0 z-40 overflow-hidden bg-background" style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}>
@@ -199,14 +220,18 @@ export function TahfeezSRSPanel({ currentPage, totalPages, pageData, allPages, o
           portalName="التحفيظ"
           focusMode
           settingsPanel={<TahfeezSessionReviewSettings />}
+          enableRevealModes
+          getCardWordCount={getCardWordCount}
+          getCardAyahRef={getCardAyahRef}
           defaultAnswerMode={showHiddenWordsPreview ? 'bottom' : 'inline'}
           answerModeOptions={showHiddenWordsPreview ? ['inline', 'bottom'] : ['inline']}
           renderAnswer={showHiddenWordsPreview ? ((card) => card.type === 'tahfeez-word' ? (
             <div className="text-center font-arabic text-lg text-foreground">{String(card.meta.wordText || '')}</div>
           ) : null) : undefined}
-          renderCard={(card, answerRevealed) => (
-            <TahfeezReviewCardContent card={card} answerRevealed={answerRevealed} renderPageWithBlanks={renderPageWithBlanks} />
+          renderCard={(card, answerRevealed, _mode, revealState) => (
+            <TahfeezReviewCardContent card={card} answerRevealed={answerRevealed} revealState={revealState} renderPageWithBlanks={renderPageWithBlanks} />
           )}
+
         />
       </div>
     );
@@ -260,9 +285,9 @@ export function TahfeezSRSPanel({ currentPage, totalPages, pageData, allPages, o
   );
 }
 
-function TahfeezReviewCardContent({ card, answerRevealed, renderPageWithBlanks }: {
-  card: SRSCard; answerRevealed: boolean;
-  renderPageWithBlanks: (page: number, blankedKeys: string[], card: SRSCard) => React.ReactNode;
+function TahfeezReviewCardContent({ card, answerRevealed, revealState, renderPageWithBlanks }: {
+  card: SRSCard; answerRevealed: boolean; revealState?: CardRevealState;
+  renderPageWithBlanks: (page: number, blankedKeys: string[], card: SRSCard, revealState?: CardRevealState) => React.ReactNode;
 }) {
   const rootRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLElement | null>(null);
@@ -308,9 +333,14 @@ function TahfeezReviewCardContent({ card, answerRevealed, renderPageWithBlanks }
     return () => { clearTimeout(t1); clearTimeout(t2); };
   }, [card.contentKey, card.id, answerRevealed, scrollToCenter]);
 
+  // While a word-by-word reveal is in progress the ayah stays "blanked" so the
+  // page renderer can uncover only the words revealed so far.
+  const partialReveal = answerRevealed && !!revealState && revealState.mode !== 'smart' && !revealState.full;
+  const blanked = answerRevealed && !partialReveal ? [] : [card.contentKey];
+
   return (
     <div ref={rootRef} className="h-full min-h-full p-2 pb-4">
-      {renderPageWithBlanks(card.page, answerRevealed ? [] : [card.contentKey], card)}
+      {renderPageWithBlanks(card.page, blanked, card, answerRevealed ? revealState : undefined)}
     </div>
   );
 }

@@ -42,6 +42,11 @@ export type SessionType = 'new' | 'due' | 'mixed' | 'flagged' | 'archived-only' 
 export type SessionOrder = 'smart' | 'mushaf' | 'random';
 export type ArchiveFilter = 'exclude' | 'include' | 'only';
 
+/** How a hidden ayah is uncovered inside a review session. */
+export type SessionRevealMode = 'smart' | 'wordByWordManual' | 'wordByWordAuto';
+/** Which recitation plays automatically when a hidden ayah appears. */
+export type SessionAudioMode = 'none' | 'previous' | 'current' | 'previous-then-current';
+
 /** Per-session font settings (never shared between sessions) */
 export interface ReviewSessionFonts {
   fontFamily?: string;
@@ -71,6 +76,15 @@ export interface ReviewSessionSettings {
   highlightStyle?: string;
   answerMode?: string;
   showIndex?: boolean;
+  /** How the hidden ayah is uncovered (smart / word-by-word manual / auto). */
+  revealMode?: SessionRevealMode;
+  /** Seconds between words in automatic word-by-word reveal. */
+  wordRevealInterval?: number;
+  /** Recitation played automatically when a hidden ayah appears. */
+  audioBeforeReveal?: SessionAudioMode;
+  /** Reciter id used by this session. */
+  audioReciter?: string;
+
   fonts?: ReviewSessionFonts;
   generalSessionId?: string;
   /** Free-form extras for portal-specific options */

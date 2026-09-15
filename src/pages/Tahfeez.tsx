@@ -33,7 +33,7 @@ import { SURAH_INFO, SURAH_NAMES } from '@/utils/quranPageIndex';
 import { AutoPlayDebugPanel } from '@/components/AutoPlayDebugPanel';
 import { TahfeezFontSettings } from '@/components/TahfeezFontSettings';
 import { TahfeezAutoQuizSettings } from '@/components/TahfeezAutoQuizSettings';
-import { TahfeezSRSPanel, extractPageWords } from '@/components/TahfeezSRSPanel';
+import { TahfeezSRSPanel, extractPageWords, extractPageAyahGroups } from '@/components/TahfeezSRSPanel';
 import { TahfeezSessionReviewSettings } from '@/components/TahfeezSessionReviewSettings';
 import { SessionFontSettings } from '@/components/SessionFontSettings';
 import { StableSessionTimer } from '@/components/StableSessionTimer';
@@ -2564,10 +2564,14 @@ export default function TahfeezPage() {
               allPages={pages}
               resumeSessionId={activeSessionType === 'tahfeez-review' ? resolvedSessionId : null}
               onNavigateToPage={goToPage}
-              renderPageWithBlanks={(pg, blankedKeys, card) => {
+              renderPageWithBlanks={(pg, blankedKeys, card, revealState) => {
                 const pgData = pages.find(p => p.pageNumber === pg);
                 if (!pgData) return null;
                 const answerRevealed = blankedKeys.length === 0;
+                // Word-by-word reveal: uncover only the first N words of the ayah.
+                const wordByWordCount = revealState && revealState.mode !== 'smart' && !revealState.full
+                  ? Math.max(revealState.revealedWords, 0)
+                  : null;
 
                 if (card.type === 'tahfeez-word') {
                   // Word-level: blank the card word plus the following words,
@@ -2580,6 +2584,9 @@ export default function TahfeezPage() {
                     const startIdx = tokens.findIndex(t => t.key === wordKey);
                     if (startIdx >= 0) wordKeys = tokens.slice(startIdx, startIdx + count).map(t => t.key);
                   }
+                  const progressive = wordByWordCount !== null
+                    ? new Set(wordKeys.slice(0, wordByWordCount))
+                    : null;
                   return (
                     <TahfeezQuizView
                       page={pgData}
@@ -2590,7 +2597,7 @@ export default function TahfeezPage() {
                       blankCount={0}
                       ayahCount={1}
                       activeBlankKey={answerRevealed ? null : wordKey}
-                      revealedKeys={answerRevealed ? new Set(wordKeys) : new Set()}
+                      revealedKeys={progressive ?? (answerRevealed ? new Set(wordKeys) : new Set())}
                       showAll={false}
                       forceBlankedKeys={wordKeys}
                     />
@@ -2600,7 +2607,12 @@ export default function TahfeezPage() {
                 // Ayah-level: use stable ayah ID for precise binding
                 const stableAyahId = typeof card.meta?.ayahStableId === 'string' ? String(card.meta.ayahStableId) : null;
                 const forcedAyahIndex = typeof card.meta?.ayahIndex === 'number' ? Number(card.meta.ayahIndex) : null;
-                if (import.meta.env.DEV) console.log('[tahfeez][SRS-render] ayah card:', card.id, 'stableId:', stableAyahId, 'ayahIndex:', forcedAyahIndex, 'revealed:', answerRevealed);
+                let progressiveAyahKeys: Set<string> | null = null;
+                if (wordByWordCount !== null && forcedAyahIndex !== null) {
+                  const groups = extractPageAyahGroups(pgData.text, pg);
+                  const group = groups[forcedAyahIndex];
+                  if (group) progressiveAyahKeys = new Set(group.slice(0, wordByWordCount).map(t => t.key));
+                }
                 return (
                   <TahfeezQuizView
                     page={pgData}
@@ -2611,7 +2623,7 @@ export default function TahfeezPage() {
                     blankCount={blankCount}
                     ayahCount={1}
                     activeBlankKey={null}
-                    revealedKeys={new Set()}
+                    revealedKeys={progressiveAyahKeys ?? new Set()}
                     showAll={false}
                     forceAyahIds={stableAyahId ? [stableAyahId] : undefined}
                     forceAyahIndices={!stableAyahId && forcedAyahIndex !== null ? [forcedAyahIndex] : undefined}
@@ -2619,6 +2631,7 @@ export default function TahfeezPage() {
                   />
                 );
               }}
+
             />
           </div>
         )}

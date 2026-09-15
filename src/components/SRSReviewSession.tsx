@@ -1,19 +1,31 @@
 import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { useSRSStore, SRSCard, SRSRating, RATING_OPTIONS, formatInterval, previewIntervals } from '@/stores/srsStore';
-import { useReviewSessionStore } from '@/stores/reviewSessionStore';
+import { useReviewSessionStore, SessionRevealMode, SessionAudioMode } from '@/stores/reviewSessionStore';
 import { useSessionsStore } from '@/stores/sessionsStore';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { ReviewCardIndex } from './ReviewCardIndex';
-import { Ban, ChevronLeft, ChevronRight, X, Eye, Settings2, Flag, List, Archive, ArchiveRestore } from 'lucide-react';
+import { Ban, ChevronLeft, ChevronRight, X, Eye, Settings2, Flag, List, Archive, ArchiveRestore, Play, Pause, SkipForward, Volume2 } from 'lucide-react';
 import { ReviewQueueEntry, partitionSessionCards, promoteDueQueue, getNextDueCountdownLabel } from '@/utils/reviewQueue';
 import { SessionFontSettings } from '@/components/SessionFontSettings';
 import { GhareebSourceSettings } from '@/components/GhareebSourceSettings';
+import { SessionRevealAudioSettings } from '@/components/SessionRevealAudioSettings';
 import { useTahfeezStore } from '@/stores/tahfeezStore';
 import { useSettingsStore } from '@/stores/settingsStore';
 import { captureTahfeezSettings, applyTahfeezSettings } from '@/utils/tahfeezSessionSettings';
+import { playAyahSequence, stopAudio, DEFAULT_RECITER_ID } from '@/services/quranAudio';
+import { AyahRef, previousAyahRef } from '@/utils/pageAyahRefs';
 
 export type AnswerDisplayMode = 'bottom' | 'tooltip' | 'inline';
+
+/** Progressive reveal state handed to the card renderer. */
+export interface CardRevealState {
+  mode: SessionRevealMode;
+  /** Number of words already uncovered (word-by-word modes). */
+  revealedWords: number;
+  /** True when the whole ayah should be shown. */
+  full: boolean;
+}
 
 interface SRSReviewSessionProps {
   cards: SRSCard[];
@@ -21,7 +33,7 @@ interface SRSReviewSessionProps {
   sessionName?: string;
   onFinish: () => void;
   onNavigateToPage: (page: number) => void;
-  renderCard: (card: SRSCard, answerRevealed: boolean, answerDisplayMode: AnswerDisplayMode) => React.ReactNode;
+  renderCard: (card: SRSCard, answerRevealed: boolean, answerDisplayMode: AnswerDisplayMode, revealState?: CardRevealState) => React.ReactNode;
   portalName: string;
   renderAnswer?: (card: SRSCard) => React.ReactNode;
   defaultAnswerMode?: AnswerDisplayMode;
@@ -30,6 +42,12 @@ interface SRSReviewSessionProps {
   focusMode?: boolean;
   /** Extra settings shown inside the in-session settings drawer. */
   settingsPanel?: React.ReactNode;
+  /** Enables the reveal-method + recitation options (tahfeez review). */
+  enableRevealModes?: boolean;
+  /** Word count of the hidden ayah — needed for word-by-word reveal. */
+  getCardWordCount?: (card: SRSCard) => number;
+  /** Exact surah/ayah of the card — needed for recitation. */
+  getCardAyahRef?: (card: SRSCard) => Promise<AyahRef | null>;
 }
 
 type QueueOrder = 'smart' | 'mushaf' | 'random';
@@ -39,6 +57,7 @@ const ANSWER_MODE_LABEL: Record<AnswerDisplayMode, string> = {
   tooltip: 'عند الكلمة',
   inline: 'في السطر',
 };
+
 
 export function SRSReviewSession({
   cards,
@@ -54,6 +73,10 @@ export function SRSReviewSession({
   headerExtra,
   focusMode = false,
   settingsPanel,
+  enableRevealModes = false,
+  getCardWordCount,
+  getCardAyahRef,
+
 }: SRSReviewSessionProps) {
   const rateCard = useSRSStore(s => s.rateCard);
   const toggleFlag = useSRSStore(s => s.toggleFlag);
@@ -84,11 +107,52 @@ export function SRSReviewSession({
     return defaultAnswerMode;
   });
 
+  // ── Reveal method + recitation (saved per session, applied live) ──────────
+  const initialRevealSettings = sessionId
+    ? useReviewSessionStore.getState().getSessionSettings(sessionId)
+    : undefined;
+
+  const [revealMode, setRevealMode] = useState<SessionRevealMode>(() => initialRevealSettings?.revealMode ?? 'smart');
+  const [wordRevealInterval, setWordRevealInterval] = useState<number>(() => initialRevealSettings?.wordRevealInterval ?? 1);
+  const [audioMode, setAudioMode] = useState<SessionAudioMode>(() => initialRevealSettings?.audioBeforeReveal ?? 'none');
+  const [reciterId, setReciterId] = useState<string>(() => initialRevealSettings?.audioReciter ?? DEFAULT_RECITER_ID);
+  /** Reveal method used by the card on screen (changes apply from the next card
+      when the current one is already mid-reveal). */
+  const [activeRevealMode, setActiveRevealMode] = useState<SessionRevealMode>(revealMode);
+  const [revealedWords, setRevealedWords] = useState(0);
+  const [autoPaused, setAutoPaused] = useState(false);
+
   /** Any answer-mode change is saved immediately under this session id. */
   const applyAnswerMode = useCallback((mode: AnswerDisplayMode) => {
     setAnswerMode(mode);
     if (sessionId) updateSessionSettings(sessionId, { answerMode: mode });
   }, [sessionId, updateSessionSettings]);
+
+  const applyRevealMode = useCallback((mode: SessionRevealMode) => {
+    setRevealMode(mode);
+    if (sessionId) updateSessionSettings(sessionId, { revealMode: mode });
+    // Only switch the live card when it is not mid-reveal, so progress is safe.
+    setAnswerRevealed(revealed => {
+      if (!revealed) setActiveRevealMode(mode);
+      return revealed;
+    });
+  }, [sessionId, updateSessionSettings]);
+
+  const applyWordRevealInterval = useCallback((seconds: number) => {
+    setWordRevealInterval(seconds);
+    if (sessionId) updateSessionSettings(sessionId, { wordRevealInterval: seconds });
+  }, [sessionId, updateSessionSettings]);
+
+  const applyAudioMode = useCallback((mode: SessionAudioMode) => {
+    setAudioMode(mode);
+    if (sessionId) updateSessionSettings(sessionId, { audioBeforeReveal: mode });
+  }, [sessionId, updateSessionSettings]);
+
+  const applyReciter = useCallback((id: string) => {
+    setReciterId(id);
+    if (sessionId) updateSessionSettings(sessionId, { audioReciter: id });
+  }, [sessionId, updateSessionSettings]);
+
 
   /** Reorders the remaining cards live and saves the choice on this session. */
   const applyQueueOrder = useCallback((mode: QueueOrder) => {
@@ -275,8 +339,80 @@ export function SRSReviewSession({
     };
   }, [sessionId]);
 
+  // Reload reveal/recitation options when another session is opened.
+  useEffect(() => {
+    const s = sessionId ? useReviewSessionStore.getState().getSessionSettings(sessionId) : undefined;
+    const mode = (s?.revealMode as SessionRevealMode) ?? 'smart';
+    setRevealMode(mode);
+    setActiveRevealMode(mode);
+    setWordRevealInterval(s?.wordRevealInterval ?? 1);
+    setAudioMode((s?.audioBeforeReveal as SessionAudioMode) ?? 'none');
+    setReciterId(s?.audioReciter ?? DEFAULT_RECITER_ID);
+  }, [sessionId]);
+
+  const totalCardWords = useMemo(() => (card && getCardWordCount ? Math.max(getCardWordCount(card), 0) : 0), [card, getCardWordCount]);
+  const wordByWord = enableRevealModes && activeRevealMode !== 'smart' && totalCardWords > 0;
+  const fullyRevealed = !wordByWord || revealedWords >= totalCardWords;
+
+  // Fresh card: reset reveal progress and take the latest chosen method.
+  useEffect(() => {
+    setRevealedWords(0);
+    setAutoPaused(false);
+    setActiveRevealMode(revealMode);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [card?.id, currentIdx]);
+
+  // Automatic word-by-word reveal.
+  useEffect(() => {
+    if (!answerRevealed || !wordByWord || activeRevealMode !== 'wordByWordAuto') return;
+    if (autoPaused || revealedWords >= totalCardWords) return;
+    const t = setTimeout(() => setRevealedWords(n => Math.min(n + 1, totalCardWords)), Math.max(0.2, wordRevealInterval) * 1000);
+    return () => clearTimeout(t);
+  }, [answerRevealed, wordByWord, activeRevealMode, autoPaused, revealedWords, totalCardWords, wordRevealInterval]);
+
+  // ── Recitation (never touches text reveal or session progress) ────────────
+  const [cardAyahRef, setCardAyahRef] = useState<AyahRef | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    if (!card || !getCardAyahRef) { setCardAyahRef(null); return; }
+    getCardAyahRef(card).then(ref => { if (!cancelled) setCardAyahRef(ref); }).catch(() => { if (!cancelled) setCardAyahRef(null); });
+    return () => { cancelled = true; };
+  }, [card, getCardAyahRef]);
+
+  const playRefs = useCallback((refs: (AyahRef | null)[]) => {
+    const list = refs.filter(Boolean) as AyahRef[];
+    if (list.length === 0) return;
+    void playAyahSequence(reciterId, list);
+  }, [reciterId]);
+
+  const playPrevious = useCallback(() => { if (cardAyahRef) playRefs([previousAyahRef(cardAyahRef)]); }, [cardAyahRef, playRefs]);
+  const playCurrent = useCallback(() => { if (cardAyahRef) playRefs([cardAyahRef]); }, [cardAyahRef, playRefs]);
+
+  // Auto recitation when a hidden ayah appears — the text stays hidden.
+  useEffect(() => {
+    if (!enableRevealModes || audioMode === 'none' || !cardAyahRef) return;
+    if (audioMode === 'previous') playRefs([previousAyahRef(cardAyahRef)]);
+    else if (audioMode === 'current') playRefs([cardAyahRef]);
+    else playRefs([previousAyahRef(cardAyahRef), cardAyahRef]);
+    return () => stopAudio();
+  }, [cardAyahRef, audioMode, enableRevealModes, playRefs]);
+
+  useEffect(() => () => stopAudio(), []);
+
+  const sessionPages = useMemo(() => Array.from(new Set(cards.map(c => c.page))), [cards]);
+
   const intervals = useMemo(() => card ? previewIntervals(card) : [], [card]);
-  const handleRevealAnswer = useCallback(() => setAnswerRevealed(true), []);
+  const handleRevealAnswer = useCallback(() => {
+    setAnswerRevealed(true);
+    if (enableRevealModes && activeRevealMode !== 'smart') {
+      setRevealedWords(1);
+      setAutoPaused(false);
+    }
+  }, [enableRevealModes, activeRevealMode]);
+
+  const revealNextWord = useCallback(() => setRevealedWords(n => Math.min(n + 1, Math.max(totalCardWords, 1))), [totalCardWords]);
+  const revealWholeAyah = useCallback(() => setRevealedWords(Math.max(totalCardWords, 1)), [totalCardWords]);
+
 
   // Suspend card
   const handleSuspendCard = useCallback(() => {
@@ -509,8 +645,17 @@ export function SRSReviewSession({
         )}
 
         {/* Card content — scrollable */}
-        <div data-review-scroll-container="true" className="flex-1 min-h-0 overflow-y-auto overscroll-contain">
-          {renderCard(card, answerRevealed, answerMode)}
+        <div
+          data-review-scroll-container="true"
+          className="flex-1 min-h-0 overflow-y-auto overscroll-contain"
+          onClick={answerRevealed && wordByWord && activeRevealMode === 'wordByWordManual' && !fullyRevealed ? revealNextWord : undefined}
+        >
+          {renderCard(card, answerRevealed, answerMode, {
+            mode: activeRevealMode,
+            revealedWords,
+            full: fullyRevealed,
+          })}
+
         </div>
 
         {/* Answer panel (bottom mode) */}
@@ -563,7 +708,23 @@ export function SRSReviewSession({
                 </button>
               )}
             </div>
+            {enableRevealModes && (
+              <div className="border-t border-border pt-3">
+                <SessionRevealAudioSettings
+                  revealMode={revealMode}
+                  onRevealMode={applyRevealMode}
+                  wordRevealInterval={wordRevealInterval}
+                  onWordRevealInterval={applyWordRevealInterval}
+                  audioMode={audioMode}
+                  onAudioMode={applyAudioMode}
+                  reciterId={reciterId}
+                  onReciterChange={applyReciter}
+                  sessionPages={sessionPages}
+                />
+              </div>
+            )}
             <SessionFontSettings sessionType={activeSessionType || 'tahfeez-review'} reviewSessionId={sessionId} compact />
+
             {settingsPanel}
             {headerExtra}
           </div>
@@ -616,7 +777,47 @@ export function SRSReviewSession({
             </div>
           )}
 
+          {/* Recitation — fully independent from text reveal */}
+          {enableRevealModes && cardAyahRef && (
+            <div className="flex items-center justify-center gap-1.5">
+              <Button size="sm" variant="outline" className="text-[11px] h-7 px-2.5 font-arabic gap-1" onClick={playPrevious}>
+                <Volume2 className="w-3.5 h-3.5" /> سماع الآية السابقة
+              </Button>
+              <Button size="sm" variant="outline" className="text-[11px] h-7 px-2.5 font-arabic gap-1" onClick={playCurrent}>
+                <Volume2 className="w-3.5 h-3.5" /> سماع الآية المخفية
+              </Button>
+              <Button size="sm" variant="ghost" className="text-[11px] h-7 px-2 font-arabic" onClick={() => stopAudio()}>
+                إيقاف
+              </Button>
+            </div>
+          )}
+
+          {/* Word-by-word reveal controls */}
+          {answerRevealed && wordByWord && (
+            <div className="flex flex-wrap items-center justify-center gap-1.5">
+              <span className="text-[11px] text-muted-foreground font-arabic">
+                {Math.min(revealedWords, totalCardWords)} / {totalCardWords}
+              </span>
+              {!fullyRevealed && activeRevealMode === 'wordByWordAuto' && (
+                <Button size="sm" variant="outline" className="text-[11px] h-7 px-2.5 font-arabic gap-1" onClick={() => setAutoPaused(p => !p)}>
+                  {autoPaused ? <><Play className="w-3.5 h-3.5" /> متابعة</> : <><Pause className="w-3.5 h-3.5" /> إيقاف مؤقت</>}
+                </Button>
+              )}
+              {!fullyRevealed && (
+                <>
+                  <Button size="sm" variant="outline" className="text-[11px] h-7 px-2.5 font-arabic gap-1" onClick={revealNextWord}>
+                    <SkipForward className="w-3.5 h-3.5" /> الكلمة التالية
+                  </Button>
+                  <Button size="sm" variant="outline" className="text-[11px] h-7 px-2.5 font-arabic gap-1" onClick={revealWholeAyah}>
+                    <Eye className="w-3.5 h-3.5" /> إظهار الآية كاملة
+                  </Button>
+                </>
+              )}
+            </div>
+          )}
+
           {!answerRevealed ? (
+
             <div className="space-y-2">
               <div className="flex gap-2">
                 <Button onClick={handleRevealAnswer} className="flex-1 font-arabic text-base gap-2" size="lg">
