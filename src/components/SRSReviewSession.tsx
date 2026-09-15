@@ -645,7 +645,11 @@ export function SRSReviewSession({
         )}
 
         {/* Card content — scrollable */}
-        <div data-review-scroll-container="true" className="flex-1 min-h-0 overflow-y-auto overscroll-contain">
+        <div
+          data-review-scroll-container="true"
+          className="flex-1 min-h-0 overflow-y-auto overscroll-contain"
+          onClick={answerRevealed && wordByWord && activeRevealMode === 'wordByWordManual' && !fullyRevealed ? revealNextWord : undefined}
+        >
           {renderCard(card, answerRevealed, answerMode, {
             mode: activeRevealMode,
             revealedWords,
