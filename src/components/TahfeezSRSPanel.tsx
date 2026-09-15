@@ -1,7 +1,8 @@
 import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useSRSStore, SRSCard } from '@/stores/srsStore';
-import { SRSReviewSession } from './SRSReviewSession';
+import { SRSReviewSession, CardRevealState } from './SRSReviewSession';
+import { getPageAyahRefs, AyahRef } from '@/utils/pageAyahRefs';
 import { ReviewSessionSetup } from './ReviewSessionSetup';
 import { TahfeezSessionReviewSettings } from './TahfeezSessionReviewSettings';
 import { useTahfeezStore } from '@/stores/tahfeezStore';
@@ -73,7 +74,7 @@ export function extractPageAyahGroups(text: string, pageNumber: number): WordTok
 interface TahfeezSRSPanelProps {
   currentPage: number; totalPages: number; pageData: QuranPage | undefined;
   allPages: QuranPage[]; onNavigateToPage: (page: number) => void;
-  renderPageWithBlanks: (page: number, blankedKeys: string[], card: SRSCard) => React.ReactNode;
+  renderPageWithBlanks: (page: number, blankedKeys: string[], card: SRSCard, revealState?: CardRevealState) => React.ReactNode;
   /** The existing general session being opened from the sessions page. */
   resumeSessionId?: string | null;
 }
