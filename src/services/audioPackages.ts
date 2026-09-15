@@ -313,7 +313,8 @@ export class PackageDownloadJob {
       const id = `${ref.surah}:${ref.ayah}`;
       if (bytes.length < MIN_AUDIO_BYTES) { missing.push(id); continue; }
       const key = packageAyahKey(this.pkg, ref.surah, ref.ayah);
-      const ok = await saveAudio(key, new Blob([bytes], { type: 'audio/mpeg' }));
+      const buf = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;
+      const ok = await saveAudio(key, new Blob([buf], { type: 'audio/mpeg' }));
       if (ok && (await hasValidAudio(key))) extracted.push(id);
       else missing.push(id);
       if (extracted.length % 50 === 0) this.emit('extract');
