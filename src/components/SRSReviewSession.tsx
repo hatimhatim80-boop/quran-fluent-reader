@@ -107,11 +107,54 @@ export function SRSReviewSession({
     return defaultAnswerMode;
   });
 
+  // ── Reveal method + recitation (saved per session, applied live) ──────────
+  const readSetting = useCallback(<T,>(pick: (s: ReturnType<typeof useReviewSessionStore.getState>['sessions'][number]['settings']) => T | undefined, fallback: T): T => {
+    if (!sessionId) return fallback;
+    const s = useReviewSessionStore.getState().getSessionSettings(sessionId);
+    return (s ? pick(s) : undefined) ?? fallback;
+  }, [sessionId]);
+
+  const [revealMode, setRevealMode] = useState<SessionRevealMode>(() => readSetting(s => s.revealMode, 'smart'));
+  const [wordRevealInterval, setWordRevealInterval] = useState<number>(() => readSetting(s => s.wordRevealInterval, 1));
+  const [audioMode, setAudioMode] = useState<SessionAudioMode>(() => readSetting(s => s.audioBeforeReveal, 'none'));
+  const [reciterId, setReciterId] = useState<string>(() => readSetting(s => s.audioReciter, DEFAULT_RECITER_ID));
+  /** Reveal method used by the card on screen (changes apply from the next card
+      when the current one is already mid-reveal). */
+  const [activeRevealMode, setActiveRevealMode] = useState<SessionRevealMode>(revealMode);
+  const [revealedWords, setRevealedWords] = useState(0);
+  const [autoPaused, setAutoPaused] = useState(false);
+
   /** Any answer-mode change is saved immediately under this session id. */
   const applyAnswerMode = useCallback((mode: AnswerDisplayMode) => {
     setAnswerMode(mode);
     if (sessionId) updateSessionSettings(sessionId, { answerMode: mode });
   }, [sessionId, updateSessionSettings]);
+
+  const applyRevealMode = useCallback((mode: SessionRevealMode) => {
+    setRevealMode(mode);
+    if (sessionId) updateSessionSettings(sessionId, { revealMode: mode });
+    // Only switch the live card when it is not mid-reveal, so progress is safe.
+    setAnswerRevealed(revealed => {
+      if (!revealed) setActiveRevealMode(mode);
+      return revealed;
+    });
+  }, [sessionId, updateSessionSettings]);
+
+  const applyWordRevealInterval = useCallback((seconds: number) => {
+    setWordRevealInterval(seconds);
+    if (sessionId) updateSessionSettings(sessionId, { wordRevealInterval: seconds });
+  }, [sessionId, updateSessionSettings]);
+
+  const applyAudioMode = useCallback((mode: SessionAudioMode) => {
+    setAudioMode(mode);
+    if (sessionId) updateSessionSettings(sessionId, { audioBeforeReveal: mode });
+  }, [sessionId, updateSessionSettings]);
+
+  const applyReciter = useCallback((id: string) => {
+    setReciterId(id);
+    if (sessionId) updateSessionSettings(sessionId, { audioReciter: id });
+  }, [sessionId, updateSessionSettings]);
+
 
   /** Reorders the remaining cards live and saves the choice on this session. */
   const applyQueueOrder = useCallback((mode: QueueOrder) => {
