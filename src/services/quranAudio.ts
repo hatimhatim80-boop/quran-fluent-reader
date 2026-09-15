@@ -1,21 +1,21 @@
 /**
- * QuranAudioProvider — an independent audio layer for the app.
+ * QuranAudioProvider — the single audio layer of the app.
  *
- * Design rules:
- *  - The review session never knows which website the audio comes from; it
- *    only asks this layer for (reciter, narration, surah, ayah).
- *  - Every audio file is identified by a full source descriptor:
- *    provider + reciter + narration + surah + ayah. A file is only ever used
- *    for the exact same descriptor — no automatic substitution of a different
- *    reciter or narration when a file fails.
- *  - Files are stored in the device's persistent app storage (Capacitor
- *    Filesystem on Android/iOS, IndexedDB on the web) and are never bundled
- *    inside the APK.
+ * Rules:
+ *  - The review session never knows any website, URL or package format.
+ *    It only calls `playAyah(reciterId, surah, ayah)` / `playAyahSequence`.
+ *  - Every file is identified by provider + reciter + narration + surah + ayah.
+ *    A file is only ever used for that exact combination; a missing file is
+ *    NEVER replaced by another reciter, narration or source.
+ *  - Files live in the device's permanent app storage (Capacitor Filesystem on
+ *    Android/iOS, IndexedDB on the web) and are never bundled inside the APK.
  *
- * Verified sources (checked live, ayah-by-ayah mp3):
- *  - verses.quran.foundation — the Quran Foundation / quran.com verse CDN,
- *    paths taken from the official recitations catalogue.
- *  - cdn.islamic.network — the Al Quran Cloud CDN, ayah numbered 1..6236.
+ * Primary source: the King Fahd Glorious Quran Printing Complex, which
+ * publishes an official "المصحف كاملاً آيات" package per reciter on its own
+ * pages (https://qurancomplex.gov.sa/quran-audios/). Those packages are
+ * downloaded, unpacked and indexed locally (see audioPackages.ts).
+ * Secondary per-ayah CDNs are kept as separate, clearly labelled reciters —
+ * they are never substituted for a Complex reciter.
  */
 
 import type { AyahRef } from '@/utils/pageAyahRefs';
@@ -32,23 +32,26 @@ import {
   MIN_AUDIO_BYTES,
 } from './audioStorage';
 
-// ── Narrations & providers ──────────────────────────────────────────────────
+// ── Narrations ──────────────────────────────────────────────────────────────
 
-/** The system is not hard-wired to one narration. */
-export type NarrationId = 'hafs' | 'warsh' | 'qalun' | 'duri';
+/** The system is narration-generic; only narrations really published are listed. */
+export type NarrationId = 'hafs' | 'shubah' | 'qalun' | 'susi' | 'duri';
 
 export const NARRATION_NAMES: Record<NarrationId, string> = {
   hafs: 'حفص عن عاصم',
-  warsh: 'ورش عن نافع',
+  shubah: 'شعبة عن عاصم',
   qalun: 'قالون عن نافع',
+  susi: 'السوسي عن أبي عمرو',
   duri: 'الدوري عن أبي عمرو',
 };
+
+// ── Providers ───────────────────────────────────────────────────────────────
 
 export interface AudioProvider {
   id: string;
   name: string;
-  /** Builds the remote URL for one ayah of one reciter. */
-  buildUrl: (reciter: Reciter, surah: number, ayah: number) => string;
+  /** Per-ayah URL builder; package providers have none. */
+  buildUrl?: (reciter: Reciter, surah: number, ayah: number) => string;
 }
 
 const pad3 = (n: number) => String(n).padStart(3, '0');
@@ -61,6 +64,10 @@ export function globalAyahNumber(surah: number, ayah: number): number {
 }
 
 export const PROVIDERS: Record<string, AudioProvider> = {
+  kfgqpc: {
+    id: 'kfgqpc',
+    name: 'مجمع الملك فهد لطباعة المصحف الشريف',
+  },
   quranfoundation: {
     id: 'quranfoundation',
     name: 'مؤسسة القرآن (verses.quran.foundation)',
@@ -80,23 +87,48 @@ export interface Reciter {
   name: string;
   narration: NarrationId;
   provider: string;
-  /** Provider-specific identifier (folder path or edition id). */
-  path: string;
+  /** 'package' = one official archive; 'perAyah' = one URL per ayah. */
+  kind: 'package' | 'perAyah';
+  /** Per-ayah providers: provider-specific folder/edition id. */
+  path?: string;
+  /** Package providers: the official page that hosts the download button. */
+  pageUrl?: string;
+  /** Package size as published by the provider, when known. */
+  sizeLabel?: string;
 }
 
-export const RECITERS: Reciter[] = [
-  { id: 'husary', name: 'محمود خليل الحصري', narration: 'hafs', provider: 'islamicnetwork', path: 'ar.husary' },
-  { id: 'husary-mujawwad', name: 'الحصري (المجود)', narration: 'hafs', provider: 'islamicnetwork', path: 'ar.husarymujawwad' },
-  { id: 'alafasy', name: 'مشاري راشد العفاسي', narration: 'hafs', provider: 'quranfoundation', path: 'Alafasy/mp3' },
-  { id: 'abdulbasit', name: 'عبد الباسط (مرتل)', narration: 'hafs', provider: 'quranfoundation', path: 'AbdulBaset/Murattal/mp3' },
-  { id: 'abdulbasit-mujawwad', name: 'عبد الباسط (مجود)', narration: 'hafs', provider: 'quranfoundation', path: 'AbdulBaset/Mujawwad/mp3' },
-  { id: 'minshawy', name: 'محمد صديق المنشاوي', narration: 'hafs', provider: 'quranfoundation', path: 'Minshawi/Murattal/mp3' },
-  { id: 'sudais', name: 'عبد الرحمن السديس', narration: 'hafs', provider: 'quranfoundation', path: 'Sudais/mp3' },
-  { id: 'shatri', name: 'أبو بكر الشاطري', narration: 'hafs', provider: 'quranfoundation', path: 'Shatri/mp3' },
-  { id: 'muaiqly', name: 'ماهر المعيقلي', narration: 'hafs', provider: 'islamicnetwork', path: 'ar.mahermuaiqly' },
+/**
+ * King Fahd Complex reciters — exactly the reciters and narrations published
+ * on https://qurancomplex.gov.sa/quran-audios/ with an ayah-by-ayah package.
+ */
+export const KFGQPC_RECITERS: Reciter[] = [
+  { id: 'kfgqpc-hudhaify-hafs', name: 'علي الحذيفي', narration: 'hafs', provider: 'kfgqpc', kind: 'package', pageUrl: 'https://qurancomplex.gov.sa/quran-audio-hafs-huthify/' },
+  { id: 'kfgqpc-muaiqly-hafs', name: 'ماهر المعيقلي', narration: 'hafs', provider: 'kfgqpc', kind: 'package', pageUrl: 'https://qurancomplex.gov.sa/quran-audio-hafs-muaiqly/' },
+  { id: 'kfgqpc-ayyoub-hafs', name: 'محمد أيوب', narration: 'hafs', provider: 'kfgqpc', kind: 'package', pageUrl: 'https://qurancomplex.gov.sa/quran-audio-hafs-ayyoub/', sizeLabel: '916 م.ب تقريبًا' },
+  { id: 'kfgqpc-muhanna-hafs', name: 'خالد المهنا', narration: 'hafs', provider: 'kfgqpc', kind: 'package', pageUrl: 'https://qurancomplex.gov.sa/sounds-hafs-muhanna/', sizeLabel: '1.04 ج.ب تقريبًا' },
+  { id: 'kfgqpc-akhdar-hafs', name: 'إبراهيم الأخضر', narration: 'hafs', provider: 'kfgqpc', kind: 'package', pageUrl: 'https://qurancomplex.gov.sa/quran-audio-hafs-akhdar/' },
+  { id: 'kfgqpc-hudhaify-shubah', name: 'علي الحذيفي', narration: 'shubah', provider: 'kfgqpc', kind: 'package', pageUrl: 'https://qurancomplex.gov.sa/quran-audios/' },
+  { id: 'kfgqpc-hudhaify-qalun', name: 'علي الحذيفي', narration: 'qalun', provider: 'kfgqpc', kind: 'package', pageUrl: 'https://qurancomplex.gov.sa/quran-audios/' },
+  { id: 'kfgqpc-siddiqi-susi', name: 'عثمان الصديقي', narration: 'susi', provider: 'kfgqpc', kind: 'package', pageUrl: 'https://qurancomplex.gov.sa/quran-audios/' },
+  { id: 'kfgqpc-juhany-duri', name: 'عبدالله الجهني', narration: 'duri', provider: 'kfgqpc', kind: 'package', pageUrl: 'https://qurancomplex.gov.sa/quran-audios/' },
 ];
 
-export const DEFAULT_RECITER_ID = 'husary';
+/** Per-ayah CDNs — separate reciters, never used to replace a Complex file. */
+export const CDN_RECITERS: Reciter[] = [
+  { id: 'husary', name: 'محمود خليل الحصري', narration: 'hafs', provider: 'islamicnetwork', kind: 'perAyah', path: 'ar.husary' },
+  { id: 'husary-mujawwad', name: 'الحصري (المجود)', narration: 'hafs', provider: 'islamicnetwork', kind: 'perAyah', path: 'ar.husarymujawwad' },
+  { id: 'muaiqly', name: 'ماهر المعيقلي', narration: 'hafs', provider: 'islamicnetwork', kind: 'perAyah', path: 'ar.mahermuaiqly' },
+  { id: 'alafasy', name: 'مشاري راشد العفاسي', narration: 'hafs', provider: 'quranfoundation', kind: 'perAyah', path: 'Alafasy/mp3' },
+  { id: 'abdulbasit', name: 'عبد الباسط (مرتل)', narration: 'hafs', provider: 'quranfoundation', kind: 'perAyah', path: 'AbdulBaset/Murattal/mp3' },
+  { id: 'abdulbasit-mujawwad', name: 'عبد الباسط (مجود)', narration: 'hafs', provider: 'quranfoundation', kind: 'perAyah', path: 'AbdulBaset/Mujawwad/mp3' },
+  { id: 'minshawy', name: 'محمد صديق المنشاوي', narration: 'hafs', provider: 'quranfoundation', kind: 'perAyah', path: 'Minshawi/Murattal/mp3' },
+  { id: 'sudais', name: 'عبد الرحمن السديس', narration: 'hafs', provider: 'quranfoundation', kind: 'perAyah', path: 'Sudais/mp3' },
+  { id: 'shatri', name: 'أبو بكر الشاطري', narration: 'hafs', provider: 'quranfoundation', kind: 'perAyah', path: 'Shatri/mp3' },
+];
+
+export const RECITERS: Reciter[] = [...KFGQPC_RECITERS, ...CDN_RECITERS];
+
+export const DEFAULT_RECITER_ID = 'kfgqpc-hudhaify-hafs';
 
 /** Returns the reciter, or null — never silently substitutes another one. */
 export function findReciter(id: string | undefined): Reciter | null {
@@ -111,6 +143,10 @@ export function narrationName(r: Reciter): string {
   return NARRATION_NAMES[r.narration];
 }
 
+export function providerName(r: Reciter): string {
+  return PROVIDERS[r.provider]?.name ?? r.provider;
+}
+
 // ── Source descriptor ───────────────────────────────────────────────────────
 
 export interface AudioSourceRef {
@@ -119,12 +155,12 @@ export interface AudioSourceRef {
   narration: NarrationId;
   surah: number;
   ayah: number;
-  url: string;
+  /** Remote URL, or null for package reciters (local files only). */
+  url: string | null;
   /** Storage key — encodes provider/reciter/narration/surah/ayah. */
   key: string;
 }
 
-/** Full descriptor for one ayah. Returns null for an unknown reciter. */
 export function resolveSource(reciterId: string, ref: AyahRef): AudioSourceRef | null {
   const reciter = findReciter(reciterId);
   if (!reciter) return null;
@@ -137,12 +173,11 @@ export function resolveSource(reciterId: string, ref: AyahRef): AudioSourceRef |
     narration: reciter.narration,
     surah: ref.surah,
     ayah: ref.ayah,
-    url: provider.buildUrl(reciter, ref.surah, ref.ayah),
+    url: provider.buildUrl ? provider.buildUrl(reciter, ref.surah, ref.ayah) : null,
     key: `${provider.id}:${reciter.id}:${reciter.narration}:${pad3(ref.surah)}${pad3(ref.ayah)}`,
   };
 }
 
-/** Prefix that identifies every file of one reciter package. */
 export function packagePrefix(reciterId: string): string {
   const r = findReciter(reciterId);
   if (!r) return `__unknown__:${reciterId}`;
@@ -180,7 +215,7 @@ export async function missingAyat(reciterId: string, refs: AyahRef[]): Promise<A
   return out;
 }
 
-// ── Download + validation ───────────────────────────────────────────────────
+// ── Per-ayah download + validation ──────────────────────────────────────────
 
 /** Rejects HTML error pages, empty or truncated files. */
 async function fetchValidAudio(url: string): Promise<Blob | null> {
@@ -199,10 +234,9 @@ async function fetchValidAudio(url: string): Promise<Blob | null> {
   return blob;
 }
 
-/** Downloads one ayah into persistent storage. */
 export async function downloadAyah(reciterId: string, ref: AyahRef): Promise<boolean> {
   const src = resolveSource(reciterId, ref);
-  if (!src) return false;
+  if (!src || !src.url) return false;
   try {
     const blob = await fetchValidAudio(src.url);
     if (!blob) return false;
@@ -235,7 +269,7 @@ export function stopAudio(): void {
   }
 }
 
-/** The offline copy when present, otherwise the remote URL of the SAME source. */
+/** Local copy first; streaming only for the very same source. */
 export async function resolvePlayableUrl(
   reciterId: string,
   ref: AyahRef,
@@ -244,12 +278,16 @@ export async function resolvePlayableUrl(
   if (!src) return null;
   const local = await localAudioUrl(src.key);
   if (local) return { url: local, local: true };
+  if (!src.url) return null; // package reciter, not downloaded yet
   return { url: src.url, local: false };
 }
 
 export interface PlayResult {
   played: number;
+  /** Ayat that could not be played at all. */
   failed: number;
+  /** True when the failure is simply "not downloaded on this device". */
+  notDownloaded: boolean;
 }
 
 /**
@@ -260,12 +298,12 @@ export async function playAyahSequence(reciterId: string, refs: AyahRef[]): Prom
   stopAudio();
   const token = ++playToken;
   const el = getAudioEl();
-  const result: PlayResult = { played: 0, failed: 0 };
+  const result: PlayResult = { played: 0, failed: 0, notDownloaded: false };
 
   for (const ref of refs) {
     if (token !== playToken) return result;
     const resolved = await resolvePlayableUrl(reciterId, ref);
-    if (!resolved) { result.failed++; continue; }
+    if (!resolved) { result.failed++; result.notDownloaded = true; continue; }
     if (token !== playToken) {
       if (isRevocableUrl(resolved.url)) URL.revokeObjectURL(resolved.url);
       return result;
@@ -299,7 +337,12 @@ export async function playAyahSequence(reciterId: string, refs: AyahRef[]): Prom
   return result;
 }
 
-// ── Persistent download package ─────────────────────────────────────────────
+/** Convenience entry point used by the review session. */
+export function playAyah(reciterId: string, surah: number, ayah: number): Promise<PlayResult> {
+  return playAyahSequence(reciterId, [{ surah, ayah }]);
+}
+
+// ── Per-ayah resumable download package ─────────────────────────────────────
 
 const refId = (r: AyahRef) => `${r.surah}:${r.ayah}`;
 const parseRefId = (s: string): AyahRef => {
@@ -312,11 +355,8 @@ export interface DownloadPackageState {
   provider: string;
   reciterId: string;
   narration: NarrationId;
-  /** Every ayah requested for this package. */
   refs: string[];
-  /** Ayat confirmed stored on the device. */
   done: string[];
-  /** Ayat that failed and still need a repair pass. */
   failed: string[];
   status: 'idle' | 'running' | 'paused' | 'complete';
   updatedAt: number;
@@ -339,15 +379,14 @@ export interface DownloadProgress {
 }
 
 /**
- * A resumable download. State is persisted after every file, so closing the
- * app (or rebooting the phone) and coming back continues with the missing
- * files only — existing valid files are never downloaded again.
+ * Ayah-by-ayah download for per-ayah CDN reciters. State is persisted after
+ * every file, so closing the app and returning continues with the missing
+ * files only.
  */
 export class AyahDownloadJob {
   private paused = false;
   private cancelled = false;
   private state: DownloadPackageState;
-  private readonly reciter: Reciter;
 
   constructor(
     private reciterId: string,
@@ -357,7 +396,7 @@ export class AyahDownloadJob {
   ) {
     const reciter = findReciter(reciterId);
     if (!reciter) throw new Error(`Unknown reciter: ${reciterId}`);
-    this.reciter = reciter;
+    if (reciter.kind !== 'perAyah') throw new Error('هذا القارئ يُنزَّل كحزمة رسمية كاملة');
     const ids = refs.map(refId);
     const merged = previous && previous.packageId === packageId(reciterId)
       ? Array.from(new Set([...previous.refs, ...ids]))
@@ -418,6 +457,4 @@ export class AyahDownloadJob {
     await savePackageState(this.state);
     this.emit(false);
   }
-
-  get narrationLabel() { return NARRATION_NAMES[this.reciter.narration]; }
 }
