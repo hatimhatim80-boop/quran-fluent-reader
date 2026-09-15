@@ -341,8 +341,80 @@ export function SRSReviewSession({
     };
   }, [sessionId]);
 
+  // Reload reveal/recitation options when another session is opened.
+  useEffect(() => {
+    const s = sessionId ? useReviewSessionStore.getState().getSessionSettings(sessionId) : undefined;
+    const mode = (s?.revealMode as SessionRevealMode) ?? 'smart';
+    setRevealMode(mode);
+    setActiveRevealMode(mode);
+    setWordRevealInterval(s?.wordRevealInterval ?? 1);
+    setAudioMode((s?.audioBeforeReveal as SessionAudioMode) ?? 'none');
+    setReciterId(s?.audioReciter ?? DEFAULT_RECITER_ID);
+  }, [sessionId]);
+
+  const totalCardWords = useMemo(() => (card && getCardWordCount ? Math.max(getCardWordCount(card), 0) : 0), [card, getCardWordCount]);
+  const wordByWord = enableRevealModes && activeRevealMode !== 'smart' && totalCardWords > 0;
+  const fullyRevealed = !wordByWord || revealedWords >= totalCardWords;
+
+  // Fresh card: reset reveal progress and take the latest chosen method.
+  useEffect(() => {
+    setRevealedWords(0);
+    setAutoPaused(false);
+    setActiveRevealMode(revealMode);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [card?.id, currentIdx]);
+
+  // Automatic word-by-word reveal.
+  useEffect(() => {
+    if (!answerRevealed || !wordByWord || activeRevealMode !== 'wordByWordAuto') return;
+    if (autoPaused || revealedWords >= totalCardWords) return;
+    const t = setTimeout(() => setRevealedWords(n => Math.min(n + 1, totalCardWords)), Math.max(0.2, wordRevealInterval) * 1000);
+    return () => clearTimeout(t);
+  }, [answerRevealed, wordByWord, activeRevealMode, autoPaused, revealedWords, totalCardWords, wordRevealInterval]);
+
+  // ── Recitation (never touches text reveal or session progress) ────────────
+  const [cardAyahRef, setCardAyahRef] = useState<AyahRef | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    if (!card || !getCardAyahRef) { setCardAyahRef(null); return; }
+    getCardAyahRef(card).then(ref => { if (!cancelled) setCardAyahRef(ref); }).catch(() => { if (!cancelled) setCardAyahRef(null); });
+    return () => { cancelled = true; };
+  }, [card, getCardAyahRef]);
+
+  const playRefs = useCallback((refs: (AyahRef | null)[]) => {
+    const list = refs.filter(Boolean) as AyahRef[];
+    if (list.length === 0) return;
+    void playAyahSequence(reciterId, list);
+  }, [reciterId]);
+
+  const playPrevious = useCallback(() => { if (cardAyahRef) playRefs([previousAyahRef(cardAyahRef)]); }, [cardAyahRef, playRefs]);
+  const playCurrent = useCallback(() => { if (cardAyahRef) playRefs([cardAyahRef]); }, [cardAyahRef, playRefs]);
+
+  // Auto recitation when a hidden ayah appears — the text stays hidden.
+  useEffect(() => {
+    if (!enableRevealModes || audioMode === 'none' || !cardAyahRef) return;
+    if (audioMode === 'previous') playRefs([previousAyahRef(cardAyahRef)]);
+    else if (audioMode === 'current') playRefs([cardAyahRef]);
+    else playRefs([previousAyahRef(cardAyahRef), cardAyahRef]);
+    return () => stopAudio();
+  }, [cardAyahRef, audioMode, enableRevealModes, playRefs]);
+
+  useEffect(() => () => stopAudio(), []);
+
+  const sessionPages = useMemo(() => Array.from(new Set(cards.map(c => c.page))), [cards]);
+
   const intervals = useMemo(() => card ? previewIntervals(card) : [], [card]);
-  const handleRevealAnswer = useCallback(() => setAnswerRevealed(true), []);
+  const handleRevealAnswer = useCallback(() => {
+    setAnswerRevealed(true);
+    if (enableRevealModes && activeRevealMode !== 'smart') {
+      setRevealedWords(1);
+      setAutoPaused(false);
+    }
+  }, [enableRevealModes, activeRevealMode]);
+
+  const revealNextWord = useCallback(() => setRevealedWords(n => Math.min(n + 1, Math.max(totalCardWords, 1))), [totalCardWords]);
+  const revealWholeAyah = useCallback(() => setRevealedWords(Math.max(totalCardWords, 1)), [totalCardWords]);
+
 
   // Suspend card
   const handleSuspendCard = useCallback(() => {
