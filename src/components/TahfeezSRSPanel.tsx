@@ -285,9 +285,9 @@ export function TahfeezSRSPanel({ currentPage, totalPages, pageData, allPages, o
   );
 }
 
-function TahfeezReviewCardContent({ card, answerRevealed, renderPageWithBlanks }: {
-  card: SRSCard; answerRevealed: boolean;
-  renderPageWithBlanks: (page: number, blankedKeys: string[], card: SRSCard) => React.ReactNode;
+function TahfeezReviewCardContent({ card, answerRevealed, revealState, renderPageWithBlanks }: {
+  card: SRSCard; answerRevealed: boolean; revealState?: CardRevealState;
+  renderPageWithBlanks: (page: number, blankedKeys: string[], card: SRSCard, revealState?: CardRevealState) => React.ReactNode;
 }) {
   const rootRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLElement | null>(null);
