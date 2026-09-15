@@ -704,7 +704,23 @@ export function SRSReviewSession({
                 </button>
               )}
             </div>
+            {enableRevealModes && (
+              <div className="border-t border-border pt-3">
+                <SessionRevealAudioSettings
+                  revealMode={revealMode}
+                  onRevealMode={applyRevealMode}
+                  wordRevealInterval={wordRevealInterval}
+                  onWordRevealInterval={applyWordRevealInterval}
+                  audioMode={audioMode}
+                  onAudioMode={applyAudioMode}
+                  reciterId={reciterId}
+                  onReciterChange={applyReciter}
+                  sessionPages={sessionPages}
+                />
+              </div>
+            )}
             <SessionFontSettings sessionType={activeSessionType || 'tahfeez-review'} reviewSessionId={sessionId} compact />
+
             {settingsPanel}
             {headerExtra}
           </div>
