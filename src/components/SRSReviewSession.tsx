@@ -397,7 +397,11 @@ export function SRSReviewSession({
     }
     void playAyahSequence(reciterId, list).then(res => {
       if (manual && res.played === 0 && res.failed > 0) {
-        toast.error('تعذّر تشغيل التلاوة — الملف غير محمَّل ولا يوجد اتصال');
+        toast.error(
+          res.notDownloaded
+            ? 'هذه التلاوة غير محمّلة على الجهاز — افتح ⚙ ثم «إدارة التلاوة الصوتية»'
+            : 'تعذّر تشغيل التلاوة',
+        );
       }
     });
   }, [reciterId]);
