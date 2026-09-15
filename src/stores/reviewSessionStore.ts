@@ -42,6 +42,11 @@ export type SessionType = 'new' | 'due' | 'mixed' | 'flagged' | 'archived-only' 
 export type SessionOrder = 'smart' | 'mushaf' | 'random';
 export type ArchiveFilter = 'exclude' | 'include' | 'only';
 
+/** How a hidden ayah is uncovered inside a review session. */
+export type SessionRevealMode = 'smart' | 'wordByWordManual' | 'wordByWordAuto';
+/** Which recitation plays automatically when a hidden ayah appears. */
+export type SessionAudioMode = 'none' | 'previous' | 'current' | 'previous-then-current';
+
 /** Per-session font settings (never shared between sessions) */
 export interface ReviewSessionFonts {
   fontFamily?: string;
