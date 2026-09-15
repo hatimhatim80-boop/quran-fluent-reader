@@ -14,6 +14,7 @@ import { useTahfeezStore } from '@/stores/tahfeezStore';
 import { useSettingsStore } from '@/stores/settingsStore';
 import { captureTahfeezSettings, applyTahfeezSettings } from '@/utils/tahfeezSessionSettings';
 import { playAyahSequence, stopAudio, DEFAULT_RECITER_ID } from '@/services/quranAudio';
+import { toast } from 'sonner';
 import { AyahRef, previousAyahRef } from '@/utils/pageAyahRefs';
 
 export type AnswerDisplayMode = 'bottom' | 'tooltip' | 'inline';
@@ -116,6 +117,7 @@ export function SRSReviewSession({
   const [wordRevealInterval, setWordRevealInterval] = useState<number>(() => initialRevealSettings?.wordRevealInterval ?? 1);
   const [audioMode, setAudioMode] = useState<SessionAudioMode>(() => initialRevealSettings?.audioBeforeReveal ?? 'none');
   const [reciterId, setReciterId] = useState<string>(() => initialRevealSettings?.audioReciter ?? DEFAULT_RECITER_ID);
+  const [crossSurah, setCrossSurah] = useState<boolean>(() => initialRevealSettings?.audioPreviousCrossSurah ?? false);
   /** Reveal method used by the card on screen (changes apply from the next card
       when the current one is already mid-reveal). */
   const [activeRevealMode, setActiveRevealMode] = useState<SessionRevealMode>(revealMode);
@@ -149,8 +151,14 @@ export function SRSReviewSession({
   }, [sessionId, updateSessionSettings]);
 
   const applyReciter = useCallback((id: string) => {
+    stopAudio();
     setReciterId(id);
     if (sessionId) updateSessionSettings(sessionId, { audioReciter: id });
+  }, [sessionId, updateSessionSettings]);
+
+  const applyCrossSurah = useCallback((on: boolean) => {
+    setCrossSurah(on);
+    if (sessionId) updateSessionSettings(sessionId, { audioPreviousCrossSurah: on });
   }, [sessionId, updateSessionSettings]);
 
 
@@ -348,6 +356,7 @@ export function SRSReviewSession({
     setWordRevealInterval(s?.wordRevealInterval ?? 1);
     setAudioMode((s?.audioBeforeReveal as SessionAudioMode) ?? 'none');
     setReciterId(s?.audioReciter ?? DEFAULT_RECITER_ID);
+    setCrossSurah(s?.audioPreviousCrossSurah ?? false);
   }, [sessionId]);
 
   const totalCardWords = useMemo(() => (card && getCardWordCount ? Math.max(getCardWordCount(card), 0) : 0), [card, getCardWordCount]);
@@ -379,23 +388,36 @@ export function SRSReviewSession({
     return () => { cancelled = true; };
   }, [card, getCardAyahRef]);
 
-  const playRefs = useCallback((refs: (AyahRef | null)[]) => {
+  /** Plays audio only — reveal state, progress and ratings stay untouched. */
+  const playRefs = useCallback((refs: (AyahRef | null)[], manual = false) => {
     const list = refs.filter(Boolean) as AyahRef[];
-    if (list.length === 0) return;
-    void playAyahSequence(reciterId, list);
+    if (list.length === 0) {
+      if (manual) toast.info('لا توجد آية سابقة ضمن هذه السورة');
+      return;
+    }
+    void playAyahSequence(reciterId, list).then(res => {
+      if (manual && res.played === 0 && res.failed > 0) {
+        toast.error('تعذّر تشغيل التلاوة — الملف غير محمَّل ولا يوجد اتصال');
+      }
+    });
   }, [reciterId]);
 
-  const playPrevious = useCallback(() => { if (cardAyahRef) playRefs([previousAyahRef(cardAyahRef)]); }, [cardAyahRef, playRefs]);
-  const playCurrent = useCallback(() => { if (cardAyahRef) playRefs([cardAyahRef]); }, [cardAyahRef, playRefs]);
+  const prevRef = useCallback(
+    (ref: AyahRef) => previousAyahRef(ref, crossSurah),
+    [crossSurah],
+  );
+
+  const playPrevious = useCallback(() => { if (cardAyahRef) playRefs([prevRef(cardAyahRef)], true); }, [cardAyahRef, playRefs, prevRef]);
+  const playCurrent = useCallback(() => { if (cardAyahRef) playRefs([cardAyahRef], true); }, [cardAyahRef, playRefs]);
 
   // Auto recitation when a hidden ayah appears — the text stays hidden.
   useEffect(() => {
     if (!enableRevealModes || audioMode === 'none' || !cardAyahRef) return;
-    if (audioMode === 'previous') playRefs([previousAyahRef(cardAyahRef)]);
+    if (audioMode === 'previous') playRefs([prevRef(cardAyahRef)]);
     else if (audioMode === 'current') playRefs([cardAyahRef]);
-    else playRefs([previousAyahRef(cardAyahRef), cardAyahRef]);
+    else playRefs([prevRef(cardAyahRef), cardAyahRef]);
     return () => stopAudio();
-  }, [cardAyahRef, audioMode, enableRevealModes, playRefs]);
+  }, [cardAyahRef, audioMode, enableRevealModes, playRefs, prevRef]);
 
   useEffect(() => () => stopAudio(), []);
 
@@ -719,6 +741,8 @@ export function SRSReviewSession({
                   onAudioMode={applyAudioMode}
                   reciterId={reciterId}
                   onReciterChange={applyReciter}
+                  crossSurah={crossSurah}
+                  onCrossSurah={applyCrossSurah}
                   sessionPages={sessionPages}
                 />
               </div>

@@ -84,6 +84,8 @@ export interface ReviewSessionSettings {
   audioBeforeReveal?: SessionAudioMode;
   /** Reciter id used by this session. */
   audioReciter?: string;
+  /** Treat the last ayah of the previous surah as "the previous ayah". */
+  audioPreviousCrossSurah?: boolean;
 
   fonts?: ReviewSessionFonts;
   generalSessionId?: string;
