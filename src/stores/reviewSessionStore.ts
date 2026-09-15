@@ -76,6 +76,15 @@ export interface ReviewSessionSettings {
   highlightStyle?: string;
   answerMode?: string;
   showIndex?: boolean;
+  /** How the hidden ayah is uncovered (smart / word-by-word manual / auto). */
+  revealMode?: SessionRevealMode;
+  /** Seconds between words in automatic word-by-word reveal. */
+  wordRevealInterval?: number;
+  /** Recitation played automatically when a hidden ayah appears. */
+  audioBeforeReveal?: SessionAudioMode;
+  /** Reciter id used by this session. */
+  audioReciter?: string;
+
   fonts?: ReviewSessionFonts;
   generalSessionId?: string;
   /** Free-form extras for portal-specific options */
