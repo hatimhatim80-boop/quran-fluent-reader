@@ -73,6 +73,10 @@ export function SRSReviewSession({
   headerExtra,
   focusMode = false,
   settingsPanel,
+  enableRevealModes = false,
+  getCardWordCount,
+  getCardAyahRef,
+
 }: SRSReviewSessionProps) {
   const rateCard = useSRSStore(s => s.rateCard);
   const toggleFlag = useSRSStore(s => s.toggleFlag);
