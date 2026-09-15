@@ -188,6 +188,26 @@ export function TahfeezSRSPanel({ currentPage, totalPages, pageData, allPages, o
     input.click();
   }, [importData]);
 
+  /** Word count of the hidden ayah — drives word-by-word reveal. */
+  const getCardWordCount = useCallback((card: SRSCard): number => {
+    const pd = allPages.find(p => p.pageNumber === card.page);
+    if (!pd) return 0;
+    if (card.type === 'tahfeez-word') return 1;
+    const idx = typeof card.meta?.ayahIndex === 'number' ? Number(card.meta.ayahIndex) : -1;
+    if (idx < 0) return 0;
+    const groups = extractPageAyahGroups(pd.text, card.page);
+    return groups[idx]?.length ?? 0;
+  }, [allPages]);
+
+  /** Exact surah/ayah of the card — keeps recitation matched to the text. */
+  const getCardAyahRef = useCallback(async (card: SRSCard): Promise<AyahRef | null> => {
+    const idx = typeof card.meta?.ayahIndex === 'number' ? Number(card.meta.ayahIndex) : -1;
+    if (card.type !== 'tahfeez-ayah' || idx < 0) return null;
+    const refs = await getPageAyahRefs(card.page);
+    return refs[idx] ?? null;
+  }, []);
+
+
   if (sessionMode === 'review') {
     const reviewOverlay = (
       <div className="fixed inset-0 z-40 overflow-hidden bg-background" style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}>
