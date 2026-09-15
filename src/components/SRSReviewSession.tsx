@@ -773,7 +773,47 @@ export function SRSReviewSession({
             </div>
           )}
 
+          {/* Recitation — fully independent from text reveal */}
+          {enableRevealModes && cardAyahRef && (
+            <div className="flex items-center justify-center gap-1.5">
+              <Button size="sm" variant="outline" className="text-[11px] h-7 px-2.5 font-arabic gap-1" onClick={playPrevious}>
+                <Volume2 className="w-3.5 h-3.5" /> سماع الآية السابقة
+              </Button>
+              <Button size="sm" variant="outline" className="text-[11px] h-7 px-2.5 font-arabic gap-1" onClick={playCurrent}>
+                <Volume2 className="w-3.5 h-3.5" /> سماع الآية المخفية
+              </Button>
+              <Button size="sm" variant="ghost" className="text-[11px] h-7 px-2 font-arabic" onClick={() => stopAudio()}>
+                إيقاف
+              </Button>
+            </div>
+          )}
+
+          {/* Word-by-word reveal controls */}
+          {answerRevealed && wordByWord && (
+            <div className="flex flex-wrap items-center justify-center gap-1.5">
+              <span className="text-[11px] text-muted-foreground font-arabic">
+                {Math.min(revealedWords, totalCardWords)} / {totalCardWords}
+              </span>
+              {!fullyRevealed && activeRevealMode === 'wordByWordAuto' && (
+                <Button size="sm" variant="outline" className="text-[11px] h-7 px-2.5 font-arabic gap-1" onClick={() => setAutoPaused(p => !p)}>
+                  {autoPaused ? <><Play className="w-3.5 h-3.5" /> متابعة</> : <><Pause className="w-3.5 h-3.5" /> إيقاف مؤقت</>}
+                </Button>
+              )}
+              {!fullyRevealed && (
+                <>
+                  <Button size="sm" variant="outline" className="text-[11px] h-7 px-2.5 font-arabic gap-1" onClick={revealNextWord}>
+                    <SkipForward className="w-3.5 h-3.5" /> الكلمة التالية
+                  </Button>
+                  <Button size="sm" variant="outline" className="text-[11px] h-7 px-2.5 font-arabic gap-1" onClick={revealWholeAyah}>
+                    <Eye className="w-3.5 h-3.5" /> إظهار الآية كاملة
+                  </Button>
+                </>
+              )}
+            </div>
+          )}
+
           {!answerRevealed ? (
+
             <div className="space-y-2">
               <div className="flex gap-2">
                 <Button onClick={handleRevealAnswer} className="flex-1 font-arabic text-base gap-2" size="lg">
