@@ -45,9 +45,15 @@ export async function getPageAyahRefs(pageNumber: number): Promise<AyahRef[]> {
   return refs;
 }
 
-/** The ayah immediately before the given one (crossing surah boundaries). */
-export function previousAyahRef(ref: AyahRef): AyahRef | null {
+/**
+ * The ayah immediately before the given one.
+ * Crossing into the previous surah only happens when it is asked for
+ * explicitly (`crossSurah`); otherwise the first ayah of a surah simply has
+ * no "previous ayah".
+ */
+export function previousAyahRef(ref: AyahRef, crossSurah = false): AyahRef | null {
   if (ref.ayah > 1) return { surah: ref.surah, ayah: ref.ayah - 1 };
+  if (!crossSurah) return null;
   if (ref.surah <= 1) return null;
   const prevSurah = ref.surah - 1;
   const count = VERSE_COUNTS[prevSurah] || 0;

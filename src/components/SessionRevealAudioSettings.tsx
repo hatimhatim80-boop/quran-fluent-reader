@@ -12,6 +12,9 @@ interface SessionRevealAudioSettingsProps {
   onAudioMode: (mode: SessionAudioMode) => void;
   reciterId: string;
   onReciterChange: (id: string) => void;
+  /** Whether "the previous ayah" may come from the previous surah. */
+  crossSurah: boolean;
+  onCrossSurah: (on: boolean) => void;
   /** Pages of the current session, used as the audio download scope. */
   sessionPages: number[];
 }
@@ -41,6 +44,8 @@ export function SessionRevealAudioSettings({
   onAudioMode,
   reciterId,
   onReciterChange,
+  crossSurah,
+  onCrossSurah,
   sessionPages,
 }: SessionRevealAudioSettingsProps) {
   return (
@@ -99,6 +104,14 @@ export function SessionRevealAudioSettings({
         <p className="text-[10px] text-muted-foreground/70">
           التلاوة مستقلة تمامًا عن النص: تبقى الآية مخفية حتى تضغط للكشف عنها.
         </p>
+        <Button
+          size="sm"
+          variant={crossSurah ? 'default' : 'outline'}
+          className="text-[11px] h-7 px-2.5 font-arabic"
+          onClick={() => onCrossSurah(!crossSurah)}
+        >
+          {crossSurah ? 'الآية السابقة تتجاوز حدود السورة' : 'لا تتجاوز حدود السورة (أول آية = بلا سابقة)'}
+        </Button>
       </div>
 
       <QuranAudioManager pages={sessionPages} reciterId={reciterId} onReciterChange={onReciterChange} />
