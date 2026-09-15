@@ -333,9 +333,14 @@ function TahfeezReviewCardContent({ card, answerRevealed, revealState, renderPag
     return () => { clearTimeout(t1); clearTimeout(t2); };
   }, [card.contentKey, card.id, answerRevealed, scrollToCenter]);
 
+  // While a word-by-word reveal is in progress the ayah stays "blanked" so the
+  // page renderer can uncover only the words revealed so far.
+  const partialReveal = answerRevealed && !!revealState && revealState.mode !== 'smart' && !revealState.full;
+  const blanked = answerRevealed && !partialReveal ? [] : [card.contentKey];
+
   return (
     <div ref={rootRef} className="h-full min-h-full p-2 pb-4">
-      {renderPageWithBlanks(card.page, answerRevealed ? [] : [card.contentKey], card)}
+      {renderPageWithBlanks(card.page, blanked, card, answerRevealed ? revealState : undefined)}
     </div>
   );
 }
