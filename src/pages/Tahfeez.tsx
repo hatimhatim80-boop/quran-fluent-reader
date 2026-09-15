@@ -33,7 +33,7 @@ import { SURAH_INFO, SURAH_NAMES } from '@/utils/quranPageIndex';
 import { AutoPlayDebugPanel } from '@/components/AutoPlayDebugPanel';
 import { TahfeezFontSettings } from '@/components/TahfeezFontSettings';
 import { TahfeezAutoQuizSettings } from '@/components/TahfeezAutoQuizSettings';
-import { TahfeezSRSPanel, extractPageWords } from '@/components/TahfeezSRSPanel';
+import { TahfeezSRSPanel, extractPageWords, extractPageAyahGroups } from '@/components/TahfeezSRSPanel';
 import { TahfeezSessionReviewSettings } from '@/components/TahfeezSessionReviewSettings';
 import { SessionFontSettings } from '@/components/SessionFontSettings';
 import { StableSessionTimer } from '@/components/StableSessionTimer';
