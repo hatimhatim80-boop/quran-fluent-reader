@@ -38,7 +38,7 @@ export function extractPageWords(text: string, pageNumber: number): WordToken[] 
   return tokens;
 }
 
-function extractPageAyahGroups(text: string, pageNumber: number): WordToken[][] {
+export function extractPageAyahGroups(text: string, pageNumber: number): WordToken[][] {
   const lines = text.split('\n'); const ayahGroups: WordToken[][] = []; const isFatiha = pageNumber === 1;
   if (isFatiha) {
     for (let li = 0; li < lines.length; li++) {
