@@ -7,8 +7,7 @@
  * مصممة للهاتف أولًا (Capacitor/Android): أزرار كبيرة، شريط سفلي ثابت،
  * التعرف الصوتي عبر طبقة مستقلة، والصوت عبر نظام التلاوة الموجود.
  *
- * المحفوظ يُتابَع بمعرّف ثابت مشتق من السورة والآية، فتغيير حجم الوحدة
- * لا يمكن أن يُظهر جزءًا غير محفوظ بلون المحفوظ.
+ * حالة الحفظ مشتقة من الذرات القرآنية الثابتة، لا من حدود الوحدة المتغيرة.
  */
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -33,7 +32,7 @@ import { toast } from 'sonner';
 import { QuranPage } from '@/types/quran';
 import { Session, useSessionsStore } from '@/stores/sessionsStore';
 import {
-  DEFAULT_MEMORIZATION_SETTINGS, MemorizationSettings, STRUCTURAL_SETTING_KEYS,
+  MemorizationSettings, STRUCTURAL_SETTING_KEYS,
   useMemorizationStore,
 } from '@/stores/memorizationStore';
 import {
@@ -80,11 +79,11 @@ export function MemorizationRepeatSession({ session, pages, totalPages }: Props)
   const record = useMemorizationStore(s => s.records[sessionId]);
   const updateSession = useSessionsStore(s => s.updateSession);
 
-  const settings: MemorizationSettings = record?.settings || DEFAULT_MEMORIZATION_SETTINGS;
-  const currentUnit = record?.currentUnit ?? 0;
-  const memorizedIds = useMemo(() => new Set(record?.memorizedIds ?? []), [record?.memorizedIds]);
-  const repsDone = record?.repsDone ?? 0;
-  const lastAttempt = record?.lastAttempt ?? null;
+  const settings: MemorizationSettings = record.settings;
+  const currentUnit = record.currentUnit;
+  const memorizedIds = useMemo(() => new Set(record.memorizedIds), [record.memorizedIds]);
+  const repsDone = record.repsDone;
+  const lastAttempt = record.lastAttempt;
 
   /* ─── units ─── */
   const [units, setUnits] = useState<MemorizationUnit[]>([]);
@@ -669,7 +668,7 @@ export function MemorizationRepeatSession({ session, pages, totalPages }: Props)
 
         {lastAttempt && phase === 'listening' && (
           <p className="font-arabic text-xs text-muted-foreground">
-            آخر محاولة تسميع: {arabicNum(Math.round(lastAttempt.score * 100))}٪ — عدد المحاولات {arabicNum(record?.attemptCount || 0)}
+            آخر محاولة تسميع: {arabicNum(Math.round(lastAttempt.score * 100))}٪ — عدد المحاولات {arabicNum(record.attemptCount)}
           </p>
         )}
       </main>
