@@ -26,9 +26,34 @@ export default function Memorize() {
   const session = useMemo(() => sessions.find(s => s.id === sessionId), [sessions, sessionId]);
   const { pages, isLoading, error } = useQuranData({ sessionId });
 
+  // The progress store restores asynchronously; creating a record before that
+  // finishes would overwrite the saved session.
+  const hasHydrated = useMemorizationStore(s => s.hasHydrated);
+  const ensure = useMemorizationStore(s => s.ensure);
+  const [recordReady, setRecordReady] = React.useState(false);
+
   useEffect(() => {
     if (session) markSessionResumed(session.id);
   }, [session?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (!hasHydrated || !session) return;
+    ensure(session.id, {
+      startPage: session.startPage || session.currentPage || 1,
+      endPage: session.endPage || session.startPage || session.currentPage || 1,
+      reciterId: DEFAULT_RECITER_ID,
+    });
+    setRecordReady(true);
+  }, [hasHydrated, session?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  if (session && (!hasHydrated || !recordReady)) {
+    return (
+      <div className="min-h-[100dvh] flex items-center justify-center gap-2 font-arabic text-muted-foreground" dir="rtl">
+        <Loader2 className="w-5 h-5 animate-spin" /> جارٍ استعادة الجلسة…
+      </div>
+    );
+  }
+
 
   if (!sessionId || (!session && sessions.length > 0)) {
     return (
