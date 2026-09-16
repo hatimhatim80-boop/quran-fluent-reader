@@ -1,27 +1,12 @@
-/**
- * Progress + settings of "جلسة الحفظ بالتكرار".
- *
- * Completely independent from the SRS review sessions: it has its own
- * persisted store keyed by session id, so nothing here can touch
- * `reviewSessionStore` or `sessionsStore` state beyond its own record.
- *
- * Storage is the shared persistent layer (Capacitor Preferences on Android,
- * IndexedDB on the web) — progress must survive an app kill.
- *
- * Memorized units are tracked by their content-derived `stableId`, never by
- * array index, so re-slicing the range can never paint an unmemorized part
- * with the memorized colour.
- */
-
+/** Persisted state for the independent repetition-memorization session. */
 import { create } from 'zustand';
-import { persist, createJSONStorage } from 'zustand/middleware';
+import { createJSONStorage, persist } from 'zustand/middleware';
 import { createPersistentStorage } from '@/services/persistentKV';
-import type { UnitMode } from '@/utils/memorizationUnits';
 import type { DiffToken } from '@/utils/memorizationDiff';
+import type { UnitMode } from '@/utils/memorizationUnits';
 
 export type MemorizationMethod = 'new' | 'cumulative';
 export type TranscriptVisibility = 'live' | 'after';
-/** How much of what comes next the student is allowed to see. */
 export type UpcomingVisibility = 'hidden' | 'next' | 'all';
 
 export interface MemorizationSettings {
@@ -42,14 +27,11 @@ export interface MemorizationSettings {
   language: string;
 }
 
-/** Settings that change how units are cut — they rebuild the whole list. */
 export const STRUCTURAL_SETTING_KEYS = ['startPage', 'endPage', 'unitMode', 'unitSize'] as const;
-export type StructuralSettingKey = typeof STRUCTURAL_SETTING_KEYS[number];
 
 export interface MemorizationAttempt {
   at: number;
   unitId: string;
-  /** Raw recognizer output — kept apart from the Quranic text. */
   rawTranscript: string;
   tokens: DiffToken[];
   score: number;
@@ -60,11 +42,6 @@ export interface MemorizationProgress {
   sessionId: string;
   settings: MemorizationSettings;
   currentUnit: number;
-  /**
-   * Approved atoms — one ayah (`a:surah:ayah`) or one word
-   * (`w:surah:ayah:pos`), never unit boundaries, so changing the unit size
-   * keeps the memorized state intact.
-   */
   memorizedIds: string[];
   repsDone: number;
   attempts: MemorizationAttempt[];
@@ -86,7 +63,6 @@ export const DEFAULT_MEMORIZATION_SETTINGS: MemorizationSettings = {
   upcomingVisibility: 'next',
   autoCheck: true,
   autoApproveOnSuccess: false,
-  // In a repetition session, approving a unit moves on to the next one.
   autoAdvance: true,
   reciterId: '',
   language: 'ar-SA',
@@ -101,7 +77,6 @@ interface MemorizationState {
   patchSettings: (sessionId: string, patch: Partial<MemorizationSettings>) => void;
   patchProgress: (sessionId: string, patch: Partial<Omit<MemorizationProgress, 'sessionId' | 'settings'>>) => void;
   addAttempt: (sessionId: string, attempt: MemorizationAttempt) => void;
-  /** Approves the smallest fixed pieces (atom ids) of a unit. */
   markMemorized: (sessionId: string, atomIds: string[]) => void;
   unmarkMemorized: (sessionId: string, atomIds: string[]) => void;
   resetSession: (sessionId: string) => void;
@@ -114,7 +89,6 @@ export const useMemorizationStore = create<MemorizationState>()(
       records: {},
       hasHydrated: false,
       setHydrated: () => set({ hasHydrated: true }),
-
       ensure: (sessionId, initial) => {
         const existing = get().records[sessionId];
         if (existing) return existing;
@@ -129,84 +103,62 @@ export const useMemorizationStore = create<MemorizationState>()(
           attemptCount: 0,
           updatedAt: Date.now(),
         };
-        set({ records: { ...get().records, [sessionId]: record } });
+        set(state => ({ records: { ...state.records, [sessionId]: record } }));
         return record;
       },
-
-      get: (sessionId) => get().records[sessionId],
-
-      patchSettings: (sessionId, patch) => {
-        const rec = get().records[sessionId];
-        if (!rec) return;
-        set({
+      get: sessionId => get().records[sessionId],
+      patchSettings: (sessionId, patch) => set(state => {
+        const record = state.records[sessionId];
+        if (!record) return state;
+        return { records: { ...state.records, [sessionId]: { ...record, settings: { ...record.settings, ...patch }, updatedAt: Date.now() } } };
+      }),
+      patchProgress: (sessionId, patch) => set(state => {
+        const record = state.records[sessionId];
+        if (!record) return state;
+        return { records: { ...state.records, [sessionId]: { ...record, ...patch, updatedAt: Date.now() } } };
+      }),
+      addAttempt: (sessionId, attempt) => set(state => {
+        const record = state.records[sessionId];
+        if (!record) return state;
+        return {
           records: {
-            ...get().records,
-            [sessionId]: { ...rec, settings: { ...rec.settings, ...patch }, updatedAt: Date.now() },
-          },
-        });
-      },
-
-      patchProgress: (sessionId, patch) => {
-        const rec = get().records[sessionId];
-        if (!rec) return;
-        set({ records: { ...get().records, [sessionId]: { ...rec, ...patch, updatedAt: Date.now() } } });
-      },
-
-      addAttempt: (sessionId, attempt) => {
-        const rec = get().records[sessionId];
-        if (!rec) return;
-        const attempts = [...rec.attempts, attempt].slice(-40);
-        set({
-          records: {
-            ...get().records,
+            ...state.records,
             [sessionId]: {
-              ...rec,
-              attempts,
+              ...record,
+              attempts: [...record.attempts, attempt].slice(-40),
               lastAttempt: attempt,
-              attemptCount: rec.attemptCount + 1,
+              attemptCount: record.attemptCount + 1,
               updatedAt: Date.now(),
             },
           },
-        });
-      },
-
+        };
+      }),
       markMemorized: (sessionId, atomIds) => {
-        const rec = get().records[sessionId];
-        if (!rec || !atomIds || atomIds.length === 0) return;
-        const merged = new Set([...rec.memorizedIds, ...atomIds.filter(Boolean)]);
-        if (merged.size === rec.memorizedIds.length) return;
-        set({
-          records: {
-            ...get().records,
-            [sessionId]: { ...rec, memorizedIds: [...merged], updatedAt: Date.now() },
-          },
-        });
+        const record = get().records[sessionId];
+        if (!record || !atomIds?.length) return;
+        const merged = new Set([...record.memorizedIds, ...atomIds.filter(Boolean)]);
+        if (merged.size === record.memorizedIds.length) return;
+        set(state => ({ records: { ...state.records, [sessionId]: { ...record, memorizedIds: [...merged], updatedAt: Date.now() } } }));
       },
-
       unmarkMemorized: (sessionId, atomIds) => {
-        const rec = get().records[sessionId];
-        if (!rec || !atomIds || atomIds.length === 0) return;
+        const record = get().records[sessionId];
+        if (!record || !atomIds?.length) return;
         const drop = new Set(atomIds);
-        set({
+        set(state => ({
           records: {
-            ...get().records,
-            [sessionId]: {
-              ...rec,
-              memorizedIds: rec.memorizedIds.filter(id => !drop.has(id)),
-              updatedAt: Date.now(),
-            },
+            ...state.records,
+            [sessionId]: { ...record, memorizedIds: record.memorizedIds.filter(id => !drop.has(id)), updatedAt: Date.now() },
           },
-        });
+        }));
       },
-
-      resetSession: (sessionId) => {
-        const rec = get().records[sessionId];
-        if (!rec) return;
-        set({
+      resetSession: sessionId => set(state => {
+        const record = state.records[sessionId];
+        if (!record) return state;
+        return {
           records: {
-            ...get().records,
+            ...state.records,
             [sessionId]: {
-              ...rec,
+              ...record,
               currentUnit: 0,
               memorizedIds: [],
               repsDone: 0,
@@ -216,30 +168,30 @@ export const useMemorizationStore = create<MemorizationState>()(
               updatedAt: Date.now(),
             },
           },
-        });
-      },
-
-      removeSession: (sessionId) => {
-        const next = { ...get().records };
-        delete next[sessionId];
-        set({ records: next });
-      },
+        };
+      }),
+      removeSession: sessionId => set(state => {
+        const records = { ...state.records };
+        delete records[sessionId];
+        return { records };
+      }),
     }),
     {
       name: 'memorization.v1',
       storage: createJSONStorage(() => createPersistentStorage('memorization-persist')),
-      partialize: (state) => ({ records: state.records }) as unknown as MemorizationState,
+      partialize: state => ({ records: state.records }) as unknown as MemorizationState,
       onRehydrateStorage: () => (state, error) => {
         if (error) console.error('[memorizationStore] rehydrate failed', error);
-        // Old records may predate `memorizedIds` — normalise instead of crashing.
         if (state) {
-          Object.values(state.records || {}).forEach(rec => {
-            if (!Array.isArray(rec.memorizedIds)) rec.memorizedIds = [];
-            rec.settings = { ...DEFAULT_MEMORIZATION_SETTINGS, ...rec.settings };
+          Object.values(state.records || {}).forEach(record => {
+            const legacy = record as MemorizationProgress & { memorizedUnits?: number[] };
+            record.memorizedIds = Array.isArray(record.memorizedIds) ? record.memorizedIds : [];
+            delete legacy.memorizedUnits;
+            record.settings = { ...DEFAULT_MEMORIZATION_SETTINGS, ...record.settings };
           });
         }
         useMemorizationStore.getState().setHydrated();
       },
-    }
-  )
+    },
+  ),
 );
