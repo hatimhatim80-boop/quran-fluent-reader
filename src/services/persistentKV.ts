@@ -1,99 +1,103 @@
-/**
- * One key/value layer for small, must-not-be-lost records.
- *
- * Android/iOS → Capacitor Preferences is the single source of truth. The web
- * stores (IndexedDB, then localStorage) are read once only to migrate records
- * written by an older build, and are never written to on native.
- * Web        → IndexedDB, with localStorage only as a last-resort mirror.
- *
- * Large binaries (reciter audio) are NOT stored here — they stay in the
- * Filesystem layer of `audioStorage`.
- */
-
+/** Persistent key/value storage: Preferences on native, IndexedDB on web. */
 import { Capacitor } from '@capacitor/core';
-import type { StateStorage } from 'zustand/middleware';
 import { openDB } from 'idb';
+import type { StateStorage } from 'zustand/middleware';
 
 const STORE_NAME = 'keyval';
 
 export function createPersistentStorage(dbName: string): StateStorage {
   const native = Capacitor.isNativePlatform();
-
-  const getDB = () =>
-    openDB(dbName, 1, {
-      upgrade(db) {
-        if (!db.objectStoreNames.contains(STORE_NAME)) db.createObjectStore(STORE_NAME);
-      },
-    });
-
-  const prefs = async () => (await import('@capacitor/preferences')).Preferences;
+  const getDB = () => openDB(dbName, 1, {
+    upgrade(database) {
+      if (!database.objectStoreNames.contains(STORE_NAME)) database.createObjectStore(STORE_NAME);
+    },
+  });
+  const preferences = async () => (await import('@capacitor/preferences')).Preferences;
 
   const readWeb = async (name: string): Promise<string | null> => {
     try {
-      const db = await getDB();
-      const v = (await db.get(STORE_NAME, name)) as string | undefined;
-      if (v != null) return v;
-    } catch (e) {
-      console.error(`[persistentKV:${dbName}] idb read failed`, e);
+      const value = await (await getDB()).get(STORE_NAME, name) as string | undefined;
+      if (value != null) return value;
+    } catch (error) {
+      console.error(`[persistentKV:${dbName}] IndexedDB read failed`, error);
     }
-    try { return localStorage.getItem(name); } catch { return null; }
+    try {
+      return localStorage.getItem(name);
+    } catch (error) {
+      console.error(`[persistentKV:${dbName}] localStorage read failed`, error);
+      return null;
+    }
+  };
+
+  const writeWeb = async (name: string, value: string): Promise<void> => {
+    let stored = false;
+    try {
+      await (await getDB()).put(STORE_NAME, value, name);
+      stored = true;
+    } catch (error) {
+      console.error(`[persistentKV:${dbName}] IndexedDB write failed`, error);
+    }
+    try {
+      localStorage.setItem(name, value);
+      stored = true;
+    } catch (error) {
+      console.error(`[persistentKV:${dbName}] localStorage write failed`, error);
+    }
+    if (!stored) console.error(`[persistentKV:${dbName}] every write path failed for ${name}`);
   };
 
   return {
-    getItem: async (name) => {
+    getItem: async name => {
+      if (!native) return readWeb(name);
+      const key = `${dbName}:${name}`;
+      try {
+        const { value } = await (await preferences()).get({ key });
+        if (value != null) return value;
+      } catch (error) {
+        console.error(`[persistentKV:${dbName}] Preferences read failed`, error);
+      }
+      const legacy = await readWeb(name);
+      if (legacy != null) {
+        try {
+          await (await preferences()).set({ key, value: legacy });
+        } catch (error) {
+          console.error(`[persistentKV:${dbName}] legacy migration failed`, error);
+        }
+      }
+      return legacy;
+    },
+    setItem: async (name, value) => {
       if (native) {
         const key = `${dbName}:${name}`;
         try {
-          const { value } = await (await prefs()).get({ key });
-          if (value != null) return value;
-        } catch (e) {
-          console.error(`[persistentKV:${dbName}] native read failed`, e);
-        }
-        // Nothing native yet — migrate a record left by an older web-storage build.
-        const legacy = await readWeb(name);
-        if (legacy != null) {
-          try { await (await prefs()).set({ key, value: legacy }); }
-          catch (e) { console.error(`[persistentKV:${dbName}] migration to native failed`, e); }
-        }
-        return legacy;
-      }
-      return readWeb(name);
-    },
-
-    setItem: async (name, value) => {
-      if (native) {
-        try {
-          await (await prefs()).set({ key: `${dbName}:${name}`, value });
+          await (await preferences()).set({ key, value });
           return;
-        } catch (e) {
-          console.error(`[persistentKV:${dbName}] native write failed`, e);
-          // fall through to the web stores rather than losing progress
+        } catch (error) {
+          console.error(`[persistentKV:${dbName}] Preferences write failed`, error);
         }
       }
-      let stored = false;
-      try {
-        const db = await getDB();
-        await db.put(STORE_NAME, value, name);
-        stored = true;
-      } catch (e) {
-        console.error(`[persistentKV:${dbName}] idb write failed`, e);
-      }
-      try { localStorage.setItem(name, value); stored = true; } catch { /* quota */ }
-      if (!stored) console.error(`[persistentKV:${dbName}] every write path failed for`, name);
+      await writeWeb(name, value);
     },
-
-    removeItem: async (name) => {
+    removeItem: async name => {
       if (native) {
-        try { await (await prefs()).remove({ key: `${dbName}:${name}` }); }
-        catch (e) { console.error(`[persistentKV:${dbName}] native delete failed`, e); }
+        const key = `${dbName}:${name}`;
+        try {
+          await (await preferences()).remove({ key });
+          return;
+        } catch (error) {
+          console.error(`[persistentKV:${dbName}] Preferences delete failed`, error);
+        }
       }
       try {
-        const db = await getDB();
-        await db.delete(STORE_NAME, name);
-      } catch (e) {
-        console.error(`[persistentKV:${dbName}] idb delete failed`, e);
+        await (await getDB()).delete(STORE_NAME, name);
+      } catch (error) {
+        console.error(`[persistentKV:${dbName}] IndexedDB delete failed`, error);
       }
-      try { localStorage.removeItem(name); } catch { /* ignore */ }
+      try {
+        localStorage.removeItem(name);
+      } catch (error) {
+        console.error(`[persistentKV:${dbName}] localStorage delete failed`, error);
+      }
     },
   };
 }

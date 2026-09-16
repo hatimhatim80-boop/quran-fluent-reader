@@ -1,69 +1,19 @@
-/**
- * QuranSpeechRecognitionProvider
- * ------------------------------------------------------------------
- * An engine-independent speech-recognition layer.
- *
- * The memorization session only ever calls:
- *   startListening() / stopListening() / onPartialResult() / onFinalResult()
- * and never knows which engine is behind it.
- *
- * Two implementations ship today:
- *   - native : @capacitor-community/speech-recognition (Android/iOS, the
- *              path the APK actually uses)
- *   - web    : window.SpeechRecognition (desktop browsers / preview only)
- *
- * Lifecycle is an explicit state machine with a single global lock, so
- * start/stop/restart/dispose can never race: a new recognizer is never opened
- * while the previous one is still closing, and "stop" always beats the
- * automatic restart that follows an Android silence gap.
- */
-
+/** One lifecycle-managed speech recognition abstraction for Quran recitation. */
 import { Capacitor } from '@capacitor/core';
 
-export type MicState =
-  | 'idle'
-  | 'requestingPermission'
-  | 'listening'
-  | 'processing'
-  | 'completed'
-  | 'permissionDenied'
-  | 'unavailable'
-  | 'error';
-
-/** Internal lifecycle of the recognizer itself. */
-export type RecognizerLifecycle =
-  | 'idle'
-  | 'starting'
-  | 'listening'
-  | 'restarting'
-  | 'stopping'
-  | 'processing';
-
+export type MicState = 'idle' | 'requestingPermission' | 'listening' | 'processing' | 'completed' | 'permissionDenied' | 'unavailable' | 'error';
+export type RecognizerLifecycle = 'idle' | 'starting' | 'listening' | 'restarting' | 'stopping' | 'processing';
 export type PermissionResult = 'granted' | 'denied' | 'prompt';
-
-/**
- * Whether the engine needs the network. Android decides per device, language
- * and installed system components — so it is honestly reported as 'unknown'
- * and handled by trying, never by assuming.
- */
 export type NetworkRequirement = 'required' | 'optional' | 'unknown';
 
 export interface RecognitionCallbacks {
-  /** Live (interim) text — never used for grading. */
   onPartialResult?: (text: string) => void;
-  /** Best final text once listening stopped. Fires exactly once per session. */
   onFinalResult?: (text: string) => void;
   onStateChange?: (state: MicState) => void;
   onError?: (message: string, technical?: unknown) => void;
 }
 
-export interface LanguageCheck {
-  /** The language that will actually be used. */
-  lang: string;
-  supported: boolean;
-  /** True when the requested Arabic was replaced by another Arabic locale. */
-  substituted: boolean;
-}
+export interface LanguageCheck { lang: string; supported: boolean; substituted: boolean }
 
 export interface QuranSpeechRecognitionProvider {
   readonly id: 'native' | 'web' | 'none';
@@ -72,473 +22,315 @@ export interface QuranSpeechRecognitionProvider {
   isAvailable(): Promise<boolean>;
   checkPermission(): Promise<PermissionResult>;
   requestPermission(): Promise<PermissionResult>;
-  /** Verifies an Arabic locale exists; never silently switches to another language. */
   resolveLanguage(preferred: string): Promise<LanguageCheck>;
-  startListening(lang: string, cb: RecognitionCallbacks): Promise<boolean>;
+  startListening(lang: string, callbacks: RecognitionCallbacks): Promise<boolean>;
   stopListening(): Promise<void>;
-  /** Hard release of every resource — used on unmount / interruptions. */
   dispose(): Promise<void>;
 }
 
-/* ─────────────── shared single-session lock ─────────────── */
+let activeProvider: object | null = null;
+const acquire = (provider: object) => activeProvider === null && (activeProvider = provider) === provider;
+const release = (provider: object) => { if (activeProvider === provider) activeProvider = null; };
+const split = (text: string) => text.trim().split(/\s+/).filter(Boolean);
 
-let lockOwner: object | null = null;
-
-function acquireLock(owner: object): boolean {
-  if (lockOwner) return false;
-  lockOwner = owner;
-  return true;
-}
-
-function releaseLock(owner: object) {
-  if (lockOwner === owner) lockOwner = null;
-}
-
-function pickBest(matches: string[] | undefined): string {
-  if (!matches || matches.length === 0) return '';
-  // The engines return alternatives ordered by confidence; the longest of the
-  // top alternatives is usually the most complete recitation.
-  return matches.slice(0, 3).reduce((a, b) => (b && b.length > a.length ? b : a), matches[0] || '');
-}
-
-const words = (t: string) => t.split(/\s+/).filter(Boolean);
-
-/**
- * Appends `next` to `base` without repeating the overlap.
- * Android restarts its recognizer after a silence gap and frequently replays
- * the tail of the previous phase as the head of the new one.
- */
-export function mergeTranscript(base: string, next: string): string {
-  const a = words(base);
-  const b = words(next);
-  if (b.length === 0) return a.join(' ');
-  if (a.length === 0) return b.join(' ');
-  const max = Math.min(a.length, b.length);
-  for (let k = max; k > 0; k--) {
-    const tail = a.slice(a.length - k).join(' ');
-    const head = b.slice(0, k).join(' ');
-    if (tail === head) return [...a, ...b.slice(k)].join(' ');
+export function mergeTranscript(base: string, addition: string): string {
+  const previous = split(base);
+  const next = split(addition);
+  for (let overlap = Math.min(previous.length, next.length); overlap > 0; overlap--) {
+    if (previous.slice(-overlap).join(' ') === next.slice(0, overlap).join(' ')) {
+      return [...previous, ...next.slice(overlap)].join(' ');
+    }
   }
-  return [...a, ...b].join(' ');
+  return [...previous, ...next].join(' ');
 }
 
-/* ─────────────── native (Capacitor) ─────────────── */
+const unavailableMessage = 'التعرف الصوتي غير متاح حاليًا — يمكنك التسميع لنفسك واعتماد الحفظ يدويًا.';
+const startErrorMessage = 'تعذّر تشغيل الميكروفون — أعد المحاولة.';
+
+function nativeErrorMessage(error: unknown): string {
+  const message = String((error as { message?: string })?.message || error || '').toLowerCase();
+  return /network|unavailable|not available|no match|service/.test(message) ? unavailableMessage : startErrorMessage;
+}
 
 class NativeProvider implements QuranSpeechRecognitionProvider {
   readonly id = 'native' as const;
   readonly name = 'التعرف الصوتي في النظام';
-  /** Android may or may not have an on-device model — decided by trying. */
   readonly networkRequirement: NetworkRequirement = 'unknown';
-
-  private listeners: { remove: () => void }[] = [];
-  private cb: RecognitionCallbacks = {};
-  private accumulated = '';
-  private lastPartial = '';
+  private callbacks: RecognitionCallbacks = {};
   private lifecycle: RecognizerLifecycle = 'idle';
+  private listeners: { remove: () => void }[] = [];
+  private transcript = '';
+  private partial = '';
+  private language = 'ar-SA';
   private stopRequested = false;
-  private finished = false;
-  private lang = 'ar-SA';
+  private finalDelivered = false;
   private guardTimer: ReturnType<typeof setTimeout> | null = null;
 
-  private async plugin() {
-    const mod = await import('@capacitor-community/speech-recognition');
-    return mod.SpeechRecognition;
-  }
-
-  async isAvailable(): Promise<boolean> {
+  private async plugin() { return (await import('@capacitor-community/speech-recognition')).SpeechRecognition; }
+  async isAvailable() {
     if (!Capacitor.isNativePlatform()) return false;
-    try {
-      const p = await this.plugin();
-      const res = await p.available();
-      return !!res?.available;
-    } catch (e) {
-      console.error('[speech/native] availability check failed', e);
-      return false;
-    }
+    try { return !!(await (await this.plugin()).available())?.available; }
+    catch (error) { console.error('[speech/native] availability failed', error); return false; }
   }
-
   async checkPermission(): Promise<PermissionResult> {
-    try {
-      const p = await this.plugin();
-      const res = await p.checkPermissions();
-      return (res?.speechRecognition as PermissionResult) || 'prompt';
-    } catch (e) {
-      console.error('[speech/native] permission check failed', e);
-      return 'prompt';
-    }
+    try { return (await (await this.plugin()).checkPermissions()).speechRecognition as PermissionResult || 'prompt'; }
+    catch (error) { console.error('[speech/native] permission check failed', error); return 'prompt'; }
   }
-
   async requestPermission(): Promise<PermissionResult> {
-    try {
-      const p = await this.plugin();
-      const res = await p.requestPermissions();
-      return (res?.speechRecognition as PermissionResult) || 'denied';
-    } catch (e) {
-      console.error('[speech/native] permission request failed', e);
-      return 'denied';
-    }
+    try { return (await (await this.plugin()).requestPermissions()).speechRecognition as PermissionResult || 'denied'; }
+    catch (error) { console.error('[speech/native] permission request failed', error); return 'denied'; }
   }
-
   async resolveLanguage(preferred: string): Promise<LanguageCheck> {
-    const want = preferred || 'ar-SA';
+    const requested = preferred.toLowerCase().startsWith('ar') ? preferred : 'ar-SA';
     try {
-      const p = await this.plugin();
-      const res = await p.getSupportedLanguages();
-      const list = (res?.languages as string[] | undefined)?.map(String) || [];
-      if (list.length === 0) return { lang: want, supported: true, substituted: false };
-      if (list.some(l => l.toLowerCase() === want.toLowerCase())) {
-        return { lang: want, supported: true, substituted: false };
-      }
-      const arabic = list.find(l => l.toLowerCase().startsWith('ar'));
-      if (arabic) return { lang: arabic, supported: true, substituted: true };
-      return { lang: want, supported: false, substituted: false };
-    } catch (e) {
-      console.error('[speech/native] language list failed', e);
-      // Unable to enumerate — try the requested Arabic rather than guessing.
-      return { lang: want, supported: true, substituted: false };
+      const languages = (await (await this.plugin()).getSupportedLanguages()).languages || [];
+      if (languages.length === 0) return { lang: requested, supported: true, substituted: requested !== preferred };
+      const exact = languages.find(item => item.toLowerCase() === requested.toLowerCase());
+      if (exact) return { lang: exact, supported: true, substituted: exact !== preferred };
+      const arabic = languages.find(item => item.toLowerCase().startsWith('ar'));
+      return arabic
+        ? { lang: arabic, supported: true, substituted: true }
+        : { lang: requested, supported: false, substituted: false };
+    } catch (error) {
+      console.error('[speech/native] language check failed', error);
+      return { lang: requested, supported: true, substituted: requested !== preferred };
     }
   }
-
-  async startListening(lang: string, cb: RecognitionCallbacks): Promise<boolean> {
-    if (this.lifecycle !== 'idle') return false;
-    if (!acquireLock(this)) return false;
-
+  async startListening(language: string, callbacks: RecognitionCallbacks): Promise<boolean> {
+    if (this.lifecycle !== 'idle' || !acquire(this)) return false;
     this.lifecycle = 'starting';
-    this.cb = cb;
-    this.lang = lang || 'ar-SA';
-    this.accumulated = '';
-    this.lastPartial = '';
+    this.callbacks = callbacks;
+    this.language = language.toLowerCase().startsWith('ar') ? language : 'ar-SA';
+    this.transcript = '';
+    this.partial = '';
     this.stopRequested = false;
-    this.finished = false;
-
+    this.finalDelivered = false;
     try {
-      const p = await this.plugin();
-      const partialHandle = await p.addListener('partialResults', (data) => {
-        const text = pickBest(data?.matches);
-        if (!text) return;
-        this.lastPartial = text;
-        this.cb.onPartialResult?.(mergeTranscript(this.accumulated, text));
-      });
-      const stateHandle = await p.addListener('listeningState', (data) => {
-        if (data?.status !== 'stopped') return;
-        if (this.lastPartial) {
-          this.accumulated = mergeTranscript(this.accumulated, this.lastPartial);
-          this.lastPartial = '';
-        }
-        // Android closes the recognizer after a silence gap. Keep going unless
-        // the student asked to finish — "stop" always wins.
-        if (this.stopRequested || this.lifecycle === 'stopping') {
-          void this.finish();
-        } else if (this.lifecycle === 'listening') {
-          void this.restart();
-        }
-      });
-      this.listeners.push(partialHandle, stateHandle);
-
-      await p.start({ language: this.lang, maxResults: 5, partialResults: true, popup: false });
-
-      if (this.stopRequested) {
-        // Stop pressed while we were still starting.
-        await this.finish();
-        return true;
-      }
-      this.lifecycle = 'listening';
-      cb.onStateChange?.('listening');
+      const plugin = await this.plugin();
+      this.listeners = [
+        await plugin.addListener('partialResults', data => {
+          const text = (data.matches || []).slice(0, 3).reduce((best, value) => value.length > best.length ? value : best, '');
+          if (!text) return;
+          this.partial = text;
+          this.callbacks.onPartialResult?.(mergeTranscript(this.transcript, text));
+        }),
+        await plugin.addListener('listeningState', data => {
+          if (data.status !== 'stopped') return;
+          this.commitPartial();
+          if (this.stopRequested || this.lifecycle === 'stopping') void this.finish();
+          else if (this.lifecycle === 'listening') void this.restart();
+        }),
+      ];
+      await plugin.start({ language: this.language, maxResults: 5, partialResults: true, popup: false });
+      if (this.stopRequested) await this.finish();
+      else { this.lifecycle = 'listening'; callbacks.onStateChange?.('listening'); }
       return true;
-    } catch (e) {
-      console.error('[speech/native] start failed', e);
-      await this.clearListeners();
-      this.lifecycle = 'idle';
-      releaseLock(this);
-      cb.onError?.(describeNativeError(e), e);
-      cb.onStateChange?.('error');
+    } catch (error) {
+      await this.failStart(error);
       return false;
     }
   }
-
+  private commitPartial() {
+    this.transcript = mergeTranscript(this.transcript, this.partial);
+    this.partial = '';
+  }
   private async restart() {
+    if (this.stopRequested) { await this.finish(); return; }
     this.lifecycle = 'restarting';
     try {
-      const p = await this.plugin();
-      if (this.stopRequested) { await this.finish(); return; }
-      await p.start({ language: this.lang, maxResults: 5, partialResults: true, popup: false });
-      if (this.stopRequested) { await this.finish(); return; }
-      this.lifecycle = 'listening';
-    } catch (e) {
-      console.error('[speech/native] restart failed', e);
+      await (await this.plugin()).start({ language: this.language, maxResults: 5, partialResults: true, popup: false });
+      if (this.stopRequested) await this.finish();
+      else this.lifecycle = 'listening';
+    } catch (error) {
+      console.error('[speech/native] restart failed', error);
       await this.finish();
     }
   }
-
-  private async finish() {
-    if (this.finished) return;
-    this.finished = true;
-    this.lifecycle = 'processing';
-    if (this.guardTimer) { clearTimeout(this.guardTimer); this.guardTimer = null; }
-
-    const finalText = mergeTranscript(this.accumulated, this.lastPartial).replace(/\s+/g, ' ').trim();
-    this.accumulated = '';
-    this.lastPartial = '';
-
-    // Listeners must be gone before another session may open.
-    await this.clearListeners();
-    this.lifecycle = 'idle';
-    releaseLock(this);
-
-    this.cb.onStateChange?.('completed');
-    this.cb.onFinalResult?.(finalText);
-  }
-
   private async clearListeners() {
-    for (const l of this.listeners) {
-      try { l.remove(); } catch (e) { console.error('[speech/native] listener remove failed', e); }
+    for (const listener of this.listeners) {
+      try { await listener.remove(); } catch (error) { console.error('[speech/native] listener cleanup failed', error); }
     }
     this.listeners = [];
-    try {
-      const p = await this.plugin();
-      await p.removeAllListeners();
-    } catch (e) {
-      console.error('[speech/native] removeAllListeners failed', e);
-    }
   }
-
-  async stopListening(): Promise<void> {
-    if (this.lifecycle === 'idle' || this.finished) return;
+  private clearGuard() {
+    if (this.guardTimer) clearTimeout(this.guardTimer);
+    this.guardTimer = null;
+  }
+  private async finish() {
+    if (this.finalDelivered) return;
+    this.finalDelivered = true;
+    this.lifecycle = 'processing';
+    this.clearGuard();
+    this.commitPartial();
+    const result = this.transcript.trim();
+    await this.clearListeners();
+    this.lifecycle = 'idle';
+    release(this);
+    this.callbacks.onStateChange?.('completed');
+    this.callbacks.onFinalResult?.(result);
+  }
+  private async failStart(error: unknown) {
+    console.error('[speech/native] start failed', error);
+    await this.clearListeners();
+    this.lifecycle = 'idle';
+    release(this);
+    this.callbacks.onError?.(nativeErrorMessage(error), error);
+    this.callbacks.onStateChange?.('error');
+  }
+  async stopListening() {
+    if (this.lifecycle === 'idle' || this.finalDelivered) return;
     this.stopRequested = true;
     this.lifecycle = 'stopping';
-    this.cb.onStateChange?.('processing');
-    try {
-      const p = await this.plugin();
-      await p.stop();
-    } catch (e) {
-      console.error('[speech/native] stop failed', e);
-    }
-    // `listeningState: stopped` normally finishes; never lose the transcript
-    // just because that event is late.
-    if (this.guardTimer) clearTimeout(this.guardTimer);
+    this.callbacks.onStateChange?.('processing');
+    try { await (await this.plugin()).stop(); }
+    catch (error) { console.error('[speech/native] stop failed', error); }
+    this.clearGuard();
     this.guardTimer = setTimeout(() => { void this.finish(); }, 2000);
   }
-
-  async dispose(): Promise<void> {
+  async dispose() {
     this.stopRequested = true;
-    if (this.guardTimer) { clearTimeout(this.guardTimer); this.guardTimer = null; }
-    if (this.lifecycle === 'idle' && this.listeners.length === 0) { releaseLock(this); return; }
-    this.finished = true;
-    try {
-      const p = await this.plugin();
-      await p.stop();
-    } catch { /* recognizer already closed */ }
+    this.clearGuard();
+    if (this.lifecycle !== 'idle') {
+      try { await (await this.plugin()).stop(); } catch (error) { console.error('[speech/native] dispose stop failed', error); }
+    }
+    this.finalDelivered = true;
     await this.clearListeners();
-    this.accumulated = '';
-    this.lastPartial = '';
+    this.transcript = '';
+    this.partial = '';
     this.lifecycle = 'idle';
-    releaseLock(this);
+    release(this);
   }
 }
-
-function describeNativeError(e: unknown): string {
-  const msg = String((e as { message?: string })?.message || e || '').toLowerCase();
-  if (msg.includes('network')) {
-    return 'التعرف الصوتي غير متاح حاليًا — يمكنك التسميع لنفسك واعتماد الحفظ يدويًا.';
-  }
-  if (msg.includes('not available') || msg.includes('unavailable') || msg.includes('no match') || msg.includes('service')) {
-    return 'التعرف الصوتي غير متاح حاليًا — يمكنك التسميع لنفسك واعتماد الحفظ يدويًا.';
-  }
-  return 'تعذّر تشغيل الميكروفون — أعد المحاولة.';
-}
-
-/* ─────────────── web fallback ─────────────── */
 
 interface WebRecognition {
-  lang: string;
-  continuous: boolean;
-  interimResults: boolean;
-  maxAlternatives: number;
-  onresult: ((e: any) => void) | null;
-  onerror: ((e: any) => void) | null;
-  onend: (() => void) | null;
-  start: () => void;
-  stop: () => void;
-  abort: () => void;
+  lang: string; continuous: boolean; interimResults: boolean; maxAlternatives: number;
+  onresult: ((event: any) => void) | null; onerror: ((event: any) => void) | null; onend: (() => void) | null;
+  start(): void; stop(): void; abort(): void;
 }
 
-function webCtor(): (new () => WebRecognition) | null {
+function webConstructor(): (new () => WebRecognition) | null {
   if (typeof window === 'undefined') return null;
-  const w = window as any;
-  return w.SpeechRecognition || w.webkitSpeechRecognition || null;
+  const speechWindow = window as typeof window & { SpeechRecognition?: new () => WebRecognition; webkitSpeechRecognition?: new () => WebRecognition };
+  return speechWindow.SpeechRecognition || speechWindow.webkitSpeechRecognition || null;
 }
 
 class WebProvider implements QuranSpeechRecognitionProvider {
   readonly id = 'web' as const;
   readonly name = 'التعرف الصوتي في المتصفح';
   readonly networkRequirement: NetworkRequirement = 'required';
-
-  private rec: WebRecognition | null = null;
-  private cb: RecognitionCallbacks = {};
-  private finalText = '';
+  private recognizer: WebRecognition | null = null;
+  private callbacks: RecognitionCallbacks = {};
+  private transcript = '';
   private lifecycle: RecognizerLifecycle = 'idle';
   private stopRequested = false;
-  private finished = false;
+  private finalDelivered = false;
+  private guardTimer: ReturnType<typeof setTimeout> | null = null;
 
-  async isAvailable(): Promise<boolean> {
-    return webCtor() !== null;
-  }
-
+  async isAvailable() { return webConstructor() !== null; }
   async checkPermission(): Promise<PermissionResult> {
-    try {
-      const status = await (navigator as any)?.permissions?.query?.({ name: 'microphone' });
-      return (status?.state as PermissionResult) || 'prompt';
-    } catch {
-      return 'prompt';
-    }
+    try { return (await navigator.permissions?.query({ name: 'microphone' as PermissionName }))?.state as PermissionResult || 'prompt'; }
+    catch { return 'prompt'; }
   }
-
   async requestPermission(): Promise<PermissionResult> {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      stream.getTracks().forEach(t => t.stop());
-      return 'granted';
-    } catch (e) {
-      console.error('[speech/web] mic permission denied', e);
-      return 'denied';
-    }
+    try { const stream = await navigator.mediaDevices.getUserMedia({ audio: true }); stream.getTracks().forEach(track => track.stop()); return 'granted'; }
+    catch (error) { console.error('[speech/web] permission denied', error); return 'denied'; }
   }
-
   async resolveLanguage(preferred: string): Promise<LanguageCheck> {
-    // Browsers expose no reliable list; the requested Arabic is used as-is.
-    return { lang: preferred || 'ar-SA', supported: true, substituted: false };
+    const supported = preferred.toLowerCase().startsWith('ar');
+    return { lang: supported ? preferred : 'ar-SA', supported, substituted: false };
   }
-
-  private settle() {
-    if (this.finished) return;
-    this.finished = true;
-    this.rec = null;
-    this.lifecycle = 'idle';
-    releaseLock(this);
-    const text = this.finalText.trim();
-    this.finalText = '';
-    this.cb.onStateChange?.('completed');
-    this.cb.onFinalResult?.(text);
-  }
-
-  async startListening(lang: string, cb: RecognitionCallbacks): Promise<boolean> {
-    if (this.lifecycle !== 'idle') return false;
-    const Ctor = webCtor();
-    if (!Ctor) { cb.onStateChange?.('unavailable'); return false; }
-    if (!acquireLock(this)) return false;
-
-    this.lifecycle = 'starting';
-    this.cb = cb;
-    this.finalText = '';
+  async startListening(language: string, callbacks: RecognitionCallbacks): Promise<boolean> {
+    const Constructor = webConstructor();
+    if (!Constructor || this.lifecycle !== 'idle' || !acquire(this)) return false;
+    this.callbacks = callbacks;
+    this.transcript = '';
     this.stopRequested = false;
-    this.finished = false;
-
-    const rec = new Ctor();
-    rec.lang = lang || 'ar-SA';
-    rec.continuous = true;
-    rec.interimResults = true;
-    rec.maxAlternatives = 3;
-
-    rec.onresult = (event: any) => {
+    this.finalDelivered = false;
+    this.lifecycle = 'starting';
+    const recognizer = new Constructor();
+    recognizer.lang = language;
+    recognizer.continuous = true;
+    recognizer.interimResults = true;
+    recognizer.maxAlternatives = 3;
+    recognizer.onresult = event => {
       let interim = '';
-      for (let i = event.resultIndex; i < event.results.length; i++) {
-        const r = event.results[i];
-        const text = (r[0]?.transcript || '').trim();
+      for (let index = event.resultIndex; index < event.results.length; index++) {
+        const result = event.results[index];
+        const text = String(result[0]?.transcript || '').trim();
         if (!text) continue;
-        if (r.isFinal) this.finalText = mergeTranscript(this.finalText, text);
+        if (result.isFinal) this.transcript = mergeTranscript(this.transcript, text);
         else interim = mergeTranscript(interim, text);
       }
-      this.cb.onPartialResult?.(mergeTranscript(this.finalText, interim));
+      this.callbacks.onPartialResult?.(mergeTranscript(this.transcript, interim));
     };
-    rec.onerror = (event: any) => {
-      if (event?.error === 'not-allowed') {
-        this.stopRequested = true;
-        this.cb.onStateChange?.('permissionDenied');
-      } else if (event?.error === 'network' || event?.error === 'service-not-allowed') {
-        this.stopRequested = true;
-        this.cb.onError?.('التعرف الصوتي غير متاح حاليًا — يمكنك التسميع لنفسك واعتماد الحفظ يدويًا.', event.error);
-      } else if (event?.error && event.error !== 'no-speech' && event.error !== 'aborted') {
-        console.error('[speech/web] error', event.error);
-        this.cb.onError?.('تعذّر التعرف على الصوت', event.error);
-      }
+    recognizer.onerror = event => {
+      if (event.error === 'not-allowed') callbacks.onStateChange?.('permissionDenied');
+      else if (!['no-speech', 'aborted'].includes(event.error)) callbacks.onError?.(event.error === 'network' ? unavailableMessage : 'تعذّر التعرف على الصوت', event.error);
     };
-    rec.onend = () => {
+    recognizer.onend = () => {
       if (!this.stopRequested && this.lifecycle === 'listening') {
         this.lifecycle = 'restarting';
-        try { rec.start(); this.lifecycle = 'listening'; return; }
-        catch (e) { console.error('[speech/web] restart failed', e); }
+        try { recognizer.start(); this.lifecycle = 'listening'; return; }
+        catch (error) { console.error('[speech/web] restart failed', error); }
       }
-      this.settle();
+      void this.finish();
     };
-
-    this.rec = rec;
-    try {
-      rec.start();
-      this.lifecycle = 'listening';
-      cb.onStateChange?.('listening');
-      return true;
-    } catch (e) {
-      console.error('[speech/web] start failed', e);
-      this.rec = null;
-      this.lifecycle = 'idle';
-      releaseLock(this);
-      cb.onError?.('تعذّر تشغيل الميكروفون — أعد المحاولة.', e);
-      cb.onStateChange?.('error');
-      return false;
+    this.recognizer = recognizer;
+    try { recognizer.start(); this.lifecycle = 'listening'; callbacks.onStateChange?.('listening'); return true; }
+    catch (error) {
+      console.error('[speech/web] start failed', error);
+      this.recognizer = null; this.lifecycle = 'idle'; release(this);
+      callbacks.onError?.(startErrorMessage, error); callbacks.onStateChange?.('error'); return false;
     }
   }
-
-  async stopListening(): Promise<void> {
-    if (this.lifecycle === 'idle' || this.finished) return;
+  private async finish() {
+    if (this.finalDelivered) return;
+    this.finalDelivered = true;
+    if (this.guardTimer) clearTimeout(this.guardTimer);
+    this.guardTimer = null;
+    const result = this.transcript.trim();
+    this.recognizer = null;
+    this.lifecycle = 'idle';
+    release(this);
+    this.callbacks.onStateChange?.('completed');
+    this.callbacks.onFinalResult?.(result);
+  }
+  async stopListening() {
+    if (this.lifecycle === 'idle' || this.finalDelivered) return;
     this.stopRequested = true;
     this.lifecycle = 'stopping';
-    this.cb.onStateChange?.('processing');
-    if (!this.rec) { this.settle(); return; }
-    try { this.rec.stop(); } catch (e) { console.error('[speech/web] stop failed', e); }
-    setTimeout(() => this.settle(), 2000);
+    this.callbacks.onStateChange?.('processing');
+    try { this.recognizer?.stop(); } catch (error) { console.error('[speech/web] stop failed', error); }
+    if (this.guardTimer) clearTimeout(this.guardTimer);
+    this.guardTimer = setTimeout(() => { void this.finish(); }, 2000);
   }
-
-  async dispose(): Promise<void> {
+  async dispose() {
     this.stopRequested = true;
-    this.finished = true;
-    if (this.rec) {
-      try { this.rec.abort(); } catch { /* already closed */ }
-      this.rec = null;
-    }
-    this.finalText = '';
-    this.lifecycle = 'idle';
-    releaseLock(this);
+    if (this.guardTimer) clearTimeout(this.guardTimer);
+    this.guardTimer = null;
+    try { this.recognizer?.abort(); } catch (error) { console.error('[speech/web] dispose failed', error); }
+    this.recognizer = null; this.transcript = ''; this.finalDelivered = true; this.lifecycle = 'idle'; release(this);
   }
 }
 
 class NoProvider implements QuranSpeechRecognitionProvider {
-  readonly id = 'none' as const;
-  readonly name = 'غير متاح';
-  readonly networkRequirement: NetworkRequirement = 'unknown';
+  readonly id = 'none' as const; readonly name = 'غير متاح'; readonly networkRequirement: NetworkRequirement = 'unknown';
   async isAvailable() { return false; }
   async checkPermission(): Promise<PermissionResult> { return 'denied'; }
   async requestPermission(): Promise<PermissionResult> { return 'denied'; }
-  async resolveLanguage(preferred: string): Promise<LanguageCheck> {
-    return { lang: preferred || 'ar-SA', supported: false, substituted: false };
-  }
+  async resolveLanguage(preferred: string): Promise<LanguageCheck> { return { lang: preferred, supported: false, substituted: false }; }
   async startListening() { return false; }
-  async stopListening() { /* nothing to stop */ }
-  async dispose() { /* nothing to release */ }
+  async stopListening() {}
+  async dispose() {}
 }
 
-let cached: QuranSpeechRecognitionProvider | null = null;
-
-/** Picks the engine that actually works in the current environment. */
+let cachedProvider: QuranSpeechRecognitionProvider | null = null;
 export async function getSpeechProvider(): Promise<QuranSpeechRecognitionProvider> {
-  if (cached) return cached;
+  if (cachedProvider) return cachedProvider;
   const native = new NativeProvider();
-  if (await native.isAvailable()) { cached = native; return cached; }
+  if (await native.isAvailable()) return (cachedProvider = native);
   const web = new WebProvider();
-  if (await web.isAvailable()) { cached = web; return cached; }
-  cached = new NoProvider();
-  return cached;
+  if (await web.isAvailable()) return (cachedProvider = web);
+  return (cachedProvider = new NoProvider());
 }
-
-export function isOnline(): boolean {
-  return typeof navigator === 'undefined' ? true : navigator.onLine !== false;
-}
+export const isOnline = () => typeof navigator === 'undefined' || navigator.onLine !== false;
