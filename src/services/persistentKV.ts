@@ -66,8 +66,8 @@ export function createPersistentStorage(dbName: string): StateStorage {
       if (!native) return readWeb(name);
       const key = `${dbName}:${name}`;
       try {
-        const { value } = await (await preferences()).get({ key });
-        if (value != null) return value;
+        const result = await withTimeout((async () => (await preferences()).get({ key }))(), `${dbName} Preferences read`);
+        if (result?.value != null) return result.value;
       } catch (error) {
         console.error(`[persistentKV:${dbName}] Preferences read failed`, error);
       }
