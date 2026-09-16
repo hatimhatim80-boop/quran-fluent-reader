@@ -61,7 +61,6 @@ const STATUS_CLASS: Record<string, string> = {
 };
 
 type Phase = 'listening' | 'reciting' | 'reviewing';
-type StructuralKey = typeof STRUCTURAL_SETTING_KEYS[number];
 
 interface Props {
   session: Session;
