@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import {
   BookOpen, GraduationCap, Plus, Play, Archive, Trash2, RotateCcw, Clock,
   FolderOpen, FolderPlus, ArrowRightLeft, Pencil, Search, ArrowRight,
-  Copy, ChevronDown, SortAsc, Filter, Home as HomeIcon, FileText, Brain, Zap, BookMarked, BarChart3
+  Copy, ChevronDown, SortAsc, Filter, Home as HomeIcon, FileText, Brain, Zap, BookMarked, BarChart3, Mic
 } from 'lucide-react';
 import { TAHFEEZ_COMPLETABLE_SESSION_TYPES, useSessionsStore, Session, SessionType, SessionGroup } from '@/stores/sessionsStore';
 import { useReviewSessionStore } from '@/stores/reviewSessionStore';
@@ -54,6 +54,7 @@ const SESSION_TYPE_META: Record<SessionType, { label: string; icon: React.ReactN
   'tahfeez-test': { label: 'اختبار تخزين', icon: <FileText className="w-5 h-5" />, color: 'bg-accent/60 text-primary', portal: '/tahfeez' },
   'tahfeez-auto': { label: 'اختبار تلقائي', icon: <Zap className="w-5 h-5" />, color: 'bg-accent/60 text-primary', portal: '/tahfeez' },
   'tahfeez-review': { label: 'مراجعة الحفظ', icon: <BookMarked className="w-5 h-5" />, color: 'bg-accent/60 text-primary', portal: '/tahfeez' },
+  'tahfeez-memorize': { label: 'الحفظ بالتكرار', icon: <Mic className="w-5 h-5" />, color: 'bg-accent/60 text-primary', portal: '/memorize' },
 };
 
 type SortKey = 'lastOpenedAt' | 'name' | 'type' | 'createdAt';
@@ -346,6 +347,7 @@ export default function Sessions() {
       'tahfeez-test': 'اختبار تخزين',
       'tahfeez-auto': 'اختبار تلقائي',
       'tahfeez-review': 'مراجعة الحفظ',
+      'tahfeez-memorize': 'الحفظ بالتكرار',
     };
     const name = newName.trim() || `${defaultNames[newType]} - ${new Date().toLocaleDateString('ar-SA')}`;
     const start = parseInt(newStartPage) || 1;
@@ -360,8 +362,12 @@ export default function Sessions() {
     toast.success('تم إنشاء الجلسة');
     // Navigate
     const portal = SESSION_TYPE_META[newType]?.portal || '/mushaf';
-    localStorage.setItem(portal === '/mushaf' ? 'quran-app-ghareeb-start-page' : 'quran-app-tahfeez-start-page', String(start));
     store.setActiveSession(id);
+    if (portal === '/memorize') {
+      navigate(`/memorize?sessionId=${id}`);
+      return;
+    }
+    localStorage.setItem(portal === '/mushaf' ? 'quran-app-ghareeb-start-page' : 'quran-app-tahfeez-start-page', String(start));
     navigate(portal);
   };
 
@@ -464,6 +470,7 @@ export default function Sessions() {
     { type: 'tahfeez-test', label: 'اختبار تخزين', desc: 'اختبار الحفظ بإخفاء كلمات من الآيات', icon: <FileText className="w-6 h-6" /> },
     { type: 'tahfeez-auto', label: 'اختبار تلقائي', desc: 'ظهور تلقائي تدريجي للكلمات', icon: <Zap className="w-6 h-6" /> },
     { type: 'tahfeez-review', label: 'مراجعة الحفظ', desc: 'مراجعة ذكية للآيات المحفوظة', icon: <BookMarked className="w-6 h-6" /> },
+    { type: 'tahfeez-memorize', label: 'الحفظ بالتكرار', desc: 'استماع وتكرار ثم تسميع بالصوت ومقارنة بالنص', icon: <Mic className="w-6 h-6" /> },
   ];
 
   const renderSessions = (list: Session[]) =>

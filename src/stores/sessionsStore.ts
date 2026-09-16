@@ -44,7 +44,7 @@ const idbStorage: StateStorage = {
   },
 };
 
-export type SessionType = 'ghareeb' | 'tahfeez' | 'ghareeb-review' | 'ghareeb-read' | 'ghareeb-meaning-quiz' | 'tahfeez-test' | 'tahfeez-auto' | 'tahfeez-review';
+export type SessionType = 'ghareeb' | 'tahfeez' | 'ghareeb-review' | 'ghareeb-read' | 'ghareeb-meaning-quiz' | 'tahfeez-test' | 'tahfeez-auto' | 'tahfeez-review' | 'tahfeez-memorize';
 
 export const TAHFEEZ_COMPLETABLE_SESSION_TYPES: SessionType[] = ['tahfeez', 'tahfeez-test', 'tahfeez-auto', 'tahfeez-review'];
 
@@ -340,6 +340,10 @@ export const useSessionsStore = create<SessionsState>()(
             useReviewSessionStore.getState().deleteSession(linkedReviewId);
           }).catch(() => {});
         }
+        // Cascade: the repetition-memorization record belongs to this session only.
+        void import('./memorizationStore').then(({ useMemorizationStore }) => {
+          useMemorizationStore.getState().removeSession(id);
+        }).catch((e) => console.error('[sessionsStore] memorization cascade failed', e));
         set({
           sessions: get().sessions.filter(s => s.id !== id),
           activeSessionId: get().activeSessionId === id ? null : get().activeSessionId,
