@@ -1,8 +1,9 @@
 /**
  * One key/value layer for small, must-not-be-lost records.
  *
- * Android/iOS → Capacitor Preferences (native storage, survives WebView data
- * clearing much better than localStorage).
+ * Android/iOS → Capacitor Preferences is the single source of truth. The web
+ * stores (IndexedDB, then localStorage) are read once only to migrate records
+ * written by an older build, and are never written to on native.
  * Web        → IndexedDB, with localStorage only as a last-resort mirror.
  *
  * Large binaries (reciter audio) are NOT stored here — they stay in the
@@ -27,36 +28,49 @@ export function createPersistentStorage(dbName: string): StateStorage {
 
   const prefs = async () => (await import('@capacitor/preferences')).Preferences;
 
+  const readWeb = async (name: string): Promise<string | null> => {
+    try {
+      const db = await getDB();
+      const v = (await db.get(STORE_NAME, name)) as string | undefined;
+      if (v != null) return v;
+    } catch (e) {
+      console.error(`[persistentKV:${dbName}] idb read failed`, e);
+    }
+    try { return localStorage.getItem(name); } catch { return null; }
+  };
+
   return {
     getItem: async (name) => {
       if (native) {
+        const key = `${dbName}:${name}`;
         try {
-          const { value } = await (await prefs()).get({ key: `${dbName}:${name}` });
+          const { value } = await (await prefs()).get({ key });
           if (value != null) return value;
         } catch (e) {
           console.error(`[persistentKV:${dbName}] native read failed`, e);
         }
+        // Nothing native yet — migrate a record left by an older web-storage build.
+        const legacy = await readWeb(name);
+        if (legacy != null) {
+          try { await (await prefs()).set({ key, value: legacy }); }
+          catch (e) { console.error(`[persistentKV:${dbName}] migration to native failed`, e); }
+        }
+        return legacy;
       }
-      try {
-        const db = await getDB();
-        const v = (await db.get(STORE_NAME, name)) as string | undefined;
-        if (v != null) return v;
-      } catch (e) {
-        console.error(`[persistentKV:${dbName}] idb read failed`, e);
-      }
-      try { return localStorage.getItem(name); } catch { return null; }
+      return readWeb(name);
     },
 
     setItem: async (name, value) => {
-      let stored = false;
       if (native) {
         try {
           await (await prefs()).set({ key: `${dbName}:${name}`, value });
-          stored = true;
+          return;
         } catch (e) {
           console.error(`[persistentKV:${dbName}] native write failed`, e);
+          // fall through to the web stores rather than losing progress
         }
       }
+      let stored = false;
       try {
         const db = await getDB();
         await db.put(STORE_NAME, value, name);

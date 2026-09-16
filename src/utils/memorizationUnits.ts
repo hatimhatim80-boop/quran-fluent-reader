@@ -17,8 +17,14 @@ import { extractPageAyahGroups } from '@/components/TahfeezSRSPanel';
 export type UnitMode = 'ayah' | 'words';
 
 export interface MemorizationUnit {
-  /** Content-derived identity — survives a change of unit size/mode. */
+  /** Content-derived identity of the unit's boundaries. */
   stableId: string;
+  /**
+   * The smallest fixed pieces this unit is made of — one ayah (`a:surah:ayah`)
+   * or one word (`w:surah:ayah:pos`). Memorization is stored per atom, so
+   * re-slicing the range keeps every approved piece approved.
+   */
+  atomIds: string[];
   index: number;
   /** Original Quranic words, untouched. */
   words: string[];
@@ -123,6 +129,7 @@ export async function buildMemorizationUnits(
         : `الآيات ${arabicNum(first.ayah)}–${arabicNum(last.ayah)}`;
       units.push({
         stableId: `a:${first.surah}:${first.ayah}-${last.surah}:${last.ayah}`,
+        atomIds: refs.map(r => `a:${r.surah}:${r.ayah}`),
         index: units.length,
         words,
         text: words.join(' '),
@@ -147,6 +154,7 @@ export async function buildMemorizationUnits(
     const tail = chunk[chunk.length - 1];
     units.push({
       stableId: `w:${head.ref.surah}:${head.ref.ayah}:${head.posInAyah}-${tail.ref.surah}:${tail.ref.ayah}:${tail.posInAyah}`,
+      atomIds: chunk.map(c => `w:${c.ref.surah}:${c.ref.ayah}:${c.posInAyah}`),
       index: units.length,
       words,
       text: words.join(' '),
@@ -159,6 +167,14 @@ export async function buildMemorizationUnits(
 }
 
 /**
+ * A unit counts as memorized only when every one of its atoms was approved —
+ * so three ayat approved one by one make the 1–3 unit memorized, and vice versa.
+ */
+export function isUnitMemorized(unit: MemorizationUnit, memorizedIds: Set<string>): boolean {
+  return unit.atomIds.length > 0 && unit.atomIds.every(id => memorizedIds.has(id));
+}
+
+/**
  * Cumulative recitation text: only units the student actually approved, plus
  * the current one — never "everything before the cursor".
  */
@@ -167,7 +183,7 @@ export function cumulativeUnits(
   index: number,
   memorizedIds: Set<string>,
 ): MemorizationUnit[] {
-  const out = units.filter((u, i) => i < index && memorizedIds.has(u.stableId));
+  const out = units.filter((u, i) => i < index && isUnitMemorized(u, memorizedIds));
   if (units[index]) out.push(units[index]);
   return out;
 }

@@ -60,7 +60,11 @@ export interface MemorizationProgress {
   sessionId: string;
   settings: MemorizationSettings;
   currentUnit: number;
-  /** Stable, content-derived ids of the approved units. */
+  /**
+   * Approved atoms — one ayah (`a:surah:ayah`) or one word
+   * (`w:surah:ayah:pos`), never unit boundaries, so changing the unit size
+   * keeps the memorized state intact.
+   */
   memorizedIds: string[];
   repsDone: number;
   attempts: MemorizationAttempt[];
@@ -97,8 +101,9 @@ interface MemorizationState {
   patchSettings: (sessionId: string, patch: Partial<MemorizationSettings>) => void;
   patchProgress: (sessionId: string, patch: Partial<Omit<MemorizationProgress, 'sessionId' | 'settings'>>) => void;
   addAttempt: (sessionId: string, attempt: MemorizationAttempt) => void;
-  markMemorized: (sessionId: string, unitId: string) => void;
-  unmarkMemorized: (sessionId: string, unitId: string) => void;
+  /** Approves the smallest fixed pieces (atom ids) of a unit. */
+  markMemorized: (sessionId: string, atomIds: string[]) => void;
+  unmarkMemorized: (sessionId: string, atomIds: string[]) => void;
   resetSession: (sessionId: string) => void;
   removeSession: (sessionId: string) => void;
 }
@@ -165,27 +170,29 @@ export const useMemorizationStore = create<MemorizationState>()(
         });
       },
 
-      markMemorized: (sessionId, unitId) => {
+      markMemorized: (sessionId, atomIds) => {
         const rec = get().records[sessionId];
-        if (!rec || !unitId) return;
-        if (rec.memorizedIds.includes(unitId)) return;
+        if (!rec || !atomIds || atomIds.length === 0) return;
+        const merged = new Set([...rec.memorizedIds, ...atomIds.filter(Boolean)]);
+        if (merged.size === rec.memorizedIds.length) return;
         set({
           records: {
             ...get().records,
-            [sessionId]: { ...rec, memorizedIds: [...rec.memorizedIds, unitId], updatedAt: Date.now() },
+            [sessionId]: { ...rec, memorizedIds: [...merged], updatedAt: Date.now() },
           },
         });
       },
 
-      unmarkMemorized: (sessionId, unitId) => {
+      unmarkMemorized: (sessionId, atomIds) => {
         const rec = get().records[sessionId];
-        if (!rec) return;
+        if (!rec || !atomIds || atomIds.length === 0) return;
+        const drop = new Set(atomIds);
         set({
           records: {
             ...get().records,
             [sessionId]: {
               ...rec,
-              memorizedIds: rec.memorizedIds.filter(id => id !== unitId),
+              memorizedIds: rec.memorizedIds.filter(id => !drop.has(id)),
               updatedAt: Date.now(),
             },
           },
