@@ -167,6 +167,14 @@ export async function buildMemorizationUnits(
 }
 
 /**
+ * A unit counts as memorized only when every one of its atoms was approved —
+ * so three ayat approved one by one make the 1–3 unit memorized, and vice versa.
+ */
+export function isUnitMemorized(unit: MemorizationUnit, memorizedIds: Set<string>): boolean {
+  return unit.atomIds.length > 0 && unit.atomIds.every(id => memorizedIds.has(id));
+}
+
+/**
  * Cumulative recitation text: only units the student actually approved, plus
  * the current one — never "everything before the cursor".
  */
@@ -175,7 +183,7 @@ export function cumulativeUnits(
   index: number,
   memorizedIds: Set<string>,
 ): MemorizationUnit[] {
-  const out = units.filter((u, i) => i < index && memorizedIds.has(u.stableId));
+  const out = units.filter((u, i) => i < index && isUnitMemorized(u, memorizedIds));
   if (units[index]) out.push(units[index]);
   return out;
 }
