@@ -1,22 +1,11 @@
-/**
- * Word-level comparison between the Quranic text of a memorization unit and
- * the text the speech engine produced for the student.
- *
- * Three texts are kept strictly apart:
- *   - the original Quranic text (never altered, always what the UI shows)
- *   - the raw recognizer output
- *   - the normalized forms, used for matching only
- */
-
-import { normalizeSpeechArabic, splitWords, similarity } from './quranSpeechMatch';
+/** Compare original Quran text with raw recognizer output at word level. */
+import { normalizeSpeechArabic, similarity, splitWords } from './quranSpeechMatch';
 
 export type DiffStatus = 'correct' | 'missing' | 'extra' | 'different' | 'order' | 'unclear';
 
 export interface DiffToken {
   status: DiffStatus;
-  /** Original Quranic word (empty for an extra spoken word). */
   expected: string;
-  /** What the engine heard at this position (empty for a missing word). */
   heard: string;
 }
 
@@ -24,119 +13,100 @@ export interface DiffReport {
   tokens: DiffToken[];
   correct: number;
   total: number;
-  /** 0..1, informational only — the token list is the real result. */
   score: number;
-  /** True when too much of the attempt is doubtful to judge the student. */
   doubtful: boolean;
-  /** At least one word could not be judged with confidence. */
   hasUnclear: boolean;
-  /** The engine clearly returned less than what was expected. */
   truncated: boolean;
-  /** Safe to approve memorization automatically. */
   approvable: boolean;
 }
 
-/** A substitution this close is much more likely an engine slip than a mistake. */
 const UNCLEAR_THRESHOLD = 0.62;
 const EQUAL_THRESHOLD = 0.86;
-/** Short Quranic words differ by a single letter — fuzzy distance is unsafe. */
-const SHORT_WORD_LEN = 3;
+const SHORT_WORD_LENGTH = 3;
 
-function judge(expNorm: string, heardNorm: string): DiffStatus {
-  if (!expNorm || !heardNorm) return 'unclear';
-  if (expNorm === heardNorm) return 'correct';
-  const sim = similarity(expNorm, heardNorm);
-  // For short, look-alike words an approximate match proves nothing.
-  if (expNorm.length <= SHORT_WORD_LEN || heardNorm.length <= SHORT_WORD_LEN) {
-    return sim >= UNCLEAR_THRESHOLD ? 'unclear' : 'different';
+function judge(expected: string, heard: string): DiffStatus {
+  if (!expected || !heard) return 'unclear';
+  if (expected === heard) return 'correct';
+  const score = similarity(expected, heard);
+  if (expected.length <= SHORT_WORD_LENGTH || heard.length <= SHORT_WORD_LENGTH) {
+    return score >= UNCLEAR_THRESHOLD ? 'unclear' : 'different';
   }
-  if (sim >= EQUAL_THRESHOLD) return 'correct';
-  return sim >= UNCLEAR_THRESHOLD ? 'unclear' : 'different';
+  if (score >= EQUAL_THRESHOLD) return 'correct';
+  return score >= UNCLEAR_THRESHOLD ? 'unclear' : 'different';
 }
 
-export function compareRecitation(expectedText: string, heardText: string): DiffReport {
-  const expectedWords = splitWords(expectedText);
-  const heardWords = splitWords(heardText);
-  const exp = expectedWords.map(w => normalizeSpeechArabic(w));
-  const heard = heardWords.map(w => normalizeSpeechArabic(w));
+export function compareRecitation(originalQuranText: string, rawTranscript: string): DiffReport {
+  const expectedWords = splitWords(originalQuranText);
+  const heardWords = splitWords(rawTranscript);
+  const expectedNormalized = expectedWords.map(normalizeSpeechArabic);
+  const heardNormalized = heardWords.map(normalizeSpeechArabic);
+  const rowCount = expectedNormalized.length;
+  const columnCount = heardNormalized.length;
+  const cost = (row: number, column: number) => judge(expectedNormalized[row], heardNormalized[column]) === 'correct' ? 0 : 1;
+  const distances = Array.from({ length: rowCount + 1 }, () => Array(columnCount + 1).fill(0));
 
-  const n = exp.length;
-  const m = heard.length;
-
-  // Word-level edit distance; alignment only — the verdict comes from `judge`.
-  const cost = (i: number, j: number) => (judge(exp[i], heard[j]) === 'correct' ? 0 : 1);
-  const dp: number[][] = Array.from({ length: n + 1 }, () => Array(m + 1).fill(0));
-  for (let i = 0; i <= n; i++) dp[i][0] = i;
-  for (let j = 0; j <= m; j++) dp[0][j] = j;
-  for (let i = 1; i <= n; i++) {
-    for (let j = 1; j <= m; j++) {
-      dp[i][j] = Math.min(
-        dp[i - 1][j] + 1,
-        dp[i][j - 1] + 1,
-        dp[i - 1][j - 1] + cost(i - 1, j - 1),
+  for (let row = 0; row <= rowCount; row++) distances[row][0] = row;
+  for (let column = 0; column <= columnCount; column++) distances[0][column] = column;
+  for (let row = 1; row <= rowCount; row++) {
+    for (let column = 1; column <= columnCount; column++) {
+      distances[row][column] = Math.min(
+        distances[row - 1][column] + 1,
+        distances[row][column - 1] + 1,
+        distances[row - 1][column - 1] + cost(row - 1, column - 1),
       );
     }
   }
 
   const tokens: DiffToken[] = [];
-  let i = n, j = m;
-  while (i > 0 || j > 0) {
-    if (i > 0 && j > 0 && dp[i][j] === dp[i - 1][j - 1] + cost(i - 1, j - 1)) {
-      const status = judge(exp[i - 1], heard[j - 1]);
-      tokens.push({ status, expected: expectedWords[i - 1], heard: heardWords[j - 1] });
-      i--; j--;
-    } else if (i > 0 && dp[i][j] === dp[i - 1][j] + 1) {
-      tokens.push({ status: 'missing', expected: expectedWords[i - 1], heard: '' });
-      i--;
-    } else if (j > 0) {
-      tokens.push({ status: 'extra', expected: '', heard: heardWords[j - 1] });
-      j--;
+  let row = rowCount;
+  let column = columnCount;
+  while (row > 0 || column > 0) {
+    if (row > 0 && column > 0 && distances[row][column] === distances[row - 1][column - 1] + cost(row - 1, column - 1)) {
+      tokens.push({ status: judge(expectedNormalized[row - 1], heardNormalized[column - 1]), expected: expectedWords[row - 1], heard: heardWords[column - 1] });
+      row--;
+      column--;
+    } else if (row > 0 && distances[row][column] === distances[row - 1][column] + 1) {
+      tokens.push({ status: 'missing', expected: expectedWords[row - 1], heard: '' });
+      row--;
     } else {
-      break;
+      tokens.push({ status: 'extra', expected: '', heard: heardWords[column - 1] });
+      column--;
     }
   }
   tokens.reverse();
 
-  // A word that is "missing" here but shows up as "extra" elsewhere is an
-  // ordering problem, not a forgotten word.
-  const extraNorm = new Map<string, number[]>();
-  tokens.forEach((t, idx) => {
-    if (t.status !== 'extra') return;
-    const key = normalizeSpeechArabic(t.heard);
-    const list = extraNorm.get(key) || [];
-    list.push(idx);
-    extraNorm.set(key, list);
+  const extras = new Map<string, number[]>();
+  tokens.forEach((token, index) => {
+    if (token.status !== 'extra') return;
+    const key = normalizeSpeechArabic(token.heard);
+    extras.set(key, [...(extras.get(key) || []), index]);
   });
-  tokens.forEach(t => {
-    if (t.status !== 'missing') return;
-    const key = normalizeSpeechArabic(t.expected);
-    const hits = extraNorm.get(key);
-    if (hits && hits.length > 0) {
-      const idx = hits.shift()!;
-      t.status = 'order';
-      tokens[idx].status = 'order';
-    }
+  tokens.forEach(token => {
+    if (token.status !== 'missing') return;
+    const matches = extras.get(normalizeSpeechArabic(token.expected));
+    const matchIndex = matches?.shift();
+    if (matchIndex === undefined) return;
+    token.status = 'order';
+    tokens[matchIndex].status = 'order';
   });
 
-  const graded = tokens.filter(t => t.expected);
-  const correct = graded.filter(t => t.status === 'correct').length;
-  const unclear = graded.filter(t => t.status === 'unclear').length;
-  const total = graded.length || 1;
-
+  const graded = tokens.filter(token => token.expected);
+  const correct = graded.filter(token => token.status === 'correct').length;
+  const unclear = graded.filter(token => token.status === 'unclear').length;
+  const denominator = graded.length || 1;
   const truncated = expectedWords.length > 0 && heardWords.length < expectedWords.length * 0.6;
   const hasUnclear = unclear > 0;
-  const score = correct / total;
+  const score = correct / denominator;
+  const doubtful = heardWords.length === 0 || unclear / denominator > 0.4 || truncated;
 
   return {
     tokens,
     correct,
     total: graded.length,
     score,
-    // Nothing heard at all, or most of it doubtful → do not blame the student.
-    doubtful: heardWords.length === 0 || unclear / total > 0.4 || truncated,
+    doubtful,
     hasUnclear,
     truncated,
-    // Automatic approval demands a clean, complete, unambiguous attempt.
     approvable: score === 1 && !hasUnclear && !truncated && heardWords.length > 0,
   };
 }
