@@ -97,8 +97,9 @@ interface MemorizationState {
   patchSettings: (sessionId: string, patch: Partial<MemorizationSettings>) => void;
   patchProgress: (sessionId: string, patch: Partial<Omit<MemorizationProgress, 'sessionId' | 'settings'>>) => void;
   addAttempt: (sessionId: string, attempt: MemorizationAttempt) => void;
-  markMemorized: (sessionId: string, unitId: string) => void;
-  unmarkMemorized: (sessionId: string, unitId: string) => void;
+  /** Approves the smallest fixed pieces (atom ids) of a unit. */
+  markMemorized: (sessionId: string, atomIds: string[]) => void;
+  unmarkMemorized: (sessionId: string, atomIds: string[]) => void;
   resetSession: (sessionId: string) => void;
   removeSession: (sessionId: string) => void;
 }
