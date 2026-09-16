@@ -6,6 +6,9 @@
  *
  * مصممة للهاتف أولًا (Capacitor/Android): أزرار كبيرة، شريط سفلي ثابت،
  * التعرف الصوتي عبر طبقة مستقلة، والصوت عبر نظام التلاوة الموجود.
+ *
+ * المحفوظ يُتابَع بمعرّف ثابت مشتق من السورة والآية، فتغيير حجم الوحدة
+ * لا يمكن أن يُظهر جزءًا غير محفوظ بلون المحفوظ.
  */
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -22,14 +25,19 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { toast } from 'sonner';
 import { QuranPage } from '@/types/quran';
 import { Session, useSessionsStore } from '@/stores/sessionsStore';
 import {
-  DEFAULT_MEMORIZATION_SETTINGS, MemorizationSettings, useMemorizationStore,
+  DEFAULT_MEMORIZATION_SETTINGS, MemorizationSettings, STRUCTURAL_SETTING_KEYS,
+  useMemorizationStore,
 } from '@/stores/memorizationStore';
 import {
-  MemorizationUnit, buildMemorizationUnits, cumulativeRefs, cumulativeText,
+  AyahMappingError, MemorizationUnit, buildMemorizationUnits, cumulativeRefs, cumulativeText,
 } from '@/utils/memorizationUnits';
 import { DIFF_LABEL, DiffReport, compareRecitation } from '@/utils/memorizationDiff';
 import {
@@ -52,6 +60,7 @@ const STATUS_CLASS: Record<string, string> = {
 };
 
 type Phase = 'listening' | 'reciting' | 'reviewing';
+type StructuralKey = typeof STRUCTURAL_SETTING_KEYS[number];
 
 interface Props {
   session: Session;
@@ -63,7 +72,6 @@ export function MemorizationRepeatSession({ session, pages, totalPages }: Props)
   const navigate = useNavigate();
   const sessionId = session.id;
 
-  const ensure = useMemorizationStore(s => s.ensure);
   const patchSettings = useMemorizationStore(s => s.patchSettings);
   const patchProgress = useMemorizationStore(s => s.patchProgress);
   const addAttempt = useMemorizationStore(s => s.addAttempt);
@@ -72,33 +80,33 @@ export function MemorizationRepeatSession({ session, pages, totalPages }: Props)
   const record = useMemorizationStore(s => s.records[sessionId]);
   const updateSession = useSessionsStore(s => s.updateSession);
 
-  /* ─── record bootstrap ─── */
-  useEffect(() => {
-    ensure(sessionId, {
-      startPage: session.startPage || session.currentPage || 1,
-      endPage: session.endPage || session.startPage || session.currentPage || 1,
-      reciterId: DEFAULT_RECITER_ID,
-    });
-  }, [ensure, sessionId, session.startPage, session.endPage, session.currentPage]);
-
   const settings: MemorizationSettings = record?.settings || DEFAULT_MEMORIZATION_SETTINGS;
   const currentUnit = record?.currentUnit ?? 0;
-  const memorizedUnits = record?.memorizedUnits ?? [];
+  const memorizedIds = useMemo(() => new Set(record?.memorizedIds ?? []), [record?.memorizedIds]);
   const repsDone = record?.repsDone ?? 0;
   const lastAttempt = record?.lastAttempt ?? null;
 
   /* ─── units ─── */
   const [units, setUnits] = useState<MemorizationUnit[]>([]);
   const [unitsLoading, setUnitsLoading] = useState(true);
+  const [unitsError, setUnitsError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
     setUnitsLoading(true);
+    setUnitsError(null);
     buildMemorizationUnits(pages, settings.startPage, settings.endPage, settings.unitMode, settings.unitSize)
       .then(list => { if (!cancelled) { setUnits(list); setUnitsLoading(false); } })
-      .catch(e => {
+      .catch((e: unknown) => {
         console.error('[memorization] building units failed', e);
-        if (!cancelled) { setUnits([]); setUnitsLoading(false); toast.error('تعذّر تجهيز وحدات الحفظ'); }
+        if (cancelled) return;
+        setUnits([]);
+        setUnitsLoading(false);
+        setUnitsError(
+          e instanceof AyahMappingError
+            ? `تعذّر تحديد أرقام الآيات في الصفحة ${arabicNum(e.page)} بدقة، ولن نربط نصًا بتلاوة غير مؤكدة. جرّب نطاقًا آخر أو حدّث بيانات المصحف.`
+            : 'تعذّر تجهيز وحدات الحفظ.'
+        );
       });
     return () => { cancelled = true; };
   }, [pages, settings.startPage, settings.endPage, settings.unitMode, settings.unitSize]);
@@ -106,12 +114,12 @@ export function MemorizationRepeatSession({ session, pages, totalPages }: Props)
   const unit = units[currentUnit];
   const targetText = useMemo(() => {
     if (!unit) return '';
-    return settings.method === 'cumulative' ? cumulativeText(units, currentUnit) : unit.text;
-  }, [unit, units, currentUnit, settings.method]);
+    return settings.method === 'cumulative' ? cumulativeText(units, currentUnit, memorizedIds) : unit.text;
+  }, [unit, units, currentUnit, settings.method, memorizedIds]);
   const targetRefs = useMemo(() => {
     if (!unit) return [];
-    return settings.method === 'cumulative' ? cumulativeRefs(units, currentUnit) : unit.refs;
-  }, [unit, units, currentUnit, settings.method]);
+    return settings.method === 'cumulative' ? cumulativeRefs(units, currentUnit, memorizedIds) : unit.refs;
+  }, [unit, units, currentUnit, settings.method, memorizedIds]);
 
   /* ─── phase & audio ─── */
   const [phase, setPhase] = useState<Phase>('listening');
@@ -126,6 +134,66 @@ export function MemorizationRepeatSession({ session, pages, totalPages }: Props)
     setAudioBusy(false);
     setAudioPaused(false);
   }, []);
+
+  /* ─── speech ─── */
+  const providerRef = useRef<QuranSpeechRecognitionProvider | null>(null);
+  const [micState, setMicState] = useState<MicState>('idle');
+  const [partial, setPartial] = useState('');
+  const [finalText, setFinalText] = useState('');
+  const [report, setReport] = useState<DiffReport | null>(null);
+  const [speechNote, setSpeechNote] = useState<string | null>(null);
+  const startingRef = useRef(false);
+  const endingRef = useRef(false);
+
+  useEffect(() => {
+    let alive = true;
+    getSpeechProvider().then(p => {
+      if (!alive) return;
+      providerRef.current = p;
+      if (p.id === 'none') setMicState('unavailable');
+    }).catch(e => console.error('[memorization] speech provider failed', e));
+    return () => {
+      alive = false;
+      void providerRef.current?.dispose();
+      stopAudio();
+    };
+  }, []);
+
+  /**
+   * The single place that brings the session to a safe rest: repetition loop,
+   * reciter audio and microphone all stop together — never one without the other.
+   */
+  const handleSessionInterruption = useCallback((note?: string) => {
+    loopToken.current++;
+    stopAudio();
+    setAudioBusy(false);
+    setAudioPaused(false);
+    void providerRef.current?.dispose();
+    setMicState(prev => (prev === 'listening' || prev === 'requestingPermission' || prev === 'processing' ? 'idle' : prev));
+    setPartial('');
+    if (note) setSpeechNote(note);
+    // Progress is already persisted after every event; touch updatedAt so the
+    // record reflects the interruption too.
+    patchProgress(sessionId, {});
+  }, [patchProgress, sessionId]);
+
+  const approveUnitRef = useRef<() => void>(() => {});
+  const beginRecitationRef = useRef<() => Promise<void>>(async () => {});
+
+  const runCheck = useCallback((text: string) => {
+    if (!targetText || !unit) return;
+    const rep = compareRecitation(targetText, text);
+    setReport(rep);
+    addAttempt(sessionId, {
+      at: Date.now(),
+      unitId: unit.stableId,
+      rawTranscript: text,
+      tokens: rep.tokens,
+      score: rep.score,
+      doubtful: rep.doubtful,
+    });
+    if (rep.approvable && settings.autoApproveOnSuccess) approveUnitRef.current();
+  }, [targetText, unit, addAttempt, sessionId, settings.autoApproveOnSuccess]);
 
   const runRepeats = useCallback(async (times: number, fromZero: boolean) => {
     if (!unit || targetRefs.length === 0) return;
@@ -150,52 +218,13 @@ export function MemorizationRepeatSession({ session, pages, totalPages }: Props)
       patchProgress(sessionId, { repsDone: done });
     }
     setAudioBusy(false);
-    if (settings.autoStartRecitation) void beginRecitation();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    if (settings.autoStartRecitation) void beginRecitationRef.current();
   }, [unit, targetRefs, repsDone, settings.reciterId, settings.autoStartRecitation, patchProgress, sessionId]);
 
-  /* ─── speech ─── */
-  const providerRef = useRef<QuranSpeechRecognitionProvider | null>(null);
-  const [micState, setMicState] = useState<MicState>('idle');
-  const [partial, setPartial] = useState('');
-  const [finalText, setFinalText] = useState('');
-  const [report, setReport] = useState<DiffReport | null>(null);
-  const [speechNote, setSpeechNote] = useState<string | null>(null);
-  const startingRef = useRef(false);
-
-  useEffect(() => {
-    let alive = true;
-    getSpeechProvider().then(p => {
-      if (!alive) return;
-      providerRef.current = p;
-      if (p.id === 'none') setMicState('unavailable');
-    }).catch(e => console.error('[memorization] speech provider failed', e));
-    return () => {
-      alive = false;
-      void providerRef.current?.dispose();
-      stopAudio();
-    };
-  }, []);
-
-  const runCheck = useCallback((text: string) => {
-    if (!targetText) return;
-    const rep = compareRecitation(targetText, text);
-    setReport(rep);
-    addAttempt(sessionId, {
-      at: Date.now(),
-      unitIndex: currentUnit,
-      rawTranscript: text,
-      tokens: rep.tokens,
-      score: rep.score,
-      doubtful: rep.doubtful,
-    });
-    if (!rep.doubtful && rep.score === 1 && settings.autoApproveOnSuccess) approveUnit();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [targetText, addAttempt, sessionId, currentUnit, settings.autoApproveOnSuccess]);
-
   const beginRecitation = useCallback(async () => {
-    if (startingRef.current || micState === 'listening') return;
+    if (startingRef.current || micState === 'listening' || micState === 'processing') return;
     startingRef.current = true;
+    endingRef.current = false;
     try {
       // 1. reciter audio must be fully silent before the mic opens
       stopLoop();
@@ -212,12 +241,12 @@ export function MemorizationRepeatSession({ session, pages, totalPages }: Props)
 
       if (provider.id === 'none') {
         setMicState('unavailable');
-        setSpeechNote('التعرف الصوتي غير متاح على هذا الجهاز — سمِّع لنفسك ثم اعتمد الحفظ يدويًا.');
+        setSpeechNote('التعرف الصوتي غير متاح حاليًا — يمكنك التسميع لنفسك واعتماد الحفظ يدويًا.');
         return;
       }
-      if (provider.requiresNetwork && !isOnline()) {
+      if (provider.networkRequirement === 'required' && !isOnline()) {
         setMicState('unavailable');
-        setSpeechNote('التعرف الصوتي غير متاح بدون اتصال حاليًا — سمِّع لنفسك ثم اعتمد الحفظ يدويًا.');
+        setSpeechNote('التعرف الصوتي غير متاح بدون اتصال حاليًا — يمكنك التسميع لنفسك واعتماد الحفظ يدويًا.');
         return;
       }
 
@@ -230,10 +259,22 @@ export function MemorizationRepeatSession({ session, pages, totalPages }: Props)
         return;
       }
 
-      const ok = await provider.startListening(settings.language || 'ar-SA', {
+      // Arabic must really exist on the device; we never fall back to another language.
+      const langCheck = await provider.resolveLanguage(settings.language || 'ar-SA');
+      if (!langCheck.supported) {
+        setMicState('unavailable');
+        setSpeechNote('التعرف على العربية غير متاح على هذا الجهاز — يمكنك التسميع لنفسك واعتماد الحفظ يدويًا.');
+        return;
+      }
+      if (langCheck.substituted) {
+        setSpeechNote(`لهجة "${settings.language}" غير متوفرة — سيُستخدم "${langCheck.lang}".`);
+      }
+
+      const ok = await provider.startListening(langCheck.lang, {
         onPartialResult: (t) => setPartial(t),
         onStateChange: (s) => setMicState(s),
         onFinalResult: (t) => {
+          endingRef.current = false;
           setFinalText(t);
           setPhase('reviewing');
           if (!t) {
@@ -250,24 +291,36 @@ export function MemorizationRepeatSession({ session, pages, totalPages }: Props)
       if (!ok) {
         setSpeechNote('تعذّر بدء التسميع — حاول مرة أخرى.');
         setMicState('error');
+        setPhase('reviewing');
       }
     } finally {
       startingRef.current = false;
     }
   }, [micState, stopLoop, settings.language, settings.autoCheck, runCheck]);
 
+  useEffect(() => { beginRecitationRef.current = beginRecitation; }, [beginRecitation]);
+
   const endRecitation = useCallback(async () => {
-    setPhase('reviewing');
+    if (endingRef.current) return; // one finish per session
+    endingRef.current = true;
+    setMicState('processing');
     try {
+      // The provider waits for the real final result (with its own safe timeout)
+      // and calls onFinalResult exactly once.
       await providerRef.current?.stopListening();
     } catch (e) {
       console.error('[memorization] stop listening failed', e);
+      setPhase('reviewing');
       setMicState('idle');
       setSpeechNote('توقفت محاولة التسميع — أعد المحاولة.');
+      endingRef.current = false;
     }
   }, []);
 
   /* ─── interruptions (calls, background, screen lock) ─── */
+  const wasListeningRef = useRef(false);
+  useEffect(() => { wasListeningRef.current = micState === 'listening' || micState === 'requestingPermission'; }, [micState]);
+
   useEffect(() => {
     let remove: (() => void) | undefined;
     (async () => {
@@ -275,14 +328,7 @@ export function MemorizationRepeatSession({ session, pages, totalPages }: Props)
         const { App } = await import('@capacitor/app');
         const handle = await App.addListener('appStateChange', ({ isActive }) => {
           if (isActive) return;
-          loopToken.current++;
-          stopAudio();
-          setAudioBusy(false);
-          void providerRef.current?.dispose();
-          if (micState === 'listening' || micState === 'requestingPermission') {
-            setMicState('idle');
-            setSpeechNote('توقفت محاولة التسميع — أعد المحاولة.');
-          }
+          handleSessionInterruption(wasListeningRef.current ? 'توقفت محاولة التسميع — أعد المحاولة.' : undefined);
         });
         remove = () => { void handle.remove(); };
       } catch (e) {
@@ -291,29 +337,23 @@ export function MemorizationRepeatSession({ session, pages, totalPages }: Props)
     })();
     const onHide = () => {
       if (document.visibilityState !== 'hidden') return;
-      loopToken.current++;
-      stopAudio();
-      setAudioBusy(false);
+      handleSessionInterruption(wasListeningRef.current ? 'توقفت محاولة التسميع — أعد المحاولة.' : undefined);
     };
     document.addEventListener('visibilitychange', onHide);
     return () => {
       document.removeEventListener('visibilitychange', onHide);
       remove?.();
     };
-  }, [micState]);
+  }, [handleSessionInterruption]);
 
   /* ─── unit flow ─── */
-  const approveUnit = useCallback(() => {
-    markMemorized(sessionId, currentUnit);
-    toast.success('تم اعتماد حفظ هذه الوحدة');
-    if (settings.autoAdvance) goToUnit(currentUnit + 1);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [markMemorized, sessionId, currentUnit, settings.autoAdvance]);
+  const autoPlayedFor = useRef<string | null>(null);
 
   const goToUnit = useCallback((index: number) => {
     const next = Math.max(0, Math.min(units.length - 1, index));
     stopLoop();
     void providerRef.current?.dispose();
+    endingRef.current = false;
     setMicState('idle');
     setPartial('');
     setFinalText('');
@@ -326,26 +366,71 @@ export function MemorizationRepeatSession({ session, pages, totalPages }: Props)
     if (page) updateSession(sessionId, { currentPage: page });
   }, [units, stopLoop, patchProgress, sessionId, updateSession]);
 
-  /* auto play when a unit opens */
-  const autoPlayedFor = useRef<number | null>(null);
+  const approveUnit = useCallback(() => {
+    if (!unit) return;
+    markMemorized(sessionId, unit.stableId);
+    toast.success('تم اعتماد حفظ هذه الوحدة');
+    if (settings.autoAdvance && currentUnit < units.length - 1) goToUnit(currentUnit + 1);
+    else { stopLoop(); setPhase('listening'); }
+  }, [unit, markMemorized, sessionId, settings.autoAdvance, currentUnit, units.length, goToUnit, stopLoop]);
+
+  useEffect(() => { approveUnitRef.current = approveUnit; }, [approveUnit]);
+
+  /* keep the cursor inside the (possibly rebuilt) unit list */
+  useEffect(() => {
+    if (unitsLoading || units.length === 0) return;
+    if (currentUnit > units.length - 1) {
+      patchProgress(sessionId, { currentUnit: units.length - 1, repsDone: 0 });
+      autoPlayedFor.current = null;
+    }
+  }, [units, unitsLoading, currentUnit, patchProgress, sessionId]);
+
+  /* auto play when a unit opens — keyed by the unit identity, not its index */
   useEffect(() => {
     if (!settings.autoPlayAudio || unitsLoading || !unit) return;
     if (phase !== 'listening') return;
-    if (autoPlayedFor.current === currentUnit) return;
-    autoPlayedFor.current = currentUnit;
+    if (autoPlayedFor.current === unit.stableId) return;
+    autoPlayedFor.current = unit.stableId;
     if (repsDone < settings.repeatTarget) void runRepeats(settings.repeatTarget, repsDone === 0);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentUnit, unitsLoading, settings.autoPlayAudio, phase]);
+  }, [unit?.stableId, unitsLoading, settings.autoPlayAudio, phase]);
 
-  /* ─── settings sheet ─── */
+  /* ─── settings ─── */
   const [showSettings, setShowSettings] = useState(false);
+  const [pendingStructural, setPendingStructural] = useState<Partial<MemorizationSettings> | null>(null);
+
   const setSetting = <K extends keyof MemorizationSettings>(key: K, value: MemorizationSettings[K]) => {
+    if (settings[key] === value) return;
+    if ((STRUCTURAL_SETTING_KEYS as readonly string[]).includes(key as string)) {
+      setPendingStructural({ [key]: value } as Partial<MemorizationSettings>);
+      return;
+    }
     patchSettings(sessionId, { [key]: value } as Partial<MemorizationSettings>);
   };
 
+  const applyStructural = () => {
+    if (!pendingStructural) return;
+    // Structure changes stop everything first, then rebuild.
+    handleSessionInterruption();
+    setPhase('listening');
+    setReport(null);
+    setFinalText('');
+    autoPlayedFor.current = null;
+    patchSettings(sessionId, pendingStructural);
+    patchProgress(sessionId, { repsDone: 0 });
+    setPendingStructural(null);
+  };
+
   const listening = micState === 'listening';
-  const memorizedSet = useMemo(() => new Set(memorizedUnits), [memorizedUnits]);
   const hideText = phase === 'reciting';
+  const wordModeAudioNote = settings.unitMode === 'words' && unit && unit.refs.length > 0;
+
+  const isVisibleUnit = (u: MemorizationUnit) => {
+    if (u.index <= currentUnit || memorizedIds.has(u.stableId)) return true;
+    if (settings.upcomingVisibility === 'all') return true;
+    if (settings.upcomingVisibility === 'next') return u.index === currentUnit + 1;
+    return false;
+  };
 
   /* ─── render ─── */
   return (
@@ -354,7 +439,7 @@ export function MemorizationRepeatSession({ session, pages, totalPages }: Props)
       <header className="sticky top-0 z-30 bg-background/95 backdrop-blur border-b border-border/50 px-3 py-2">
         <div className="max-w-2xl mx-auto flex items-center gap-2">
           <button
-            onClick={() => { stopLoop(); void providerRef.current?.dispose(); navigate('/sessions'); }}
+            onClick={() => { handleSessionInterruption(); navigate('/sessions'); }}
             className="w-11 h-11 rounded-xl flex items-center justify-center hover:bg-muted/60"
             aria-label="رجوع"
           >
@@ -365,7 +450,7 @@ export function MemorizationRepeatSession({ session, pages, totalPages }: Props)
             <p className="font-arabic text-[11px] text-muted-foreground">
               {unitsLoading
                 ? 'جارٍ التجهيز…'
-                : `الوحدة ${arabicNum(currentUnit + 1)} من ${arabicNum(units.length || 1)} • محفوظة ${arabicNum(memorizedUnits.length)}`}
+                : `الوحدة ${arabicNum(currentUnit + 1)} من ${arabicNum(units.length || 1)} • محفوظة ${arabicNum(memorizedIds.size)}`}
             </p>
           </div>
           <button
@@ -385,30 +470,40 @@ export function MemorizationRepeatSession({ session, pages, totalPages }: Props)
             <div className="flex items-center gap-2 text-muted-foreground font-arabic text-sm">
               <Loader2 className="w-4 h-4 animate-spin" /> جارٍ تجهيز وحدات الحفظ…
             </div>
+          ) : unitsError ? (
+            <p className="font-arabic text-sm text-destructive flex items-start gap-2">
+              <AlertTriangle className="w-5 h-5 shrink-0 mt-0.5" />{unitsError}
+            </p>
           ) : units.length === 0 ? (
             <p className="font-arabic text-sm text-muted-foreground">لا توجد آيات في النطاق المحدد.</p>
           ) : (
             <div className="space-y-2 leading-[2.4] text-right font-quran text-xl">
-              {units.map(u => {
+              {units.filter(isVisibleUnit).map(u => {
                 const isCurrent = u.index === currentUnit;
-                const isMemorized = memorizedSet.has(u.index);
-                if (u.index > currentUnit && !isMemorized) {
+                const isMemorized = memorizedIds.has(u.stableId);
+                const state = isMemorized ? 'memorized' : isCurrent ? 'current' : 'upcoming';
+                if (!isCurrent && !isMemorized) {
                   return (
-                    <p key={u.id} className="text-muted-foreground/35">{u.text}</p>
+                    <p key={u.stableId} data-unit-state="upcoming" className="text-muted-foreground/40">
+                      {u.text}
+                    </p>
                   );
                 }
                 return (
                   <p
-                    key={u.id}
-                    data-unit-state={isMemorized ? 'memorized' : isCurrent ? 'current' : 'upcoming'}
+                    key={u.stableId}
+                    data-unit-state={state}
                     className={
                       isMemorized
-                        ? 'text-emerald-700 dark:text-emerald-300 rounded-lg px-1'
-                        : isCurrent
-                          ? 'text-foreground bg-primary/5 rounded-lg px-1 ring-1 ring-primary/30'
-                          : 'text-muted-foreground'
+                        ? 'text-emerald-700 dark:text-emerald-300 bg-emerald-500/10 rounded-lg px-1 border-r-4 border-emerald-600'
+                        : 'text-foreground bg-primary/5 rounded-lg px-1 ring-1 ring-primary/30'
                     }
                   >
+                    {isMemorized && (
+                      <span className="font-arabic text-[11px] text-emerald-700 dark:text-emerald-300 align-middle ml-1">
+                        ✓ محفوظة
+                      </span>
+                    )}
                     {isCurrent && hideText
                       ? <span className="text-muted-foreground font-arabic text-base">النص مخفي أثناء التسميع…</span>
                       : u.text}
@@ -434,6 +529,11 @@ export function MemorizationRepeatSession({ session, pages, totalPages }: Props)
                 style={{ width: `${Math.min(100, (repsDone / Math.max(1, settings.repeatTarget)) * 100)}%` }}
               />
             </div>
+            {wordModeAudioNote && (
+              <p className="font-arabic text-[11px] text-muted-foreground">
+                التلاوة متوفرة على مستوى الآية كاملة، لذا ستُتلى الآية التي تحوي هذه الكلمات.
+              </p>
+            )}
             {audioNote && (
               <p className="font-arabic text-xs text-amber-600 flex items-start gap-1">
                 <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />{audioNote}
@@ -513,6 +613,11 @@ export function MemorizationRepeatSession({ session, pages, totalPages }: Props)
                     نتيجة التعرف الصوتي غير مؤكدة — لا يعني ذلك بالضرورة خطأ منك.
                   </p>
                 )}
+                {!report.doubtful && report.hasUnclear && (
+                  <p className="font-arabic text-xs text-muted-foreground">
+                    بعض الكلمات غير واضحة — يمكنك إعادة تسميعها قبل اعتماد الحفظ.
+                  </p>
+                )}
                 <p className="font-arabic text-sm">
                   الكلمات الصحيحة: {arabicNum(report.correct)} من {arabicNum(report.total)}
                 </p>
@@ -584,6 +689,23 @@ export function MemorizationRepeatSession({ session, pages, totalPages }: Props)
         </div>
       )}
 
+      {/* structural change confirmation */}
+      <AlertDialog open={!!pendingStructural} onOpenChange={(o) => { if (!o) setPendingStructural(null); }}>
+        <AlertDialogContent dir="rtl">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="font-arabic text-right">تغيير بنية وحدات الحفظ</AlertDialogTitle>
+            <AlertDialogDescription className="font-arabic text-right">
+              هذا التغيير يعيد تقسيم وحدات الحفظ. ما اعتمدتَه محفوظًا يبقى محفوظًا بحسب موضعه في المصحف،
+              لكن حدود الوحدات وترقيمها ستتغير، وسيتوقف الصوت والميكروفون الآن.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="gap-2">
+            <AlertDialogCancel className="font-arabic">إلغاء</AlertDialogCancel>
+            <AlertDialogAction className="font-arabic" onClick={applyStructural}>متابعة</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       {/* settings */}
       <Sheet open={showSettings} onOpenChange={setShowSettings}>
         <SheetContent side="bottom" className="max-h-[88dvh] overflow-y-auto" dir="rtl">
@@ -596,8 +718,9 @@ export function MemorizationRepeatSession({ session, pages, totalPages }: Props)
                 <Label className="font-arabic text-xs">من صفحة</Label>
                 <Input
                   type="number" inputMode="numeric" min={1} max={totalPages}
-                  value={settings.startPage}
-                  onChange={e => setSetting('startPage', Math.max(1, Number(e.target.value) || 1))}
+                  defaultValue={settings.startPage}
+                  key={`start-${settings.startPage}`}
+                  onBlur={e => setSetting('startPage', Math.max(1, Number(e.target.value) || 1))}
                   className="h-11"
                 />
               </div>
@@ -605,8 +728,9 @@ export function MemorizationRepeatSession({ session, pages, totalPages }: Props)
                 <Label className="font-arabic text-xs">إلى صفحة</Label>
                 <Input
                   type="number" inputMode="numeric" min={1} max={totalPages}
-                  value={settings.endPage}
-                  onChange={e => setSetting('endPage', Math.max(1, Number(e.target.value) || 1))}
+                  defaultValue={settings.endPage}
+                  key={`end-${settings.endPage}`}
+                  onBlur={e => setSetting('endPage', Math.max(1, Number(e.target.value) || 1))}
                   className="h-11"
                 />
               </div>
@@ -641,8 +765,9 @@ export function MemorizationRepeatSession({ session, pages, totalPages }: Props)
                 ))}
                 <Input
                   type="number" inputMode="numeric" min={1}
-                  value={settings.unitSize}
-                  onChange={e => setSetting('unitSize', Math.max(1, Number(e.target.value) || 1))}
+                  defaultValue={settings.unitSize}
+                  key={`size-${settings.unitSize}`}
+                  onBlur={e => setSetting('unitSize', Math.max(1, Number(e.target.value) || 1))}
                   className="h-10 w-24"
                 />
               </div>
@@ -664,8 +789,9 @@ export function MemorizationRepeatSession({ session, pages, totalPages }: Props)
                 ))}
                 <Input
                   type="number" inputMode="numeric" min={1}
-                  value={settings.repeatTarget}
-                  onChange={e => setSetting('repeatTarget', Math.max(1, Number(e.target.value) || 1))}
+                  defaultValue={settings.repeatTarget}
+                  key={`rep-${settings.repeatTarget}`}
+                  onBlur={e => setSetting('repeatTarget', Math.max(1, Number(e.target.value) || 1))}
                   className="h-10 w-24"
                 />
               </div>
@@ -677,7 +803,22 @@ export function MemorizationRepeatSession({ session, pages, totalPages }: Props)
                 <SelectTrigger className="h-11 font-arabic"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="new" className="font-arabic">الجديد فقط</SelectItem>
-                  <SelectItem value="cumulative" className="font-arabic">تراكمي</SelectItem>
+                  <SelectItem value="cumulative" className="font-arabic">تراكمي (المحفوظ + الجديد)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <Label className="font-arabic text-xs">عرض الوحدات القادمة</Label>
+              <Select
+                value={settings.upcomingVisibility}
+                onValueChange={(v) => setSetting('upcomingVisibility', v as MemorizationSettings['upcomingVisibility'])}
+              >
+                <SelectTrigger className="h-11 font-arabic"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="hidden" className="font-arabic">مخفية</SelectItem>
+                  <SelectItem value="next" className="font-arabic">الوحدة التالية فقط</SelectItem>
+                  <SelectItem value="all" className="font-arabic">الجميع بشكل باهت</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -715,7 +856,7 @@ export function MemorizationRepeatSession({ session, pages, totalPages }: Props)
               ['autoStartRecitation', 'الانتقال إلى التسميع تلقائيًا بعد التكرار'],
               ['autoCheck', 'التحقق تلقائيًا بعد التسميع'],
               ['autoApproveOnSuccess', 'اعتماد الحفظ بعد تسميع ناجح'],
-              ['autoAdvance', 'الانتقال إلى الوحدة التالية تلقائيًا'],
+              ['autoAdvance', 'الانتقال إلى الوحدة التالية بعد اعتماد الحفظ'],
             ] as const).map(([key, label]) => (
               <div key={key} className="flex items-center justify-between gap-3 py-1">
                 <Label className="font-arabic text-sm">{label}</Label>
@@ -729,7 +870,7 @@ export function MemorizationRepeatSession({ session, pages, totalPages }: Props)
             <Button
               variant="outline"
               className="w-full h-11 font-arabic text-destructive"
-              onClick={() => { resetSession(sessionId); stopLoop(); setShowSettings(false); toast.success('تم تصفير تقدم الجلسة'); }}
+              onClick={() => { resetSession(sessionId); handleSessionInterruption(); autoPlayedFor.current = null; setShowSettings(false); toast.success('تم تصفير تقدم الجلسة'); }}
             >
               تصفير تقدم الجلسة
             </Button>
