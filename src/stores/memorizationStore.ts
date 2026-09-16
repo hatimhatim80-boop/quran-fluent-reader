@@ -195,3 +195,11 @@ export const useMemorizationStore = create<MemorizationState>()(
     },
   ),
 );
+
+/** Safety net: never leave the session stuck on "restoring" if storage never answers. */
+setTimeout(() => {
+  if (!useMemorizationStore.getState().hasHydrated) {
+    console.error('[memorizationStore] hydration watchdog fired — continuing without stored progress');
+    useMemorizationStore.getState().setHydrated();
+  }
+}, 6000);

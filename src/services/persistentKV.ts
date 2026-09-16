@@ -4,6 +4,18 @@ import { openDB } from 'idb';
 import type { StateStorage } from 'zustand/middleware';
 
 const STORE_NAME = 'keyval';
+const READ_TIMEOUT_MS = 4000;
+
+/** Never let a blocked IndexedDB/Preferences read hang the app forever. */
+function withTimeout<T>(promise: Promise<T>, label: string): Promise<T | null> {
+  return Promise.race([
+    promise,
+    new Promise<null>(resolve => setTimeout(() => {
+      console.error(`[persistentKV] ${label} timed out after ${READ_TIMEOUT_MS}ms`);
+      resolve(null);
+    }, READ_TIMEOUT_MS)),
+  ]);
+}
 
 export function createPersistentStorage(dbName: string): StateStorage {
   const native = Capacitor.isNativePlatform();
@@ -16,7 +28,10 @@ export function createPersistentStorage(dbName: string): StateStorage {
 
   const readWeb = async (name: string): Promise<string | null> => {
     try {
-      const value = await (await getDB()).get(STORE_NAME, name) as string | undefined;
+      const value = await withTimeout(
+        (async () => (await getDB()).get(STORE_NAME, name) as Promise<string | undefined>)(),
+        `${dbName} IndexedDB read`,
+      );
       if (value != null) return value;
     } catch (error) {
       console.error(`[persistentKV:${dbName}] IndexedDB read failed`, error);
@@ -51,8 +66,8 @@ export function createPersistentStorage(dbName: string): StateStorage {
       if (!native) return readWeb(name);
       const key = `${dbName}:${name}`;
       try {
-        const { value } = await (await preferences()).get({ key });
-        if (value != null) return value;
+        const result = await withTimeout((async () => (await preferences()).get({ key }))(), `${dbName} Preferences read`);
+        if (result?.value != null) return result.value;
       } catch (error) {
         console.error(`[persistentKV:${dbName}] Preferences read failed`, error);
       }
