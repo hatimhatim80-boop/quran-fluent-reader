@@ -247,7 +247,7 @@ export function MemorizationRepeatSession({ session, pages, totalPages }: Props)
           setSpeechNote(msg);
         },
       });
-      if (!ok && micState !== 'listening') {
+      if (!ok) {
         setSpeechNote('تعذّر بدء التسميع — حاول مرة أخرى.');
         setMicState('error');
       }
