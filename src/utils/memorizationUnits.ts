@@ -4,6 +4,10 @@
  * A unit is either a group of ayat or a fixed number of words; word units
  * may cross an ayah boundary, in which case they carry every ayah they touch
  * so the reciter audio can play all of them.
+ *
+ * Quranic correctness outranks "keep playing": an ayah is NEVER guessed. If the
+ * page text cannot be mapped one-to-one onto real surah/ayah references, the
+ * build fails loudly instead of attaching a wrong audio file to a wrong text.
  */
 
 import { QuranPage } from '@/types/quran';
@@ -13,7 +17,8 @@ import { extractPageAyahGroups } from '@/components/TahfeezSRSPanel';
 export type UnitMode = 'ayah' | 'words';
 
 export interface MemorizationUnit {
-  id: string;
+  /** Content-derived identity — survives a change of unit size/mode. */
+  stableId: string;
   index: number;
   /** Original Quranic words, untouched. */
   words: string[];
@@ -22,6 +27,14 @@ export interface MemorizationUnit {
   refs: AyahRef[];
   page: number;
   label: string;
+}
+
+/** Thrown when page text and ayah references do not line up. */
+export class AyahMappingError extends Error {
+  constructor(public page: number, public groupCount: number, public refCount: number) {
+    super(`ayah mapping mismatch on page ${page}: ${groupCount} groups vs ${refCount} refs`);
+    this.name = 'AyahMappingError';
+  }
 }
 
 interface AyahItem {
@@ -36,14 +49,36 @@ async function collectAyat(pages: QuranPage[], startPage: number, endPage: numbe
     const pageData = pages.find(p => p.pageNumber === page);
     if (!pageData) continue;
     const groups = extractPageAyahGroups(pageData.text, page);
+    if (groups.length === 0) continue;
+
     let refs: AyahRef[] = [];
     try {
       refs = await getPageAyahRefs(page);
     } catch (e) {
-      console.error('[memorizationUnits] page refs failed', page, e);
+      console.error('[memorizationUnits] page refs failed', { page }, e);
+      throw new AyahMappingError(page, groups.length, 0);
     }
+
+    if (groups.length !== refs.length) {
+      console.error('[memorizationUnits] ayah mapping mismatch', {
+        page,
+        groupCount: groups.length,
+        refCount: refs.length,
+      });
+      throw new AyahMappingError(page, groups.length, refs.length);
+    }
+
     groups.forEach((group, idx) => {
-      const ref = refs[idx] || refs[refs.length - 1] || { surah: 0, ayah: 0 };
+      const ref = refs[idx];
+      if (!ref || !ref.surah || !ref.ayah) {
+        console.error('[memorizationUnits] ayah mapping mismatch', {
+          page,
+          groupCount: groups.length,
+          refCount: refs.length,
+          missingIndex: idx,
+        });
+        throw new AyahMappingError(page, groups.length, refs.length);
+      }
       items.push({ page, ref, words: group.map(t => t.text) });
     });
   }
@@ -83,13 +118,11 @@ export async function buildMemorizationUnits(
       const refs = uniqueRefs(chunk.map(c => c.ref));
       const first = refs[0];
       const last = refs[refs.length - 1];
-      const label = refs.length === 0
-        ? `وحدة ${arabicNum(units.length + 1)}`
-        : first.ayah === last.ayah && first.surah === last.surah
-          ? `الآية ${arabicNum(first.ayah)}`
-          : `الآيات ${arabicNum(first.ayah)}–${arabicNum(last.ayah)}`;
+      const label = first.ayah === last.ayah && first.surah === last.surah
+        ? `الآية ${arabicNum(first.ayah)}`
+        : `الآيات ${arabicNum(first.ayah)}–${arabicNum(last.ayah)}`;
       units.push({
-        id: `u_${units.length}`,
+        stableId: `a:${first.surah}:${first.ayah}-${last.surah}:${last.ayah}`,
         index: units.length,
         words,
         text: words.join(' '),
@@ -101,16 +134,19 @@ export async function buildMemorizationUnits(
     return units;
   }
 
-  // Word mode — a flat stream of words that remembers its ayah.
-  const stream: { word: string; ref: AyahRef; page: number }[] = [];
-  ayat.forEach(a => a.words.forEach(w => stream.push({ word: w, ref: a.ref, page: a.page })));
+  // Word mode — a flat stream of words that remembers its ayah and its
+  // position inside that ayah, so a unit keeps an exact identity.
+  const stream: { word: string; ref: AyahRef; page: number; posInAyah: number }[] = [];
+  ayat.forEach(a => a.words.forEach((w, k) => stream.push({ word: w, ref: a.ref, page: a.page, posInAyah: k })));
 
   for (let i = 0; i < stream.length; i += step) {
     const chunk = stream.slice(i, i + step);
     if (chunk.length === 0) continue;
     const words = chunk.map(c => c.word);
+    const head = chunk[0];
+    const tail = chunk[chunk.length - 1];
     units.push({
-      id: `u_${units.length}`,
+      stableId: `w:${head.ref.surah}:${head.ref.ayah}:${head.posInAyah}-${tail.ref.surah}:${tail.ref.ayah}:${tail.posInAyah}`,
       index: units.length,
       words,
       text: words.join(' '),
@@ -122,11 +158,24 @@ export async function buildMemorizationUnits(
   return units;
 }
 
-/** Text of every memorized unit up to and including `index` (cumulative mode). */
-export function cumulativeText(units: MemorizationUnit[], index: number): string {
-  return units.slice(0, index + 1).map(u => u.text).join(' ');
+/**
+ * Cumulative recitation text: only units the student actually approved, plus
+ * the current one — never "everything before the cursor".
+ */
+export function cumulativeUnits(
+  units: MemorizationUnit[],
+  index: number,
+  memorizedIds: Set<string>,
+): MemorizationUnit[] {
+  const out = units.filter((u, i) => i < index && memorizedIds.has(u.stableId));
+  if (units[index]) out.push(units[index]);
+  return out;
 }
 
-export function cumulativeRefs(units: MemorizationUnit[], index: number): AyahRef[] {
-  return uniqueRefs(units.slice(0, index + 1).flatMap(u => u.refs));
+export function cumulativeText(units: MemorizationUnit[], index: number, memorizedIds: Set<string>): string {
+  return cumulativeUnits(units, index, memorizedIds).map(u => u.text).join(' ');
+}
+
+export function cumulativeRefs(units: MemorizationUnit[], index: number, memorizedIds: Set<string>): AyahRef[] {
+  return uniqueRefs(cumulativeUnits(units, index, memorizedIds).flatMap(u => u.refs));
 }

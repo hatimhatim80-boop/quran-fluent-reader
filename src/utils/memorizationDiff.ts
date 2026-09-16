@@ -28,23 +28,43 @@ export interface DiffReport {
   score: number;
   /** True when too much of the attempt is doubtful to judge the student. */
   doubtful: boolean;
+  /** At least one word could not be judged with confidence. */
+  hasUnclear: boolean;
+  /** The engine clearly returned less than what was expected. */
+  truncated: boolean;
+  /** Safe to approve memorization automatically. */
+  approvable: boolean;
 }
 
 /** A substitution this close is much more likely an engine slip than a mistake. */
 const UNCLEAR_THRESHOLD = 0.62;
 const EQUAL_THRESHOLD = 0.86;
+/** Short Quranic words differ by a single letter — fuzzy distance is unsafe. */
+const SHORT_WORD_LEN = 3;
+
+function judge(expNorm: string, heardNorm: string): DiffStatus {
+  if (!expNorm || !heardNorm) return 'unclear';
+  if (expNorm === heardNorm) return 'correct';
+  const sim = similarity(expNorm, heardNorm);
+  // For short, look-alike words an approximate match proves nothing.
+  if (expNorm.length <= SHORT_WORD_LEN || heardNorm.length <= SHORT_WORD_LEN) {
+    return sim >= UNCLEAR_THRESHOLD ? 'unclear' : 'different';
+  }
+  if (sim >= EQUAL_THRESHOLD) return 'correct';
+  return sim >= UNCLEAR_THRESHOLD ? 'unclear' : 'different';
+}
 
 export function compareRecitation(expectedText: string, heardText: string): DiffReport {
   const expectedWords = splitWords(expectedText);
   const heardWords = splitWords(heardText);
-  const exp = expectedWords.map(w => normalizeSpeechArabic(w)).filter((_, i) => true);
+  const exp = expectedWords.map(w => normalizeSpeechArabic(w));
   const heard = heardWords.map(w => normalizeSpeechArabic(w));
 
   const n = exp.length;
   const m = heard.length;
 
-  // Word-level edit distance with a fuzzy substitution cost.
-  const cost = (i: number, j: number) => (similarity(exp[i], heard[j]) >= EQUAL_THRESHOLD ? 0 : 1);
+  // Word-level edit distance; alignment only — the verdict comes from `judge`.
+  const cost = (i: number, j: number) => (judge(exp[i], heard[j]) === 'correct' ? 0 : 1);
   const dp: number[][] = Array.from({ length: n + 1 }, () => Array(m + 1).fill(0));
   for (let i = 0; i <= n; i++) dp[i][0] = i;
   for (let j = 0; j <= m; j++) dp[0][j] = j;
@@ -62,9 +82,7 @@ export function compareRecitation(expectedText: string, heardText: string): Diff
   let i = n, j = m;
   while (i > 0 || j > 0) {
     if (i > 0 && j > 0 && dp[i][j] === dp[i - 1][j - 1] + cost(i - 1, j - 1)) {
-      const sim = similarity(exp[i - 1], heard[j - 1]);
-      const status: DiffStatus =
-        sim >= EQUAL_THRESHOLD ? 'correct' : sim >= UNCLEAR_THRESHOLD ? 'unclear' : 'different';
+      const status = judge(exp[i - 1], heard[j - 1]);
       tokens.push({ status, expected: expectedWords[i - 1], heard: heardWords[j - 1] });
       i--; j--;
     } else if (i > 0 && dp[i][j] === dp[i - 1][j] + 1) {
@@ -105,13 +123,21 @@ export function compareRecitation(expectedText: string, heardText: string): Diff
   const unclear = graded.filter(t => t.status === 'unclear').length;
   const total = graded.length || 1;
 
+  const truncated = expectedWords.length > 0 && heardWords.length < expectedWords.length * 0.6;
+  const hasUnclear = unclear > 0;
+  const score = correct / total;
+
   return {
     tokens,
     correct,
     total: graded.length,
-    score: correct / total,
+    score,
     // Nothing heard at all, or most of it doubtful → do not blame the student.
-    doubtful: heardWords.length === 0 || unclear / total > 0.4,
+    doubtful: heardWords.length === 0 || unclear / total > 0.4 || truncated,
+    hasUnclear,
+    truncated,
+    // Automatic approval demands a clean, complete, unambiguous attempt.
+    approvable: score === 1 && !hasUnclear && !truncated && heardWords.length > 0,
   };
 }
 
