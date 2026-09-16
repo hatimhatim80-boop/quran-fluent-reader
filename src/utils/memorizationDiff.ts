@@ -123,13 +123,21 @@ export function compareRecitation(expectedText: string, heardText: string): Diff
   const unclear = graded.filter(t => t.status === 'unclear').length;
   const total = graded.length || 1;
 
+  const truncated = expectedWords.length > 0 && heardWords.length < expectedWords.length * 0.6;
+  const hasUnclear = unclear > 0;
+  const score = correct / total;
+
   return {
     tokens,
     correct,
     total: graded.length,
-    score: correct / total,
+    score,
     // Nothing heard at all, or most of it doubtful → do not blame the student.
-    doubtful: heardWords.length === 0 || unclear / total > 0.4,
+    doubtful: heardWords.length === 0 || unclear / total > 0.4 || truncated,
+    hasUnclear,
+    truncated,
+    // Automatic approval demands a clean, complete, unambiguous attempt.
+    approvable: score === 1 && !hasUnclear && !truncated && heardWords.length > 0,
   };
 }
 
