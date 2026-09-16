@@ -28,11 +28,31 @@ export interface DiffReport {
   score: number;
   /** True when too much of the attempt is doubtful to judge the student. */
   doubtful: boolean;
+  /** At least one word could not be judged with confidence. */
+  hasUnclear: boolean;
+  /** The engine clearly returned less than what was expected. */
+  truncated: boolean;
+  /** Safe to approve memorization automatically. */
+  approvable: boolean;
 }
 
 /** A substitution this close is much more likely an engine slip than a mistake. */
 const UNCLEAR_THRESHOLD = 0.62;
 const EQUAL_THRESHOLD = 0.86;
+/** Short Quranic words differ by a single letter — fuzzy distance is unsafe. */
+const SHORT_WORD_LEN = 3;
+
+function judge(expNorm: string, heardNorm: string): DiffStatus {
+  if (!expNorm || !heardNorm) return 'unclear';
+  if (expNorm === heardNorm) return 'correct';
+  const sim = similarity(expNorm, heardNorm);
+  // For short, look-alike words an approximate match proves nothing.
+  if (expNorm.length <= SHORT_WORD_LEN || heardNorm.length <= SHORT_WORD_LEN) {
+    return sim >= UNCLEAR_THRESHOLD ? 'unclear' : 'different';
+  }
+  if (sim >= EQUAL_THRESHOLD) return 'correct';
+  return sim >= UNCLEAR_THRESHOLD ? 'unclear' : 'different';
+}
 
 export function compareRecitation(expectedText: string, heardText: string): DiffReport {
   const expectedWords = splitWords(expectedText);
