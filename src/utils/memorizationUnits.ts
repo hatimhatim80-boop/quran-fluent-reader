@@ -129,6 +129,7 @@ export async function buildMemorizationUnits(
         : `الآيات ${arabicNum(first.ayah)}–${arabicNum(last.ayah)}`;
       units.push({
         stableId: `a:${first.surah}:${first.ayah}-${last.surah}:${last.ayah}`,
+        atomIds: refs.map(r => `a:${r.surah}:${r.ayah}`),
         index: units.length,
         words,
         text: words.join(' '),
