@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import {
   BookOpen, GraduationCap, Plus, Play, Archive, Trash2, RotateCcw, Clock,
   FolderOpen, FolderPlus, ArrowRightLeft, Pencil, Search, ArrowRight,
-  Copy, ChevronDown, SortAsc, Filter, Home as HomeIcon, FileText, Brain, Zap, BookMarked, BarChart3
+  Copy, ChevronDown, SortAsc, Filter, Home as HomeIcon, FileText, Brain, Zap, BookMarked, BarChart3, Mic
 } from 'lucide-react';
 import { TAHFEEZ_COMPLETABLE_SESSION_TYPES, useSessionsStore, Session, SessionType, SessionGroup } from '@/stores/sessionsStore';
 import { useReviewSessionStore } from '@/stores/reviewSessionStore';
@@ -54,6 +54,7 @@ const SESSION_TYPE_META: Record<SessionType, { label: string; icon: React.ReactN
   'tahfeez-test': { label: 'اختبار تخزين', icon: <FileText className="w-5 h-5" />, color: 'bg-accent/60 text-primary', portal: '/tahfeez' },
   'tahfeez-auto': { label: 'اختبار تلقائي', icon: <Zap className="w-5 h-5" />, color: 'bg-accent/60 text-primary', portal: '/tahfeez' },
   'tahfeez-review': { label: 'مراجعة الحفظ', icon: <BookMarked className="w-5 h-5" />, color: 'bg-accent/60 text-primary', portal: '/tahfeez' },
+  'tahfeez-memorize': { label: 'الحفظ بالتكرار', icon: <Mic className="w-5 h-5" />, color: 'bg-accent/60 text-primary', portal: '/memorize' },
 };
 
 type SortKey = 'lastOpenedAt' | 'name' | 'type' | 'createdAt';
