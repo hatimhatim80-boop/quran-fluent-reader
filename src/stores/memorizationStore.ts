@@ -31,7 +31,7 @@ export const STRUCTURAL_SETTING_KEYS = ['startPage', 'endPage', 'unitMode', 'uni
 
 export interface MemorizationAttempt {
   at: number;
-  unitId: string;
+  stableUnitId: string;
   rawTranscript: string;
   tokens: DiffToken[];
   score: number;

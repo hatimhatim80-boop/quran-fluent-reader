@@ -185,7 +185,7 @@ export function MemorizationRepeatSession({ session, pages, totalPages }: Props)
     setReport(rep);
     addAttempt(sessionId, {
       at: Date.now(),
-      unitId: unit.stableId,
+      stableUnitId: unit.stableId,
       rawTranscript: text,
       tokens: rep.tokens,
       score: rep.score,
