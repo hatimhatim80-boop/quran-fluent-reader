@@ -17,8 +17,14 @@ import { extractPageAyahGroups } from '@/components/TahfeezSRSPanel';
 export type UnitMode = 'ayah' | 'words';
 
 export interface MemorizationUnit {
-  /** Content-derived identity — survives a change of unit size/mode. */
+  /** Content-derived identity of the unit's boundaries. */
   stableId: string;
+  /**
+   * The smallest fixed pieces this unit is made of — one ayah (`a:surah:ayah`)
+   * or one word (`w:surah:ayah:pos`). Memorization is stored per atom, so
+   * re-slicing the range keeps every approved piece approved.
+   */
+  atomIds: string[];
   index: number;
   /** Original Quranic words, untouched. */
   words: string[];
