@@ -60,7 +60,11 @@ export interface MemorizationProgress {
   sessionId: string;
   settings: MemorizationSettings;
   currentUnit: number;
-  /** Stable, content-derived ids of the approved units. */
+  /**
+   * Approved atoms — one ayah (`a:surah:ayah`) or one word
+   * (`w:surah:ayah:pos`), never unit boundaries, so changing the unit size
+   * keeps the memorized state intact.
+   */
   memorizedIds: string[];
   repsDone: number;
   attempts: MemorizationAttempt[];
