@@ -4,6 +4,18 @@ import { openDB } from 'idb';
 import type { StateStorage } from 'zustand/middleware';
 
 const STORE_NAME = 'keyval';
+const READ_TIMEOUT_MS = 4000;
+
+/** Never let a blocked IndexedDB/Preferences read hang the app forever. */
+function withTimeout<T>(promise: Promise<T>, label: string): Promise<T | null> {
+  return Promise.race([
+    promise,
+    new Promise<null>(resolve => setTimeout(() => {
+      console.error(`[persistentKV] ${label} timed out after ${READ_TIMEOUT_MS}ms`);
+      resolve(null);
+    }, READ_TIMEOUT_MS)),
+  ]);
+}
 
 export function createPersistentStorage(dbName: string): StateStorage {
   const native = Capacitor.isNativePlatform();
