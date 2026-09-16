@@ -1,5 +1,5 @@
 /** Bootstrap host for the independent repetition-memorization session. */
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Loader2 } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { MemorizationRepeatSession } from '@/components/MemorizationRepeatSession';
@@ -22,10 +22,12 @@ export default function Memorize() {
   const hasHydrated = useMemorizationStore(state => state.hasHydrated);
   const ensure = useMemorizationStore(state => state.ensure);
   const [recordReady, setRecordReady] = useState(false);
+  const bootstrappedFor = useRef<string | null>(null);
 
   useEffect(() => {
-    setRecordReady(false);
     if (!hasHydrated || !session) return;
+    if (bootstrappedFor.current === session.id) return;
+    bootstrappedFor.current = session.id;
     ensure(session.id, {
       startPage: session.startPage || session.currentPage || 1,
       endPage: session.endPage || session.startPage || session.currentPage || 1,
