@@ -28,7 +28,10 @@ export function createPersistentStorage(dbName: string): StateStorage {
 
   const readWeb = async (name: string): Promise<string | null> => {
     try {
-      const value = await (await getDB()).get(STORE_NAME, name) as string | undefined;
+      const value = await withTimeout(
+        (async () => (await getDB()).get(STORE_NAME, name) as Promise<string | undefined>)(),
+        `${dbName} IndexedDB read`,
+      );
       if (value != null) return value;
     } catch (error) {
       console.error(`[persistentKV:${dbName}] IndexedDB read failed`, error);
