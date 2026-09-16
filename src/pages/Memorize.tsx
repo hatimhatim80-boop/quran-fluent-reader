@@ -11,6 +11,8 @@ import { Button } from '@/components/ui/button';
 import { useQuranData } from '@/hooks/useQuranData';
 import { useSessionsStore } from '@/stores/sessionsStore';
 import { MemorizationRepeatSession } from '@/components/MemorizationRepeatSession';
+import { useMemorizationStore } from '@/stores/memorizationStore';
+import { DEFAULT_RECITER_ID } from '@/services/quranAudio';
 
 export default function Memorize() {
   const navigate = useNavigate();
