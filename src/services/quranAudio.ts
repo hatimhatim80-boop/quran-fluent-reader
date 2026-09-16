@@ -269,6 +269,26 @@ export function stopAudio(): void {
   }
 }
 
+/** Pauses the current ayah without cancelling the running sequence. */
+export function pauseAudio(): void {
+  if (audioEl && !audioEl.paused) audioEl.pause();
+}
+
+/** Resumes the ayah paused by `pauseAudio`. */
+export async function resumeAudio(): Promise<void> {
+  if (!audioEl || !audioEl.paused || !audioEl.src) return;
+  try {
+    await audioEl.play();
+  } catch (e) {
+    console.error('[quranAudio] resume failed', e);
+  }
+}
+
+/** True while an ayah is loaded in the shared element. */
+export function isAudioLoaded(): boolean {
+  return !!audioEl && !!audioEl.src;
+}
+
 /** Local copy first; streaming only for the very same source. */
 export async function resolvePlayableUrl(
   reciterId: string,
