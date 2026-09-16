@@ -154,6 +154,7 @@ export async function buildMemorizationUnits(
     const tail = chunk[chunk.length - 1];
     units.push({
       stableId: `w:${head.ref.surah}:${head.ref.ayah}:${head.posInAyah}-${tail.ref.surah}:${tail.ref.ayah}:${tail.posInAyah}`,
+      atomIds: chunk.map(c => `w:${c.ref.surah}:${c.ref.ayah}:${c.posInAyah}`),
       index: units.length,
       words,
       text: words.join(' '),
