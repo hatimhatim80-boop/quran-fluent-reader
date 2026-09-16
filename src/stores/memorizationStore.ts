@@ -166,27 +166,29 @@ export const useMemorizationStore = create<MemorizationState>()(
         });
       },
 
-      markMemorized: (sessionId, unitId) => {
+      markMemorized: (sessionId, atomIds) => {
         const rec = get().records[sessionId];
-        if (!rec || !unitId) return;
-        if (rec.memorizedIds.includes(unitId)) return;
+        if (!rec || !atomIds || atomIds.length === 0) return;
+        const merged = new Set([...rec.memorizedIds, ...atomIds.filter(Boolean)]);
+        if (merged.size === rec.memorizedIds.length) return;
         set({
           records: {
             ...get().records,
-            [sessionId]: { ...rec, memorizedIds: [...rec.memorizedIds, unitId], updatedAt: Date.now() },
+            [sessionId]: { ...rec, memorizedIds: [...merged], updatedAt: Date.now() },
           },
         });
       },
 
-      unmarkMemorized: (sessionId, unitId) => {
+      unmarkMemorized: (sessionId, atomIds) => {
         const rec = get().records[sessionId];
-        if (!rec) return;
+        if (!rec || !atomIds || atomIds.length === 0) return;
+        const drop = new Set(atomIds);
         set({
           records: {
             ...get().records,
             [sessionId]: {
               ...rec,
-              memorizedIds: rec.memorizedIds.filter(id => id !== unitId),
+              memorizedIds: rec.memorizedIds.filter(id => !drop.has(id)),
               updatedAt: Date.now(),
             },
           },
