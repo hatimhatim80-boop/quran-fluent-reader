@@ -38,6 +38,7 @@ import {
 } from '@/stores/memorizationStore';
 import {
   AyahMappingError, MemorizationUnit, buildMemorizationUnits, cumulativeRefs, cumulativeText,
+  isUnitMemorized,
 } from '@/utils/memorizationUnits';
 import { DIFF_LABEL, DiffReport, compareRecitation } from '@/utils/memorizationDiff';
 import {
@@ -368,7 +369,7 @@ export function MemorizationRepeatSession({ session, pages, totalPages }: Props)
 
   const approveUnit = useCallback(() => {
     if (!unit) return;
-    markMemorized(sessionId, unit.stableId);
+    markMemorized(sessionId, unit.atomIds);
     toast.success('تم اعتماد حفظ هذه الوحدة');
     if (settings.autoAdvance && currentUnit < units.length - 1) goToUnit(currentUnit + 1);
     else { stopLoop(); setPhase('listening'); }
@@ -426,7 +427,7 @@ export function MemorizationRepeatSession({ session, pages, totalPages }: Props)
   const wordModeAudioNote = settings.unitMode === 'words' && unit && unit.refs.length > 0;
 
   const isVisibleUnit = (u: MemorizationUnit) => {
-    if (u.index <= currentUnit || memorizedIds.has(u.stableId)) return true;
+    if (u.index <= currentUnit || isUnitMemorized(u, memorizedIds)) return true;
     if (settings.upcomingVisibility === 'all') return true;
     if (settings.upcomingVisibility === 'next') return u.index === currentUnit + 1;
     return false;
@@ -450,7 +451,7 @@ export function MemorizationRepeatSession({ session, pages, totalPages }: Props)
             <p className="font-arabic text-[11px] text-muted-foreground">
               {unitsLoading
                 ? 'جارٍ التجهيز…'
-                : `الوحدة ${arabicNum(currentUnit + 1)} من ${arabicNum(units.length || 1)} • محفوظة ${arabicNum(memorizedIds.size)}`}
+                : `الوحدة ${arabicNum(currentUnit + 1)} من ${arabicNum(units.length || 1)} • محفوظة ${arabicNum(units.filter(u => isUnitMemorized(u, memorizedIds)).length)}`}
             </p>
           </div>
           <button
@@ -480,7 +481,7 @@ export function MemorizationRepeatSession({ session, pages, totalPages }: Props)
             <div className="space-y-2 leading-[2.4] text-right font-quran text-xl">
               {units.filter(isVisibleUnit).map(u => {
                 const isCurrent = u.index === currentUnit;
-                const isMemorized = memorizedIds.has(u.stableId);
+                const isMemorized = isUnitMemorized(u, memorizedIds);
                 const state = isMemorized ? 'memorized' : isCurrent ? 'current' : 'upcoming';
                 if (!isCurrent && !isMemorized) {
                   return (
