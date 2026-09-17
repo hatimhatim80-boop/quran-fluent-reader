@@ -171,6 +171,7 @@ export function MemorizationRepeatSession({ session, pages, totalPages }: Props)
     stopAudio();
     setAudioBusy(false);
     setAudioPaused(false);
+    setPlayingRef(null);
     void providerRef.current?.dispose();
     setMicState(prev => (prev === 'listening' || prev === 'requestingPermission' || prev === 'processing' ? 'idle' : prev));
     setPartial('');
@@ -208,19 +209,25 @@ export function MemorizationRepeatSession({ session, pages, totalPages }: Props)
     if (fromZero) patchProgress(sessionId, { repsDone: 0 });
 
     while (done < times) {
-      const result = await playAyahSequence(settings.reciterId || DEFAULT_RECITER_ID, targetRefs);
+      const result = await playAyahSequence(
+        settings.reciterId || DEFAULT_RECITER_ID,
+        targetRefs,
+        (ref) => { if (token === loopToken.current) setPlayingRef(ref); },
+      );
       if (token !== loopToken.current) return;
       if (result.played === 0) {
         setAudioNote(result.notDownloaded
           ? 'هذه التلاوة غير محمّلة على الجهاز — يمكنك التكرار بنفسك أو تحميلها من إدارة التلاوة.'
           : 'تعذّر تشغيل التلاوة الآن.');
         setAudioBusy(false);
+        setPlayingRef(null);
         return;
       }
       done++;
       patchProgress(sessionId, { repsDone: done });
     }
     setAudioBusy(false);
+    setPlayingRef(null);
     if (settings.autoStartRecitation) void beginRecitationRef.current();
   }, [unit, targetRefs, repsDone, settings.reciterId, settings.autoStartRecitation, patchProgress, sessionId]);
 
