@@ -4,7 +4,7 @@
  * Requests notification permissions immediately when the app launches.
  * Also creates a default notification channel so Android enables the notification toggle.
  * 
- * NOTE: Microphone/speech permissions have been disabled.
+ * Also requests microphone/speech permission so the recitation session never stalls.
  */
 
 import { Capacitor } from '@capacitor/core';
