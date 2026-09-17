@@ -14,6 +14,9 @@ import { AyahRef, getPageAyahRefs } from '@/utils/pageAyahRefs';
 
 export type UpcomingVisibility = 'hidden' | 'next' | 'all';
 
+/** نفس تنظيف الرموز المستعمل في استخراج مجموعات الآيات. */
+const CLEAN_RE = /[﴿﴾()[\]{}۝۞٭؟،۔ۣۖۗۘۙۚۛۜ۟۠ۡۢۤۥۦۧۨ۩۪ۭ۫۬]/g;
+
 interface Props {
   page: QuranPage;
   /** ذرات الوحدة الحالية (a:surah:ayah أو w:surah:ayah:pos) */
@@ -75,9 +78,14 @@ export function MemorizationMushafPage({
     }
 
     const all = Array.from(root.querySelectorAll<HTMLElement>('.quran-word'));
-    const words = page.pageNumber === 1
-      ? all.filter(el => !el.closest('.surah-header'))
-      : all.filter(el => !el.closest('.surah-header') && !el.closest('.bismillah'));
+    const words = all.filter(el => {
+      if (el.closest('.surah-header')) return false;
+      // في الفاتحة تُعدّ البسملة آية، وفي غيرها ليست جزءًا من الآيات.
+      if (page.pageNumber !== 1 && el.closest('.bismillah')) return false;
+      const clean = (el.textContent || '').replace(CLEAN_RE, '').trim();
+      if (!clean) return false;
+      return !/^[٠-٩0-9۰-۹]+$/.test(clean);
+    });
 
     const expected = groups.reduce((sum, group) => sum + group.length, 0);
     if (words.length !== expected) {
