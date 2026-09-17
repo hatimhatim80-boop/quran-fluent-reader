@@ -191,6 +191,7 @@ class NativeProvider implements QuranSpeechRecognitionProvider {
   }
   private async failStart(error: unknown) {
     console.error('[speech/native] start failed', error);
+    this.clearGuard();
     await this.clearListeners();
     this.lifecycle = 'idle';
     release(this);
