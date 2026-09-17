@@ -47,8 +47,32 @@ export function mergeTranscript(base: string, addition: string): string {
 const unavailableMessage = 'التعرف الصوتي غير متاح حاليًا — يمكنك التسميع لنفسك واعتماد الحفظ يدويًا.';
 const startErrorMessage = 'تعذّر تشغيل الميكروفون — أعد المحاولة.';
 
+/** Android SpeechRecognizer error codes, mapped to text the reciter can act on. */
+const androidErrorText: Record<string, string> = {
+  '1': 'انتهت مهلة الاتصال بخدمة التعرف — تحقق من الإنترنت.',
+  '2': 'خدمة التعرف تحتاج اتصال إنترنت — شغّل الإنترنت ثم أعد المحاولة.',
+  '3': 'تعذّر تسجيل الصوت من الميكروفون.',
+  '4': 'خطأ من خدمة التعرف — أعد المحاولة.',
+  '5': 'خطأ داخلي في خدمة التعرف — أعد المحاولة.',
+  '6': 'لم يُسمع أي صوت — اقترب من الميكروفون وأعد المحاولة.',
+  '7': 'لم يُتعرَّف على أي كلام — أعد التسميع بصوت أوضح.',
+  '8': 'خدمة التعرف مشغولة بتطبيق آخر — أغلقه ثم أعد المحاولة.',
+  '9': 'إذن الميكروفون غير ممنوح — امنح الإذن من إعدادات التطبيق.',
+  '11': 'اللغة العربية غير مثبَّتة في خدمة التعرف — ثبّتها من إعدادات لوحة المفاتيح/الصوت في الهاتف.',
+  '12': 'حزمة اللغة العربية غير متاحة على الجهاز — نزّلها من إعدادات التعرف الصوتي.',
+  '13': 'انقطع الاتصال بخدمة التعرف — أعد المحاولة.',
+  '14': 'طلبات كثيرة على خدمة التعرف — انتظر قليلًا ثم أعد المحاولة.',
+};
+
 function nativeErrorMessage(error: unknown): string {
-  const message = String((error as { message?: string })?.message || error || '').toLowerCase();
+  const raw = error as { code?: unknown; error?: unknown; message?: unknown } | undefined;
+  const code = String(raw?.code ?? raw?.error ?? '').trim();
+  if (androidErrorText[code]) return androidErrorText[code];
+  const message = String(raw?.message || error || '').toLowerCase();
+  const embedded = message.match(/\b(\d{1,2})\b/)?.[1];
+  if (embedded && androidErrorText[embedded]) return androidErrorText[embedded];
+  if (/permission/.test(message)) return androidErrorText['9'];
+  if (/language/.test(message)) return androidErrorText['11'];
   return /network|unavailable|not available|no match|service/.test(message) ? unavailableMessage : startErrorMessage;
 }
 
