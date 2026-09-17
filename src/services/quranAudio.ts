@@ -314,14 +314,20 @@ export interface PlayResult {
  * Plays the given ayat in order. Purely an audio action — it never touches
  * reveal state, card progress or ratings.
  */
-export async function playAyahSequence(reciterId: string, refs: AyahRef[]): Promise<PlayResult> {
+export async function playAyahSequence(
+  reciterId: string,
+  refs: AyahRef[],
+  onAyahStart?: (ref: AyahRef, index: number) => void,
+): Promise<PlayResult> {
   stopAudio();
   const token = ++playToken;
   const el = getAudioEl();
   const result: PlayResult = { played: 0, failed: 0, notDownloaded: false };
 
-  for (const ref of refs) {
+  for (let refIndex = 0; refIndex < refs.length; refIndex++) {
+    const ref = refs[refIndex];
     if (token !== playToken) return result;
+    onAyahStart?.(ref, refIndex);
     const resolved = await resolvePlayableUrl(reciterId, ref);
     if (!resolved) { result.failed++; result.notDownloaded = true; continue; }
     if (token !== playToken) {

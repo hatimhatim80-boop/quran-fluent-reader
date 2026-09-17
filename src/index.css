@@ -1503,3 +1503,37 @@
     }
   }
 }
+
+/* ── جلسة الحفظ بالتكرار فوق صفحة المصحف ────────────────────────────── */
+/* تلوين الحالات فقط — بلا أي تغيير في مواضع الكلمات أو الأسطر. */
+.memo-mushaf .memo-word {
+  border-radius: 4px;
+  transition: color 180ms ease, background-color 180ms ease, opacity 180ms ease;
+}
+.memo-mushaf .memo-word.memo-memorized {
+  color: hsl(var(--primary));
+}
+.memo-mushaf .memo-word.memo-current {
+  background-color: hsl(var(--primary) / 0.14);
+  box-shadow: 0 0 0 1px hsl(var(--primary) / 0.25) inset;
+}
+.memo-mushaf .memo-word.memo-playing {
+  background-color: hsl(var(--primary) / 0.3);
+}
+.memo-mushaf .memo-word.memo-dim {
+  opacity: 0.35;
+}
+/* تبقى الكلمة في موضعها تمامًا وإن أُخفي نصّها */
+.memo-mushaf .memo-word.memo-veiled,
+.memo-mushaf .memo-word.memo-hidden-text {
+  color: transparent;
+}
+.memo-mushaf .memo-word.memo-hidden-text {
+  background-color: hsl(var(--primary) / 0.1);
+}
+.memo-mushaf .page-frame {
+  min-height: 0;
+}
+.memo-mushaf .quran-page {
+  min-height: 0 !important;
+}
