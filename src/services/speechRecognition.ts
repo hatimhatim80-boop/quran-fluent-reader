@@ -187,10 +187,12 @@ class NativeProvider implements QuranSpeechRecognitionProvider {
           else void this.finish();
         }),
         await plugin.addListener('error', event => {
-          console.error('[speech/native] recognizer error', event);
+          console.error('[speech/native] recognizer error', JSON.stringify(event), event);
           if (this.finalDelivered) return;
-          if (this.lifecycle === 'starting') void this.failStart(event);
-          else void this.finish();
+          // A recognizer error is never silent: the reciter must know why it stopped.
+          if (this.lifecycle === 'starting') { void this.failStart(event); return; }
+          if (!this.stopRequested && !this.gotPartial) this.callbacks.onError?.(nativeErrorMessage(event), event);
+          void this.finish();
         }),
       ];
 
