@@ -435,37 +435,56 @@ export function MemorizationRepeatSession({ session, pages, totalPages }: Props)
   const hideText = phase === 'reciting';
   const wordModeAudioNote = settings.unitMode === 'words' && unit && unit.refs.length > 0;
 
-  const isVisibleUnit = (u: MemorizationUnit) => {
-    if (u.index <= currentUnit || isUnitMemorized(u, memorizedIds)) return true;
-    if (settings.upcomingVisibility === 'all') return true;
-    if (settings.upcomingVisibility === 'next') return u.index === currentUnit + 1;
-    return false;
-  };
+  /* ─── صفحة المصحف تتبع وحدة الحفظ الحالية ─── */
+  const [viewPage, setViewPage] = useState<number>(unit?.page || settings.startPage);
+  useEffect(() => { if (unit?.page) setViewPage(unit.page); }, [unit?.page]);
+
+  const pageData = useMemo(() => pages.find(p => p.pageNumber === viewPage), [pages, viewPage]);
+  const currentAtomIds = unit?.atomIds ?? [];
+  const nextAtomIds = units[currentUnit + 1]?.atomIds ?? [];
+  const memorizedCount = units.filter(u => isUnitMemorized(u, memorizedIds)).length;
+  const notes = [audioNote, speechNote].filter(Boolean) as string[];
 
   /* ─── render ─── */
   return (
-    <div className="min-h-[100dvh] bg-background flex flex-col" dir="rtl">
-      {/* top bar */}
-      <header className="sticky top-0 z-30 bg-background/95 backdrop-blur border-b border-border/50 px-3 py-2">
-        <div className="max-w-2xl mx-auto flex items-center gap-2">
+    <div className="h-[100dvh] bg-background flex flex-col overflow-hidden" dir="rtl">
+      {/* top bar — compact so the mushaf gets the space */}
+      <header className="shrink-0 z-30 bg-background/95 backdrop-blur border-b border-border/50 px-2 py-1">
+        <div className="flex items-center gap-1">
           <button
             onClick={() => { handleSessionInterruption(); navigate('/sessions'); }}
-            className="w-11 h-11 rounded-xl flex items-center justify-center hover:bg-muted/60"
+            className="w-10 h-10 rounded-xl flex items-center justify-center hover:bg-muted/60"
             aria-label="رجوع"
           >
             <ArrowRight className="w-5 h-5" />
           </button>
           <div className="flex-1 min-w-0">
-            <h1 className="font-arabic font-bold text-sm truncate">{session.name}</h1>
-            <p className="font-arabic text-[11px] text-muted-foreground">
+            <h1 className="font-arabic font-bold text-xs truncate">{session.name}</h1>
+            <p className="font-arabic text-[11px] text-muted-foreground truncate">
               {unitsLoading
                 ? 'جارٍ التجهيز…'
-                : `الوحدة ${arabicNum(currentUnit + 1)} من ${arabicNum(units.length || 1)} • محفوظة ${arabicNum(units.filter(u => isUnitMemorized(u, memorizedIds)).length)}`}
+                : `صفحة ${arabicNum(viewPage)} • الوحدة ${arabicNum(currentUnit + 1)}/${arabicNum(units.length || 1)} • محفوظة ${arabicNum(memorizedCount)}`}
             </p>
           </div>
           <button
+            onClick={() => setViewPage(p => Math.max(1, p - 1))}
+            className="w-10 h-10 rounded-xl flex items-center justify-center hover:bg-muted/60 disabled:opacity-40"
+            disabled={viewPage <= 1}
+            aria-label="الصفحة السابقة"
+          >
+            <ChevronRight className="w-5 h-5" />
+          </button>
+          <button
+            onClick={() => setViewPage(p => Math.min(totalPages, p + 1))}
+            className="w-10 h-10 rounded-xl flex items-center justify-center hover:bg-muted/60 disabled:opacity-40"
+            disabled={viewPage >= totalPages}
+            aria-label="الصفحة التالية"
+          >
+            <ChevronLeft className="w-5 h-5" />
+          </button>
+          <button
             onClick={() => setShowSettings(true)}
-            className="w-11 h-11 rounded-xl flex items-center justify-center hover:bg-muted/60"
+            className="w-10 h-10 rounded-xl flex items-center justify-center hover:bg-muted/60"
             aria-label="إعدادات الجلسة"
           >
             <Settings className="w-5 h-5" />
@@ -473,231 +492,171 @@ export function MemorizationRepeatSession({ session, pages, totalPages }: Props)
         </div>
       </header>
 
-      <main className="flex-1 max-w-2xl w-full mx-auto px-3 py-4 space-y-4 pb-40">
-        {/* units text */}
-        <section className="rounded-2xl border border-border/60 bg-card p-4">
-          {unitsLoading ? (
-            <div className="flex items-center gap-2 text-muted-foreground font-arabic text-sm">
-              <Loader2 className="w-4 h-4 animate-spin" /> جارٍ تجهيز وحدات الحفظ…
-            </div>
-          ) : unitsError ? (
-            <p className="font-arabic text-sm text-destructive flex items-start gap-2">
-              <AlertTriangle className="w-5 h-5 shrink-0 mt-0.5" />{unitsError}
-            </p>
-          ) : units.length === 0 ? (
-            <p className="font-arabic text-sm text-muted-foreground">لا توجد آيات في النطاق المحدد.</p>
-          ) : (
-            <div className="space-y-2 leading-[2.4] text-right font-quran text-xl">
-              {units.filter(isVisibleUnit).map(u => {
-                const isCurrent = u.index === currentUnit;
-                const isMemorized = isUnitMemorized(u, memorizedIds);
-                const state = isMemorized ? 'memorized' : isCurrent ? 'current' : 'upcoming';
-                if (!isCurrent && !isMemorized) {
-                  return (
-                    <p key={u.stableId} data-unit-state="upcoming" className="text-muted-foreground/40">
-                      {u.text}
-                    </p>
-                  );
-                }
-                return (
-                  <p
-                    key={u.stableId}
-                    data-unit-state={state}
-                    className={
-                      isMemorized
-                        ? 'text-emerald-700 dark:text-emerald-300 bg-emerald-500/10 rounded-lg px-1 border-r-4 border-emerald-600'
-                        : 'text-foreground bg-primary/5 rounded-lg px-1 ring-1 ring-primary/30'
-                    }
-                  >
-                    {isMemorized && (
-                      <span className="font-arabic text-[11px] text-emerald-700 dark:text-emerald-300 align-middle ml-1">
-                        ✓ محفوظة
-                      </span>
-                    )}
-                    {isCurrent && hideText
-                      ? <span className="text-muted-foreground font-arabic text-base">النص مخفي أثناء التسميع…</span>
-                      : u.text}
-                  </p>
-                );
-              })}
-            </div>
-          )}
-        </section>
-
-        {/* listening & repetition */}
-        {phase === 'listening' && unit && (
-          <section className="rounded-2xl border border-border/60 bg-card p-4 space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="font-arabic text-sm font-bold">{unit.label}</span>
-              <span className="font-arabic text-sm text-primary font-bold">
-                التكرار {arabicNum(Math.min(repsDone, settings.repeatTarget))} / {arabicNum(settings.repeatTarget)}
-              </span>
-            </div>
-            <div className="h-2 rounded-full bg-muted overflow-hidden">
-              <div
-                className="h-full bg-primary transition-all"
-                style={{ width: `${Math.min(100, (repsDone / Math.max(1, settings.repeatTarget)) * 100)}%` }}
-              />
-            </div>
-            {wordModeAudioNote && (
-              <p className="font-arabic text-[11px] text-muted-foreground">
-                التلاوة متوفرة على مستوى الآية كاملة، لذا ستُتلى الآية التي تحوي هذه الكلمات.
-              </p>
-            )}
-            {audioNote && (
-              <p className="font-arabic text-xs text-amber-600 flex items-start gap-1">
-                <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />{audioNote}
-              </p>
-            )}
-            <div className="grid grid-cols-2 gap-2">
-              {!audioBusy ? (
-                <Button className="h-12 font-arabic gap-2" onClick={() => runRepeats(settings.repeatTarget, repsDone >= settings.repeatTarget)}>
-                  <Play className="w-5 h-5" /> تشغيل
-                </Button>
-              ) : audioPaused ? (
-                <Button className="h-12 font-arabic gap-2" onClick={() => { void resumeAudio(); setAudioPaused(false); }}>
-                  <Play className="w-5 h-5" /> متابعة
-                </Button>
-              ) : (
-                <Button variant="secondary" className="h-12 font-arabic gap-2" onClick={() => { pauseAudio(); setAudioPaused(true); }}>
-                  <Pause className="w-5 h-5" /> إيقاف مؤقت
-                </Button>
-              )}
-              <Button variant="outline" className="h-12 font-arabic gap-2" onClick={() => runRepeats(settings.repeatTarget, true)}>
-                <RotateCcw className="w-5 h-5" /> إعادة من البداية
-              </Button>
-              <Button variant="outline" className="h-12 font-arabic gap-2" onClick={() => runRepeats(repsDone + 1, false)}>
-                <Plus className="w-5 h-5" /> تكرار مرة إضافية
-              </Button>
-              <Button className="h-12 font-arabic gap-2" onClick={() => void beginRecitation()}>
-                <Mic className="w-5 h-5" /> ابدأ التسميع
-              </Button>
-            </div>
-          </section>
-        )}
-
-        {/* transcript / result */}
-        {(phase === 'reciting' || phase === 'reviewing') && (
-          <section className="rounded-2xl border border-border/60 bg-card p-4 space-y-3">
-            {phase === 'reciting' && (
-              <div className="flex items-center gap-2 font-arabic text-sm text-primary">
-                <span className="w-2.5 h-2.5 rounded-full bg-destructive animate-pulse" />
-                {listening ? '🎙 جارٍ الاستماع' : micState === 'requestingPermission' ? 'طلب إذن الميكروفون…' : 'تجهيز الميكروفون…'}
-              </div>
-            )}
-            {micState === 'processing' && (
-              <p className="font-arabic text-sm text-muted-foreground flex items-center gap-2">
-                <Loader2 className="w-4 h-4 animate-spin" /> جارٍ استخراج النص…
-              </p>
-            )}
-            {speechNote && (
-              <p className="font-arabic text-xs text-amber-600 flex items-start gap-1">
-                <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />{speechNote}
-              </p>
-            )}
-
-            {(settings.transcriptVisibility === 'live' && phase === 'reciting' && partial) && (
-              <div>
-                <p className="font-arabic text-xs text-muted-foreground mb-1">ما يسمعه التطبيق الآن:</p>
-                <p className="font-arabic text-base leading-8 text-muted-foreground">{partial}</p>
-              </div>
-            )}
-
-            {phase === 'reviewing' && finalText && (
-              <div>
-                <p className="font-arabic text-xs text-muted-foreground mb-1">ما قرأتَه:</p>
-                <p className="font-arabic text-base leading-8">{finalText}</p>
-              </div>
-            )}
-
-            {phase === 'reviewing' && !settings.autoCheck && finalText && !report && (
-              <Button className="h-12 w-full font-arabic" onClick={() => runCheck(finalText)}>
-                تحقق من التسميع
-              </Button>
-            )}
-
-            {report && (
-              <div className="space-y-2">
-                {report.doubtful && (
-                  <p className="font-arabic text-xs text-muted-foreground">
-                    نتيجة التعرف الصوتي غير مؤكدة — لا يعني ذلك بالضرورة خطأ منك.
-                  </p>
-                )}
-                {!report.doubtful && report.hasUnclear && (
-                  <p className="font-arabic text-xs text-muted-foreground">
-                    بعض الكلمات غير واضحة — يمكنك إعادة تسميعها قبل اعتماد الحفظ.
-                  </p>
-                )}
-                <p className="font-arabic text-sm">
-                  الكلمات الصحيحة: {arabicNum(report.correct)} من {arabicNum(report.total)}
-                </p>
-                <div className="flex flex-wrap gap-1 justify-end" dir="rtl">
-                  {report.tokens.map((t, i) => (
-                    <span
-                      key={i}
-                      title={DIFF_LABEL[t.status]}
-                      className={`px-2 py-1 rounded-lg text-base font-quran ${STATUS_CLASS[t.status]}`}
-                    >
-                      {t.expected || t.heard}
-                    </span>
-                  ))}
-                </div>
-                <div className="flex flex-wrap gap-2 pt-1">
-                  {(['correct', 'missing', 'extra', 'different', 'order', 'unclear'] as const).map(k => (
-                    <span key={k} className={`px-2 py-0.5 rounded text-[11px] font-arabic ${STATUS_CLASS[k]}`}>
-                      {DIFF_LABEL[k]}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {phase === 'reviewing' && (
-              <div className="grid grid-cols-2 gap-2 pt-1">
-                <Button variant="outline" className="h-12 font-arabic gap-2" onClick={() => void beginRecitation()}>
-                  <Mic className="w-5 h-5" /> إعادة التسميع
-                </Button>
-                <Button
-                  variant="outline"
-                  className="h-12 font-arabic gap-2"
-                  onClick={() => { setPhase('listening'); void runRepeats(repsDone + 1, false); }}
-                >
-                  <Volume2 className="w-5 h-5" /> سماع المقطع مرة أخرى
-                </Button>
-                <Button className="h-12 font-arabic gap-2 col-span-2" onClick={approveUnit}>
-                  <Check className="w-5 h-5" /> تم الحفظ
-                </Button>
-                {currentUnit < units.length - 1 && (
-                  <Button variant="secondary" className="h-12 font-arabic col-span-2" onClick={() => goToUnit(currentUnit + 1)}>
-                    الوحدة التالية
-                  </Button>
-                )}
-              </div>
-            )}
-          </section>
-        )}
-
-        {lastAttempt && phase === 'listening' && (
-          <p className="font-arabic text-xs text-muted-foreground">
-            آخر محاولة تسميع: {arabicNum(Math.round(lastAttempt.score * 100))}٪ — عدد المحاولات {arabicNum(record.attemptCount)}
+      {/* المصحف نفسه — أكبر مساحة ممكنة */}
+      <main className="flex-1 min-h-0 overflow-y-auto px-1 pb-2">
+        {unitsLoading ? (
+          <div className="flex items-center gap-2 text-muted-foreground font-arabic text-sm p-4">
+            <Loader2 className="w-4 h-4 animate-spin" /> جارٍ تجهيز وحدات الحفظ…
+          </div>
+        ) : unitsError ? (
+          <p className="font-arabic text-sm text-destructive flex items-start gap-2 p-4">
+            <AlertTriangle className="w-5 h-5 shrink-0 mt-0.5" />{unitsError}
           </p>
+        ) : units.length === 0 ? (
+          <p className="font-arabic text-sm text-muted-foreground p-4">لا توجد آيات في النطاق المحدد.</p>
+        ) : !pageData ? (
+          <p className="font-arabic text-sm text-muted-foreground p-4">
+            صفحة المصحف {arabicNum(viewPage)} غير متاحة في بيانات هذه الجلسة.
+          </p>
+        ) : (
+          <MemorizationMushafPage
+            page={pageData}
+            currentAtomIds={currentAtomIds}
+            nextAtomIds={nextAtomIds}
+            memorizedIds={memorizedIds}
+            upcomingVisibility={settings.upcomingVisibility}
+            hideCurrent={hideText}
+            playingRef={playingRef}
+          />
         )}
       </main>
 
-      {/* sticky recording bar — always visible while the mic is open */}
-      {phase === 'reciting' && (
-        <div className="fixed bottom-0 inset-x-0 z-40 bg-background/95 backdrop-blur border-t border-border/60 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
-          <div className="max-w-2xl mx-auto flex items-center gap-3">
-            <span className="font-arabic text-sm flex items-center gap-2 flex-1">
-              <span className="w-3 h-3 rounded-full bg-destructive animate-pulse" />
-              🎙 جارٍ الاستماع
-            </span>
-            <Button className="h-14 px-6 font-arabic text-base gap-2" variant="destructive" onClick={() => void endRecitation()}>
-              <Square className="w-5 h-5" /> إنهاء التسميع
+      {/* لوحة التسميع والنتيجة — فوق الشريط السفلي مباشرة */}
+      {(phase === 'reciting' || phase === 'reviewing') && (
+        <div className="shrink-0 max-h-[42dvh] overflow-y-auto border-t border-border/60 bg-card/95 backdrop-blur px-3 py-2 space-y-2">
+          {micState === 'processing' && (
+            <p className="font-arabic text-xs text-muted-foreground flex items-center gap-2">
+              <Loader2 className="w-4 h-4 animate-spin" /> جارٍ استخراج النص…
+            </p>
+          )}
+
+          {(settings.transcriptVisibility === 'live' && phase === 'reciting' && partial) && (
+            <p className="font-arabic text-sm leading-7 text-muted-foreground">{partial}</p>
+          )}
+
+          {phase === 'reviewing' && finalText && (
+            <div>
+              <p className="font-arabic text-[11px] text-muted-foreground mb-1">ما قرأتَه:</p>
+              <p className="font-arabic text-sm leading-7">{finalText}</p>
+            </div>
+          )}
+
+          {phase === 'reviewing' && !settings.autoCheck && finalText && !report && (
+            <Button className="h-11 w-full font-arabic" onClick={() => runCheck(finalText)}>
+              تحقق من التسميع
             </Button>
-          </div>
+          )}
+
+          {report && (
+            <div className="space-y-2">
+              {report.doubtful && (
+                <p className="font-arabic text-[11px] text-muted-foreground">
+                  نتيجة التعرف الصوتي غير مؤكدة — لا يعني ذلك بالضرورة خطأ منك.
+                </p>
+              )}
+              {!report.doubtful && report.hasUnclear && (
+                <p className="font-arabic text-[11px] text-muted-foreground">
+                  بعض الكلمات غير واضحة — يمكنك إعادة تسميعها قبل اعتماد الحفظ.
+                </p>
+              )}
+              <p className="font-arabic text-xs">
+                الكلمات الصحيحة: {arabicNum(report.correct)} من {arabicNum(report.total)}
+              </p>
+              <div className="flex flex-wrap gap-1 justify-end" dir="rtl">
+                {report.tokens.map((t, i) => (
+                  <span
+                    key={i}
+                    title={DIFF_LABEL[t.status]}
+                    className={`px-2 py-0.5 rounded-lg text-base font-quran ${STATUS_CLASS[t.status]}`}
+                  >
+                    {t.expected || t.heard}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {phase === 'reviewing' && (
+            <div className="grid grid-cols-2 gap-2">
+              <Button variant="outline" className="h-11 font-arabic gap-2" onClick={() => void beginRecitation()}>
+                <Mic className="w-4 h-4" /> إعادة التسميع
+              </Button>
+              <Button
+                variant="outline"
+                className="h-11 font-arabic gap-2"
+                onClick={() => { setPhase('listening'); void runRepeats(repsDone + 1, false); }}
+              >
+                <Volume2 className="w-4 h-4" /> سماع المقطع
+              </Button>
+              <Button className="h-11 font-arabic gap-2 col-span-2" onClick={approveUnit}>
+                <Check className="w-4 h-4" /> تم الحفظ
+              </Button>
+            </div>
+          )}
         </div>
       )}
+
+      {/* الشريط السفلي الثابت المضغوط */}
+      <div className="shrink-0 z-40 bg-background/95 backdrop-blur border-t border-border/60 px-2 py-1.5 pb-[max(0.375rem,env(safe-area-inset-bottom))]">
+        {notes.length > 0 && (
+          <p className="font-arabic text-[11px] text-amber-600 flex items-start gap-1 pb-1">
+            <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" />{notes[0]}
+          </p>
+        )}
+        {phase === 'reciting' ? (
+          <div className="flex items-center gap-2">
+            <span className="font-arabic text-xs flex items-center gap-2 flex-1">
+              <span className="w-2.5 h-2.5 rounded-full bg-destructive animate-pulse" />
+              {listening ? '🎙 جارٍ الاستماع' : micState === 'requestingPermission' ? 'طلب إذن الميكروفون…' : 'تجهيز الميكروفون…'}
+            </span>
+            <Button className="h-11 px-5 font-arabic gap-2" variant="destructive" onClick={() => void endRecitation()}>
+              <Square className="w-4 h-4" /> إنهاء التسميع
+            </Button>
+          </div>
+        ) : (
+          <div className="flex items-center gap-1.5">
+            <span className="font-arabic text-[11px] text-primary font-bold shrink-0 px-1">
+              {arabicNum(Math.min(repsDone, settings.repeatTarget))}/{arabicNum(settings.repeatTarget)}
+            </span>
+            {!audioBusy ? (
+              <Button size="icon" className="h-11 w-11" aria-label="تشغيل"
+                onClick={() => runRepeats(settings.repeatTarget, repsDone >= settings.repeatTarget)}>
+                <Play className="w-5 h-5" />
+              </Button>
+            ) : audioPaused ? (
+              <Button size="icon" className="h-11 w-11" aria-label="متابعة"
+                onClick={() => { void resumeAudio(); setAudioPaused(false); }}>
+                <Play className="w-5 h-5" />
+              </Button>
+            ) : (
+              <Button size="icon" variant="secondary" className="h-11 w-11" aria-label="إيقاف مؤقت"
+                onClick={() => { pauseAudio(); setAudioPaused(true); }}>
+                <Pause className="w-5 h-5" />
+              </Button>
+            )}
+            <Button size="icon" variant="outline" className="h-11 w-11" aria-label="إعادة من البداية"
+              onClick={() => runRepeats(settings.repeatTarget, true)}>
+              <RotateCcw className="w-5 h-5" />
+            </Button>
+            <Button size="icon" variant="outline" className="h-11 w-11" aria-label="تكرار مرة إضافية"
+              onClick={() => runRepeats(repsDone + 1, false)}>
+              <Plus className="w-5 h-5" />
+            </Button>
+            <Button className="h-11 flex-1 font-arabic gap-2" onClick={() => void beginRecitation()}>
+              <Mic className="w-4 h-4" /> ابدأ التسميع
+            </Button>
+            <Button size="icon" variant="outline" className="h-11 w-11" aria-label="تم الحفظ" onClick={approveUnit}>
+              <Check className="w-5 h-5" />
+            </Button>
+          </div>
+        )}
+        {wordModeAudioNote && phase === 'listening' && (
+          <p className="font-arabic text-[10px] text-muted-foreground pt-1">
+            التلاوة على مستوى الآية كاملة، لذا ستُتلى الآية التي تحوي هذه الكلمات.
+          </p>
+        )}
+      </div>
+
 
       {/* structural change confirmation */}
       <AlertDialog open={!!pendingStructural} onOpenChange={(o) => { if (!o) setPendingStructural(null); }}>
