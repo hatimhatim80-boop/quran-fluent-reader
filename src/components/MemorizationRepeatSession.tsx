@@ -663,6 +663,11 @@ export function MemorizationRepeatSession({ session, pages, totalPages }: Props)
               <span className="w-2.5 h-2.5 rounded-full bg-destructive animate-pulse" />
               {listening ? '🎙 جارٍ الاستماع' : micState === 'requestingPermission' ? 'طلب إذن الميكروفون…' : 'تجهيز الميكروفون…'}
             </span>
+            {!listening && (
+              <Button className="h-11 px-4 font-arabic" variant="outline" onClick={cancelRecitation}>
+                إلغاء
+              </Button>
+            )}
             <Button className="h-11 px-5 font-arabic gap-2" variant="destructive" onClick={() => void endRecitation()}>
               <Square className="w-4 h-4" /> إنهاء التسميع
             </Button>
