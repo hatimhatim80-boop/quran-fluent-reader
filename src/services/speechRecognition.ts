@@ -96,6 +96,28 @@ class NativeProvider implements QuranSpeechRecognitionProvider {
       return { lang: requested, supported: true, substituted: requested !== preferred };
     }
   }
+  /** Android's start() promise can stay pending while listening; never gate the UI on it. */
+  private markListening() {
+    if (this.finalDelivered || this.stopRequested) return;
+    if (this.lifecycle === 'starting' || this.lifecycle === 'restarting') {
+      this.lifecycle = 'listening';
+      this.callbacks.onStateChange?.('listening');
+    }
+  }
+  private launch() {
+    const options = { language: this.language, maxResults: 5, partialResults: true, popup: false };
+    void this.plugin()
+      .then(plugin => plugin.start(options))
+      .then(() => { if (this.stopRequested) void this.finish(); else this.markListening(); })
+      .catch(error => {
+        if (this.finalDelivered) return;
+        if (this.lifecycle === 'listening') { console.error('[speech/native] session ended with error', error); void this.finish(); }
+        else void this.failStart(error);
+      });
+    // Fallback: some devices only report readiness through the listeningState event.
+    this.clearStartTimer();
+    this.startTimer = setTimeout(() => this.markListening(), 1200);
+  }
   async startListening(language: string, callbacks: RecognitionCallbacks): Promise<boolean> {
     if (this.lifecycle !== 'idle' || !acquire(this)) return false;
     this.lifecycle = 'starting';
@@ -111,19 +133,18 @@ class NativeProvider implements QuranSpeechRecognitionProvider {
         await plugin.addListener('partialResults', data => {
           const text = (data.matches || []).slice(0, 3).reduce((best, value) => value.length > best.length ? value : best, '');
           if (!text) return;
+          this.markListening();
           this.partial = text;
           this.callbacks.onPartialResult?.(mergeTranscript(this.transcript, text));
         }),
         await plugin.addListener('listeningState', data => {
-          if (data.status !== 'stopped') return;
+          if (data.status !== 'stopped') { this.markListening(); return; }
           this.commitPartial();
           if (this.stopRequested || this.lifecycle === 'stopping') void this.finish();
           else if (this.lifecycle === 'listening') void this.restart();
         }),
       ];
-      await plugin.start({ language: this.language, maxResults: 5, partialResults: true, popup: false });
-      if (this.stopRequested) await this.finish();
-      else { this.lifecycle = 'listening'; callbacks.onStateChange?.('listening'); }
+      this.launch();
       return true;
     } catch (error) {
       await this.failStart(error);
@@ -134,17 +155,14 @@ class NativeProvider implements QuranSpeechRecognitionProvider {
     this.transcript = mergeTranscript(this.transcript, this.partial);
     this.partial = '';
   }
+  private clearStartTimer() {
+    if (this.startTimer) clearTimeout(this.startTimer);
+    this.startTimer = null;
+  }
   private async restart() {
     if (this.stopRequested) { await this.finish(); return; }
     this.lifecycle = 'restarting';
-    try {
-      await (await this.plugin()).start({ language: this.language, maxResults: 5, partialResults: true, popup: false });
-      if (this.stopRequested) await this.finish();
-      else this.lifecycle = 'listening';
-    } catch (error) {
-      console.error('[speech/native] restart failed', error);
-      await this.finish();
-    }
+    this.launch();
   }
   private async clearListeners() {
     for (const listener of this.listeners) {
