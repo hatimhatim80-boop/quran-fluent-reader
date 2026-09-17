@@ -1531,6 +1531,23 @@
 .memo-mushaf .memo-word.memo-hidden-text {
   background-color: hsl(var(--primary) / 0.1);
 }
+.memo-mushaf .memo-word.memo-hidden-text.memo-recited {
+  color: hsl(var(--primary));
+  background-color: hsl(var(--primary) / 0.16);
+  box-shadow: 0 -2px 0 hsl(var(--primary) / 0.55) inset;
+}
+.memo-mushaf .memo-word.memo-hidden-text.memo-recitation-current {
+  color: transparent;
+  background-color: hsl(var(--accent) / 0.22);
+  box-shadow: 0 0 0 2px hsl(var(--accent) / 0.7) inset;
+  animation: memo-recitation-pulse 1.1s ease-in-out infinite;
+}
+@keyframes memo-recitation-pulse {
+  50% { background-color: hsl(var(--accent) / 0.38); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .memo-mushaf .memo-word.memo-recitation-current { animation: none; }
+}
 .memo-mushaf .page-frame {
   min-height: 0;
 }

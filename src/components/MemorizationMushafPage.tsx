@@ -29,6 +29,10 @@ interface Props {
   hideCurrent: boolean;
   /** الآية التي تُتلى الآن */
   playingRef: AyahRef | null;
+  /** كلمات التسميع التي طابقت النص القرآني الأصلي */
+  recitedWordIds?: Set<string>;
+  /** الكلمة القرآنية المنتظرة حاليًا أثناء التسميع */
+  recitationCurrentWordId?: string | null;
 }
 
 const atomKeys = (ids: string[]) => new Set(ids);
@@ -41,6 +45,8 @@ export function MemorizationMushafPage({
   upcomingVisibility,
   hideCurrent,
   playingRef,
+  recitedWordIds,
+  recitationCurrentWordId,
 }: Props) {
   const wrapperRef = useRef<HTMLDivElement>(null);
   const [refs, setRefs] = useState<AyahRef[] | null>(null);
@@ -113,6 +119,8 @@ export function MemorizationMushafPage({
         el.classList.toggle('memo-current', current);
         el.classList.toggle('memo-playing', isPlaying);
         el.classList.toggle('memo-hidden-text', current && hideCurrent);
+        el.classList.toggle('memo-recited', current && !!recitedWordIds?.has(wordAtom));
+        el.classList.toggle('memo-recitation-current', current && recitationCurrentWordId === wordAtom);
 
         const upcoming = !memorized && !current;
         const dim = upcoming && (upcomingVisibility === 'all' || (upcomingVisibility === 'next' && upNext));
@@ -123,7 +131,7 @@ export function MemorizationMushafPage({
         el.dataset.memoAyah = `${ref.surah}:${ref.ayah}`;
       });
     });
-  }, [refs, groups, page.pageNumber, memorizedIds, currentSet, nextSet, hideCurrent, upcomingVisibility, playingRef]);
+  }, [refs, groups, page.pageNumber, memorizedIds, currentSet, nextSet, hideCurrent, upcomingVisibility, playingRef, recitedWordIds, recitationCurrentWordId]);
 
   /* إعادة التلوين بعد كل رسم للصفحة (تغيير الخط/الإعدادات يعيد بناء الكلمات) */
   useEffect(() => {
@@ -147,6 +155,16 @@ export function MemorizationMushafPage({
     });
     return () => cancelAnimationFrame(frame);
   }, [currentAtomIds, page.pageNumber]);
+
+  /* نفس نمط Study Noor: تتبع الكلمة الحالية والتمرير إليها عند الحاجة. */
+  useEffect(() => {
+    if (!recitationCurrentWordId) return;
+    const frame = requestAnimationFrame(() => {
+      const el = wrapperRef.current?.querySelector<HTMLElement>('.memo-recitation-current');
+      el?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [recitationCurrentWordId]);
 
   return (
     <div ref={wrapperRef} className="memo-mushaf" data-page={page.pageNumber}>
