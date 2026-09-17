@@ -70,7 +70,7 @@ export default function AudioDiag() {
     }
 
     try {
-      const mod = await import('@capacitor-community/speech-recognition');
+      const mod = await import('@capgo/capacitor-speech-recognition');
       const plugin = mod.SpeechRecognition;
       nativePluginRef.current = plugin;
       log('✓ تم تحميل الإضافة', 'success');
@@ -130,7 +130,7 @@ export default function AudioDiag() {
     }
 
     try {
-      const mod = await import('@capacitor-community/speech-recognition');
+      const mod = await import('@capgo/capacitor-speech-recognition');
       const plugin = mod.SpeechRecognition;
 
       const listener = await plugin.addListener('partialResults', (data: any) => {
