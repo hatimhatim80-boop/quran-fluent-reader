@@ -14,7 +14,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom';
 import {
   ArrowRight, Play, Pause, RotateCcw, Plus, Mic, Square, Settings, Check,
-  Volume2, Loader2, AlertTriangle,
+  Volume2, Loader2, AlertTriangle, ChevronLeft, ChevronRight,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
