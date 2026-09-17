@@ -65,6 +65,7 @@ class NativeProvider implements QuranSpeechRecognitionProvider {
   private stopRequested = false;
   private finalDelivered = false;
   private guardTimer: ReturnType<typeof setTimeout> | null = null;
+  private startTimer: ReturnType<typeof setTimeout> | null = null;
 
   private async plugin() { return (await import('@capacitor-community/speech-recognition')).SpeechRecognition; }
   async isAvailable() {
