@@ -431,3 +431,43 @@ export async function getSpeechProvider(): Promise<QuranSpeechRecognitionProvide
   return (cachedProvider = new NoProvider());
 }
 export const isOnline = () => typeof navigator === 'undefined' || navigator.onLine !== false;
+
+export interface SpeechDiagnostics {
+  platform: string;
+  native: boolean;
+  provider: string;
+  pluginAvailable: string;
+  permissionBefore: string;
+  permissionAfter: string;
+  languages: string;
+  online: boolean;
+}
+
+/** On-device check: every step reported, nothing swallowed. */
+export async function runSpeechDiagnostics(): Promise<SpeechDiagnostics> {
+  const native = Capacitor.isNativePlatform();
+  const provider = await getSpeechProvider();
+  const report: SpeechDiagnostics = {
+    platform: Capacitor.getPlatform(),
+    native,
+    provider: provider.id,
+    pluginAvailable: 'غير مفحوص',
+    permissionBefore: 'غير مفحوص',
+    permissionAfter: 'غير مطلوب',
+    languages: 'غير مفحوص',
+    online: isOnline(),
+  };
+  if (native) {
+    try {
+      const plugin = (await import('@capgo/capacitor-speech-recognition')).SpeechRecognition;
+      report.pluginAvailable = JSON.stringify(await plugin.available());
+      try {
+        const languages = (await plugin.getSupportedLanguages()).languages || [];
+        report.languages = languages.length ? languages.filter(l => l.toLowerCase().startsWith('ar')).join(', ') || `${languages.length} لغة بدون عربية` : 'القائمة غير متاحة (طبيعي في أندرويد 13+)';
+      } catch (error) { report.languages = `فشل: ${String(error)}`; }
+    } catch (error) { report.pluginAvailable = `فشل: ${String(error)}`; }
+  }
+  report.permissionBefore = await provider.checkPermission();
+  if (report.permissionBefore !== 'granted') report.permissionAfter = await provider.requestPermission();
+  return report;
+}
