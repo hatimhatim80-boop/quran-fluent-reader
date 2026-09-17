@@ -4,7 +4,7 @@
  * Requests notification permissions immediately when the app launches.
  * Also creates a default notification channel so Android enables the notification toggle.
  * 
- * NOTE: Microphone/speech permissions have been disabled.
+ * Also requests microphone/speech permission so the recitation session never stalls.
  */
 
 import { Capacitor } from '@capacitor/core';
@@ -46,6 +46,19 @@ export async function requestAllNativePermissions(): Promise<void> {
     }
   } catch (e) {
     console.error('[nativePermissions] Notification permission error:', e);
+  }
+
+  // ── 2. Microphone / speech recognition — required by the recitation session ──
+  try {
+    const { SpeechRecognition } = await import('@capgo/capacitor-speech-recognition');
+    const current = await SpeechRecognition.checkPermissions() as unknown as Record<string, unknown>;
+    console.log('[nativePermissions] Speech permission check:', JSON.stringify(current));
+    if (Object.values(current || {}).some(value => String(value) !== 'granted')) {
+      const result = await SpeechRecognition.requestPermissions() as unknown as Record<string, unknown>;
+      console.log('[nativePermissions] Speech permission request result:', JSON.stringify(result));
+    }
+  } catch (e) {
+    console.error('[nativePermissions] Speech permission error:', e);
   }
 
   console.log('[nativePermissions] All permission requests completed');

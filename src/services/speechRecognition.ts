@@ -47,8 +47,32 @@ export function mergeTranscript(base: string, addition: string): string {
 const unavailableMessage = 'التعرف الصوتي غير متاح حاليًا — يمكنك التسميع لنفسك واعتماد الحفظ يدويًا.';
 const startErrorMessage = 'تعذّر تشغيل الميكروفون — أعد المحاولة.';
 
+/** Android SpeechRecognizer error codes, mapped to text the reciter can act on. */
+const androidErrorText: Record<string, string> = {
+  '1': 'انتهت مهلة الاتصال بخدمة التعرف — تحقق من الإنترنت.',
+  '2': 'خدمة التعرف تحتاج اتصال إنترنت — شغّل الإنترنت ثم أعد المحاولة.',
+  '3': 'تعذّر تسجيل الصوت من الميكروفون.',
+  '4': 'خطأ من خدمة التعرف — أعد المحاولة.',
+  '5': 'خطأ داخلي في خدمة التعرف — أعد المحاولة.',
+  '6': 'لم يُسمع أي صوت — اقترب من الميكروفون وأعد المحاولة.',
+  '7': 'لم يُتعرَّف على أي كلام — أعد التسميع بصوت أوضح.',
+  '8': 'خدمة التعرف مشغولة بتطبيق آخر — أغلقه ثم أعد المحاولة.',
+  '9': 'إذن الميكروفون غير ممنوح — امنح الإذن من إعدادات التطبيق.',
+  '11': 'اللغة العربية غير مثبَّتة في خدمة التعرف — ثبّتها من إعدادات لوحة المفاتيح/الصوت في الهاتف.',
+  '12': 'حزمة اللغة العربية غير متاحة على الجهاز — نزّلها من إعدادات التعرف الصوتي.',
+  '13': 'انقطع الاتصال بخدمة التعرف — أعد المحاولة.',
+  '14': 'طلبات كثيرة على خدمة التعرف — انتظر قليلًا ثم أعد المحاولة.',
+};
+
 function nativeErrorMessage(error: unknown): string {
-  const message = String((error as { message?: string })?.message || error || '').toLowerCase();
+  const raw = error as { code?: unknown; error?: unknown; message?: unknown } | undefined;
+  const code = String(raw?.code ?? raw?.error ?? '').trim();
+  if (androidErrorText[code]) return androidErrorText[code];
+  const message = String(raw?.message || error || '').toLowerCase();
+  const embedded = message.match(/\b(\d{1,2})\b/)?.[1];
+  if (embedded && androidErrorText[embedded]) return androidErrorText[embedded];
+  if (/permission/.test(message)) return androidErrorText['9'];
+  if (/language/.test(message)) return androidErrorText['11'];
   return /network|unavailable|not available|no match|service/.test(message) ? unavailableMessage : startErrorMessage;
 }
 
@@ -73,17 +97,36 @@ class NativeProvider implements QuranSpeechRecognitionProvider {
 
   private async plugin() { return (await import('@capgo/capacitor-speech-recognition')).SpeechRecognition; }
 
+  /** On a native build this provider is the ONLY possible one: the Android WebView
+   *  has no window.SpeechRecognition, so never fall back to the web provider.
+   *  available() is logged but must not disqualify the provider. */
   async isAvailable() {
     if (!Capacitor.isNativePlatform()) return false;
-    try { return !!(await (await this.plugin()).available())?.available; }
-    catch (error) { console.error('[speech/native] availability failed', error); return false; }
+    try { console.log('[speech/native] available():', JSON.stringify(await (await this.plugin()).available())); }
+    catch (error) { console.error('[speech/native] availability check failed', error); }
+    return true;
+  }
+  private normalizePermission(status: Record<string, unknown> | undefined): PermissionResult {
+    const values = Object.values(status || {}).map(value => String(value));
+    if (values.length === 0) return 'prompt';
+    if (values.every(value => value === 'granted')) return 'granted';
+    if (values.some(value => value === 'denied')) return 'denied';
+    return 'prompt';
   }
   async checkPermission(): Promise<PermissionResult> {
-    try { return (await (await this.plugin()).checkPermissions()).speechRecognition as PermissionResult || 'prompt'; }
+    try {
+      const status = await (await this.plugin()).checkPermissions() as unknown as Record<string, unknown>;
+      console.log('[speech/native] checkPermissions:', JSON.stringify(status));
+      return this.normalizePermission(status);
+    }
     catch (error) { console.error('[speech/native] permission check failed', error); return 'prompt'; }
   }
   async requestPermission(): Promise<PermissionResult> {
-    try { return (await (await this.plugin()).requestPermissions()).speechRecognition as PermissionResult || 'denied'; }
+    try {
+      const status = await (await this.plugin()).requestPermissions() as unknown as Record<string, unknown>;
+      console.log('[speech/native] requestPermissions:', JSON.stringify(status));
+      return this.normalizePermission(status);
+    }
     catch (error) { console.error('[speech/native] permission request failed', error); return 'denied'; }
   }
   async resolveLanguage(preferred: string): Promise<LanguageCheck> {
@@ -144,10 +187,12 @@ class NativeProvider implements QuranSpeechRecognitionProvider {
           else void this.finish();
         }),
         await plugin.addListener('error', event => {
-          console.error('[speech/native] recognizer error', event);
+          console.error('[speech/native] recognizer error', JSON.stringify(event), event);
           if (this.finalDelivered) return;
-          if (this.lifecycle === 'starting') void this.failStart(event);
-          else void this.finish();
+          // A recognizer error is never silent: the reciter must know why it stopped.
+          if (this.lifecycle === 'starting') { void this.failStart(event); return; }
+          if (!this.stopRequested && !this.gotPartial) this.callbacks.onError?.(nativeErrorMessage(event), event);
+          void this.finish();
         }),
       ];
 
@@ -386,3 +431,43 @@ export async function getSpeechProvider(): Promise<QuranSpeechRecognitionProvide
   return (cachedProvider = new NoProvider());
 }
 export const isOnline = () => typeof navigator === 'undefined' || navigator.onLine !== false;
+
+export interface SpeechDiagnostics {
+  platform: string;
+  native: boolean;
+  provider: string;
+  pluginAvailable: string;
+  permissionBefore: string;
+  permissionAfter: string;
+  languages: string;
+  online: boolean;
+}
+
+/** On-device check: every step reported, nothing swallowed. */
+export async function runSpeechDiagnostics(): Promise<SpeechDiagnostics> {
+  const native = Capacitor.isNativePlatform();
+  const provider = await getSpeechProvider();
+  const report: SpeechDiagnostics = {
+    platform: Capacitor.getPlatform(),
+    native,
+    provider: provider.id,
+    pluginAvailable: 'غير مفحوص',
+    permissionBefore: 'غير مفحوص',
+    permissionAfter: 'غير مطلوب',
+    languages: 'غير مفحوص',
+    online: isOnline(),
+  };
+  if (native) {
+    try {
+      const plugin = (await import('@capgo/capacitor-speech-recognition')).SpeechRecognition;
+      report.pluginAvailable = JSON.stringify(await plugin.available());
+      try {
+        const languages = (await plugin.getSupportedLanguages()).languages || [];
+        report.languages = languages.length ? languages.filter(l => l.toLowerCase().startsWith('ar')).join(', ') || `${languages.length} لغة بدون عربية` : 'القائمة غير متاحة (طبيعي في أندرويد 13+)';
+      } catch (error) { report.languages = `فشل: ${String(error)}`; }
+    } catch (error) { report.pluginAvailable = `فشل: ${String(error)}`; }
+  }
+  report.permissionBefore = await provider.checkPermission();
+  if (report.permissionBefore !== 'granted') report.permissionAfter = await provider.requestPermission();
+  return report;
+}
