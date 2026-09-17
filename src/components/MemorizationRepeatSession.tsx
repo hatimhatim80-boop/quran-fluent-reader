@@ -32,25 +32,38 @@ import { toast } from 'sonner';
 import { QuranPage } from '@/types/quran';
 import { Session, useSessionsStore } from '@/stores/sessionsStore';
 import { MemorizationMushafPage } from '@/components/MemorizationMushafPage';
+import { QuranAudioManager } from '@/components/QuranAudioManager';
 import { AyahRef } from '@/utils/pageAyahRefs';
 import {
   MemorizationSettings, STRUCTURAL_SETTING_KEYS,
   useMemorizationStore,
 } from '@/stores/memorizationStore';
 import {
-  AyahMappingError, MemorizationUnit, buildMemorizationUnits, cumulativeRefs, cumulativeText,
+  AyahMappingError, MemorizationUnit, buildMemorizationUnits, cumulativeRefs, cumulativeText, cumulativeUnits,
   isUnitMemorized,
 } from '@/utils/memorizationUnits';
 import { DIFF_LABEL, DiffReport, compareRecitation } from '@/utils/memorizationDiff';
 import {
   MicState, QuranSpeechRecognitionProvider, getSpeechProvider, isOnline,
 } from '@/services/speechRecognition';
+import { matchRecitationProgress } from '@/utils/quranSpeechMatch';
 import {
   DEFAULT_RECITER_ID, RECITERS, narrationName, pauseAudio, playAyahSequence,
   resumeAudio, stopAudio,
 } from '@/services/quranAudio';
 
 const arabicNum = (n: number) => new Intl.NumberFormat('ar-SA').format(n);
+const MIC_START_TIMEOUT_MS = 12000;
+
+function withMicTimeout<T>(promise: Promise<T>, label: string): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = window.setTimeout(() => reject(new Error(`${label} timed out`)), MIC_START_TIMEOUT_MS);
+    promise.then(
+      value => { window.clearTimeout(timer); resolve(value); },
+      error => { window.clearTimeout(timer); reject(error); },
+    );
+  });
+}
 
 const STATUS_CLASS: Record<string, string> = {
   correct: 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300',
@@ -147,6 +160,7 @@ export function MemorizationRepeatSession({ session, pages, totalPages }: Props)
   const [speechNote, setSpeechNote] = useState<string | null>(null);
   const startingRef = useRef(false);
   const endingRef = useRef(false);
+  const micAttemptRef = useRef(0);
 
   useEffect(() => {
     let alive = true;
@@ -167,6 +181,7 @@ export function MemorizationRepeatSession({ session, pages, totalPages }: Props)
    * reciter audio and microphone all stop together — never one without the other.
    */
   const handleSessionInterruption = useCallback((note?: string) => {
+    micAttemptRef.current++;
     loopToken.current++;
     stopAudio();
     setAudioBusy(false);
@@ -235,6 +250,8 @@ export function MemorizationRepeatSession({ session, pages, totalPages }: Props)
     if (startingRef.current || micState === 'listening' || micState === 'processing') return;
     startingRef.current = true;
     endingRef.current = false;
+    const attempt = ++micAttemptRef.current;
+    const isCurrentAttempt = () => micAttemptRef.current === attempt;
     try {
       // 1. reciter audio must be fully silent before the mic opens
       stopLoop();
@@ -246,44 +263,53 @@ export function MemorizationRepeatSession({ session, pages, totalPages }: Props)
       setReport(null);
       setSpeechNote(null);
 
-      const provider = providerRef.current || (await getSpeechProvider());
+      const provider = providerRef.current || (await withMicTimeout(getSpeechProvider(), 'provider'));
+      if (!isCurrentAttempt()) return;
       providerRef.current = provider;
 
       if (provider.id === 'none') {
         setMicState('unavailable');
         setSpeechNote('التعرف الصوتي غير متاح حاليًا — يمكنك التسميع لنفسك واعتماد الحفظ يدويًا.');
+        setPhase('reviewing');
         return;
       }
       if (provider.networkRequirement === 'required' && !isOnline()) {
         setMicState('unavailable');
         setSpeechNote('التعرف الصوتي غير متاح بدون اتصال حاليًا — يمكنك التسميع لنفسك واعتماد الحفظ يدويًا.');
+        setPhase('reviewing');
         return;
       }
 
       setMicState('requestingPermission');
-      let perm = await provider.checkPermission();
-      if (perm !== 'granted') perm = await provider.requestPermission();
+      let perm = await withMicTimeout(provider.checkPermission(), 'permission check');
+      if (!isCurrentAttempt()) return;
+      if (perm !== 'granted') perm = await withMicTimeout(provider.requestPermission(), 'permission request');
+      if (!isCurrentAttempt()) return;
       if (perm !== 'granted') {
         setMicState('permissionDenied');
         setSpeechNote('لم يُسمح باستخدام الميكروفون — يمكنك تفعيله من إعدادات الهاتف، أو المتابعة بالاعتماد اليدوي.');
+        setPhase('reviewing');
         return;
       }
 
       // Arabic must really exist on the device; we never fall back to another language.
-      const langCheck = await provider.resolveLanguage(settings.language || 'ar-SA');
+      const langCheck = await withMicTimeout(provider.resolveLanguage(settings.language || 'ar-SA'), 'language check');
+      if (!isCurrentAttempt()) return;
       if (!langCheck.supported) {
         setMicState('unavailable');
         setSpeechNote('التعرف على العربية غير متاح على هذا الجهاز — يمكنك التسميع لنفسك واعتماد الحفظ يدويًا.');
+        setPhase('reviewing');
         return;
       }
       if (langCheck.substituted) {
         setSpeechNote(`لهجة "${settings.language}" غير متوفرة — سيُستخدم "${langCheck.lang}".`);
       }
 
-      const ok = await provider.startListening(langCheck.lang, {
-        onPartialResult: (t) => setPartial(t),
-        onStateChange: (s) => setMicState(s),
+      const ok = await withMicTimeout(provider.startListening(langCheck.lang, {
+        onPartialResult: (t) => { if (isCurrentAttempt()) setPartial(t); },
+        onStateChange: (s) => { if (isCurrentAttempt()) setMicState(s); },
         onFinalResult: (t) => {
+          if (!isCurrentAttempt()) return;
           endingRef.current = false;
           setFinalText(t);
           setPhase('reviewing');
@@ -294,13 +320,25 @@ export function MemorizationRepeatSession({ session, pages, totalPages }: Props)
           if (settings.autoCheck) runCheck(t);
         },
         onError: (msg, tech) => {
+          if (!isCurrentAttempt()) return;
           console.error('[memorization] speech error', msg, tech);
           setSpeechNote(msg);
+          setMicState('error');
+          setPhase('reviewing');
         },
-      });
+      }), 'microphone start');
+      if (!isCurrentAttempt()) return;
       if (!ok) {
         setSpeechNote('تعذّر بدء التسميع — حاول مرة أخرى.');
         setMicState('error');
+        setPhase('reviewing');
+      }
+    } catch (error) {
+      if (isCurrentAttempt()) {
+        console.error('[memorization] microphone startup failed', error);
+        await providerRef.current?.dispose();
+        setMicState('error');
+        setSpeechNote('تعذّر تجهيز الميكروفون — أعد المحاولة.');
         setPhase('reviewing');
       }
     } finally {
@@ -443,6 +481,31 @@ export function MemorizationRepeatSession({ session, pages, totalPages }: Props)
   const currentAtomIds = unit?.atomIds ?? [];
   const nextAtomIds = units[currentUnit + 1]?.atomIds ?? [];
   const memorizedCount = units.filter(u => isUnitMemorized(u, memorizedIds)).length;
+  const recitationUnits = useMemo(
+    () => unit ? (settings.method === 'cumulative' ? cumulativeUnits(units, currentUnit, memorizedIds) : [unit]) : [],
+    [unit, units, currentUnit, memorizedIds, settings.method],
+  );
+  const recitationWordIds = useMemo(
+    () => recitationUnits.flatMap(item => item.mode === 'ayah'
+      ? item.ayahAtoms.flatMap(atoms => atoms.wordIds)
+      : item.atomIds),
+    [recitationUnits],
+  );
+  const recitationProgress = useMemo(
+    () => matchRecitationProgress(recitationUnits.flatMap(item => item.words), partial || finalText),
+    [recitationUnits, partial, finalText],
+  );
+  const recitedWordIds = useMemo(
+    () => new Set(phase === 'reciting' ? recitationWordIds.slice(0, recitationProgress.matchedCount) : []),
+    [phase, recitationWordIds, recitationProgress.matchedCount],
+  );
+  const recitationCurrentWordId = phase === 'reciting'
+    ? recitationWordIds[recitationProgress.nextIndex] ?? null
+    : null;
+  const audioPages = useMemo(
+    () => Array.from({ length: Math.max(0, settings.endPage - settings.startPage + 1) }, (_, index) => settings.startPage + index),
+    [settings.startPage, settings.endPage],
+  );
   const notes = [audioNote, speechNote].filter(Boolean) as string[];
 
   /* ─── render ─── */
@@ -517,6 +580,8 @@ export function MemorizationRepeatSession({ session, pages, totalPages }: Props)
             upcomingVisibility={settings.upcomingVisibility}
             hideCurrent={hideText}
             playingRef={playingRef}
+            recitedWordIds={recitedWordIds}
+            recitationCurrentWordId={recitationCurrentWordId}
           />
         )}
       </main>
@@ -528,17 +593,6 @@ export function MemorizationRepeatSession({ session, pages, totalPages }: Props)
             <p className="font-arabic text-xs text-muted-foreground flex items-center gap-2">
               <Loader2 className="w-4 h-4 animate-spin" /> جارٍ استخراج النص…
             </p>
-          )}
-
-          {(settings.transcriptVisibility === 'live' && phase === 'reciting' && partial) && (
-            <p className="font-arabic text-sm leading-7 text-muted-foreground">{partial}</p>
-          )}
-
-          {phase === 'reviewing' && finalText && (
-            <div>
-              <p className="font-arabic text-[11px] text-muted-foreground mb-1">ما قرأتَه:</p>
-              <p className="font-arabic text-sm leading-7">{finalText}</p>
-            </div>
           )}
 
           {phase === 'reviewing' && !settings.autoCheck && finalText && !report && (
@@ -569,7 +623,7 @@ export function MemorizationRepeatSession({ session, pages, totalPages }: Props)
                     title={DIFF_LABEL[t.status]}
                     className={`px-2 py-0.5 rounded-lg text-base font-quran ${STATUS_CLASS[t.status]}`}
                   >
-                    {t.expected || t.heard}
+                    {t.expected || DIFF_LABEL[t.status]}
                   </span>
                 ))}
               </div>
@@ -715,6 +769,12 @@ export function MemorizationRepeatSession({ session, pages, totalPages }: Props)
                 </SelectContent>
               </Select>
             </div>
+
+            <QuranAudioManager
+              pages={audioPages}
+              reciterId={settings.reciterId || DEFAULT_RECITER_ID}
+              onReciterChange={(value) => setSetting('reciterId', value)}
+            />
 
             <div>
               <Label className="font-arabic text-xs">

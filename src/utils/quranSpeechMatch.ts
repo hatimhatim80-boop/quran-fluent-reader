@@ -93,6 +93,49 @@ export interface MatchResult {
   score: number; // 0..1 ratio of matched/total
 }
 
+export interface RecitationProgress {
+  matchedCount: number;
+  nextIndex: number;
+}
+
+/**
+ * Tracks ordered progress through canonical Quran words from a cumulative ASR
+ * transcript. The transcript is comparison-only; callers continue rendering
+ * the original Quran words. Extra recognizer tokens are tolerated, while each
+ * heard token can advance at most one expected word.
+ */
+export function matchRecitationProgress(
+  expectedWords: string[],
+  spokenText: string,
+  threshold = 0.86,
+): RecitationProgress {
+  const expected = expectedWords.map(normalizeSpeechArabic).filter(Boolean);
+  const spoken = splitWords(normalizeSpeechArabic(spokenText));
+  let expectedIndex = 0;
+
+  const stripParticle = (word: string) => word.replace(/^(?:و|ف|ل|ب|ك)+/, '');
+  const matches = (heard: string, target: string) => {
+    if (!heard || !target) return false;
+    const heardCore = stripParticle(heard);
+    const targetCore = stripParticle(target);
+    if (heard === target || heardCore === target || heard === targetCore || heardCore === targetCore) return true;
+    const shortest = Math.min(heardCore.length, targetCore.length);
+    if (shortest < 3) return false;
+    return similarity(heardCore, targetCore) >= threshold;
+  };
+
+  for (let spokenIndex = 0; spokenIndex < spoken.length && expectedIndex < expected.length; spokenIndex++) {
+    const heard = spoken[spokenIndex];
+    const target = expected[expectedIndex];
+    const pair = spokenIndex + 1 < spoken.length ? heard + spoken[spokenIndex + 1] : '';
+    if (!matches(heard, target) && !matches(pair, target)) continue;
+    if (pair && !matches(heard, target)) spokenIndex++;
+    expectedIndex++;
+  }
+
+  return { matchedCount: expectedIndex, nextIndex: expectedIndex };
+}
+
 /**
  * Match hidden words in order within spoken text.
  * 
