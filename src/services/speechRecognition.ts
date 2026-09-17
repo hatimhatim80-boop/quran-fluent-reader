@@ -52,6 +52,10 @@ function nativeErrorMessage(error: unknown): string {
   return /network|unavailable|not available|no match|service/.test(message) ? unavailableMessage : startErrorMessage;
 }
 
+/** Android/iOS recognizer backed by @capgo/capacitor-speech-recognition (Capacitor 8). */
+const NO_PARTIAL_TIMEOUT_MS = 8000;
+const noPartialMessage = 'لم يصل أي صوت من الميكروفون خلال ٨ ثوانٍ — تحقق من إذن الميكروفون ثم أعد المحاولة.';
+
 class NativeProvider implements QuranSpeechRecognitionProvider {
   readonly id = 'native' as const;
   readonly name = 'التعرف الصوتي في النظام';
@@ -60,14 +64,15 @@ class NativeProvider implements QuranSpeechRecognitionProvider {
   private lifecycle: RecognizerLifecycle = 'idle';
   private listeners: { remove: () => void }[] = [];
   private transcript = '';
-  private partial = '';
   private language = 'ar-SA';
   private stopRequested = false;
   private finalDelivered = false;
+  private gotPartial = false;
   private guardTimer: ReturnType<typeof setTimeout> | null = null;
-  private startTimer: ReturnType<typeof setTimeout> | null = null;
+  private partialTimer: ReturnType<typeof setTimeout> | null = null;
 
-  private async plugin() { return (await import('@capacitor-community/speech-recognition')).SpeechRecognition; }
+  private async plugin() { return (await import('@capgo/capacitor-speech-recognition')).SpeechRecognition; }
+
   async isAvailable() {
     if (!Capacitor.isNativePlatform()) return false;
     try { return !!(await (await this.plugin()).available())?.available; }
@@ -85,103 +90,127 @@ class NativeProvider implements QuranSpeechRecognitionProvider {
     const requested = preferred.toLowerCase().startsWith('ar') ? preferred : 'ar-SA';
     try {
       const languages = (await (await this.plugin()).getSupportedLanguages()).languages || [];
+      // Android 13+ no longer exposes the list; an empty list is not a failure.
       if (languages.length === 0) return { lang: requested, supported: true, substituted: requested !== preferred };
       const exact = languages.find(item => item.toLowerCase() === requested.toLowerCase());
       if (exact) return { lang: exact, supported: true, substituted: exact !== preferred };
       const arabic = languages.find(item => item.toLowerCase().startsWith('ar'));
-      return arabic
-        ? { lang: arabic, supported: true, substituted: true }
-        : { lang: requested, supported: false, substituted: false };
+      return arabic ? { lang: arabic, supported: true, substituted: true } : { lang: requested, supported: false, substituted: false };
     } catch (error) {
       console.error('[speech/native] language check failed', error);
       return { lang: requested, supported: true, substituted: requested !== preferred };
     }
   }
-  /** Android's start() promise can stay pending while listening; never gate the UI on it. */
+
   private markListening() {
     if (this.finalDelivered || this.stopRequested) return;
-    if (this.lifecycle === 'starting' || this.lifecycle === 'restarting') {
+    if (this.lifecycle === 'starting' || this.lifecycle === 'listening') {
+      if (this.lifecycle === 'starting') this.callbacks.onStateChange?.('listening');
       this.lifecycle = 'listening';
-      this.callbacks.onStateChange?.('listening');
     }
   }
-  private launch() {
-    const options = { language: this.language, maxResults: 5, partialResults: true, popup: false };
-    void this.plugin()
-      .then(plugin => plugin.start(options))
-      .then(() => { if (this.stopRequested) void this.finish(); else this.markListening(); })
-      .catch(error => {
-        if (this.finalDelivered) return;
-        if (this.lifecycle === 'listening') { console.error('[speech/native] session ended with error', error); void this.finish(); }
-        else void this.failStart(error);
-      });
-    // Fallback: some devices only report readiness through the listeningState event.
-    this.clearStartTimer();
-    this.startTimer = setTimeout(() => this.markListening(), 1200);
+
+  private applyPartial(text: string) {
+    if (!text || this.finalDelivered) return;
+    this.gotPartial = true;
+    this.clearPartialTimer();
+    this.markListening();
+    this.transcript = mergeTranscript(this.transcript, text);
+    this.callbacks.onPartialResult?.(this.transcript);
   }
+
   async startListening(language: string, callbacks: RecognitionCallbacks): Promise<boolean> {
     if (this.lifecycle !== 'idle' || !acquire(this)) return false;
     this.lifecycle = 'starting';
     this.callbacks = callbacks;
     this.language = language.toLowerCase().startsWith('ar') ? language : 'ar-SA';
     this.transcript = '';
-    this.partial = '';
     this.stopRequested = false;
     this.finalDelivered = false;
+    this.gotPartial = false;
     try {
       const plugin = await this.plugin();
+      // Never let a previous attempt's listeners survive into this session.
+      await plugin.removeAllListeners();
       this.listeners = [
         await plugin.addListener('partialResults', data => {
-          const text = (data.matches || []).slice(0, 3).reduce((best, value) => value.length > best.length ? value : best, '');
-          if (!text) return;
-          this.markListening();
-          this.partial = text;
-          this.callbacks.onPartialResult?.(mergeTranscript(this.transcript, text));
+          const best = (data.matches || []).reduce((top, value) => value.length > top.length ? value : top, '');
+          this.applyPartial(data.accumulatedText || best);
         }),
         await plugin.addListener('listeningState', data => {
-          if (data.status !== 'stopped') { this.markListening(); return; }
-          this.commitPartial();
+          const stopped = data.state === 'stopped' || data.status === 'stopped';
+          if (!stopped) { this.markListening(); return; }
           if (this.stopRequested || this.lifecycle === 'stopping') void this.finish();
-          else if (this.lifecycle === 'listening') void this.restart();
+          else void this.finish();
+        }),
+        await plugin.addListener('error', event => {
+          console.error('[speech/native] recognizer error', event);
+          if (this.finalDelivered) return;
+          if (this.lifecycle === 'starting') void this.failStart(event);
+          else void this.finish();
         }),
       ];
-      this.launch();
+
+      // start() resolves immediately with partialResults; never gate the UI on it.
+      void plugin.start({ language: this.language, maxResults: 5, partialResults: true, popup: false })
+        .then(() => { if (!this.stopRequested) this.markListening(); })
+        .catch(error => {
+          if (this.finalDelivered) return;
+          if (this.lifecycle === 'starting') void this.failStart(error);
+          else { console.error('[speech/native] session ended with error', error); void this.finish(); }
+        });
+      this.markListening();
+      this.clearPartialTimer();
+      this.partialTimer = setTimeout(() => {
+        if (this.finalDelivered || this.gotPartial) return;
+        console.error('[speech/native] no partial results within timeout');
+        this.callbacks.onError?.(noPartialMessage);
+        void this.forceStopAndFinish();
+      }, NO_PARTIAL_TIMEOUT_MS);
       return true;
     } catch (error) {
       await this.failStart(error);
       return false;
     }
   }
-  private commitPartial() {
-    this.transcript = mergeTranscript(this.transcript, this.partial);
-    this.partial = '';
+
+  private clearPartialTimer() {
+    if (this.partialTimer) clearTimeout(this.partialTimer);
+    this.partialTimer = null;
   }
-  private clearStartTimer() {
-    if (this.startTimer) clearTimeout(this.startTimer);
-    this.startTimer = null;
-  }
-  private async restart() {
-    if (this.stopRequested) { await this.finish(); return; }
-    this.lifecycle = 'restarting';
-    this.launch();
+  private clearGuard() {
+    if (this.guardTimer) clearTimeout(this.guardTimer);
+    this.guardTimer = null;
+    this.clearPartialTimer();
   }
   private async clearListeners() {
     for (const listener of this.listeners) {
       try { await listener.remove(); } catch (error) { console.error('[speech/native] listener cleanup failed', error); }
     }
     this.listeners = [];
+    try { await (await this.plugin()).removeAllListeners(); }
+    catch (error) { console.error('[speech/native] removeAllListeners failed', error); }
   }
-  private clearGuard() {
-    if (this.guardTimer) clearTimeout(this.guardTimer);
-    this.guardTimer = null;
-    this.clearStartTimer();
+  /** Last line of defence: stop() can hang, so force it and keep the cached partial. */
+  private async forceStopAndFinish() {
+    this.stopRequested = true;
+    try { await (await this.plugin()).forceStop({ timeout: 1200 }); }
+    catch (error) { console.error('[speech/native] forceStop failed', error); }
+    await this.finish();
+  }
+  private async cachedPartial(): Promise<string> {
+    try {
+      const last = await (await this.plugin()).getLastPartialResult();
+      return last?.available ? String(last.text || '') : '';
+    } catch (error) { console.error('[speech/native] getLastPartialResult failed', error); return ''; }
   }
   private async finish() {
     if (this.finalDelivered) return;
     this.finalDelivered = true;
     this.lifecycle = 'processing';
     this.clearGuard();
-    this.commitPartial();
+    const cached = await this.cachedPartial();
+    if (cached) this.transcript = mergeTranscript(this.transcript, cached);
     const result = this.transcript.trim();
     await this.clearListeners();
     this.lifecycle = 'idle';
@@ -191,6 +220,7 @@ class NativeProvider implements QuranSpeechRecognitionProvider {
   }
   private async failStart(error: unknown) {
     console.error('[speech/native] start failed', error);
+    this.finalDelivered = true;
     this.clearGuard();
     await this.clearListeners();
     this.lifecycle = 'idle';
@@ -206,22 +236,23 @@ class NativeProvider implements QuranSpeechRecognitionProvider {
     try { await (await this.plugin()).stop(); }
     catch (error) { console.error('[speech/native] stop failed', error); }
     this.clearGuard();
-    this.guardTimer = setTimeout(() => { void this.finish(); }, 2000);
+    this.guardTimer = setTimeout(() => { void this.forceStopAndFinish(); }, 1500);
   }
   async dispose() {
     this.stopRequested = true;
     this.clearGuard();
     if (this.lifecycle !== 'idle') {
-      try { await (await this.plugin()).stop(); } catch (error) { console.error('[speech/native] dispose stop failed', error); }
+      try { await (await this.plugin()).forceStop({ timeout: 800 }); }
+      catch (error) { console.error('[speech/native] dispose stop failed', error); }
     }
     this.finalDelivered = true;
     await this.clearListeners();
     this.transcript = '';
-    this.partial = '';
     this.lifecycle = 'idle';
     release(this);
   }
 }
+
 
 interface WebRecognition {
   lang: string; continuous: boolean; interimResults: boolean; maxAlternatives: number;
