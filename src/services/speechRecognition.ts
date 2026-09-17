@@ -174,6 +174,7 @@ class NativeProvider implements QuranSpeechRecognitionProvider {
   private clearGuard() {
     if (this.guardTimer) clearTimeout(this.guardTimer);
     this.guardTimer = null;
+    this.clearStartTimer();
   }
   private async finish() {
     if (this.finalDelivered) return;
