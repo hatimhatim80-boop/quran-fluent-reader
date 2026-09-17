@@ -31,6 +31,8 @@ import {
 import { toast } from 'sonner';
 import { QuranPage } from '@/types/quran';
 import { Session, useSessionsStore } from '@/stores/sessionsStore';
+import { MemorizationMushafPage } from '@/components/MemorizationMushafPage';
+import { AyahRef } from '@/utils/pageAyahRefs';
 import {
   MemorizationSettings, STRUCTURAL_SETTING_KEYS,
   useMemorizationStore,
@@ -125,6 +127,7 @@ export function MemorizationRepeatSession({ session, pages, totalPages }: Props)
   const [audioBusy, setAudioBusy] = useState(false);
   const [audioPaused, setAudioPaused] = useState(false);
   const [audioNote, setAudioNote] = useState<string | null>(null);
+  const [playingRef, setPlayingRef] = useState<AyahRef | null>(null);
   const loopToken = useRef(0);
 
   const stopLoop = useCallback(() => {
@@ -132,6 +135,7 @@ export function MemorizationRepeatSession({ session, pages, totalPages }: Props)
     stopAudio();
     setAudioBusy(false);
     setAudioPaused(false);
+    setPlayingRef(null);
   }, []);
 
   /* ─── speech ─── */
