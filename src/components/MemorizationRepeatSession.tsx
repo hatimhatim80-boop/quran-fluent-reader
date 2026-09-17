@@ -336,10 +336,10 @@ export function MemorizationRepeatSession({ session, pages, totalPages }: Props)
     } catch (error) {
       if (isCurrentAttempt()) {
         console.error('[memorization] microphone startup failed', error);
-        await providerRef.current?.dispose();
         setMicState('error');
         setSpeechNote('تعذّر تجهيز الميكروفون — أعد المحاولة.');
         setPhase('reviewing');
+        void providerRef.current?.dispose();
       }
     } finally {
       startingRef.current = false;
@@ -862,20 +862,6 @@ export function MemorizationRepeatSession({ session, pages, totalPages }: Props)
                       {r.name} — {narrationName(r)}
                     </SelectItem>
                   ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div>
-              <Label className="font-arabic text-xs">إظهار النص الذي يسمعه التطبيق</Label>
-              <Select
-                value={settings.transcriptVisibility}
-                onValueChange={(v) => setSetting('transcriptVisibility', v as MemorizationSettings['transcriptVisibility'])}
-              >
-                <SelectTrigger className="h-11 font-arabic"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="live" className="font-arabic">أثناء التسميع</SelectItem>
-                  <SelectItem value="after" className="font-arabic">بعد الانتهاء فقط</SelectItem>
                 </SelectContent>
               </Select>
             </div>
