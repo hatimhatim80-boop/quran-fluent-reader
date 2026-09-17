@@ -13,13 +13,13 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@capacitor-community/speech-recognition": "^7.0.1",
     "@capacitor/android": "^8.5.2",
     "@capacitor/app": "^8.0.1",
     "@capacitor/core": "^8.5.2",
     "@capacitor/filesystem": "^8",
     "@capacitor/local-notifications": "^8.0.1",
     "@capacitor/preferences": "^8.0.1",
+    "@capgo/capacitor-speech-recognition": "^8.3.2",
     "@capgo/capacitor-updater": "^8.43.2",
     "@fontsource/amiri-quran": "^5.2.10",
     "@hookform/resolvers": "^3.10.0",
