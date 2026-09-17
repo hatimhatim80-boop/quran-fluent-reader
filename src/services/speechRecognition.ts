@@ -73,17 +73,36 @@ class NativeProvider implements QuranSpeechRecognitionProvider {
 
   private async plugin() { return (await import('@capgo/capacitor-speech-recognition')).SpeechRecognition; }
 
+  /** On a native build this provider is the ONLY possible one: the Android WebView
+   *  has no window.SpeechRecognition, so never fall back to the web provider.
+   *  available() is logged but must not disqualify the provider. */
   async isAvailable() {
     if (!Capacitor.isNativePlatform()) return false;
-    try { return !!(await (await this.plugin()).available())?.available; }
-    catch (error) { console.error('[speech/native] availability failed', error); return false; }
+    try { console.log('[speech/native] available():', JSON.stringify(await (await this.plugin()).available())); }
+    catch (error) { console.error('[speech/native] availability check failed', error); }
+    return true;
+  }
+  private normalizePermission(status: Record<string, unknown> | undefined): PermissionResult {
+    const values = Object.values(status || {}).map(value => String(value));
+    if (values.length === 0) return 'prompt';
+    if (values.every(value => value === 'granted')) return 'granted';
+    if (values.some(value => value === 'denied')) return 'denied';
+    return 'prompt';
   }
   async checkPermission(): Promise<PermissionResult> {
-    try { return (await (await this.plugin()).checkPermissions()).speechRecognition as PermissionResult || 'prompt'; }
+    try {
+      const status = await (await this.plugin()).checkPermissions() as Record<string, unknown>;
+      console.log('[speech/native] checkPermissions:', JSON.stringify(status));
+      return this.normalizePermission(status);
+    }
     catch (error) { console.error('[speech/native] permission check failed', error); return 'prompt'; }
   }
   async requestPermission(): Promise<PermissionResult> {
-    try { return (await (await this.plugin()).requestPermissions()).speechRecognition as PermissionResult || 'denied'; }
+    try {
+      const status = await (await this.plugin()).requestPermissions() as Record<string, unknown>;
+      console.log('[speech/native] requestPermissions:', JSON.stringify(status));
+      return this.normalizePermission(status);
+    }
     catch (error) { console.error('[speech/native] permission request failed', error); return 'denied'; }
   }
   async resolveLanguage(preferred: string): Promise<LanguageCheck> {
