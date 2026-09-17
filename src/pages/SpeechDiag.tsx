@@ -51,6 +51,7 @@ export default function SpeechDiag() {
     ['تطبيق أصلي', report.native ? 'نعم' : 'لا (متصفح)'],
     ['المزوّد', report.provider],
     ['توفر الإضافة', report.pluginAvailable],
+    ['نسخة إضافة أندرويد', report.pluginVersion],
     ['الإذن قبل الطلب', report.permissionBefore],
     ['الإذن بعد الطلب', report.permissionAfter],
     ['اللغات العربية', report.languages],

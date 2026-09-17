@@ -78,7 +78,7 @@ jobs:
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
-          java-version: '17'
+          java-version: '21'
 
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
@@ -89,15 +89,15 @@ jobs:
       - name: Build web app
         run: npm run build
 
-      - name: Install Capacitor dependencies
-        run: |
-          npm install @capacitor/core @capacitor/cli @capacitor/android
-
-      - name: Add Android platform
-        run: npx cap add android || true
-
       - name: Sync Capacitor
         run: npx cap sync android
+
+      - name: Verify native speech recognition
+        run: |
+          grep -q "capgo-capacitor-speech-recognition" android/capacitor.settings.gradle
+          grep -q "capgo-capacitor-speech-recognition" android/app/capacitor.build.gradle
+          grep -q "android.permission.RECORD_AUDIO" android/app/src/main/AndroidManifest.xml
+          test -f node_modules/@capgo/capacitor-speech-recognition/android/build.gradle
 
       - name: Build Debug APK
         working-directory: android
@@ -114,6 +114,7 @@ jobs:
           path: |
             android/app/build/outputs/apk/debug/*.apk
             android/app/build/outputs/apk/release/*.apk
+          if-no-files-found: error
 
       - name: Upload to Release
         if: github.event_name == 'release'
