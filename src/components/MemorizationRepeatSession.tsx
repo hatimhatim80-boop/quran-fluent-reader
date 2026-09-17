@@ -365,6 +365,34 @@ export function MemorizationRepeatSession({ session, pages, totalPages }: Props)
     }
   }, []);
 
+  /** Always a way out of a stuck "preparing" microphone. */
+  const cancelRecitation = useCallback(() => {
+    micAttemptRef.current++;
+    startingRef.current = false;
+    endingRef.current = false;
+    void providerRef.current?.dispose();
+    setMicState('idle');
+    setPhase('reviewing');
+    setSpeechNote('أُوقف تجهيز الميكروفون — يمكنك إعادة المحاولة أو اعتماد الحفظ يدويًا.');
+  }, []);
+
+  /* لا يبقى «تجهيز الميكروفون» معلقًا: مهلة قصوى ثم حالة واضحة قابلة لإعادة المحاولة */
+  useEffect(() => {
+    if (phase !== 'reciting' || micState === 'listening' || micState === 'processing') return;
+    const timer = window.setTimeout(() => {
+      console.error('[memorization] microphone stayed preparing', micState);
+      micAttemptRef.current++;
+      startingRef.current = false;
+      void providerRef.current?.dispose();
+      setMicState('error');
+      setPhase('reviewing');
+      setSpeechNote('لم يستجب الميكروفون على هذا الجهاز — أعد المحاولة أو اعتمد الحفظ يدويًا.');
+    }, 15000);
+    return () => window.clearTimeout(timer);
+  }, [phase, micState]);
+
+
+
   /* ─── interruptions (calls, background, screen lock) ─── */
   const wasListeningRef = useRef(false);
   useEffect(() => { wasListeningRef.current = micState === 'listening' || micState === 'requestingPermission'; }, [micState]);
@@ -663,6 +691,11 @@ export function MemorizationRepeatSession({ session, pages, totalPages }: Props)
               <span className="w-2.5 h-2.5 rounded-full bg-destructive animate-pulse" />
               {listening ? '🎙 جارٍ الاستماع' : micState === 'requestingPermission' ? 'طلب إذن الميكروفون…' : 'تجهيز الميكروفون…'}
             </span>
+            {!listening && (
+              <Button className="h-11 px-4 font-arabic" variant="outline" onClick={cancelRecitation}>
+                إلغاء
+              </Button>
+            )}
             <Button className="h-11 px-5 font-arabic gap-2" variant="destructive" onClick={() => void endRecitation()}>
               <Square className="w-4 h-4" /> إنهاء التسميع
             </Button>
