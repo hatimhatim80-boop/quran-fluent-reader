@@ -62,6 +62,16 @@ const androidErrorText: Record<string, string> = {
   '12': 'حزمة اللغة العربية غير متاحة على الجهاز — نزّلها من إعدادات التعرف الصوتي.',
   '13': 'انقطع الاتصال بخدمة التعرف — أعد المحاولة.',
   '14': 'طلبات كثيرة على خدمة التعرف — انتظر قليلًا ثم أعد المحاولة.',
+  AUDIO: 'تعذّر تسجيل الصوت من الميكروفون.',
+  CLIENT: 'تعذّر بدء خدمة الميكروفون على الجهاز — أغلق المحاولة وأعدها.',
+  INSUFFICIENT_PERMISSIONS: 'إذن الميكروفون غير ممنوح — امنحه من إعدادات التطبيق.',
+  NETWORK: 'خدمة التعرف تحتاج اتصال إنترنت — شغّل الإنترنت ثم أعد المحاولة.',
+  NETWORK_TIMEOUT: 'انتهت مهلة الاتصال بخدمة التعرف — تحقق من الإنترنت.',
+  NO_MATCH: 'لم يُتعرَّف على أي كلام — أعد التسميع بصوت أوضح.',
+  RECOGNIZER_BUSY: 'خدمة التعرف مشغولة — أوقف التطبيقات التي تستخدم الميكروفون ثم أعد المحاولة.',
+  SERVER: 'حدث خطأ في خدمة التعرف الصوتي — أعد المحاولة.',
+  SERVER_DISCONNECTED: 'انقطع الاتصال بخدمة التعرف — أعد المحاولة.',
+  SPEECH_TIMEOUT: 'لم يُسمع أي صوت — اقترب من الميكروفون وأعد المحاولة.',
 };
 
 function nativeErrorMessage(error: unknown): string {
@@ -79,6 +89,7 @@ function nativeErrorMessage(error: unknown): string {
 /** Android/iOS recognizer backed by @capgo/capacitor-speech-recognition (Capacitor 8). */
 const NO_PARTIAL_TIMEOUT_MS = 8000;
 const noPartialMessage = 'لم يصل أي صوت من الميكروفون خلال ٨ ثوانٍ — تحقق من إذن الميكروفون ثم أعد المحاولة.';
+const missingNativePluginMessage = 'نسخة التطبيق المثبّتة قديمة ولا تحتوي محرّك الميكروفون الأصلي — ثبّت ملف APK الجديد.';
 
 class NativeProvider implements QuranSpeechRecognitionProvider {
   readonly id = 'native' as const;
@@ -102,9 +113,18 @@ class NativeProvider implements QuranSpeechRecognitionProvider {
    *  available() is logged but must not disqualify the provider. */
   async isAvailable() {
     if (!Capacitor.isNativePlatform()) return false;
-    try { console.log('[speech/native] available():', JSON.stringify(await (await this.plugin()).available())); }
-    catch (error) { console.error('[speech/native] availability check failed', error); }
-    return true;
+    if (!Capacitor.isPluginAvailable('SpeechRecognition')) {
+      console.error('[speech/native] native SpeechRecognition plugin is not registered in this APK');
+      return false;
+    }
+    try {
+      const result = await (await this.plugin()).available();
+      console.log('[speech/native] available():', JSON.stringify(result));
+      return result.available === true;
+    } catch (error) {
+      console.error('[speech/native] availability check failed', error);
+      return false;
+    }
   }
   private normalizePermission(status: Record<string, unknown> | undefined): PermissionResult {
     const values = Object.values(status || {}).map(value => String(value));
@@ -173,12 +193,18 @@ class NativeProvider implements QuranSpeechRecognitionProvider {
     this.gotPartial = false;
     try {
       const plugin = await this.plugin();
+      const availability = await plugin.available();
+      if (!availability.available) throw new Error(missingNativePluginMessage);
       // Never let a previous attempt's listeners survive into this session.
       await plugin.removeAllListeners();
       this.listeners = [
         await plugin.addListener('partialResults', data => {
           const best = (data.matches || []).reduce((top, value) => value.length > top.length ? value : top, '');
           this.applyPartial(data.accumulatedText || best);
+        }),
+        await plugin.addListener('audioLevel', () => {
+          // This event proves that Android's native recognizer owns the microphone.
+          this.markListening();
         }),
         await plugin.addListener('listeningState', data => {
           const stopped = data.state === 'stopped' || data.status === 'stopped';
@@ -204,7 +230,6 @@ class NativeProvider implements QuranSpeechRecognitionProvider {
           if (this.lifecycle === 'starting') void this.failStart(error);
           else { console.error('[speech/native] session ended with error', error); void this.finish(); }
         });
-      this.markListening();
       this.clearPartialTimer();
       this.partialTimer = setTimeout(() => {
         if (this.finalDelivered || this.gotPartial) return;
@@ -426,6 +451,9 @@ export async function getSpeechProvider(): Promise<QuranSpeechRecognitionProvide
   if (cachedProvider) return cachedProvider;
   const native = new NativeProvider();
   if (await native.isAvailable()) return (cachedProvider = native);
+  // A Capacitor Android/iOS build must never silently use the WebView recognizer.
+  // Missing native registration means the installed APK itself must be replaced.
+  if (Capacitor.isNativePlatform()) return (cachedProvider = new NoProvider());
   const web = new WebProvider();
   if (await web.isAvailable()) return (cachedProvider = web);
   return (cachedProvider = new NoProvider());
@@ -437,6 +465,7 @@ export interface SpeechDiagnostics {
   native: boolean;
   provider: string;
   pluginAvailable: string;
+  pluginVersion: string;
   permissionBefore: string;
   permissionAfter: string;
   languages: string;
@@ -452,15 +481,25 @@ export async function runSpeechDiagnostics(): Promise<SpeechDiagnostics> {
     native,
     provider: provider.id,
     pluginAvailable: 'غير مفحوص',
+    pluginVersion: 'غير مفحوص',
     permissionBefore: 'غير مفحوص',
     permissionAfter: 'غير مطلوب',
     languages: 'غير مفحوص',
     online: isOnline(),
   };
   if (native) {
+    if (!Capacitor.isPluginAvailable('SpeechRecognition')) {
+      report.pluginAvailable = 'غير مسجّلة داخل APK — ثبّت النسخة الجديدة';
+      report.pluginVersion = 'غير موجودة';
+      report.permissionBefore = 'غير قابل للفحص';
+      report.permissionAfter = 'غير قابل للفحص';
+      report.languages = 'غير قابل للفحص';
+      return report;
+    }
     try {
       const plugin = (await import('@capgo/capacitor-speech-recognition')).SpeechRecognition;
       report.pluginAvailable = JSON.stringify(await plugin.available());
+      report.pluginVersion = (await plugin.getPluginVersion()).version;
       try {
         const languages = (await plugin.getSupportedLanguages()).languages || [];
         report.languages = languages.length ? languages.filter(l => l.toLowerCase().startsWith('ar')).join(', ') || `${languages.length} لغة بدون عربية` : 'القائمة غير متاحة (طبيعي في أندرويد 13+)';

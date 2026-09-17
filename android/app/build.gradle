@@ -7,8 +7,9 @@ android {
         applicationId "app.lovable.p9444b7b6261c4f408a4fa03f717ae338"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 1
-        versionName "1.0"
+        // Every CI build must be distinguishable from an older APK on the phone.
+        versionCode (System.getenv("GITHUB_RUN_NUMBER") ?: "2").toInteger()
+        versionName System.getenv("APP_VERSION_NAME") ?: "1.1.0"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.

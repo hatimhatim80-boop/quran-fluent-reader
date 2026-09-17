@@ -62,20 +62,18 @@ npx tauri build
 
 ### المتطلبات
 - [Android Studio](https://developer.android.com/studio)
-- Java JDK 17+
+- Java JDK 21
 
 ### خطوات البناء
 
 ```bash
-# تثبيت Capacitor
-npm install @capacitor/core @capacitor/cli @capacitor/android
-
-# إضافة منصة Android
-npx cap add android
-
-# بناء التطبيق
+# تثبيت الحزم المقفلة ثم بناء التطبيق
+npm ci
 npm run build
 npx cap sync android
+
+# تحقق أن إضافة التسميع الأصلية دخلت مشروع Android
+grep -q "capgo-capacitor-speech-recognition" android/capacitor.settings.gradle
 
 # فتح في Android Studio
 npx cap open android
