@@ -51,10 +51,10 @@ export async function requestAllNativePermissions(): Promise<void> {
   // ── 2. Microphone / speech recognition — required by the recitation session ──
   try {
     const { SpeechRecognition } = await import('@capgo/capacitor-speech-recognition');
-    const current = await SpeechRecognition.checkPermissions() as Record<string, unknown>;
+    const current = await SpeechRecognition.checkPermissions() as unknown as Record<string, unknown>;
     console.log('[nativePermissions] Speech permission check:', JSON.stringify(current));
     if (Object.values(current || {}).some(value => String(value) !== 'granted')) {
-      const result = await SpeechRecognition.requestPermissions() as Record<string, unknown>;
+      const result = await SpeechRecognition.requestPermissions() as unknown as Record<string, unknown>;
       console.log('[nativePermissions] Speech permission request result:', JSON.stringify(result));
     }
   } catch (e) {

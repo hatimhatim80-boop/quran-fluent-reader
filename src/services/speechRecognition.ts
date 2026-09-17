@@ -115,7 +115,7 @@ class NativeProvider implements QuranSpeechRecognitionProvider {
   }
   async checkPermission(): Promise<PermissionResult> {
     try {
-      const status = await (await this.plugin()).checkPermissions() as Record<string, unknown>;
+      const status = await (await this.plugin()).checkPermissions() as unknown as Record<string, unknown>;
       console.log('[speech/native] checkPermissions:', JSON.stringify(status));
       return this.normalizePermission(status);
     }
@@ -123,7 +123,7 @@ class NativeProvider implements QuranSpeechRecognitionProvider {
   }
   async requestPermission(): Promise<PermissionResult> {
     try {
-      const status = await (await this.plugin()).requestPermissions() as Record<string, unknown>;
+      const status = await (await this.plugin()).requestPermissions() as unknown as Record<string, unknown>;
       console.log('[speech/native] requestPermissions:', JSON.stringify(status));
       return this.normalizePermission(status);
     }
