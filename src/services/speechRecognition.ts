@@ -62,6 +62,16 @@ const androidErrorText: Record<string, string> = {
   '12': 'حزمة اللغة العربية غير متاحة على الجهاز — نزّلها من إعدادات التعرف الصوتي.',
   '13': 'انقطع الاتصال بخدمة التعرف — أعد المحاولة.',
   '14': 'طلبات كثيرة على خدمة التعرف — انتظر قليلًا ثم أعد المحاولة.',
+  AUDIO: 'تعذّر تسجيل الصوت من الميكروفون.',
+  CLIENT: 'تعذّر بدء خدمة الميكروفون على الجهاز — أغلق المحاولة وأعدها.',
+  INSUFFICIENT_PERMISSIONS: 'إذن الميكروفون غير ممنوح — امنحه من إعدادات التطبيق.',
+  NETWORK: 'خدمة التعرف تحتاج اتصال إنترنت — شغّل الإنترنت ثم أعد المحاولة.',
+  NETWORK_TIMEOUT: 'انتهت مهلة الاتصال بخدمة التعرف — تحقق من الإنترنت.',
+  NO_MATCH: 'لم يُتعرَّف على أي كلام — أعد التسميع بصوت أوضح.',
+  RECOGNIZER_BUSY: 'خدمة التعرف مشغولة — أوقف التطبيقات التي تستخدم الميكروفون ثم أعد المحاولة.',
+  SERVER: 'حدث خطأ في خدمة التعرف الصوتي — أعد المحاولة.',
+  SERVER_DISCONNECTED: 'انقطع الاتصال بخدمة التعرف — أعد المحاولة.',
+  SPEECH_TIMEOUT: 'لم يُسمع أي صوت — اقترب من الميكروفون وأعد المحاولة.',
 };
 
 function nativeErrorMessage(error: unknown): string {
@@ -438,6 +448,9 @@ export async function getSpeechProvider(): Promise<QuranSpeechRecognitionProvide
   if (cachedProvider) return cachedProvider;
   const native = new NativeProvider();
   if (await native.isAvailable()) return (cachedProvider = native);
+  // A Capacitor Android/iOS build must never silently use the WebView recognizer.
+  // Missing native registration means the installed APK itself must be replaced.
+  if (Capacitor.isNativePlatform()) return (cachedProvider = new NoProvider());
   const web = new WebProvider();
   if (await web.isAvailable()) return (cachedProvider = web);
   return (cachedProvider = new NoProvider());
