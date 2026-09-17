@@ -202,6 +202,10 @@ class NativeProvider implements QuranSpeechRecognitionProvider {
           const best = (data.matches || []).reduce((top, value) => value.length > top.length ? value : top, '');
           this.applyPartial(data.accumulatedText || best);
         }),
+        await plugin.addListener('audioLevel', () => {
+          // This event proves that Android's native recognizer owns the microphone.
+          this.markListening();
+        }),
         await plugin.addListener('listeningState', data => {
           const stopped = data.state === 'stopped' || data.status === 'stopped';
           if (!stopped) { this.markListening(); return; }
@@ -226,7 +230,6 @@ class NativeProvider implements QuranSpeechRecognitionProvider {
           if (this.lifecycle === 'starting') void this.failStart(error);
           else { console.error('[speech/native] session ended with error', error); void this.finish(); }
         });
-      this.markListening();
       this.clearPartialTimer();
       this.partialTimer = setTimeout(() => {
         if (this.finalDelivered || this.gotPartial) return;
