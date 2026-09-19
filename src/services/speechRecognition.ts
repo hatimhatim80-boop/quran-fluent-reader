@@ -696,6 +696,9 @@ class NoProvider implements QuranSpeechRecognitionProvider {
 let cachedProvider: QuranSpeechRecognitionProvider | null = null;
 export async function getSpeechProvider(): Promise<QuranSpeechRecognitionProvider> {
   if (cachedProvider) return cachedProvider;
+  // Preferred on Android: our own plugin over the system SpeechRecognizer.
+  const noor = new NoorNativeProvider();
+  if (await noor.isAvailable()) return (cachedProvider = noor);
   const native = new NativeProvider();
   if (await native.isAvailable()) return (cachedProvider = native);
   // A Capacitor Android/iOS build must never silently use the WebView recognizer.
