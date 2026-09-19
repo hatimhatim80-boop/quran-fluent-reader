@@ -737,6 +737,17 @@ export async function runSpeechDiagnostics(): Promise<SpeechDiagnostics> {
     languages: 'غير مفحوص',
     online: isOnline(),
   };
+  if (native && Capacitor.isPluginAvailable('NoorSpeech')) {
+    try {
+      const plugin = await getNoorPlugin();
+      report.pluginAvailable = `NoorSpeech: ${JSON.stringify(await plugin.available())}`;
+      report.pluginVersion = 'NoorSpeech (محرك أندرويد الأصلي)';
+      report.languages = 'ar-SA عبر خدمة التعرف في النظام';
+    } catch (error) { report.pluginAvailable = `فشل NoorSpeech: ${String(error)}`; }
+    report.permissionBefore = await provider.checkPermission();
+    if (report.permissionBefore !== 'granted') report.permissionAfter = await provider.requestPermission();
+    return report;
+  }
   if (native) {
     if (!Capacitor.isPluginAvailable('SpeechRecognition')) {
       report.pluginAvailable = 'غير مسجّلة داخل APK — ثبّت النسخة الجديدة';
