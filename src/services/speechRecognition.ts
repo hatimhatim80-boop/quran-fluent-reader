@@ -13,6 +13,11 @@ export interface RecognitionCallbacks {
   onError?: (message: string, technical?: unknown) => void;
 }
 
+export interface RecognitionOptions {
+  /** Quran words/phrases that help the native recognizer bias towards the recited text. */
+  contextualStrings?: string[];
+}
+
 export interface LanguageCheck { lang: string; supported: boolean; substituted: boolean }
 
 export interface QuranSpeechRecognitionProvider {
@@ -23,7 +28,7 @@ export interface QuranSpeechRecognitionProvider {
   checkPermission(): Promise<PermissionResult>;
   requestPermission(): Promise<PermissionResult>;
   resolveLanguage(preferred: string): Promise<LanguageCheck>;
-  startListening(lang: string, callbacks: RecognitionCallbacks): Promise<boolean>;
+  startListening(lang: string, callbacks: RecognitionCallbacks, options?: RecognitionOptions): Promise<boolean>;
   stopListening(): Promise<void>;
   dispose(): Promise<void>;
 }
@@ -88,6 +93,13 @@ function nativeErrorMessage(error: unknown): string {
 
 /** Android/iOS recognizer backed by @capgo/capacitor-speech-recognition (Capacitor 8). */
 const NO_PARTIAL_TIMEOUT_MS = 8000;
+/** Continuous mode restarts the Android recognizer after each silence gap. */
+const RESTART_GRACE_MS = 2500;
+const silenceCodes = new Set(['6', '7', 'NO_MATCH', 'SPEECH_TIMEOUT']);
+function isSilenceError(error: unknown): boolean {
+  const raw = error as { code?: unknown; error?: unknown } | undefined;
+  return silenceCodes.has(String(raw?.code ?? raw?.error ?? '').trim());
+}
 const noPartialMessage = 'لم يصل أي صوت من الميكروفون خلال ٨ ثوانٍ — تحقق من إذن الميكروفون ثم أعد المحاولة.';
 const missingNativePluginMessage = 'نسخة التطبيق المثبّتة قديمة ولا تحتوي محرّك الميكروفون الأصلي — ثبّت ملف APK الجديد.';
 
@@ -105,6 +117,7 @@ class NativeProvider implements QuranSpeechRecognitionProvider {
   private gotPartial = false;
   private guardTimer: ReturnType<typeof setTimeout> | null = null;
   private partialTimer: ReturnType<typeof setTimeout> | null = null;
+  private restartTimer: ReturnType<typeof setTimeout> | null = null;
 
   private async plugin() { return (await import('@capgo/capacitor-speech-recognition')).SpeechRecognition; }
 
@@ -182,7 +195,7 @@ class NativeProvider implements QuranSpeechRecognitionProvider {
     this.callbacks.onPartialResult?.(this.transcript);
   }
 
-  async startListening(language: string, callbacks: RecognitionCallbacks): Promise<boolean> {
+  async startListening(language: string, callbacks: RecognitionCallbacks, options: RecognitionOptions = {}): Promise<boolean> {
     if (this.lifecycle !== 'idle' || !acquire(this)) return false;
     this.lifecycle = 'starting';
     this.callbacks = callbacks;
@@ -200,7 +213,14 @@ class NativeProvider implements QuranSpeechRecognitionProvider {
       this.listeners = [
         await plugin.addListener('partialResults', data => {
           const best = (data.matches || []).reduce((top, value) => value.length > top.length ? value : top, '');
+          this.clearRestartGrace();
           this.applyPartial(data.accumulatedText || best);
+        }),
+        // Android continuous mode closes each silence-delimited segment separately.
+        await plugin.addListener('segmentResults', data => {
+          const best = (data.matches || []).reduce((top, value) => value.length > top.length ? value : top, '');
+          this.clearRestartGrace();
+          this.applyPartial(best);
         }),
         await plugin.addListener('audioLevel', () => {
           // This event proves that Android's native recognizer owns the microphone.
@@ -208,22 +228,34 @@ class NativeProvider implements QuranSpeechRecognitionProvider {
         }),
         await plugin.addListener('listeningState', data => {
           const stopped = data.state === 'stopped' || data.status === 'stopped';
-          if (!stopped) { this.markListening(); return; }
-          if (this.stopRequested || this.lifecycle === 'stopping') void this.finish();
-          else void this.finish();
+          if (!stopped) { this.clearRestartGrace(); this.markListening(); return; }
+          if (this.stopRequested || this.lifecycle === 'stopping') { void this.finish(); return; }
+          // Continuous mode restarts the recognizer after each silence: give it a
+          // moment to come back before ending the recitation session.
+          this.scheduleRestartGrace();
         }),
         await plugin.addListener('error', event => {
           console.error('[speech/native] recognizer error', JSON.stringify(event), event);
           if (this.finalDelivered) return;
-          // A recognizer error is never silent: the reciter must know why it stopped.
           if (this.lifecycle === 'starting') { void this.failStart(event); return; }
+          // Silence/no-match inside a continuous session is normal: the recognizer restarts.
+          if (!this.stopRequested && isSilenceError(event)) { this.scheduleRestartGrace(); return; }
           if (!this.stopRequested && !this.gotPartial) this.callbacks.onError?.(nativeErrorMessage(event), event);
           void this.finish();
         }),
       ];
 
       // start() resolves immediately with partialResults; never gate the UI on it.
-      void plugin.start({ language: this.language, maxResults: 5, partialResults: true, popup: false })
+      void plugin.start({
+        language: this.language,
+        maxResults: 5,
+        partialResults: true,
+        popup: false,
+        continuousPTT: true,
+        allowForSilence: 1500,
+        muteRecognizerBeep: true,
+        ...(options.contextualStrings?.length ? { contextualStrings: options.contextualStrings.slice(0, 200) } : {}),
+      })
         .then(() => { if (!this.stopRequested) this.markListening(); })
         .catch(error => {
           if (this.finalDelivered) return;
@@ -244,6 +276,20 @@ class NativeProvider implements QuranSpeechRecognitionProvider {
     }
   }
 
+  private scheduleRestartGrace() {
+    if (this.finalDelivered || this.stopRequested || this.restartTimer) return;
+    this.restartTimer = setTimeout(() => {
+      this.restartTimer = null;
+      if (this.finalDelivered || this.stopRequested) return;
+      console.log('[speech/native] recognizer did not resume after silence — closing session');
+      void this.finish();
+    }, RESTART_GRACE_MS);
+  }
+  private clearRestartGrace() {
+    if (this.restartTimer) clearTimeout(this.restartTimer);
+    this.restartTimer = null;
+  }
+
   private clearPartialTimer() {
     if (this.partialTimer) clearTimeout(this.partialTimer);
     this.partialTimer = null;
@@ -252,6 +298,7 @@ class NativeProvider implements QuranSpeechRecognitionProvider {
     if (this.guardTimer) clearTimeout(this.guardTimer);
     this.guardTimer = null;
     this.clearPartialTimer();
+    this.clearRestartGrace();
   }
   private async clearListeners() {
     for (const listener of this.listeners) {
