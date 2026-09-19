@@ -1,4 +1,14 @@
-/** One lifecycle-managed speech recognition abstraction for Quran recitation. */
+/**
+ * The single speech-recognition path in this project.
+ *
+ * Android only, through the in-app NoorSpeech plugin, which drives the system
+ * `android.speech.SpeechRecognizer` directly: ar-SA, live partial results,
+ * Quran contextual biasing strings and a continuous session that reopens on
+ * silence — the same mechanism the working Study Noor build uses.
+ *
+ * There is no web fallback and no second provider: on any other platform the
+ * recitation UI reports "unavailable" instead of silently using a weaker path.
+ */
 import { Capacitor } from '@capacitor/core';
 
 export type MicState = 'idle' | 'requestingPermission' | 'listening' | 'processing' | 'completed' | 'permissionDenied' | 'unavailable' | 'error';
@@ -14,14 +24,14 @@ export interface RecognitionCallbacks {
 }
 
 export interface RecognitionOptions {
-  /** Quran words/phrases that help the native recognizer bias towards the recited text. */
+  /** Quran words/phrases that bias the native recognizer towards the recited text. */
   contextualStrings?: string[];
 }
 
 export interface LanguageCheck { lang: string; supported: boolean; substituted: boolean }
 
 export interface QuranSpeechRecognitionProvider {
-  readonly id: 'native' | 'web' | 'none';
+  readonly id: 'native' | 'none';
   readonly name: string;
   readonly networkRequirement: NetworkRequirement;
   isAvailable(): Promise<boolean>;
@@ -51,6 +61,9 @@ export function mergeTranscript(base: string, addition: string): string {
 
 const unavailableMessage = 'التعرف الصوتي غير متاح حاليًا — يمكنك التسميع لنفسك واعتماد الحفظ يدويًا.';
 const startErrorMessage = 'تعذّر تشغيل الميكروفون — أعد المحاولة.';
+const noPartialMessage = 'لم يصل أي صوت من الميكروفون خلال ٨ ثوانٍ — تحقق من إذن الميكروفون ثم أعد المحاولة.';
+const NO_PARTIAL_TIMEOUT_MS = 8000;
+const STOP_GUARD_MS = 1500;
 
 /** Android SpeechRecognizer error codes, mapped to text the reciter can act on. */
 const androidErrorText: Record<string, string> = {
@@ -63,19 +76,22 @@ const androidErrorText: Record<string, string> = {
   '7': 'لم يُتعرَّف على أي كلام — أعد التسميع بصوت أوضح.',
   '8': 'خدمة التعرف مشغولة بتطبيق آخر — أغلقه ثم أعد المحاولة.',
   '9': 'إذن الميكروفون غير ممنوح — امنح الإذن من إعدادات التطبيق.',
-  '11': 'اللغة العربية غير مثبَّتة في خدمة التعرف — ثبّتها من إعدادات لوحة المفاتيح/الصوت في الهاتف.',
+  '11': 'اللغة العربية غير مثبَّتة في خدمة التعرف — ثبّتها من إعدادات الصوت في الهاتف.',
   '12': 'حزمة اللغة العربية غير متاحة على الجهاز — نزّلها من إعدادات التعرف الصوتي.',
   '13': 'انقطع الاتصال بخدمة التعرف — أعد المحاولة.',
   '14': 'طلبات كثيرة على خدمة التعرف — انتظر قليلًا ثم أعد المحاولة.',
   AUDIO: 'تعذّر تسجيل الصوت من الميكروفون.',
   CLIENT: 'تعذّر بدء خدمة الميكروفون على الجهاز — أغلق المحاولة وأعدها.',
   INSUFFICIENT_PERMISSIONS: 'إذن الميكروفون غير ممنوح — امنحه من إعدادات التطبيق.',
+  LANGUAGE_NOT_SUPPORTED: 'اللغة العربية غير مثبَّتة في خدمة التعرف — ثبّتها من إعدادات الهاتف.',
+  LANGUAGE_UNAVAILABLE: 'حزمة اللغة العربية غير متاحة على الجهاز — نزّلها من إعدادات التعرف الصوتي.',
   NETWORK: 'خدمة التعرف تحتاج اتصال إنترنت — شغّل الإنترنت ثم أعد المحاولة.',
   NETWORK_TIMEOUT: 'انتهت مهلة الاتصال بخدمة التعرف — تحقق من الإنترنت.',
   NO_MATCH: 'لم يُتعرَّف على أي كلام — أعد التسميع بصوت أوضح.',
   RECOGNIZER_BUSY: 'خدمة التعرف مشغولة — أوقف التطبيقات التي تستخدم الميكروفون ثم أعد المحاولة.',
   SERVER: 'حدث خطأ في خدمة التعرف الصوتي — أعد المحاولة.',
   SERVER_DISCONNECTED: 'انقطع الاتصال بخدمة التعرف — أعد المحاولة.',
+  SERVICE_NOT_AVAILABLE: 'خدمة التعرف الصوتي غير مثبَّتة على الجهاز.',
   SPEECH_TIMEOUT: 'لم يُسمع أي صوت — اقترب من الميكروفون وأعد المحاولة.',
 };
 
@@ -91,291 +107,6 @@ function nativeErrorMessage(error: unknown): string {
   return /network|unavailable|not available|no match|service/.test(message) ? unavailableMessage : startErrorMessage;
 }
 
-/** Android/iOS recognizer backed by @capgo/capacitor-speech-recognition (Capacitor 8). */
-const NO_PARTIAL_TIMEOUT_MS = 8000;
-/** Continuous mode: after a silence gap the recognizer is relaunched in place. */
-const RESTART_DELAY_MS = 350;
-const STOP_GUARD_MS = 1500;
-const silenceCodes = new Set(['6', '7', 'NO_MATCH', 'SPEECH_TIMEOUT']);
-function isSilenceError(error: unknown): boolean {
-  const raw = error as { code?: unknown; error?: unknown } | undefined;
-  return silenceCodes.has(String(raw?.code ?? raw?.error ?? '').trim());
-}
-const noPartialMessage = 'لم يصل أي صوت من الميكروفون خلال ٨ ثوانٍ — تحقق من إذن الميكروفون ثم أعد المحاولة.';
-const missingNativePluginMessage = 'نسخة التطبيق المثبّتة قديمة ولا تحتوي محرّك الميكروفون الأصلي — ثبّت ملف APK الجديد.';
-
-class NativeProvider implements QuranSpeechRecognitionProvider {
-  readonly id = 'native' as const;
-  readonly name = 'التعرف الصوتي في النظام';
-  readonly networkRequirement: NetworkRequirement = 'unknown';
-  private callbacks: RecognitionCallbacks = {};
-  private lifecycle: RecognizerLifecycle = 'idle';
-  private listeners: { remove: () => void }[] = [];
-  private transcript = '';
-  private language = 'ar-SA';
-  private contextualStrings: string[] = [];
-  private stopRequested = false;
-  private finalDelivered = false;
-  private gotPartial = false;
-  private startInFlight = false;
-  private guardTimer: ReturnType<typeof setTimeout> | null = null;
-  private partialTimer: ReturnType<typeof setTimeout> | null = null;
-  private restartTimer: ReturnType<typeof setTimeout> | null = null;
-
-  private async plugin() { return (await import('@capgo/capacitor-speech-recognition')).SpeechRecognition; }
-
-  /** On a native build this provider is the ONLY possible one: the Android WebView
-   *  has no window.SpeechRecognition, so never fall back to the web provider. */
-  async isAvailable() {
-    if (!Capacitor.isNativePlatform()) return false;
-    if (!Capacitor.isPluginAvailable('SpeechRecognition')) {
-      console.error('[speech/native]', missingNativePluginMessage);
-      return false;
-    }
-    try {
-      const result = await (await this.plugin()).available();
-      console.log('[speech/native] available():', JSON.stringify(result));
-      return result.available === true;
-    } catch (error) {
-      console.error('[speech/native] availability check failed', error);
-      return false;
-    }
-  }
-  private normalizePermission(status: Record<string, unknown> | undefined): PermissionResult {
-    const values = Object.values(status || {}).map(value => String(value));
-    if (values.length === 0) return 'prompt';
-    if (values.every(value => value === 'granted')) return 'granted';
-    if (values.some(value => value === 'denied')) return 'denied';
-    return 'prompt';
-  }
-  async checkPermission(): Promise<PermissionResult> {
-    try {
-      const status = await (await this.plugin()).checkPermissions() as unknown as Record<string, unknown>;
-      console.log('[speech/native] checkPermissions:', JSON.stringify(status));
-      return this.normalizePermission(status);
-    }
-    catch (error) { console.error('[speech/native] permission check failed', error); return 'prompt'; }
-  }
-  async requestPermission(): Promise<PermissionResult> {
-    try {
-      const status = await (await this.plugin()).requestPermissions() as unknown as Record<string, unknown>;
-      console.log('[speech/native] requestPermissions:', JSON.stringify(status));
-      return this.normalizePermission(status);
-    }
-    catch (error) { console.error('[speech/native] permission request failed', error); return 'denied'; }
-  }
-  async resolveLanguage(preferred: string): Promise<LanguageCheck> {
-    const requested = preferred.toLowerCase().startsWith('ar') ? preferred : 'ar-SA';
-    try {
-      const languages = (await (await this.plugin()).getSupportedLanguages()).languages || [];
-      // Android 13+ no longer exposes the list; an empty list is not a failure.
-      if (languages.length === 0) return { lang: requested, supported: true, substituted: requested !== preferred };
-      const exact = languages.find(item => item.toLowerCase() === requested.toLowerCase());
-      if (exact) return { lang: exact, supported: true, substituted: exact !== preferred };
-      const arabic = languages.find(item => item.toLowerCase().startsWith('ar'));
-      return arabic ? { lang: arabic, supported: true, substituted: true } : { lang: requested, supported: false, substituted: false };
-    } catch (error) {
-      console.error('[speech/native] language check failed', error);
-      return { lang: requested, supported: true, substituted: requested !== preferred };
-    }
-  }
-
-  private markListening() {
-    if (this.finalDelivered || this.stopRequested) return;
-    this.clearRestartTimer();
-    if (this.lifecycle !== 'listening') this.callbacks.onStateChange?.('listening');
-    this.lifecycle = 'listening';
-  }
-
-  private applyPartial(text: string) {
-    if (!text || this.finalDelivered) return;
-    this.gotPartial = true;
-    this.clearPartialTimer();
-    this.markListening();
-    this.transcript = mergeTranscript(this.transcript, text);
-    this.callbacks.onPartialResult?.(this.transcript);
-  }
-
-  /** The single place that talks to plugin.start(); serialized so no second
-   *  microphone session can ever be opened for the same attempt. */
-  private async launch() {
-    if (this.finalDelivered || this.stopRequested || this.startInFlight) return;
-    this.startInFlight = true;
-    try {
-      await (await this.plugin()).start({
-        language: this.language,
-        maxResults: 5,
-        partialResults: true,
-        popup: false,
-        continuousPTT: true,
-        allowForSilence: 1500,
-        muteRecognizerBeep: true,
-        ...(this.contextualStrings.length ? { contextualStrings: this.contextualStrings } : {}),
-      });
-      if (!this.stopRequested) this.markListening();
-    } catch (error) {
-      if (this.finalDelivered) return;
-      if (this.lifecycle === 'starting') await this.failStart(error);
-      else if (!this.stopRequested && isSilenceError(error)) this.scheduleRestart();
-      else { console.error('[speech/native] session ended with error', error); await this.finish(); }
-    } finally {
-      this.startInFlight = false;
-    }
-  }
-
-  async startListening(language: string, callbacks: RecognitionCallbacks, options: RecognitionOptions = {}): Promise<boolean> {
-    if (this.lifecycle !== 'idle' || !acquire(this)) return false;
-    this.lifecycle = 'starting';
-    this.callbacks = callbacks;
-    this.language = language.toLowerCase().startsWith('ar') ? language : 'ar-SA';
-    this.contextualStrings = (options.contextualStrings || []).filter(Boolean).slice(0, 200);
-    this.transcript = '';
-    this.stopRequested = false;
-    this.finalDelivered = false;
-    this.gotPartial = false;
-    try {
-      const plugin = await this.plugin();
-      // Never let a previous attempt's listeners survive into this session.
-      await plugin.removeAllListeners();
-      const bestMatch = (matches?: string[]) => (matches || []).reduce((top, value) => value.length > top.length ? value : top, '');
-      this.listeners = [
-        await plugin.addListener('partialResults', data => this.applyPartial(data.accumulatedText || bestMatch(data.matches))),
-        // Android continuous mode closes each silence-delimited segment separately.
-        await plugin.addListener('segmentResults', data => this.applyPartial(bestMatch(data.matches))),
-        // Proves Android's native recognizer actually owns the microphone.
-        await plugin.addListener('audioLevel', () => this.markListening()),
-        await plugin.addListener('listeningState', data => {
-          const stopped = data.state === 'stopped' || data.status === 'stopped';
-          if (!stopped) { this.markListening(); return; }
-          if (this.stopRequested || this.lifecycle === 'stopping') { void this.finish(); return; }
-          this.scheduleRestart();
-        }),
-        await plugin.addListener('error', event => {
-          console.error('[speech/native] recognizer error', JSON.stringify(event), event);
-          if (this.finalDelivered) return;
-          // Silence/no-match inside a continuous session is normal: relaunch in place.
-          if (!this.stopRequested && isSilenceError(event)) { this.scheduleRestart(); return; }
-          if (this.lifecycle === 'starting') { void this.failStart(event); return; }
-          if (!this.stopRequested) this.callbacks.onError?.(nativeErrorMessage(event), event);
-          void this.finish();
-        }),
-      ];
-
-      // start() may only resolve when the recognizer closes: never gate the UI on it.
-      void this.launch();
-      this.clearPartialTimer();
-      this.partialTimer = setTimeout(() => {
-        if (this.finalDelivered || this.gotPartial) return;
-        console.error('[speech/native] no partial results within timeout');
-        this.callbacks.onError?.(noPartialMessage);
-        void this.forceStopAndFinish();
-      }, NO_PARTIAL_TIMEOUT_MS);
-      return true;
-    } catch (error) {
-      await this.failStart(error);
-      return false;
-    }
-  }
-
-  /** Silence closed the recognizer — resume listening in the same session. */
-  private scheduleRestart() {
-    if (this.finalDelivered || this.stopRequested || this.restartTimer) return;
-    this.lifecycle = 'restarting';
-    this.restartTimer = setTimeout(() => {
-      this.restartTimer = null;
-      void this.launch();
-    }, RESTART_DELAY_MS);
-  }
-  private clearRestartTimer() {
-    if (this.restartTimer) clearTimeout(this.restartTimer);
-    this.restartTimer = null;
-  }
-  private clearPartialTimer() {
-    if (this.partialTimer) clearTimeout(this.partialTimer);
-    this.partialTimer = null;
-  }
-  private clearTimers() {
-    if (this.guardTimer) clearTimeout(this.guardTimer);
-    this.guardTimer = null;
-    this.clearPartialTimer();
-    this.clearRestartTimer();
-  }
-  private async clearListeners() {
-    for (const listener of this.listeners) {
-      try { await listener.remove(); } catch (error) { console.error('[speech/native] listener cleanup failed', error); }
-    }
-    this.listeners = [];
-    try { await (await this.plugin()).removeAllListeners(); }
-    catch (error) { console.error('[speech/native] removeAllListeners failed', error); }
-  }
-  /** Last line of defence: stop() can hang, so force it and keep the cached partial. */
-  private async forceStopAndFinish() {
-    this.stopRequested = true;
-    this.clearRestartTimer();
-    try { await (await this.plugin()).forceStop({ timeout: 1200 }); }
-    catch (error) { console.error('[speech/native] forceStop failed', error); }
-    await this.finish();
-  }
-  private async cachedPartial(): Promise<string> {
-    try {
-      const last = await (await this.plugin()).getLastPartialResult();
-      return last?.available ? String(last.text || '') : '';
-    } catch (error) { console.error('[speech/native] getLastPartialResult failed', error); return ''; }
-  }
-  /** The single termination path: runs at most once per attempt. */
-  private async finish() {
-    if (this.finalDelivered) return;
-    this.finalDelivered = true;
-    this.lifecycle = 'processing';
-    this.clearTimers();
-    const cached = await this.cachedPartial();
-    if (cached) this.transcript = mergeTranscript(this.transcript, cached);
-    const result = this.transcript.trim();
-    await this.clearListeners();
-    this.lifecycle = 'idle';
-    release(this);
-    this.callbacks.onStateChange?.('completed');
-    this.callbacks.onFinalResult?.(result);
-  }
-  private async failStart(error: unknown) {
-    if (this.finalDelivered) return;
-    console.error('[speech/native] start failed', error);
-    this.finalDelivered = true;
-    this.clearTimers();
-    await this.clearListeners();
-    this.lifecycle = 'idle';
-    release(this);
-    this.callbacks.onError?.(nativeErrorMessage(error), error);
-    this.callbacks.onStateChange?.('error');
-  }
-  async stopListening() {
-    if (this.lifecycle === 'idle' || this.finalDelivered) return;
-    this.stopRequested = true;
-    this.lifecycle = 'stopping';
-    this.callbacks.onStateChange?.('processing');
-    this.clearTimers();
-    try { await (await this.plugin()).stop(); }
-    catch (error) { console.error('[speech/native] stop failed', error); }
-    this.guardTimer = setTimeout(() => { void this.forceStopAndFinish(); }, STOP_GUARD_MS);
-  }
-  async dispose() {
-    this.stopRequested = true;
-    this.clearTimers();
-    if (this.lifecycle !== 'idle') {
-      try { await (await this.plugin()).forceStop({ timeout: 800 }); }
-      catch (error) { console.error('[speech/native] dispose stop failed', error); }
-    }
-    this.finalDelivered = true;
-    await this.clearListeners();
-    this.transcript = '';
-    this.lifecycle = 'idle';
-    release(this);
-  }
-}
-
-/** Android's own SpeechRecognizer, driven by the in-app NoorSpeech plugin:
- *  live partial results, Arabic biasing strings and a continuous session that
- *  Android reopens on silence — the same path the reference app uses. */
 interface NoorSpeechPlugin {
   available(): Promise<{ available: boolean; onDeviceAvailable?: boolean; sdk?: number }>;
   checkMicPermission(): Promise<{ microphone: string }>;
@@ -384,7 +115,7 @@ interface NoorSpeechPlugin {
   stop(): Promise<void>;
   forceStop(): Promise<void>;
   getLastPartialResult(): Promise<{ text: string }>;
-  addListener(event: string, handler: (data: any) => void): Promise<{ remove: () => void }>;
+  addListener(event: string, handler: (data: Record<string, unknown>) => void): Promise<{ remove: () => void }>;
   removeAllListeners(): Promise<void>;
 }
 
@@ -454,6 +185,7 @@ class NoorNativeProvider implements QuranSpeechRecognitionProvider {
     this.gotPartial = false;
     try {
       const plugin = await getNoorPlugin();
+      // No listener from a previous attempt may survive into this session.
       await plugin.removeAllListeners();
       this.listeners = [
         await plugin.addListener('partialResults', data => {
@@ -475,8 +207,10 @@ class NoorNativeProvider implements QuranSpeechRecognitionProvider {
           this.interim = '';
           this.emit();
         }),
+        // Proves Android's recognizer actually owns the microphone.
         await plugin.addListener('audioLevel', () => this.markListening()),
         await plugin.addListener('listeningState', data => {
+          // The plugin reopens itself on silence; 'stopped' only arrives when we asked.
           if (data?.state === 'stopped') { if (this.stopRequested) void this.finish(); return; }
           this.markListening();
         }),
@@ -518,6 +252,7 @@ class NoorNativeProvider implements QuranSpeechRecognitionProvider {
     try { await (await getNoorPlugin()).forceStop(); } catch (error) { console.error('[speech/noor] forceStop failed', error); }
     await this.finish();
   }
+  /** The single termination path: runs at most once per attempt. */
   private async finish() {
     if (this.finalDelivered) return;
     this.finalDelivered = true;
@@ -570,120 +305,11 @@ class NoorNativeProvider implements QuranSpeechRecognitionProvider {
   }
 }
 
-
-interface WebRecognition {
-  lang: string; continuous: boolean; interimResults: boolean; maxAlternatives: number;
-  onresult: ((event: any) => void) | null; onerror: ((event: any) => void) | null; onend: (() => void) | null;
-  start(): void; stop(): void; abort(): void;
-}
-
-function webConstructor(): (new () => WebRecognition) | null {
-  if (typeof window === 'undefined') return null;
-  const speechWindow = window as typeof window & { SpeechRecognition?: new () => WebRecognition; webkitSpeechRecognition?: new () => WebRecognition };
-  return speechWindow.SpeechRecognition || speechWindow.webkitSpeechRecognition || null;
-}
-
-class WebProvider implements QuranSpeechRecognitionProvider {
-  readonly id = 'web' as const;
-  readonly name = 'التعرف الصوتي في المتصفح';
-  readonly networkRequirement: NetworkRequirement = 'required';
-  private recognizer: WebRecognition | null = null;
-  private callbacks: RecognitionCallbacks = {};
-  private transcript = '';
-  private lifecycle: RecognizerLifecycle = 'idle';
-  private stopRequested = false;
-  private finalDelivered = false;
-  private guardTimer: ReturnType<typeof setTimeout> | null = null;
-
-  async isAvailable() { return webConstructor() !== null; }
-  async checkPermission(): Promise<PermissionResult> {
-    try { return (await navigator.permissions?.query({ name: 'microphone' as PermissionName }))?.state as PermissionResult || 'prompt'; }
-    catch { return 'prompt'; }
-  }
-  async requestPermission(): Promise<PermissionResult> {
-    try { const stream = await navigator.mediaDevices.getUserMedia({ audio: true }); stream.getTracks().forEach(track => track.stop()); return 'granted'; }
-    catch (error) { console.error('[speech/web] permission denied', error); return 'denied'; }
-  }
-  async resolveLanguage(preferred: string): Promise<LanguageCheck> {
-    const supported = preferred.toLowerCase().startsWith('ar');
-    return { lang: supported ? preferred : 'ar-SA', supported, substituted: false };
-  }
-  async startListening(language: string, callbacks: RecognitionCallbacks): Promise<boolean> {
-    const Constructor = webConstructor();
-    if (!Constructor || this.lifecycle !== 'idle' || !acquire(this)) return false;
-    this.callbacks = callbacks;
-    this.transcript = '';
-    this.stopRequested = false;
-    this.finalDelivered = false;
-    this.lifecycle = 'starting';
-    const recognizer = new Constructor();
-    recognizer.lang = language;
-    recognizer.continuous = true;
-    recognizer.interimResults = true;
-    recognizer.maxAlternatives = 3;
-    recognizer.onresult = event => {
-      let interim = '';
-      for (let index = event.resultIndex; index < event.results.length; index++) {
-        const result = event.results[index];
-        const text = String(result[0]?.transcript || '').trim();
-        if (!text) continue;
-        if (result.isFinal) this.transcript = mergeTranscript(this.transcript, text);
-        else interim = mergeTranscript(interim, text);
-      }
-      this.callbacks.onPartialResult?.(mergeTranscript(this.transcript, interim));
-    };
-    recognizer.onerror = event => {
-      if (event.error === 'not-allowed') callbacks.onStateChange?.('permissionDenied');
-      else if (!['no-speech', 'aborted'].includes(event.error)) callbacks.onError?.(event.error === 'network' ? unavailableMessage : 'تعذّر التعرف على الصوت', event.error);
-    };
-    recognizer.onend = () => {
-      if (!this.stopRequested && this.lifecycle === 'listening') {
-        this.lifecycle = 'restarting';
-        try { recognizer.start(); this.lifecycle = 'listening'; return; }
-        catch (error) { console.error('[speech/web] restart failed', error); }
-      }
-      void this.finish();
-    };
-    this.recognizer = recognizer;
-    try { recognizer.start(); this.lifecycle = 'listening'; callbacks.onStateChange?.('listening'); return true; }
-    catch (error) {
-      console.error('[speech/web] start failed', error);
-      this.recognizer = null; this.lifecycle = 'idle'; release(this);
-      callbacks.onError?.(startErrorMessage, error); callbacks.onStateChange?.('error'); return false;
-    }
-  }
-  private async finish() {
-    if (this.finalDelivered) return;
-    this.finalDelivered = true;
-    if (this.guardTimer) clearTimeout(this.guardTimer);
-    this.guardTimer = null;
-    const result = this.transcript.trim();
-    this.recognizer = null;
-    this.lifecycle = 'idle';
-    release(this);
-    this.callbacks.onStateChange?.('completed');
-    this.callbacks.onFinalResult?.(result);
-  }
-  async stopListening() {
-    if (this.lifecycle === 'idle' || this.finalDelivered) return;
-    this.stopRequested = true;
-    this.lifecycle = 'stopping';
-    this.callbacks.onStateChange?.('processing');
-    try { this.recognizer?.stop(); } catch (error) { console.error('[speech/web] stop failed', error); }
-    if (this.guardTimer) clearTimeout(this.guardTimer);
-    this.guardTimer = setTimeout(() => { void this.finish(); }, 2000);
-  }
-  async dispose() {
-    this.stopRequested = true;
-    if (this.guardTimer) clearTimeout(this.guardTimer);
-    this.guardTimer = null;
-    try { this.recognizer?.abort(); } catch (error) { console.error('[speech/web] dispose failed', error); }
-    this.recognizer = null; this.transcript = ''; this.finalDelivered = true; this.lifecycle = 'idle'; release(this);
-  }
-}
-
+/** Used off-Android: the UI stays honest instead of pretending to listen. */
 class NoProvider implements QuranSpeechRecognitionProvider {
-  readonly id = 'none' as const; readonly name = 'غير متاح'; readonly networkRequirement: NetworkRequirement = 'unknown';
+  readonly id = 'none' as const;
+  readonly name = 'غير متاح';
+  readonly networkRequirement: NetworkRequirement = 'unknown';
   async isAvailable() { return false; }
   async checkPermission(): Promise<PermissionResult> { return 'denied'; }
   async requestPermission(): Promise<PermissionResult> { return 'denied'; }
@@ -696,18 +322,11 @@ class NoProvider implements QuranSpeechRecognitionProvider {
 let cachedProvider: QuranSpeechRecognitionProvider | null = null;
 export async function getSpeechProvider(): Promise<QuranSpeechRecognitionProvider> {
   if (cachedProvider) return cachedProvider;
-  // Preferred on Android: our own plugin over the system SpeechRecognizer.
   const noor = new NoorNativeProvider();
   if (await noor.isAvailable()) return (cachedProvider = noor);
-  const native = new NativeProvider();
-  if (await native.isAvailable()) return (cachedProvider = native);
-  // A Capacitor Android/iOS build must never silently use the WebView recognizer.
-  // Missing native registration means the installed APK itself must be replaced.
-  if (Capacitor.isNativePlatform()) return (cachedProvider = new NoProvider());
-  const web = new WebProvider();
-  if (await web.isAvailable()) return (cachedProvider = web);
   return (cachedProvider = new NoProvider());
 }
+
 export const isOnline = () => typeof navigator === 'undefined' || navigator.onLine !== false;
 
 export interface SpeechDiagnostics {
@@ -730,42 +349,19 @@ export async function runSpeechDiagnostics(): Promise<SpeechDiagnostics> {
     platform: Capacitor.getPlatform(),
     native,
     provider: provider.id,
-    pluginAvailable: 'غير مفحوص',
-    pluginVersion: 'غير مفحوص',
+    pluginAvailable: native ? 'غير مسجّلة داخل APK — ثبّت النسخة الجديدة' : 'المحرك الأصلي يعمل على الهاتف فقط',
+    pluginVersion: 'NoorSpeech (محرك أندرويد الأصلي)',
     permissionBefore: 'غير مفحوص',
     permissionAfter: 'غير مطلوب',
-    languages: 'غير مفحوص',
+    languages: native ? 'غير قابل للفحص' : 'ar-SA على الهاتف فقط',
     online: isOnline(),
   };
   if (native && Capacitor.isPluginAvailable('NoorSpeech')) {
     try {
       const plugin = await getNoorPlugin();
       report.pluginAvailable = `NoorSpeech: ${JSON.stringify(await plugin.available())}`;
-      report.pluginVersion = 'NoorSpeech (محرك أندرويد الأصلي)';
       report.languages = 'ar-SA عبر خدمة التعرف في النظام';
     } catch (error) { report.pluginAvailable = `فشل NoorSpeech: ${String(error)}`; }
-    report.permissionBefore = await provider.checkPermission();
-    if (report.permissionBefore !== 'granted') report.permissionAfter = await provider.requestPermission();
-    return report;
-  }
-  if (native) {
-    if (!Capacitor.isPluginAvailable('SpeechRecognition')) {
-      report.pluginAvailable = 'غير مسجّلة داخل APK — ثبّت النسخة الجديدة';
-      report.pluginVersion = 'غير موجودة';
-      report.permissionBefore = 'غير قابل للفحص';
-      report.permissionAfter = 'غير قابل للفحص';
-      report.languages = 'غير قابل للفحص';
-      return report;
-    }
-    try {
-      const plugin = (await import('@capgo/capacitor-speech-recognition')).SpeechRecognition;
-      report.pluginAvailable = JSON.stringify(await plugin.available());
-      report.pluginVersion = (await plugin.getPluginVersion()).version;
-      try {
-        const languages = (await plugin.getSupportedLanguages()).languages || [];
-        report.languages = languages.length ? languages.filter(l => l.toLowerCase().startsWith('ar')).join(', ') || `${languages.length} لغة بدون عربية` : 'القائمة غير متاحة (طبيعي في أندرويد 13+)';
-      } catch (error) { report.languages = `فشل: ${String(error)}`; }
-    } catch (error) { report.pluginAvailable = `فشل: ${String(error)}`; }
   }
   report.permissionBefore = await provider.checkPermission();
   if (report.permissionBefore !== 'granted') report.permissionAfter = await provider.requestPermission();
