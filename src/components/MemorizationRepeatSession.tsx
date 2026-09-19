@@ -159,6 +159,8 @@ export function MemorizationRepeatSession({ session, pages, totalPages }: Props)
   const [report, setReport] = useState<DiffReport | null>(null);
   const [speechNote, setSpeechNote] = useState<string | null>(null);
   const startingRef = useRef(false);
+  /** Quran words of the current recitation unit, used as native recognition hints. */
+  const contextualWordsRef = useRef<string[]>([]);
   const endingRef = useRef(false);
   const micAttemptRef = useRef(0);
 
@@ -305,6 +307,7 @@ export function MemorizationRepeatSession({ session, pages, totalPages }: Props)
         setSpeechNote(`لهجة "${settings.language}" غير متوفرة — سيُستخدم "${langCheck.lang}".`);
       }
 
+      const contextualStrings = Array.from(new Set(contextualWordsRef.current.filter(Boolean)));
       const ok = await withMicTimeout(provider.startListening(langCheck.lang, {
         onPartialResult: (t) => { if (isCurrentAttempt()) setPartial(t); },
         onStateChange: (s) => { if (isCurrentAttempt()) setMicState(s); },
@@ -326,7 +329,7 @@ export function MemorizationRepeatSession({ session, pages, totalPages }: Props)
           setMicState('error');
           setPhase('reviewing');
         },
-      }), 'microphone start');
+      }, { contextualStrings }), 'microphone start');
       if (!isCurrentAttempt()) return;
       if (!ok) {
         setSpeechNote('تعذّر بدء التسميع — حاول مرة أخرى.');
@@ -519,6 +522,7 @@ export function MemorizationRepeatSession({ session, pages, totalPages }: Props)
       : item.atomIds),
     [recitationUnits],
   );
+  useEffect(() => { contextualWordsRef.current = recitationUnits.flatMap(item => item.words); }, [recitationUnits]);
   const recitationProgress = useMemo(
     () => matchRecitationProgress(recitationUnits.flatMap(item => item.words), partial || finalText),
     [recitationUnits, partial, finalText],
