@@ -13,6 +13,11 @@ export interface RecognitionCallbacks {
   onError?: (message: string, technical?: unknown) => void;
 }
 
+export interface RecognitionOptions {
+  /** Quran words/phrases that help the native recognizer bias towards the recited text. */
+  contextualStrings?: string[];
+}
+
 export interface LanguageCheck { lang: string; supported: boolean; substituted: boolean }
 
 export interface QuranSpeechRecognitionProvider {
@@ -23,7 +28,7 @@ export interface QuranSpeechRecognitionProvider {
   checkPermission(): Promise<PermissionResult>;
   requestPermission(): Promise<PermissionResult>;
   resolveLanguage(preferred: string): Promise<LanguageCheck>;
-  startListening(lang: string, callbacks: RecognitionCallbacks): Promise<boolean>;
+  startListening(lang: string, callbacks: RecognitionCallbacks, options?: RecognitionOptions): Promise<boolean>;
   stopListening(): Promise<void>;
   dispose(): Promise<void>;
 }
@@ -88,6 +93,13 @@ function nativeErrorMessage(error: unknown): string {
 
 /** Android/iOS recognizer backed by @capgo/capacitor-speech-recognition (Capacitor 8). */
 const NO_PARTIAL_TIMEOUT_MS = 8000;
+/** Continuous mode restarts the Android recognizer after each silence gap. */
+const RESTART_GRACE_MS = 2500;
+const silenceCodes = new Set(['6', '7', 'NO_MATCH', 'SPEECH_TIMEOUT']);
+function isSilenceError(error: unknown): boolean {
+  const raw = error as { code?: unknown; error?: unknown } | undefined;
+  return silenceCodes.has(String(raw?.code ?? raw?.error ?? '').trim());
+}
 const noPartialMessage = 'لم يصل أي صوت من الميكروفون خلال ٨ ثوانٍ — تحقق من إذن الميكروفون ثم أعد المحاولة.';
 const missingNativePluginMessage = 'نسخة التطبيق المثبّتة قديمة ولا تحتوي محرّك الميكروفون الأصلي — ثبّت ملف APK الجديد.';
 
@@ -105,6 +117,7 @@ class NativeProvider implements QuranSpeechRecognitionProvider {
   private gotPartial = false;
   private guardTimer: ReturnType<typeof setTimeout> | null = null;
   private partialTimer: ReturnType<typeof setTimeout> | null = null;
+  private restartTimer: ReturnType<typeof setTimeout> | null = null;
 
   private async plugin() { return (await import('@capgo/capacitor-speech-recognition')).SpeechRecognition; }
 
@@ -285,6 +298,7 @@ class NativeProvider implements QuranSpeechRecognitionProvider {
     if (this.guardTimer) clearTimeout(this.guardTimer);
     this.guardTimer = null;
     this.clearPartialTimer();
+    this.clearRestartGrace();
   }
   private async clearListeners() {
     for (const listener of this.listeners) {
