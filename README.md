@@ -72,8 +72,8 @@ npm ci
 npm run build
 npx cap sync android
 
-# تحقق أن إضافة التسميع الأصلية دخلت مشروع Android
-grep -q "capgo-capacitor-speech-recognition" android/capacitor.settings.gradle
+# تحقق أن محرك التسميع الأصلي NoorSpeech مسجَّل داخل مشروع Android
+grep -q "NoorSpeechPlugin" android/app/src/main/java/app/lovable/p9444b7b6261c4f408a4fa03f717ae338/MainActivity.java
 
 # فتح في Android Studio
 npx cap open android

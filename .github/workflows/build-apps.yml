@@ -92,12 +92,11 @@ jobs:
       - name: Sync Capacitor
         run: npx cap sync android
 
-      - name: Verify native speech recognition
+      - name: Verify native speech recognition (NoorSpeech)
         run: |
-          grep -q "capgo-capacitor-speech-recognition" android/capacitor.settings.gradle
-          grep -q "capgo-capacitor-speech-recognition" android/app/capacitor.build.gradle
+          test -f android/app/src/main/java/app/lovable/p9444b7b6261c4f408a4fa03f717ae338/NoorSpeechPlugin.java
+          grep -q "NoorSpeechPlugin" android/app/src/main/java/app/lovable/p9444b7b6261c4f408a4fa03f717ae338/MainActivity.java
           grep -q "android.permission.RECORD_AUDIO" android/app/src/main/AndroidManifest.xml
-          test -f node_modules/@capgo/capacitor-speech-recognition/android/build.gradle
 
       - name: Build Debug APK
         working-directory: android

@@ -8,6 +8,7 @@
  */
 
 import { Capacitor } from '@capacitor/core';
+import { getSpeechProvider } from '@/services/speechRecognition';
 
 export async function requestAllNativePermissions(): Promise<void> {
   if (!Capacitor.isNativePlatform()) return;
@@ -48,17 +49,16 @@ export async function requestAllNativePermissions(): Promise<void> {
     console.error('[nativePermissions] Notification permission error:', e);
   }
 
-  // ── 2. Microphone / speech recognition — required by the recitation session ──
+  // ── 2. Microphone — required by the single recitation engine (NoorSpeech) ──
   try {
-    const { SpeechRecognition } = await import('@capgo/capacitor-speech-recognition');
-    const current = await SpeechRecognition.checkPermissions() as unknown as Record<string, unknown>;
-    console.log('[nativePermissions] Speech permission check:', JSON.stringify(current));
-    if (Object.values(current || {}).some(value => String(value) !== 'granted')) {
-      const result = await SpeechRecognition.requestPermissions() as unknown as Record<string, unknown>;
-      console.log('[nativePermissions] Speech permission request result:', JSON.stringify(result));
+    const provider = await getSpeechProvider();
+    const current = await provider.checkPermission();
+    console.log('[nativePermissions] Microphone permission check:', current);
+    if (current !== 'granted') {
+      console.log('[nativePermissions] Microphone permission request result:', await provider.requestPermission());
     }
   } catch (e) {
-    console.error('[nativePermissions] Speech permission error:', e);
+    console.error('[nativePermissions] Microphone permission error:', e);
   }
 
   console.log('[nativePermissions] All permission requests completed');
