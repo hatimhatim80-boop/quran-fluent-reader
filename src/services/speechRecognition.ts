@@ -182,7 +182,7 @@ class NativeProvider implements QuranSpeechRecognitionProvider {
     this.callbacks.onPartialResult?.(this.transcript);
   }
 
-  async startListening(language: string, callbacks: RecognitionCallbacks): Promise<boolean> {
+  async startListening(language: string, callbacks: RecognitionCallbacks, options: RecognitionOptions = {}): Promise<boolean> {
     if (this.lifecycle !== 'idle' || !acquire(this)) return false;
     this.lifecycle = 'starting';
     this.callbacks = callbacks;
@@ -200,7 +200,14 @@ class NativeProvider implements QuranSpeechRecognitionProvider {
       this.listeners = [
         await plugin.addListener('partialResults', data => {
           const best = (data.matches || []).reduce((top, value) => value.length > top.length ? value : top, '');
+          this.clearRestartGrace();
           this.applyPartial(data.accumulatedText || best);
+        }),
+        // Android continuous mode closes each silence-delimited segment separately.
+        await plugin.addListener('segmentResults', data => {
+          const best = (data.matches || []).reduce((top, value) => value.length > top.length ? value : top, '');
+          this.clearRestartGrace();
+          this.applyPartial(best);
         }),
         await plugin.addListener('audioLevel', () => {
           // This event proves that Android's native recognizer owns the microphone.
@@ -208,22 +215,34 @@ class NativeProvider implements QuranSpeechRecognitionProvider {
         }),
         await plugin.addListener('listeningState', data => {
           const stopped = data.state === 'stopped' || data.status === 'stopped';
-          if (!stopped) { this.markListening(); return; }
-          if (this.stopRequested || this.lifecycle === 'stopping') void this.finish();
-          else void this.finish();
+          if (!stopped) { this.clearRestartGrace(); this.markListening(); return; }
+          if (this.stopRequested || this.lifecycle === 'stopping') { void this.finish(); return; }
+          // Continuous mode restarts the recognizer after each silence: give it a
+          // moment to come back before ending the recitation session.
+          this.scheduleRestartGrace();
         }),
         await plugin.addListener('error', event => {
           console.error('[speech/native] recognizer error', JSON.stringify(event), event);
           if (this.finalDelivered) return;
-          // A recognizer error is never silent: the reciter must know why it stopped.
           if (this.lifecycle === 'starting') { void this.failStart(event); return; }
+          // Silence/no-match inside a continuous session is normal: the recognizer restarts.
+          if (!this.stopRequested && isSilenceError(event)) { this.scheduleRestartGrace(); return; }
           if (!this.stopRequested && !this.gotPartial) this.callbacks.onError?.(nativeErrorMessage(event), event);
           void this.finish();
         }),
       ];
 
       // start() resolves immediately with partialResults; never gate the UI on it.
-      void plugin.start({ language: this.language, maxResults: 5, partialResults: true, popup: false })
+      void plugin.start({
+        language: this.language,
+        maxResults: 5,
+        partialResults: true,
+        popup: false,
+        continuousPTT: true,
+        allowForSilence: 1500,
+        muteRecognizerBeep: true,
+        ...(options.contextualStrings?.length ? { contextualStrings: options.contextualStrings.slice(0, 200) } : {}),
+      })
         .then(() => { if (!this.stopRequested) this.markListening(); })
         .catch(error => {
           if (this.finalDelivered) return;
@@ -242,6 +261,20 @@ class NativeProvider implements QuranSpeechRecognitionProvider {
       await this.failStart(error);
       return false;
     }
+  }
+
+  private scheduleRestartGrace() {
+    if (this.finalDelivered || this.stopRequested || this.restartTimer) return;
+    this.restartTimer = setTimeout(() => {
+      this.restartTimer = null;
+      if (this.finalDelivered || this.stopRequested) return;
+      console.log('[speech/native] recognizer did not resume after silence — closing session');
+      void this.finish();
+    }, RESTART_GRACE_MS);
+  }
+  private clearRestartGrace() {
+    if (this.restartTimer) clearTimeout(this.restartTimer);
+    this.restartTimer = null;
   }
 
   private clearPartialTimer() {
