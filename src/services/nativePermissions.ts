@@ -8,6 +8,7 @@
  */
 
 import { Capacitor } from '@capacitor/core';
+import { getSpeechProvider } from '@/services/speechRecognition';
 
 export async function requestAllNativePermissions(): Promise<void> {
   if (!Capacitor.isNativePlatform()) return;
