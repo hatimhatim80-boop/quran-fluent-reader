@@ -373,6 +373,203 @@ class NativeProvider implements QuranSpeechRecognitionProvider {
   }
 }
 
+/** Android's own SpeechRecognizer, driven by the in-app NoorSpeech plugin:
+ *  live partial results, Arabic biasing strings and a continuous session that
+ *  Android reopens on silence — the same path the reference app uses. */
+interface NoorSpeechPlugin {
+  available(): Promise<{ available: boolean; onDeviceAvailable?: boolean; sdk?: number }>;
+  checkMicPermission(): Promise<{ microphone: string }>;
+  requestMicPermission(): Promise<{ microphone: string }>;
+  start(options: { language: string; contextualStrings?: string[]; preferOffline?: boolean }): Promise<void>;
+  stop(): Promise<void>;
+  forceStop(): Promise<void>;
+  getLastPartialResult(): Promise<{ text: string }>;
+  addListener(event: string, handler: (data: any) => void): Promise<{ remove: () => void }>;
+  removeAllListeners(): Promise<void>;
+}
+
+let noorPlugin: NoorSpeechPlugin | null = null;
+async function getNoorPlugin(): Promise<NoorSpeechPlugin> {
+  if (!noorPlugin) {
+    const { registerPlugin } = await import('@capacitor/core');
+    noorPlugin = registerPlugin<NoorSpeechPlugin>('NoorSpeech');
+  }
+  return noorPlugin;
+}
+
+class NoorNativeProvider implements QuranSpeechRecognitionProvider {
+  readonly id = 'native' as const;
+  readonly name = 'التعرف الصوتي الأصلي في أندرويد';
+  readonly networkRequirement: NetworkRequirement = 'optional';
+  private callbacks: RecognitionCallbacks = {};
+  private listeners: { remove: () => void }[] = [];
+  private lifecycle: RecognizerLifecycle = 'idle';
+  private committed = '';
+  private interim = '';
+  private stopRequested = false;
+  private finalDelivered = false;
+  private gotPartial = false;
+  private partialTimer: ReturnType<typeof setTimeout> | null = null;
+  private guardTimer: ReturnType<typeof setTimeout> | null = null;
+
+  async isAvailable() {
+    if (!Capacitor.isNativePlatform() || !Capacitor.isPluginAvailable('NoorSpeech')) return false;
+    try {
+      const result = await (await getNoorPlugin()).available();
+      console.log('[speech/noor] available():', JSON.stringify(result));
+      return result.available === true;
+    } catch (error) { console.error('[speech/noor] availability failed', error); return false; }
+  }
+  private normalize(value: string): PermissionResult {
+    return value === 'granted' ? 'granted' : value === 'denied' ? 'denied' : 'prompt';
+  }
+  async checkPermission(): Promise<PermissionResult> {
+    try { return this.normalize((await (await getNoorPlugin()).checkMicPermission()).microphone); }
+    catch (error) { console.error('[speech/noor] permission check failed', error); return 'prompt'; }
+  }
+  async requestPermission(): Promise<PermissionResult> {
+    try { return this.normalize((await (await getNoorPlugin()).requestMicPermission()).microphone); }
+    catch (error) { console.error('[speech/noor] permission request failed', error); return 'denied'; }
+  }
+  async resolveLanguage(preferred: string): Promise<LanguageCheck> {
+    const lang = preferred.toLowerCase().startsWith('ar') ? preferred : 'ar-SA';
+    return { lang, supported: true, substituted: lang !== preferred };
+  }
+
+  private emit() { this.callbacks.onPartialResult?.(mergeTranscript(this.committed, this.interim)); }
+  private markListening() {
+    if (this.finalDelivered || this.stopRequested) return;
+    if (this.lifecycle !== 'listening') this.callbacks.onStateChange?.('listening');
+    this.lifecycle = 'listening';
+  }
+
+  async startListening(language: string, callbacks: RecognitionCallbacks, options: RecognitionOptions = {}): Promise<boolean> {
+    if (this.lifecycle !== 'idle' || !acquire(this)) return false;
+    this.lifecycle = 'starting';
+    this.callbacks = callbacks;
+    this.committed = '';
+    this.interim = '';
+    this.stopRequested = false;
+    this.finalDelivered = false;
+    this.gotPartial = false;
+    try {
+      const plugin = await getNoorPlugin();
+      await plugin.removeAllListeners();
+      this.listeners = [
+        await plugin.addListener('partialResults', data => {
+          const text = String(data?.text || '');
+          if (!text || this.finalDelivered) return;
+          this.gotPartial = true;
+          this.clearPartialTimer();
+          this.markListening();
+          this.interim = text;
+          this.emit();
+        }),
+        await plugin.addListener('segmentResults', data => {
+          const text = String(data?.text || '');
+          if (!text || this.finalDelivered) return;
+          this.gotPartial = true;
+          this.clearPartialTimer();
+          this.markListening();
+          this.committed = mergeTranscript(this.committed, text);
+          this.interim = '';
+          this.emit();
+        }),
+        await plugin.addListener('audioLevel', () => this.markListening()),
+        await plugin.addListener('listeningState', data => {
+          if (data?.state === 'stopped') { if (this.stopRequested) void this.finish(); return; }
+          this.markListening();
+        }),
+        await plugin.addListener('error', event => {
+          console.error('[speech/noor] recognizer error', JSON.stringify(event));
+          if (this.finalDelivered) return;
+          if (this.lifecycle === 'starting') { void this.failStart(event); return; }
+          if (!this.stopRequested) this.callbacks.onError?.(nativeErrorMessage(event), event);
+          void this.finish();
+        }),
+      ];
+      await plugin.start({
+        language: language.toLowerCase().startsWith('ar') ? language : 'ar-SA',
+        contextualStrings: (options.contextualStrings || []).filter(Boolean).slice(0, 300),
+      });
+      this.markListening();
+      this.clearPartialTimer();
+      this.partialTimer = setTimeout(() => {
+        if (this.finalDelivered || this.gotPartial) return;
+        this.callbacks.onError?.(noPartialMessage);
+        void this.forceStopAndFinish();
+      }, NO_PARTIAL_TIMEOUT_MS);
+      return true;
+    } catch (error) {
+      await this.failStart(error);
+      return false;
+    }
+  }
+
+  private clearPartialTimer() { if (this.partialTimer) clearTimeout(this.partialTimer); this.partialTimer = null; }
+  private clearTimers() { this.clearPartialTimer(); if (this.guardTimer) clearTimeout(this.guardTimer); this.guardTimer = null; }
+  private async clearListeners() {
+    for (const listener of this.listeners) { try { listener.remove(); } catch { /* already gone */ } }
+    this.listeners = [];
+    try { await (await getNoorPlugin()).removeAllListeners(); } catch { /* already gone */ }
+  }
+  private async forceStopAndFinish() {
+    this.stopRequested = true;
+    try { await (await getNoorPlugin()).forceStop(); } catch (error) { console.error('[speech/noor] forceStop failed', error); }
+    await this.finish();
+  }
+  private async finish() {
+    if (this.finalDelivered) return;
+    this.finalDelivered = true;
+    this.lifecycle = 'processing';
+    this.clearTimers();
+    try {
+      const last = await (await getNoorPlugin()).getLastPartialResult();
+      if (last?.text) this.committed = mergeTranscript(this.committed, String(last.text));
+    } catch { /* keep what we already have */ }
+    const result = mergeTranscript(this.committed, this.interim).trim();
+    await this.clearListeners();
+    this.lifecycle = 'idle';
+    release(this);
+    this.callbacks.onStateChange?.('completed');
+    this.callbacks.onFinalResult?.(result);
+  }
+  private async failStart(error: unknown) {
+    if (this.finalDelivered) return;
+    console.error('[speech/noor] start failed', error);
+    this.finalDelivered = true;
+    this.clearTimers();
+    await this.clearListeners();
+    this.lifecycle = 'idle';
+    release(this);
+    this.callbacks.onError?.(nativeErrorMessage(error), error);
+    this.callbacks.onStateChange?.('error');
+  }
+  async stopListening() {
+    if (this.lifecycle === 'idle' || this.finalDelivered) return;
+    this.stopRequested = true;
+    this.lifecycle = 'stopping';
+    this.callbacks.onStateChange?.('processing');
+    this.clearPartialTimer();
+    try { await (await getNoorPlugin()).stop(); } catch (error) { console.error('[speech/noor] stop failed', error); }
+    if (this.guardTimer) clearTimeout(this.guardTimer);
+    this.guardTimer = setTimeout(() => { void this.forceStopAndFinish(); }, STOP_GUARD_MS);
+  }
+  async dispose() {
+    this.stopRequested = true;
+    this.clearTimers();
+    if (this.lifecycle !== 'idle') {
+      try { await (await getNoorPlugin()).forceStop(); } catch (error) { console.error('[speech/noor] dispose failed', error); }
+    }
+    this.finalDelivered = true;
+    await this.clearListeners();
+    this.committed = '';
+    this.interim = '';
+    this.lifecycle = 'idle';
+    release(this);
+  }
+}
+
 
 interface WebRecognition {
   lang: string; continuous: boolean; interimResults: boolean; maxAlternatives: number;
