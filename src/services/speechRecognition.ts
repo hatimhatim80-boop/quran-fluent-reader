@@ -93,8 +93,9 @@ function nativeErrorMessage(error: unknown): string {
 
 /** Android/iOS recognizer backed by @capgo/capacitor-speech-recognition (Capacitor 8). */
 const NO_PARTIAL_TIMEOUT_MS = 8000;
-/** Continuous mode restarts the Android recognizer after each silence gap. */
-const RESTART_GRACE_MS = 2500;
+/** Continuous mode: after a silence gap the recognizer is relaunched in place. */
+const RESTART_DELAY_MS = 350;
+const STOP_GUARD_MS = 1500;
 const silenceCodes = new Set(['6', '7', 'NO_MATCH', 'SPEECH_TIMEOUT']);
 function isSilenceError(error: unknown): boolean {
   const raw = error as { code?: unknown; error?: unknown } | undefined;
@@ -112,9 +113,11 @@ class NativeProvider implements QuranSpeechRecognitionProvider {
   private listeners: { remove: () => void }[] = [];
   private transcript = '';
   private language = 'ar-SA';
+  private contextualStrings: string[] = [];
   private stopRequested = false;
   private finalDelivered = false;
   private gotPartial = false;
+  private startInFlight = false;
   private guardTimer: ReturnType<typeof setTimeout> | null = null;
   private partialTimer: ReturnType<typeof setTimeout> | null = null;
   private restartTimer: ReturnType<typeof setTimeout> | null = null;
@@ -122,12 +125,11 @@ class NativeProvider implements QuranSpeechRecognitionProvider {
   private async plugin() { return (await import('@capgo/capacitor-speech-recognition')).SpeechRecognition; }
 
   /** On a native build this provider is the ONLY possible one: the Android WebView
-   *  has no window.SpeechRecognition, so never fall back to the web provider.
-   *  available() is logged but must not disqualify the provider. */
+   *  has no window.SpeechRecognition, so never fall back to the web provider. */
   async isAvailable() {
     if (!Capacitor.isNativePlatform()) return false;
     if (!Capacitor.isPluginAvailable('SpeechRecognition')) {
-      console.error('[speech/native] native SpeechRecognition plugin is not registered in this APK');
+      console.error('[speech/native]', missingNativePluginMessage);
       return false;
     }
     try {
@@ -180,10 +182,9 @@ class NativeProvider implements QuranSpeechRecognitionProvider {
 
   private markListening() {
     if (this.finalDelivered || this.stopRequested) return;
-    if (this.lifecycle === 'starting' || this.lifecycle === 'listening') {
-      if (this.lifecycle === 'starting') this.callbacks.onStateChange?.('listening');
-      this.lifecycle = 'listening';
-    }
+    this.clearRestartTimer();
+    if (this.lifecycle !== 'listening') this.callbacks.onStateChange?.('listening');
+    this.lifecycle = 'listening';
   }
 
   private applyPartial(text: string) {
@@ -195,58 +196,13 @@ class NativeProvider implements QuranSpeechRecognitionProvider {
     this.callbacks.onPartialResult?.(this.transcript);
   }
 
-  async startListening(language: string, callbacks: RecognitionCallbacks, options: RecognitionOptions = {}): Promise<boolean> {
-    if (this.lifecycle !== 'idle' || !acquire(this)) return false;
-    this.lifecycle = 'starting';
-    this.callbacks = callbacks;
-    this.language = language.toLowerCase().startsWith('ar') ? language : 'ar-SA';
-    this.transcript = '';
-    this.stopRequested = false;
-    this.finalDelivered = false;
-    this.gotPartial = false;
+  /** The single place that talks to plugin.start(); serialized so no second
+   *  microphone session can ever be opened for the same attempt. */
+  private async launch() {
+    if (this.finalDelivered || this.stopRequested || this.startInFlight) return;
+    this.startInFlight = true;
     try {
-      const plugin = await this.plugin();
-      const availability = await plugin.available();
-      if (!availability.available) throw new Error(missingNativePluginMessage);
-      // Never let a previous attempt's listeners survive into this session.
-      await plugin.removeAllListeners();
-      this.listeners = [
-        await plugin.addListener('partialResults', data => {
-          const best = (data.matches || []).reduce((top, value) => value.length > top.length ? value : top, '');
-          this.clearRestartGrace();
-          this.applyPartial(data.accumulatedText || best);
-        }),
-        // Android continuous mode closes each silence-delimited segment separately.
-        await plugin.addListener('segmentResults', data => {
-          const best = (data.matches || []).reduce((top, value) => value.length > top.length ? value : top, '');
-          this.clearRestartGrace();
-          this.applyPartial(best);
-        }),
-        await plugin.addListener('audioLevel', () => {
-          // This event proves that Android's native recognizer owns the microphone.
-          this.markListening();
-        }),
-        await plugin.addListener('listeningState', data => {
-          const stopped = data.state === 'stopped' || data.status === 'stopped';
-          if (!stopped) { this.clearRestartGrace(); this.markListening(); return; }
-          if (this.stopRequested || this.lifecycle === 'stopping') { void this.finish(); return; }
-          // Continuous mode restarts the recognizer after each silence: give it a
-          // moment to come back before ending the recitation session.
-          this.scheduleRestartGrace();
-        }),
-        await plugin.addListener('error', event => {
-          console.error('[speech/native] recognizer error', JSON.stringify(event), event);
-          if (this.finalDelivered) return;
-          if (this.lifecycle === 'starting') { void this.failStart(event); return; }
-          // Silence/no-match inside a continuous session is normal: the recognizer restarts.
-          if (!this.stopRequested && isSilenceError(event)) { this.scheduleRestartGrace(); return; }
-          if (!this.stopRequested && !this.gotPartial) this.callbacks.onError?.(nativeErrorMessage(event), event);
-          void this.finish();
-        }),
-      ];
-
-      // start() resolves immediately with partialResults; never gate the UI on it.
-      void plugin.start({
+      await (await this.plugin()).start({
         language: this.language,
         maxResults: 5,
         partialResults: true,
@@ -254,14 +210,59 @@ class NativeProvider implements QuranSpeechRecognitionProvider {
         continuousPTT: true,
         allowForSilence: 1500,
         muteRecognizerBeep: true,
-        ...(options.contextualStrings?.length ? { contextualStrings: options.contextualStrings.slice(0, 200) } : {}),
-      })
-        .then(() => { if (!this.stopRequested) this.markListening(); })
-        .catch(error => {
+        ...(this.contextualStrings.length ? { contextualStrings: this.contextualStrings } : {}),
+      });
+      if (!this.stopRequested) this.markListening();
+    } catch (error) {
+      if (this.finalDelivered) return;
+      if (this.lifecycle === 'starting') await this.failStart(error);
+      else if (!this.stopRequested && isSilenceError(error)) this.scheduleRestart();
+      else { console.error('[speech/native] session ended with error', error); await this.finish(); }
+    } finally {
+      this.startInFlight = false;
+    }
+  }
+
+  async startListening(language: string, callbacks: RecognitionCallbacks, options: RecognitionOptions = {}): Promise<boolean> {
+    if (this.lifecycle !== 'idle' || !acquire(this)) return false;
+    this.lifecycle = 'starting';
+    this.callbacks = callbacks;
+    this.language = language.toLowerCase().startsWith('ar') ? language : 'ar-SA';
+    this.contextualStrings = (options.contextualStrings || []).filter(Boolean).slice(0, 200);
+    this.transcript = '';
+    this.stopRequested = false;
+    this.finalDelivered = false;
+    this.gotPartial = false;
+    try {
+      const plugin = await this.plugin();
+      // Never let a previous attempt's listeners survive into this session.
+      await plugin.removeAllListeners();
+      const bestMatch = (matches?: string[]) => (matches || []).reduce((top, value) => value.length > top.length ? value : top, '');
+      this.listeners = [
+        await plugin.addListener('partialResults', data => this.applyPartial(data.accumulatedText || bestMatch(data.matches))),
+        // Android continuous mode closes each silence-delimited segment separately.
+        await plugin.addListener('segmentResults', data => this.applyPartial(bestMatch(data.matches))),
+        // Proves Android's native recognizer actually owns the microphone.
+        await plugin.addListener('audioLevel', () => this.markListening()),
+        await plugin.addListener('listeningState', data => {
+          const stopped = data.state === 'stopped' || data.status === 'stopped';
+          if (!stopped) { this.markListening(); return; }
+          if (this.stopRequested || this.lifecycle === 'stopping') { void this.finish(); return; }
+          this.scheduleRestart();
+        }),
+        await plugin.addListener('error', event => {
+          console.error('[speech/native] recognizer error', JSON.stringify(event), event);
           if (this.finalDelivered) return;
-          if (this.lifecycle === 'starting') void this.failStart(error);
-          else { console.error('[speech/native] session ended with error', error); void this.finish(); }
-        });
+          // Silence/no-match inside a continuous session is normal: relaunch in place.
+          if (!this.stopRequested && isSilenceError(event)) { this.scheduleRestart(); return; }
+          if (this.lifecycle === 'starting') { void this.failStart(event); return; }
+          if (!this.stopRequested) this.callbacks.onError?.(nativeErrorMessage(event), event);
+          void this.finish();
+        }),
+      ];
+
+      // start() may only resolve when the recognizer closes: never gate the UI on it.
+      void this.launch();
       this.clearPartialTimer();
       this.partialTimer = setTimeout(() => {
         if (this.finalDelivered || this.gotPartial) return;
@@ -276,29 +277,28 @@ class NativeProvider implements QuranSpeechRecognitionProvider {
     }
   }
 
-  private scheduleRestartGrace() {
+  /** Silence closed the recognizer — resume listening in the same session. */
+  private scheduleRestart() {
     if (this.finalDelivered || this.stopRequested || this.restartTimer) return;
+    this.lifecycle = 'restarting';
     this.restartTimer = setTimeout(() => {
       this.restartTimer = null;
-      if (this.finalDelivered || this.stopRequested) return;
-      console.log('[speech/native] recognizer did not resume after silence — closing session');
-      void this.finish();
-    }, RESTART_GRACE_MS);
+      void this.launch();
+    }, RESTART_DELAY_MS);
   }
-  private clearRestartGrace() {
+  private clearRestartTimer() {
     if (this.restartTimer) clearTimeout(this.restartTimer);
     this.restartTimer = null;
   }
-
   private clearPartialTimer() {
     if (this.partialTimer) clearTimeout(this.partialTimer);
     this.partialTimer = null;
   }
-  private clearGuard() {
+  private clearTimers() {
     if (this.guardTimer) clearTimeout(this.guardTimer);
     this.guardTimer = null;
     this.clearPartialTimer();
-    this.clearRestartGrace();
+    this.clearRestartTimer();
   }
   private async clearListeners() {
     for (const listener of this.listeners) {
@@ -311,6 +311,7 @@ class NativeProvider implements QuranSpeechRecognitionProvider {
   /** Last line of defence: stop() can hang, so force it and keep the cached partial. */
   private async forceStopAndFinish() {
     this.stopRequested = true;
+    this.clearRestartTimer();
     try { await (await this.plugin()).forceStop({ timeout: 1200 }); }
     catch (error) { console.error('[speech/native] forceStop failed', error); }
     await this.finish();
@@ -321,11 +322,12 @@ class NativeProvider implements QuranSpeechRecognitionProvider {
       return last?.available ? String(last.text || '') : '';
     } catch (error) { console.error('[speech/native] getLastPartialResult failed', error); return ''; }
   }
+  /** The single termination path: runs at most once per attempt. */
   private async finish() {
     if (this.finalDelivered) return;
     this.finalDelivered = true;
     this.lifecycle = 'processing';
-    this.clearGuard();
+    this.clearTimers();
     const cached = await this.cachedPartial();
     if (cached) this.transcript = mergeTranscript(this.transcript, cached);
     const result = this.transcript.trim();
@@ -336,9 +338,10 @@ class NativeProvider implements QuranSpeechRecognitionProvider {
     this.callbacks.onFinalResult?.(result);
   }
   private async failStart(error: unknown) {
+    if (this.finalDelivered) return;
     console.error('[speech/native] start failed', error);
     this.finalDelivered = true;
-    this.clearGuard();
+    this.clearTimers();
     await this.clearListeners();
     this.lifecycle = 'idle';
     release(this);
@@ -350,14 +353,14 @@ class NativeProvider implements QuranSpeechRecognitionProvider {
     this.stopRequested = true;
     this.lifecycle = 'stopping';
     this.callbacks.onStateChange?.('processing');
+    this.clearTimers();
     try { await (await this.plugin()).stop(); }
     catch (error) { console.error('[speech/native] stop failed', error); }
-    this.clearGuard();
-    this.guardTimer = setTimeout(() => { void this.forceStopAndFinish(); }, 1500);
+    this.guardTimer = setTimeout(() => { void this.forceStopAndFinish(); }, STOP_GUARD_MS);
   }
   async dispose() {
     this.stopRequested = true;
-    this.clearGuard();
+    this.clearTimers();
     if (this.lifecycle !== 'idle') {
       try { await (await this.plugin()).forceStop({ timeout: 800 }); }
       catch (error) { console.error('[speech/native] dispose stop failed', error); }
